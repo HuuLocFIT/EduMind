@@ -1,0 +1,270 @@
+# Server Configuration
+server:
+  port: 8081
+
+# Spring Application Configuration
+spring:
+  application:
+    # Tên service - dùng để đăng ký với Eureka Discovery Server
+    # API Gateway và services khác sẽ gọi service này qua tên "auth-service"
+    # Ví dụ: lb://AUTH-SERVICE trong Gateway routes
+    name: auth-service
+
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/edumind_auth # Cấu trúc: jdbc:postgresql://<host>:<port>/<database_name>
+    username: postgres
+    password: huuloc123
+    driver-class-name: org.postgresql.Driver
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      # DDL (Data Definition Language) auto strategy
+      # validate - CHỈ kiểm tra schema có khớp với entities không, KHÔNG thay đổi database
+      # Các options khác:
+      #   - none: Không làm gì (manual control)
+      #   - update: Tự động update schema (KHÔNG AN TOÀN cho production)
+      #   - create: Xóa và tạo lại schema mỗi lần start (CHỈ cho testing)
+      #   - create-drop: Tạo khi start, xóa khi stop (CHỈ cho testing)
+      # Dùng 'validate' vì ta quản lý schema qua Flyway migrations
+      ddl-auto: validate
+
+    # Hiển thị SQL queries ra console/log
+    # Hữu ích cho debugging, học cách JPA hoạt động, performance tuning
+    # Production: Nên set false vì ảnh hưởng performance
+    show-sql: true
+
+    properties:
+      hibernate:
+        # PostgreSQL dialect - cho Hibernate biết cách generate SQL cho PostgreSQL
+        # Mỗi database có syntax khác nhau:
+        #   - PostgreSQL: SERIAL, LIMIT, OFFSET
+        #   - MySQL: AUTO_INCREMENT, LIMIT
+        #   - Oracle: SEQUENCE, ROWNUM
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+        # Format SQL cho dễ đọc (xuống dòng, indent)
+        # Ví dụ:
+        #   SELECT u.id, u.username FROM users u
+        # Thành:
+        #   SELECT
+        #       u.id,
+        #       u.username
+        #   FROM users u
+        format_sql: true
+
+        # Thêm comments vào SQL để trace query đến từ đâu
+        # Ví dụ: /* load com.edumind.auth.entity.User */ SELECT ...
+        # Hữu ích khi debug hoặc xem database query logs
+        use_sql_comments: true
+
+  # Flyway Configuration
+  flyway:
+    # Bật Flyway để quản lý database migrations
+    # Flyway = Git cho database, track mọi thay đổi schema
+    enabled: true
+
+    # Tạo baseline version cho database đã tồn tại
+    # Nếu database đã có data/schema trước khi dùng Flyway
+    # Flyway sẽ mark version hiện tại là baseline và chỉ apply migrations mới hơn
+    # false - Flyway sẽ error nếu database không empty
+    baseline-on-migrate: true
+
+    # Folder chứa migration scripts
+    # Structure:
+    #   src/main/resources/db/migration/
+    #     V1__Create_users_table.sql
+    #     V2__Add_email_column.sql
+    #     V3__Create_roles_table.sql
+    # Naming convention: V{version}__{description}.sql
+    #   - V1, V2, V3: Version numbers (tăng dần, không được trùng)
+    #   - __: Hai dấu underscore (bắt buộc)
+    #   - Create_users_table: Mô tả (dùng underscore thay space)
+    locations: classpath:db/migration
+
+    schemas: public
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      # URL của Eureka Server (Service Registry)
+      # Eureka = "phonebook" của microservices
+      # Auth Service đăng ký vào đây, API Gateway tìm Auth Service qua Eureka
+      # Port 8761 - port mặc định của Eureka Server
+      defaultZone: http://localhost:8761/eureka/
+
+    # Download danh sách services từ Eureka về local cache
+    # Auth Service cần list này để gọi các services khác
+    # Cache được refresh định kỳ (default: 30s)
+    # false - Service không biết services khác exist
+    fetch-registry: true
+
+    # Đăng ký service này lên Eureka Server
+    # Process:
+    #   1. Auth Service start → send info (name, IP, port, health URL) to Eureka
+    #   2. Eureka lưu vào registry
+    #   3. Gửi heartbeat mỗi 30s → Eureka biết service còn sống
+    #   4. Nếu 90s không có heartbeat → Eureka remove service khỏi registry
+    # false - Service chạy standalone, không ai discover được
+    register-with-eureka: true
+
+  instance:
+    # Dùng IP address thay vì hostname khi đăng ký với Eureka
+    # Tại sao?
+    #   - Docker/Kubernetes: Container hostname không resolve được từ outside
+    #   - Cloud: IP đáng tin cậy hơn hostname (DNS issues)
+    #   - Development: 192.168.1.100 rõ ràng hơn "my-laptop.local"
+    # false - Dùng hostname (có thể gây connection problems)
+    prefer-ip-address: true
+
+    # ID duy nhất cho service instance
+    # Format: auth-service:8081
+    # Tại sao cần unique ID?
+    #   - Một service có thể có nhiều instances (horizontal scaling)
+    #   - auth-service:8081, auth-service:8082, auth-service:8083
+    #   - Eureka cần distinguish từng instance để load balance
+    # ${} - Spring Expression Language, lấy giá trị từ config
+    instance-id: ${spring.application.name}:${server.port}
+
+# JWT Configuration
+jwt:
+  # Secret key để sign và verify JWT tokens
+  # JWT = Header + Payload + Signature
+  # Signature = HMAC-SHA256(Header + Payload, secret)
+  #
+  # YÊU CẦU:
+  #   - HS256 algorithm: Minimum 256 bits (32 characters)
+  #   - Phải random, không predictable
+  #   - Càng dài càng secure
+  secret: edumind-super-secret-key-for-jwt-token-generation-minimum-256-bits-required-for-hs256-algorithm
+
+  expiration: 86400000 # 24 hours in milliseconds
+  refresh-expiration: 604800000 # 7 days in milliseconds
+
+# Logging Configuration
+logging:
+  level:
+    # Log level cho tất cả packages không được specify riêng
+    # Log levels (từ ít đến nhiều chi tiết):
+    #   OFF > FATAL > ERROR > WARN > INFO > DEBUG > TRACE
+    #
+    # INFO - Log những events quan trọng:
+    #   - Application started
+    #   - Configuration loaded
+    #   - User registered/logged in
+    #   - Scheduled jobs executed
+    root: INFO
+
+    # Log level cho code của project (package com.edumind.*)
+    # DEBUG - Chi tiết để development và troubleshooting:
+    #   - Method calls với parameters
+    #   - Business logic flow
+    #   - Calculations và conditions
+    #   - Errors với stack traces
+    # Production: Nên giảm xuống INFO
+    com.edumind: DEBUG
+
+    # Log Spring Security filters và authentication process
+    # DEBUG giúp troubleshoot:
+    #   - Requests đi qua security filters nào
+    #   - Authentication success/failure reasons
+    #   - Authorization decisions (403 Forbidden)
+    #   - JWT token parsing issues
+    org.springframework.security: DEBUG
+
+    # Log SQL statements mà Hibernate execute
+    # DEBUG show SQL queries:
+    #   SELECT * FROM users WHERE id = ?
+    #   INSERT INTO users (username, email) VALUES (?, ?)
+    # Khác với show-sql: Log qua logging framework (có thể filter)
+    org.hibernate.SQL: DEBUG
+
+    # Log parameters được bind vào SQL
+    # TRACE show cụ thể giá trị:
+    #   binding parameter [1] as [BIGINT] - [123]
+    #   binding parameter [2] as [VARCHAR] - [john@example.com]
+    # Cực kỳ hữu ích để debug SQL với wrong values
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+  pattern:
+    # Console log format (đơn giản cho development)
+    # %d{yyyy-MM-dd HH:mm:ss} - Timestamp: 2024-01-15 14:30:25
+    # %msg - Log message content
+    # %n - Newline
+    # Output: 2024-01-15 14:30:25 - User logged in successfully
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+    # File log format (chi tiết hơn cho production)
+    # %d{yyyy-MM-dd HH:mm:ss} - Timestamp
+    # [%thread] - Thread name: [http-nio-8081-exec-1]
+    # %-5level - Log level, 5 chars, left-aligned: INFO , DEBUG, ERROR
+    # %logger{36} - Logger name (class), max 36 chars: c.e.a.service.AuthService
+    # %msg - Log message
+    # %n - Newline
+    # Output: 2024-01-15 14:30:25 [http-nio-8081-exec-1] INFO  c.e.a.service.AuthService - User logged in
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+  file:
+    # Log file path - relative to application root directory
+    # Structure:
+    #   project-root/
+    #     logs/
+    #       auth-service.log (current log file)
+    #       auth-service.log.2024-01-15.0 (archived)
+    #       auth-service.log.2024-01-14.0 (archived)
+    # Spring Boot tự tạo folder 'logs' nếu chưa exist
+    name: logs/auth-service.log
+
+    # Maximum size của một log file
+    # Khi đạt 10MB → file rotation:
+    #   1. auth-service.log → auth-service.log.2024-01-15.0
+    #   2. Tạo auth-service.log mới
+    # Tại sao cần rotation?
+    #   - File quá lớn khó open và search
+    #   - Editor có thể crash với file 1GB+
+    #   - Backup và archive dễ dàng hơn
+    max-size: 10MB
+
+    # Giữ log files trong bao nhiêu ngày
+    # Sau 30 ngày → files cũ tự động xóa
+    # Lý do:
+    #   - Tiết kiệm disk space
+    #   - Compliance: Quy định chỉ yêu cầu lưu 30-90 days
+    #   - Troubleshooting: 30 days đủ để investigate issues
+    # Production: Có thể tăng lên 90 days hoặc archive to S3/cloud storage
+    max-history: 30
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# 1. Health Check - /actuator/health
+#    - Dùng bởi: API Gateway, Kubernetes, Load Balancer
+#    - Mục đích: Check service còn sống và healthy không
+#    - Response: {"status": "UP"} hoặc {"status": "DOWN"}
+#    - Components checked: Database, Disk space, Custom health indicators
+#
+# 2. Info - /actuator/info
+#    - Dùng bởi: Developers, Operations team
+#    - Mục đích: Thông tin về application
+#    - Content: Version, build time, git commit, description
+#    - Configure trong pom.xml (build-info) hoặc application.yml
+#
+# 3. Metrics - /actuator/metrics
+#    - Dùng bởi: Monitoring tools (Prometheus, Grafana)
+#    - Mục đích: Application performance và usage metrics
+#    - Available metrics:
+#      * jvm.memory.used - JVM memory usage
+#      * jvm.memory.max - Maximum JVM memory
+#      * http.server.requests - HTTP request count và duration
+#      * hikaricp.connections.active - Active database connections
+#      * Custom metrics: users.registered.total, orders.created.total
+#    - Prometheus format: /actuator/prometheus (nếu có micrometer-registry-prometheus)

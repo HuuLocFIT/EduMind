@@ -1,0 +1,46 @@
+services:
+  # PostgreSQL for Auth Service
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: edumind-postgres-auth
+    environment:
+      POSTGRES_DB: edumind_auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: huuloc123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edumind_user -d edumind_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for API Gateway Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: edumind-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-auth-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  edumind-network:
+    driver: bridge

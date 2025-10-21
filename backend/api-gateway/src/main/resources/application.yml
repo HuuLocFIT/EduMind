@@ -1,0 +1,288 @@
+server:
+  # Port 8080 - Default web application port
+  # Clients (web/mobile) sẽ gọi API qua: http://localhost:8080
+  # Gateway forward requests đến các backend services (8081, 8082, etc.)
+  port: 8080
+
+spring:
+  application:
+    # Tên service đăng ký với Eureka Discovery Server
+    # Dùng cho: Service discovery, distributed tracing, config management
+    # Convention: kebab-case (api-gateway, auth-service, user-service)
+    name: api-gateway
+
+  # Redis Configuration for Rate Limiting
+  data:
+    redis:
+      # Redis server address
+      # Development: localhost
+      # Production: Redis cluster hoặc cloud Redis (AWS ElastiCache)
+      # Docker: Container name (redis-service)
+      host: localhost
+
+      # Port 6379 - Redis default port
+      port: 6379
+
+      # Connection timeout - 60 seconds
+      # Nếu Redis chết/slow → Gateway không bị block mãi
+      # Timeout → trả về error thay vì hang
+      # Production: Giảm xuống 5-10 seconds + retry logic
+      timeout: 60000ms
+
+  # Gateway Routes Configuration
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          # enabled: true - Tự động tạo routes cho mọi Eureka services
+          # Process:
+          #   1. Gateway query Eureka → get all services
+          #   2. Auto-create routes: /SERVICE-NAME/** → lb://SERVICE-NAME
+          # Lợi ích: Không cần define routes manually
+          # Nhược điểm: URLs expose service names, không customize được
+          # Best practice: Dùng manual routes (như bên dưới) để control tốt hơn
+          enabled: true
+
+          # lower-case-service-id: true - Convert service names sang lowercase
+          # Eureka: AUTH-SERVICE → URL: /auth-service/login
+          # User-friendly: lowercase dễ đọc và type
+          # REST API convention: lowercase paths
+          lower-case-service-id: true
+
+      # Global CORS Configuration
+      globalcors:
+        corsConfigurations:
+          # Áp dụng CORS cho tất cả paths (/, /api, /api/auth, etc.)
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+            # Cache preflight response trong 3600 giây (1 giờ)
+            # Giảm số OPTIONS requests → improve performance
+            # Workflow:
+            #   1. Lần đầu: Browser gửi OPTIONS → cache 1 giờ
+            #   2. Trong 1 giờ: Skip preflight, gửi thẳng actual request
+            #   3. Sau 1 giờ: Gửi OPTIONS lại để refresh
+            maxAge: 3600
+
+      # Routes
+      routes:
+        # Auth Service Routes
+        - id: auth-service
+
+          # Load Balanced URI đến Auth Service
+          # lb:// → Spring Cloud LoadBalancer
+          # AUTH-SERVICE → Service name trong Eureka
+          # Process:
+          #   1. Gateway query Eureka: "AUTH-SERVICE ở đâu?"
+          #   2. Eureka trả về: [instance1, instance2, instance3]
+          #   3. Gateway pick instance theo algorithm (Round Robin)
+          #   4. Forward request đến: http://192.168.1.100:8081
+          uri: lb://AUTH-SERVICE
+
+          # Route matching predicate
+          # Path=/api/auth/** → Match mọi requests bắt đầu với /api/auth/
+          # Examples:
+          #   ✅ /api/auth/login
+          #   ✅ /api/auth/register
+          #   ✅ /api/auth/users/123/profile
+          #   ❌ /api/user/profile
+          predicates:
+            - Path=/api/auth/**
+
+          filters:
+            - name: RequestRateLimiter
+              args:
+                # Token Bucket Algorithm:
+                # Bucket capacity: 20 tokens
+                # Refill rate: +10 tokens/second
+                # Cost per request: 1 token
+                #
+                # Timeline:
+                #   T=0s:  Bucket=[20/20], 5 requests → [15/20] ✅
+                #   T=1s:  Refill +10 → [20/20] (capped at 20)
+                #   T=2s:  25 requests → 20 OK, 5 REJECTED ❌
+
+                # Sustained rate: 10 requests/second liên tục
+                # User có thể gửi 10 req/s mãi mãi
+                # Tuning:
+                #   - Auth: 5-10 req/s (login không cần nhanh)
+                #   - Search: 50-100 req/s
+                #   - Static: 1000+ req/s
+                redis-rate-limiter.replenishRate: 10
+
+                # Burst capacity: 20 tokens tối đa
+                # Cho phép tạm thời vượt sustained rate
+                # Example: User idle 5s → bucket full (20)
+                #          Suddenly 20 requests → All OK ✅
+                # Best practice: 2 × replenishRate
+                redis-rate-limiter.burstCapacity: 20
+
+                # Cost per request: 1 token
+                # Advanced: Có thể set cost khác nhau
+                #   - Normal endpoint: 1 token
+                #   - Heavy endpoint (export): 5 tokens
+                redis-rate-limiter.requestedTokens: 1
+
+                # Rate limiting scope:
+                # Default: Per IP address
+                # Có thể customize bằng KeyResolver bean:
+                #   - Per user ID
+                #   - Per API key
+                #   - Per tenant
+
+                # Error response (429 Too Many Requests):
+                # {
+                #   "error": "Too Many Requests",
+                #   "message": "Rate limit exceeded. Try again in 2 seconds."
+                # }
+
+            # Regex: /api/auth/(?<segment>.*)
+            #   - /api/auth/ : Literal prefix
+            #   - (?<segment>...) : Named capture group
+            #   - .* : Match any characters (greedy)
+            #
+            # Replacement: /${segment}
+            #   - / : Leading slash
+            #   - ${segment} : Captured value
+            #
+            # Examples:
+            #   /api/auth/login → /login
+            #   /api/auth/register → /register
+            #   /api/auth/users/123/profile → /users/123/profile
+            #
+            # Why needed?
+            #   - Client sees: POST /api/auth/login
+            #   - Backend expects: POST /login
+            #   - Gateway abstracts internal structure
+            - RewritePath=/api/auth/(?<segment>.*), /${segment}
+
+# ============================================
+# COMPLETE REQUEST FLOW EXAMPLE
+# ============================================
+# 1. Client Request:
+#    POST http://localhost:8080/api/auth/login
+#    Headers: Content-Type: application/json
+#    Body: {"username": "john", "password": "pass123"}
+#
+# 2. Gateway Receives:
+#    - CORS Check: Origin=localhost:3000 → Allowed ✅
+#    - Route Matching: Path=/api/auth/** → auth-service route ✅
+#
+# 3. Rate Limiting:
+#    - Check Redis: IP 192.168.1.50
+#    - Tokens available: 15/20 → OK ✅
+#    - Decrement: 14/20
+#
+# 4. Path Rewriting:
+#    - Input: /api/auth/login
+#    - Output: /login
+#
+# 5. Service Discovery:
+#    - Query Eureka: AUTH-SERVICE instances
+#    - Available: [192.168.1.100:8081, 192.168.1.101:8081]
+#    - Select (Round Robin): 192.168.1.100:8081
+#
+# 6. Forward Request:
+#    POST http://192.168.1.100:8081/login
+#    Headers:
+#      - Content-Type: application/json
+#      - X-Forwarded-For: 192.168.1.50
+#      - X-Forwarded-Proto: http
+#    Body: {"username": "john", "password": "pass123"}
+#
+# 7. Backend Response:
+#    200 OK
+#    Body: {"token": "jwt-token", "userId": 123}
+#
+# 8. Client Response:
+#    200 OK
+#    Headers: X-RateLimit-Remaining: 14
+#    Body: {"token": "jwt-token", "userId": 123}
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      # Eureka Server URL - "Phonebook" của microservices
+      # Gateway dùng để:
+      #   - Tìm backend services (AUTH-SERVICE, USER-SERVICE)
+      #   - Load balance giữa multiple instances
+      #   - Health monitoring (service UP/DOWN)
+      # Port 8761: Eureka default port
+      # High Availability: Có thể có multiple Eureka servers
+      #   defaultZone: http://eureka1:8761/eureka/,http://eureka2:8762/eureka/
+      defaultZone: http://localhost:8761/eureka/
+
+    fetch-registry: true
+
+    # Đăng ký Gateway lên Eureka Server
+    # Tại sao Gateway cũng đăng ký?
+    #   - Monitoring: Admin UI thấy Gateway status
+    #   - Multiple Gateways: Load Balancer cần discover Gateway instances
+    #   - Service Mesh: Gateways communicate với nhau
+    # Registration info:
+    #   - Name: API-GATEWAY
+    #   - IP: 192.168.1.10
+    #   - Port: 8080
+    #   - Health: /actuator/health
+    # Heartbeat: Gửi mỗi 30s → Eureka biết còn sống
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.edumind: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/api-gateway.log
+    max-size: 10MB
+    max-history: 30
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+      # Available endpoints:
+      #
+      # 1. /actuator/gateway/routes
+      #    List all routes và configurations
+      #    Response: [{"route_id": "auth-service", "uri": "lb://AUTH-SERVICE", ...}]
+      #
+      # 2. /actuator/gateway/routes/{id}
+      #    Get specific route details
+      #    Request: GET /actuator/gateway/routes/auth-service
+      #
+      # 3. /actuator/gateway/refresh
+      #    Refresh routes from Eureka
+      #    Usage: POST /actuator/gateway/refresh
+      #    Discover new services without restart
+      #
+      # 4. /actuator/gateway/globalfilters
+      #    List global filters applied to all routes
