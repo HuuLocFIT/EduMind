@@ -2,15 +2,18 @@ package com.edumind.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Set;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SignupRequest {
+public class CreateUserRequest {
     @NotBlank(message = "Username is required")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
     private String username;
@@ -32,4 +35,7 @@ public class SignupRequest {
 
     @Size(max = 20, message = "Phone number must not exceed 20 characters")
     private String phoneNumber;
+
+    @NotEmpty(message = "At least one role is required")
+    private Set<String> roles; // ["ROLE_TEACHER"] or ["ROLE_ADMIN"]
 }

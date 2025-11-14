@@ -62,6 +62,16 @@ public class User {
     @Column(name = "profile_picture_url")
     private String profilePictureUrl;
 
+    @Column(name = "is_trial")
+    @Builder.Default
+    private Boolean isTrial = false;
+
+    @Column(name = "trial_start_date")
+    private LocalDateTime trialStartDate;
+
+    @Column(name = "trial_end_date")
+    private LocalDateTime trialEndDate;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -82,5 +92,12 @@ public class User {
     public void removeRole(Role role) {
         this.roles.remove(role);
         role.getUsers().remove(this);
+    }
+
+    public boolean isTrialExpired() {
+        if (!isTrial || trialEndDate == null) {
+            return false;
+        }
+        return LocalDateTime.now().isAfter(trialEndDate);
     }
 }

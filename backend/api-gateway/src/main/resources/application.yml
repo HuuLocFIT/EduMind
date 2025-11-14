@@ -48,11 +48,42 @@ spring:
               filters:
                 - name: RequestRateLimiter
                   args:
+                    key-resolver: "#{@ipKeyResolver}"
                     redis-rate-limiter:
                       replenishRate: 10
                       burstCapacity: 20
                       requestedTokens: 1
-                - RewritePath=/api/auth/(?<segment>.*), /${segment}
+                - RewritePath=/api/auth/(?<segment>.*), /auth/${segment} 
+            
+            # Admin Service Routes (also in AUTH-SERVICE)
+            - id: admin-service
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/admin/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: 10
+                      burstCapacity: 20
+                      requestedTokens: 1
+                - RewritePath=/api/admin/(?<segment>.*), /admin/${segment}
+
+            # User Service Routes (also in AUTH-SERVICE)
+            - id: user-service
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: 10
+                      burstCapacity: 20
+                      requestedTokens: 1
+                - RewritePath=/api/users/(?<segment>.*), /users/${segment}
 
 eureka:
   client:

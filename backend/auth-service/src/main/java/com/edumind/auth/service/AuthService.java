@@ -10,6 +10,7 @@ import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.JwtTokenProvider;
 import com.edumind.auth.security.UserDetailsImpl;
+import com.edumind.common.constants.ResponseStatus;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.ResourceNotFoundException;
 import com.edumind.common.exception.TokenRefreshException;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -27,9 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,60 +58,51 @@ public class AuthService {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
+    /**
+     * Register new STUDENT (public signup)
+     */
     @Transactional
-    public MessageResponse registerUser(SignupRequest signUpRequest) {
-        logger.info("📝 Registering new user: {}", signUpRequest.getUsername());
+    public MessageResponse registerUser(SignupRequest signupRequest) {
+        logger.info("🔄 Processing user registration for: {}", signupRequest.getUsername());
 
-        // Check if username exists
-        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            logger.error("❌ Username already taken: {}", signUpRequest.getUsername());
+        // Check username exists
+        if (userRepository.existsByUsername(signupRequest.getUsername())) {
+            logger.warn("❌ Username already exists: {}", signupRequest.getUsername());
             throw new BadRequestException("Username is already taken!");
         }
 
-        // Check if email exists
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            logger.error("❌ Email already in use: {}", signUpRequest.getEmail());
+        // Check email exists
+        if (userRepository.existsByEmail(signupRequest.getEmail())) {
+            logger.warn("❌ Email already exists: {}", signupRequest.getEmail());
             throw new BadRequestException("Email is already in use!");
         }
 
-        // Create new user
+        // Create new user - DEFAULT: STUDENT role
         User user = User.builder()
-                .username(signUpRequest.getUsername())
-                .email(signUpRequest.getEmail())
-                .password(passwordEncoder.encode(signUpRequest.getPassword()))
-                .firstName(signUpRequest.getFirstName())
-                .lastName(signUpRequest.getLastName())
-                .phoneNumber(signUpRequest.getPhoneNumber())
+                .username(signupRequest.getUsername())
+                .email(signupRequest.getEmail())
+                .password(passwordEncoder.encode(signupRequest.getPassword()))
+                .firstName(signupRequest.getFirstName())
+                .lastName(signupRequest.getLastName())
+                .phoneNumber(signupRequest.getPhoneNumber())
                 .isActive(true)
                 .isEmailVerified(false)
                 .build();
 
-        // Set roles
-        Set<Role> roles = new HashSet<>();
-        if (signUpRequest.getRoles() == null || signUpRequest.getRoles().isEmpty()) {
-            // Default role is STUDENT
-            Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
-                    .orElseThrow(() -> new ResourceNotFoundException("Role STUDENT not found"));
-            roles.add(studentRole);
-        } else {
-            for (String roleName : signUpRequest.getRoles()) {
-                try {
-                    RoleName roleEnum = RoleName.valueOf(roleName);
-                    Role role = roleRepository.findByName(roleEnum)
-                            .orElseThrow(() -> new ResourceNotFoundException("Role " + roleName + " not found"));
-                    roles.add(role);
-                } catch (IllegalArgumentException e) {
-                    logger.error("❌ Invalid role: {}", roleName);
-                    throw new BadRequestException("Invalid role: " + roleName);
-                }
-            }
-        }
+        // Assign STUDENT role by default
+        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
+                .orElseThrow(() -> new ResourceNotFoundException("Role STUDENT not found"));
 
-        user.setRoles(roles);
-        userRepository.save(user);
+        user.setRoles(Set.of(studentRole));
 
-        logger.info("✅ User registered successfully: {}", user.getUsername());
-        return MessageResponse.created("User registered successfully!");
+        User savedUser = userRepository.save(user);
+        logger.info("✅ User registered successfully: {} with role STUDENT", savedUser.getUsername());
+
+        return MessageResponse.builder()
+                .status(HttpStatus.CREATED.value())
+                .success(true)
+                .message(ResponseStatus.REGISTER_SUCCESS)
+                .build();
     }
 
     @Transactional
@@ -165,6 +156,8 @@ public class AuthService {
                 .userId(userDetails.getId())
                 .username(userDetails.getUsername())
                 .email(userDetails.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
                 .roles(roles)
                 .build();
     }
@@ -213,6 +206,8 @@ public class AuthService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
                 .roles(roles)
                 .build();
     }
@@ -232,6 +227,10 @@ public class AuthService {
         refreshTokenRepository.revokeAllUserTokens(user);
 
         logger.info("✅ User logged out successfully: {}", user.getUsername());
-        return MessageResponse.success("Logged out successfully!");
+        return MessageResponse.builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message(ResponseStatus.LOGOUT_SUCCESS)
+                .build();
     }
 }
