@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trial Period Ended</title>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+        border-radius: 10px 10px 0 0;
+    }
+    .content {
+        background: #f9f9f9;
+        padding: 30px;
+        border-radius: 0 0 10px 10px;
+    }
+    .alert-box {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    .button {
+        display: inline-block;
+        padding: 12px 30px;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 20px;
+    }
+    .footer {
+        text-align: center;
+        margin-top: 30px;
+        color: #666;
+        font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>Trial Period Ended</h1>
+</div>
+<div class="content">
+  <h2>Hello <span th:text="${name}">Teacher</span>,</h2>
+
+  <div class="alert-box">
+    <strong>⚠️ Your 30-day trial period has ended.</strong><br>
+    Your teacher account has been temporarily disabled.
+  </div>
+
+  <p>To continue as a teacher on EduMind:</p>
+  <ul>
+    <li>Contact admin to upgrade to full teacher account</li>
+    <li>Your courses and content are safe</li>
+    <li>Reactivation is quick and easy</li>
+  </ul>
+
+  <p>We appreciate your contributions during the trial period!</p>
+
+  <a href="http://localhost:3000/contact-admin" class="button">Request Full Account</a>
+</div>
+<div class="footer">
+  <p>© 2026 EduMind. All rights reserved.</p>
+</div>
+</body>
+</html>
