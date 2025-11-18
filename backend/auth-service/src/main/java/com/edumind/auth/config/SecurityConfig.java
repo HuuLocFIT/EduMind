@@ -65,6 +65,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
+                                .requestMatchers("/auth/verify-email").permitAll()
+                                .requestMatchers("/auth/resend-verification").permitAll()
+                                .requestMatchers("/auth/password/forgot").permitAll()
+                                .requestMatchers("/auth/password/validate-token").permitAll()
+                                .requestMatchers("/auth/password/reset").permitAll()
                                 .requestMatchers("/actuator/**").permitAll()
                                 .requestMatchers("/teacher-application/submit").hasAnyRole("STUDENT", "GUEST")
                                 .requestMatchers("/teacher-application/my-application").authenticated()

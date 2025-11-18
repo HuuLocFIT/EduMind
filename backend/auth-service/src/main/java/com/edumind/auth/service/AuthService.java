@@ -59,7 +59,7 @@ public class AuthService {
     private long refreshExpirationMs;
 
     @Autowired
-    private EmailService emailService;
+    private EmailVerificationService emailVerificationService;
 
     /**
      * Register new STUDENT (public signup)
@@ -102,11 +102,11 @@ public class AuthService {
         logger.info("✅ User registered successfully: {} with role STUDENT", savedUser.getUsername());
 
         try {
-            emailService.sendWelcomeEmail(savedUser);
-            logger.info("📧 Welcome email sent to: {}", savedUser.getEmail());
+            emailVerificationService.sendVerificationEmail(savedUser);
+            logger.info("📧 Welcome + verification email sent to: {}", savedUser.getEmail());
         } catch (Exception e) {
+            logger.error("❌ Failed to send verification email", e);
             // Don't fail registration if email fails
-            logger.error("❌ Failed to send welcome email, but registration succeeded", e);
         }
 
         return MessageResponse.builder()

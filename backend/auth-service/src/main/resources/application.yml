@@ -317,3 +317,20 @@ management:
 #      * hikaricp.connections.active - Active database connections
 #      * Custom metrics: users.registered.total, orders.created.total
 #    - Prometheus format: /actuator/prometheus (nếu có micrometer-registry-prometheus)
+
+app:
+  # Frontend URL for email links
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:3000}
+
+  # Authentication Configuration
+  auth:
+    # Email verification token expiration (24 hours in milliseconds)
+    email-verification-expiration: 86400000
+
+    # Password reset token expiration (1 hour in milliseconds)
+    password-reset-expiration: 3600000
+
+    # Token expiration (duplicated for clarity)
+    token-expiration: 86400000
+    refresh-expiration: 604800000

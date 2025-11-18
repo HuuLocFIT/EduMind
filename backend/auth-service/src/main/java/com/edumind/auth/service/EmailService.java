@@ -33,6 +33,9 @@ public class EmailService {
     @Value("${mail.enabled:true}")
     private boolean emailEnabled;
 
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
+
     /**
      * Helper method to get display name
      * Priority: firstName + lastName > username
@@ -69,32 +72,32 @@ public class EmailService {
         return str != null && !str.trim().isEmpty();
     }
 
-    /**
-     * Send welcome email after successful registration
-     */
-    public void sendWelcomeEmail(User user) {
-        if (!emailEnabled) {
-            logger.info("⚠️ Email disabled - skipping welcome email for: {}", user.getEmail());
-            return;
-        }
+    public void sendWelcomeAndVerificationEmail(String toEmail, String firstName, String token) {
+        logger.info("📧 Sending welcome + verification email to: {}", toEmail);
 
         try {
             Context context = new Context();
-            context.setVariable("name", getDisplayName(user));
-            context.setVariable("username", user.getUsername());
+            context.setVariable("firstName", firstName);
+            context.setVariable("verificationLink", frontendUrl + "/verify-email?token=" + token);
+            context.setVariable("frontendUrl", frontendUrl);
 
-            String htmlContent = templateEngine.process("email/welcome", context);
+            // Use combined template
+            String htmlContent = templateEngine.process("email/welcome-verification", context);
 
-            sendHtmlEmail(
-                    user.getEmail(),
-                    "Welcome to EduMind! 🎉",
-                    htmlContent
-            );
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            logger.info("✅ Welcome email sent to: {}", user.getEmail());
-        } catch (Exception e) {
-            logger.error("❌ Failed to send welcome email to: {}", user.getEmail(), e);
-            // Don't throw exception - email failure shouldn't block registration
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Welcome to EduMind! Please verify your email 🎉");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            logger.info("✅ Welcome + verification email sent successfully to: {}", toEmail);
+
+        } catch (MessagingException e) {
+            logger.error("❌ Failed to send welcome + verification email to: {}", toEmail, e);
+            throw new EmailSendException("Failed to send email", e);
         }
     }
 
@@ -232,6 +235,98 @@ public class EmailService {
         } catch (MessagingException e) {
             logger.error("❌ Error sending email to: {}", to, e);
             throw new EmailSendException("Failed to send email to: " + to);
+        }
+    }
+
+    /**
+     * Send email verification link to user
+     */
+    public void sendEmailVerification(String toEmail, String firstName, String token) {
+        logger.info("📧 Sending email verification to: {}", toEmail);
+
+        try {
+            Context context = new Context();
+            context.setVariable("firstName", firstName);
+            context.setVariable("verificationLink", frontendUrl + "/verify-email?token=" + token);
+            context.setVariable("frontendUrl", frontendUrl);
+
+            String htmlContent = templateEngine.process("email/email-verification", context);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Verify Your Email - EduMind");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            logger.info("✅ Email verification sent successfully to: {}", toEmail);
+
+        } catch (MessagingException e) {
+            logger.error("❌ Failed to send email verification to: {}", toEmail, e);
+            throw new EmailSendException("Failed to send verification email", e);
+        }
+    }
+
+    /**
+     * Send password reset link to user
+     */
+    public void sendPasswordResetEmail(String toEmail, String firstName, String token) {
+        logger.info("📧 Sending password reset email to: {}", toEmail);
+
+        try {
+            Context context = new Context();
+            context.setVariable("firstName", firstName);
+            context.setVariable("resetLink", frontendUrl + "/reset-password?token=" + token);
+            context.setVariable("frontendUrl", frontendUrl);
+
+            String htmlContent = templateEngine.process("email/password-reset", context);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Reset Your Password - EduMind");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            logger.info("✅ Password reset email sent successfully to: {}", toEmail);
+
+        } catch (MessagingException e) {
+            logger.error("❌ Failed to send password reset email to: {}", toEmail, e);
+            throw new EmailSendException("Failed to send password reset email", e);
+        }
+    }
+
+    /**
+     * Send password changed confirmation email
+     */
+    public void sendPasswordChangedConfirmation(String toEmail, String firstName) {
+        logger.info("📧 Sending password changed confirmation to: {}", toEmail);
+
+        try {
+            Context context = new Context();
+            context.setVariable("firstName", firstName);
+            context.setVariable("frontendUrl", frontendUrl);
+
+            String htmlContent = templateEngine.process("email/password-changed", context);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Your Password Has Been Changed - EduMind");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            logger.info("✅ Password changed confirmation sent successfully to: {}", toEmail);
+
+        } catch (MessagingException e) {
+            logger.error("❌ Failed to send password changed confirmation to: {}", toEmail, e);
+            throw new EmailSendException("Failed to send password changed confirmation", e);
         }
     }
 }
