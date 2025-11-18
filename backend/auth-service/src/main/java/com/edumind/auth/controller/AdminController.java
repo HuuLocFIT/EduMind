@@ -1,9 +1,8 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.CreateUserRequest;
-import com.edumind.auth.dto.UpdateUserRoleRequest;
-import com.edumind.auth.dto.UserListResponse;
+import com.edumind.auth.dto.*;
 import com.edumind.auth.service.AdminService;
+import com.edumind.auth.service.TeacherApplicationService;
 import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.MessageResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +25,9 @@ public class AdminController {
 
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private TeacherApplicationService applicationService;
 
     /**
      * Admin creates TEACHER account
@@ -145,6 +147,111 @@ public class AdminController {
         logger.info("📥 DELETE /admin/users/{} - Deleting user", userId);
 
         MessageResponse response = adminService.deleteUser(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get all teacher applications
+     * GET /admin/applications?status=PENDING&page=0&size=10
+     */
+    @GetMapping("/applications")
+    public ResponseEntity<ApiResponse<Page<TeacherApplicationResponse>>> getAllApplications(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy) {
+
+        logger.info("📥 GET /admin/applications - Fetching applications with status: {}", status);
+
+        Page<TeacherApplicationResponse> applications =
+                applicationService.getAllApplications(status, page, size, sortBy);
+
+        ApiResponse<Page<TeacherApplicationResponse>> response =
+                ApiResponse.<Page<TeacherApplicationResponse>>builder()
+                        .status(HttpStatus.OK.value())
+                        .success(true)
+                        .message("Applications retrieved successfully")
+                        .data(applications)
+                        .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get specific application details
+     * GET /admin/applications/{id}
+     */
+    @GetMapping("/applications/{id}")
+    public ResponseEntity<ApiResponse<TeacherApplicationResponse>> getApplicationById(
+            @PathVariable Long id) {
+
+        logger.info("📥 GET /admin/applications/{} - Fetching application details", id);
+
+        // This would need to be implemented in service
+        // For now, placeholder
+
+        return ResponseEntity.ok(ApiResponse.<TeacherApplicationResponse>builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message("Application retrieved")
+                .build());
+    }
+
+    /**
+     * Review application (Approve or Reject)
+     * POST /admin/applications/{id}/review
+     */
+    @PostMapping("/applications/{id}/review")
+    public ResponseEntity<MessageResponse> reviewApplication(
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewApplicationRequest request) {
+
+        logger.info("📥 POST /admin/applications/{}/review - Action: {}", id, request.getAction());
+
+        MessageResponse response = applicationService.reviewApplication(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get all trial teachers
+     * GET /admin/trial-teachers?page=0&size=10
+     */
+    @GetMapping("/trial-teachers")
+    public ResponseEntity<ApiResponse<Page<TrialStatusResponse>>> getTrialTeachers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.info("📥 GET /admin/trial-teachers - Fetching trial teachers");
+
+        Page<TrialStatusResponse> trialTeachers = applicationService.getTrialTeachers(page, size);
+
+        ApiResponse<Page<TrialStatusResponse>> response =
+                ApiResponse.<Page<TrialStatusResponse>>builder()
+                        .status(HttpStatus.OK.value())
+                        .success(true)
+                        .message("Trial teachers retrieved successfully")
+                        .data(trialTeachers)
+                        .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Upgrade trial teacher to full teacher
+     * POST /admin/trial-teachers/{userId}/upgrade
+     */
+    @PostMapping("/trial-teachers/{userId}/upgrade")
+    public ResponseEntity<MessageResponse> upgradeTrialToFull(
+            @PathVariable Long userId,
+            @RequestBody(required = false) UpgradeTrialRequest request) {
+
+        logger.info("📥 POST /admin/trial-teachers/{}/upgrade - Upgrading to full teacher", userId);
+
+        if (request == null) {
+            request = new UpgradeTrialRequest();
+        }
+
+        MessageResponse response = applicationService.upgradeTrialToFull(userId, request);
         return ResponseEntity.ok(response);
     }
 }

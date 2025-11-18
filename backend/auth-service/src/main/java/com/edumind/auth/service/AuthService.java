@@ -58,6 +58,9 @@ public class AuthService {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
+    @Autowired
+    private EmailService emailService;
+
     /**
      * Register new STUDENT (public signup)
      */
@@ -97,6 +100,14 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
         logger.info("✅ User registered successfully: {} with role STUDENT", savedUser.getUsername());
+
+        try {
+            emailService.sendWelcomeEmail(savedUser);
+            logger.info("📧 Welcome email sent to: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            // Don't fail registration if email fails
+            logger.error("❌ Failed to send welcome email, but registration succeeded", e);
+        }
 
         return MessageResponse.builder()
                 .status(HttpStatus.CREATED.value())
