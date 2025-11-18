@@ -85,6 +85,38 @@ spring:
 
     schemas: public
 
+  # Email Configuration (Gmail SMTP)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:edumind2026@gmail.com}
+    password: ${MAIL_PASSWORD:ftxqygunjrhrezqc}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        transport:
+          protocol: smtp
+    default-encoding: UTF-8
+
+  # Thymeleaf Configuration (for email templates)
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    cache: false
+
+  # Multipart/File Upload Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 # Eureka Client Configuration
 eureka:
   client:
@@ -142,6 +174,17 @@ jwt:
 
   expiration: 86400000 # 24 hours in milliseconds
   refresh-expiration: 604800000 # 7 days in milliseconds
+
+# Email Configuration
+mail:
+  from: ${MAIL_FROM:noreply@edumind.com}
+  enabled: ${MAIL_ENABLED:true}  # Set to false to disable emails in dev
+
+# Cloudinary Configuration
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:dtrjyizzq}
+  api-key: ${CLOUDINARY_API_KEY:815552227534917}
+  api-secret: ${CLOUDINARY_API_SECRET:sryXhjMg6VRywTEy7DuOWCavFCY}
 
 # Logging Configuration
 logging:
@@ -235,6 +278,12 @@ logging:
     #   - Troubleshooting: 30 days đủ để investigate issues
     # Production: Có thể tăng lên 90 days hoặc archive to S3/cloud storage
     max-history: 30
+    
+# Scheduling Configuration
+spring.task.scheduling:
+  pool:
+    size: 2
+  thread-name-prefix: scheduler-
 
 # Actuator Configuration
 management:

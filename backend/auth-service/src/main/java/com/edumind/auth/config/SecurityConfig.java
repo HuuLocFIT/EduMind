@@ -66,9 +66,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                                 .requestMatchers("/actuator/**").permitAll()
+                                .requestMatchers("/teacher-application/submit").hasAnyRole("STUDENT", "GUEST")
+                                .requestMatchers("/teacher-application/my-application").authenticated()
+                                .requestMatchers("/teacher-application/trial-status").hasRole("TEACHER_TRIAL")
+                                .requestMatchers("/upload/**").authenticated()
                                 .requestMatchers("/admin/**").hasRole("ADMIN")
-                                .requestMatchers("/teacher/**").hasAnyRole("TEACHER", "ADMIN")
-                                .requestMatchers("/student/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN")
+                                .requestMatchers("/teacher/**").hasAnyRole("TEACHER", "ADMIN", "TEACHER_TRIAL")
+                                .requestMatchers("/student/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "TEACHER_TRIAL")
                                 .anyRequest().authenticated()
                 );
 
