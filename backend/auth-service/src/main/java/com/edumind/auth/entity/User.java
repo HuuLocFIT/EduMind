@@ -30,7 +30,8 @@ public class User {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false)
+    // Password can be NULL for OAuth2 users
+    @Column(length = 100)
     private String password;
 
     @Column(name = "first_name", length = 50)
@@ -83,6 +84,26 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    // 2FA FIELDS
+    @Column(name = "is_2fa_enabled", nullable = false)
+    private Boolean is2faEnabled = false;
+
+    @Column(name = "two_factor_secret")
+    private String twoFactorSecret;
+
+    @Column(name = "backup_codes", columnDefinition = "TEXT")
+    private String backupCodes; // JSON array stored as string
+
+    // OAUTH2 FIELDS
+    @Column(length = 20, nullable = false)
+    private String provider = "LOCAL"; // LOCAL, GOOGLE, FACEBOOK
+
+    @Column(name = "provider_user_id")
+    private String providerUserId;
+
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
     // Helper methods
     public void addRole(Role role) {
         this.roles.add(role);
@@ -99,5 +120,26 @@ public class User {
             return false;
         }
         return LocalDateTime.now().isAfter(trialEndDate);
+    }
+
+    /**
+     * Check if user is using OAuth2 authentication
+     */
+    public boolean isOAuth2User() {
+        return !"LOCAL".equals(this.provider);
+    }
+
+    /**
+     * Check if user has password (local user or OAuth2 user who set password)
+     */
+    public boolean hasPassword() {
+        return this.password != null && !this.password.isEmpty();
+    }
+
+    /**
+     * Check if 2FA is enabled
+     */
+    public boolean has2FA() {
+        return Boolean.TRUE.equals(this.is2faEnabled);
     }
 }

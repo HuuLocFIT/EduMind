@@ -2,10 +2,15 @@ package com.edumind.auth.config;
 
 import com.edumind.auth.security.JwtAuthenticationEntryPoint;
 import com.edumind.auth.security.JwtAuthenticationFilter;
+import com.edumind.auth.security.OAuth2AuthenticationFailureHandler;
+import com.edumind.auth.security.OAuth2AuthenticationSuccessHandler;
 import com.edumind.auth.security.UserDetailsServiceImpl;
+import com.edumind.auth.service.CustomOAuth2UserService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -28,11 +33,33 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
 public class SecurityConfig {
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
+    private final JwtAuthenticationEntryPoint unauthorizedHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
+    /**
+     * Constructor injection with @Lazy to break circular dependency
+     *
+     * Circular dependency chain:
+     * SecurityConfig → CustomOAuth2UserService → AuthService → AuthenticationManager (from SecurityConfig)
+     *
+     * Solution: @Lazy on CustomOAuth2UserService
+     */
     @Autowired
-    private JwtAuthenticationEntryPoint unauthorizedHandler;
+    public SecurityConfig(
+            UserDetailsServiceImpl userDetailsService,
+            JwtAuthenticationEntryPoint unauthorizedHandler,
+            @Lazy CustomOAuth2UserService customOAuth2UserService,
+            OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+            OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler) {
+        this.userDetailsService = userDetailsService;
+        this.unauthorizedHandler = unauthorizedHandler;
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+        this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
+    }
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -64,12 +91,14 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
+                        auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh", "/auth/login/2fa").permitAll()
                                 .requestMatchers("/auth/verify-email").permitAll()
                                 .requestMatchers("/auth/resend-verification").permitAll()
                                 .requestMatchers("/auth/password/forgot").permitAll()
                                 .requestMatchers("/auth/password/validate-token").permitAll()
                                 .requestMatchers("/auth/password/reset").permitAll()
+                                .requestMatchers("/oauth2/**").permitAll()
+                                .requestMatchers("/login/oauth2/**").permitAll()
                                 .requestMatchers("/actuator/**").permitAll()
                                 .requestMatchers("/teacher-application/submit").hasAnyRole("STUDENT", "GUEST")
                                 .requestMatchers("/teacher-application/my-application").authenticated()
@@ -79,6 +108,13 @@ public class SecurityConfig {
                                 .requestMatchers("/teacher/**").hasAnyRole("TEACHER", "ADMIN", "TEACHER_TRIAL")
                                 .requestMatchers("/student/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "TEACHER_TRIAL")
                                 .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                        .failureHandler(oAuth2AuthenticationFailureHandler)
                 );
 
         http.authenticationProvider(authenticationProvider());
