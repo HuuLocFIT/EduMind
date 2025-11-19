@@ -46,26 +46,24 @@ public class AuthController {
     }
 
     /**
-     * Authenticate user and get JWT tokens
-     * POST /auth/login
+     * Response can be:
+     * - JwtResponse (normal login)
+     * - TwoFactorRequiredResponse (2FA enabled)
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<JwtResponse>> authenticateUser(
-            @Valid @RequestBody LoginRequest loginRequest,
-            HttpServletRequest request) {
-
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         logger.info("📥 POST /auth/login - Authenticate user: {}", loginRequest.getUsernameOrEmail());
+        Object response = authService.authenticateUser(loginRequest);
+        return ResponseEntity.ok(response);
+    }
 
-        JwtResponse jwtResponse = authService.authenticateUser(loginRequest);
-
-        ApiResponse<JwtResponse> response = ApiResponse.<JwtResponse>builder()
-                .status(HttpStatus.OK.value())
-                .success(true)
-                .message(ResponseStatus.LOGIN_SUCCESS)
-                .data(jwtResponse)
-                .path(request.getRequestURI())
-                .build();
-
+    /**
+     * POST /auth/login/2fa
+     */
+    @PostMapping("/login/2fa")
+    public ResponseEntity<JwtResponse> verify2FALogin(@Valid @RequestBody TwoFactorLoginRequest request) {
+        logger.info("📥 POST /auth/login/2fa - Verify 2FA for: {}", request.getUsernameOrEmail());
+        JwtResponse response = authService.verify2FAAndLogin(request);
         return ResponseEntity.ok(response);
     }
 
