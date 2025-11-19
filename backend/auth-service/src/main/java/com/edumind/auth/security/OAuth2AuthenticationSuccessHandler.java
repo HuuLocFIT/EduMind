@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -24,11 +25,17 @@ import java.io.IOException;
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     private static final Logger logger = LoggerFactory.getLogger(OAuth2AuthenticationSuccessHandler.class);
 
-    @Autowired
-    private JwtTokenProvider tokenProvider;
+    private final JwtTokenProvider tokenProvider;
+    private final AuthService authService;
 
     @Autowired
-    private AuthService authService;
+    public OAuth2AuthenticationSuccessHandler(
+            JwtTokenProvider tokenProvider,
+            @Lazy AuthService authService
+    ) {
+        this.tokenProvider = tokenProvider;
+        this.authService = authService;
+    }
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
