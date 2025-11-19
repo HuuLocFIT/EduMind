@@ -30,7 +30,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Service
@@ -123,10 +125,6 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * Authenticate user (Phase 3: với 2FA check)
-     * Returns different response based on 2FA status
-     */
     @Transactional
     public Object authenticateUser(LoginRequest loginRequest) {
         logger.info("🔐 Authenticating user: {}", loginRequest.getUsernameOrEmail());
@@ -144,7 +142,6 @@ public class AuthService {
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Phase 3: Check if 2FA is enabled
         if (Boolean.TRUE.equals(user.getIs2faEnabled())) {
             logger.info("🔐 2FA required for user: {}", user.getEmail());
 
@@ -159,9 +156,6 @@ public class AuthService {
         return generateAuthResponse(authentication, user);
     }
 
-    /**
-     * Phase 3: Verify 2FA code and complete login
-     */
     @Transactional
     public JwtResponse verify2FAAndLogin(TwoFactorLoginRequest request) {
         logger.info("🔐 Verifying 2FA for user: {}", request.getUsernameOrEmail());
@@ -199,19 +193,7 @@ public class AuthService {
     private JwtResponse generateAuthResponse(Authentication authentication, User user) {
         // Generate tokens
         String accessToken = tokenProvider.generateAccessToken(authentication);
-        String refreshToken = tokenProvider.generateRefreshToken(authentication);
-
-        // Revoke old refresh tokens
-        refreshTokenRepository.revokeAllUserTokens(user);
-
-        // Create new refresh token
-        RefreshToken refreshTokenEntity = RefreshToken.builder()
-                .token(refreshToken)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
-                .revoked(false)
-                .build();
-        refreshTokenRepository.save(refreshTokenEntity);
+        RefreshToken refreshTokenEntity = createRefreshToken(user.getId());
 
         // Update last login
         user.setLastLoginAt(LocalDateTime.now());
@@ -226,7 +208,7 @@ public class AuthService {
 
         return JwtResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(refreshTokenEntity.getToken())
                 .tokenType("Bearer")
                 .userId(userDetails.getId())
                 .username(userDetails.getUsername())
@@ -237,71 +219,124 @@ public class AuthService {
                 .build();
     }
 
-    /**
-     * Phase 4: Process OAuth2 user (called by CustomOAuth2UserService)
-     * Creates new user or updates existing user
-     */
     @Transactional
     public User processOAuth2User(String provider, OAuth2UserInfo oAuth2UserInfo) {
-        logger.info("🔄 Processing OAuth2 user from {}: {}", provider, oAuth2UserInfo.getEmail());
+        logger.info("🔄 Processing OAuth2 user: {}", oAuth2UserInfo.getEmail());
 
-        // Check if user exists by email
-        User existingUser = userRepository.findByEmail(oAuth2UserInfo.getEmail())
-                .orElse(null);
+        // Normalize provider name
+        provider = provider.toUpperCase();
 
-        if (existingUser != null) {
-            // User exists - check if provider matches
-            if (!provider.equals(existingUser.getProvider())) {
-                logger.warn("⚠️ User {} already registered with {} provider",
-                        existingUser.getEmail(), existingUser.getProvider());
-                throw new BadRequestException(
-                        "Email already registered with " + existingUser.getProvider() +
-                                " provider. Please use " + existingUser.getProvider() + " login.");
+        Optional<User> userOptional = userRepository.findByProviderAndProviderUserId(
+                provider,
+                oAuth2UserInfo.getId() // Use getId() instead of getProviderId()
+        );
+
+        User user;
+
+        if (userOptional.isPresent()) {
+            // Existing user found by providerUserId
+            user = userOptional.get();
+
+            if (!user.getEmail().equals(oAuth2UserInfo.getEmail())) {
+                logger.warn("⚠️ Email changed for user {} from {} to {}",
+                        user.getUsername(),
+                        user.getEmail(),
+                        oAuth2UserInfo.getEmail()
+                );
+
+                // Check if new email already exists with different account
+                Optional<User> existingWithNewEmail = userRepository
+                        .findByEmail(oAuth2UserInfo.getEmail());
+
+                if (existingWithNewEmail.isPresent() &&
+                        !existingWithNewEmail.get().getId().equals(user.getId())) {
+                    throw new BadRequestException(
+                            "Email " + oAuth2UserInfo.getEmail() +
+                                    " is already registered with another account"
+                    );
+                }
+
+                user.setEmail(oAuth2UserInfo.getEmail());
             }
 
-            // Update OAuth2 info
-            existingUser.setProviderUserId(oAuth2UserInfo.getId());
-            existingUser.setAvatarUrl(oAuth2UserInfo.getImageUrl());
-            existingUser.setFirstName(oAuth2UserInfo.getFirstName());
-            existingUser.setLastName(oAuth2UserInfo.getLastName());
-            existingUser.setLastLoginAt(LocalDateTime.now());
+            // Check provider consistency
+            if (!user.getProvider().equals(provider)) {
+                throw new BadRequestException(
+                        "You're already signed up with " + user.getProvider() +
+                                " account. Please use " + user.getProvider() + " login."
+                );
+            }
 
-            logger.info("✅ Updated existing OAuth2 user: {}", existingUser.getEmail());
-            return userRepository.save(existingUser);
+            return updateExistingUser(user, oAuth2UserInfo);
+
+        } else {
+            userOptional = userRepository.findByEmail(oAuth2UserInfo.getEmail());
+
+            if (userOptional.isPresent()) {
+                user = userOptional.get();
+
+                // Check if it's a local account
+                if ("LOCAL".equals(user.getProvider())) {
+                    throw new BadRequestException(
+                            "Email already registered. Please use email/password login."
+                    );
+                }
+
+                // Check if it's different OAuth2 provider
+                if (!user.getProvider().equals(provider)) {
+                    throw new BadRequestException(
+                            "You're already signed up with " + user.getProvider() +
+                                    " account. Please use " + user.getProvider() + " login."
+                    );
+                }
+
+                // Migration case - update providerUserId if missing
+                if (user.getProviderUserId() == null) {
+                    logger.info("📝 Migrating user - updating providerUserId");
+                    user.setProviderUserId(oAuth2UserInfo.getId());
+                    return updateExistingUser(user, oAuth2UserInfo);
+                }
+
+                // Should not reach here
+                throw new BadRequestException(
+                        "Account configuration error. Please contact support."
+                );
+            }
+
+            // New user - register
+            return registerNewUser(provider, oAuth2UserInfo);
         }
-
-        // Create new OAuth2 user
-        User newUser = User.builder()
-                .username(generateUniqueUsername(oAuth2UserInfo.getEmail()))
-                .email(oAuth2UserInfo.getEmail())
-                .firstName(oAuth2UserInfo.getFirstName())
-                .lastName(oAuth2UserInfo.getLastName())
-                .password(null) // No password for OAuth2 users
-                .provider(provider)
-                .providerUserId(oAuth2UserInfo.getId())
-                .avatarUrl(oAuth2UserInfo.getImageUrl())
-                .isActive(true)
-                .isEmailVerified(true) // OAuth2 emails are pre-verified
-                .is2faEnabled(false)
-                .build();
-
-        // Assign STUDENT role by default
-        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
-                .orElseThrow(() -> new ResourceNotFoundException("Role STUDENT not found"));
-
-        newUser.setRoles(Set.of(studentRole));
-
-        User savedUser = userRepository.save(newUser);
-        logger.info("✅ Created new OAuth2 user: {} from {}", savedUser.getEmail(), provider);
-
-        return savedUser;
     }
 
     /**
-     * Generate unique username from email
+     * Register new OAuth2 user
      */
-    private String generateUniqueUsername(String email) {
-        String baseUsername = email.split("@")[0];
+    private User registerNewUser(String provider, OAuth2UserInfo oAuth2UserInfo) {
+        logger.info("📝 Registering new OAuth2 user: {}", oAuth2UserInfo.getEmail());
+
+        User user = new User();
+
+        // Provider info
+        user.setProvider(provider); // Already uppercase
+        user.setProviderUserId(oAuth2UserInfo.getId());
+
+        // Email (verified by OAuth2 provider)
+        user.setEmail(oAuth2UserInfo.getEmail());
+        user.setIsEmailVerified(true);
+
+        // Avatar
+        user.setAvatarUrl(oAuth2UserInfo.getImageUrl());
+
+        // Name - use getFirstName() and getLastName()
+        String firstName = oAuth2UserInfo.getFirstName();
+        String lastName = oAuth2UserInfo.getLastName();
+
+        user.setFirstName(firstName != null && !firstName.isEmpty() ?
+                firstName : oAuth2UserInfo.getEmail().split("@")[0]);
+        user.setLastName(lastName != null ? lastName : "");
+
+        // Generate unique username from email
+        String baseUsername = oAuth2UserInfo.getEmail().split("@")[0];
         String username = baseUsername;
         int counter = 1;
 
@@ -309,8 +344,95 @@ public class AuthService {
             username = baseUsername + counter;
             counter++;
         }
+        user.setUsername(username);
 
-        return username;
+        // No password for OAuth2 users
+        user.setPassword(null);
+
+        // Active by default
+        user.setIsActive(true);
+
+        // Set default role: STUDENT
+        Set<Role> roles = new HashSet<>();
+        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
+                .orElseThrow(() -> new ResourceNotFoundException("Role STUDENT not found"));
+        roles.add(studentRole);
+        user.setRoles(roles);
+
+        User savedUser = userRepository.save(user);
+        logger.info("✅ OAuth2 user registered successfully: {}", savedUser.getEmail());
+
+        return savedUser;
+    }
+
+    /**
+     * Update existing OAuth2 user
+     */
+    private User updateExistingUser(User existingUser, OAuth2UserInfo oAuth2UserInfo) {
+        logger.info("🔄 Updating existing OAuth2 user: {}", existingUser.getEmail());
+
+        boolean updated = false;
+
+        // Update avatar if changed
+        String newAvatarUrl = oAuth2UserInfo.getImageUrl();
+        if (newAvatarUrl != null && !newAvatarUrl.equals(existingUser.getAvatarUrl())) {
+            existingUser.setAvatarUrl(newAvatarUrl);
+            updated = true;
+        }
+
+        // Update name if changed - use getFirstName() and getLastName()
+        String newFirstName = oAuth2UserInfo.getFirstName();
+        String newLastName = oAuth2UserInfo.getLastName();
+
+        if (newFirstName != null && !newFirstName.isEmpty() &&
+                !newFirstName.equals(existingUser.getFirstName())) {
+            existingUser.setFirstName(newFirstName);
+            updated = true;
+        }
+
+        if (newLastName != null && !newLastName.equals(existingUser.getLastName())) {
+            existingUser.setLastName(newLastName);
+            updated = true;
+        }
+
+        if (updated) {
+            existingUser = userRepository.save(existingUser);
+            logger.info("✅ OAuth2 user updated: {}", existingUser.getEmail());
+        } else {
+            logger.info("ℹ️ No changes for OAuth2 user: {}", existingUser.getEmail());
+        }
+
+        return existingUser;
+    }
+
+    /**
+     * Create and save refresh token to database
+     * Used by both normal login and OAuth2 login
+     */
+    @Transactional
+    public RefreshToken createRefreshToken(Long userId) {
+        logger.info("🔄 Creating refresh token for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Revoke all existing refresh tokens for this user
+        refreshTokenRepository.revokeAllUserTokens(user);
+
+        // Generate new refresh token string
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                UserDetailsImpl.build(user), null, null);
+        String tokenString = tokenProvider.generateRefreshToken(authentication);
+
+        // Create and save refresh token entity
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(tokenString)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
+                .revoked(false)
+                .build();
+
+        return refreshTokenRepository.save(refreshToken);
     }
 
     /**

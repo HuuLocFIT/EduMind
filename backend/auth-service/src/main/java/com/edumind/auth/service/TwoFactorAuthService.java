@@ -172,18 +172,16 @@ public class TwoFactorAuthService {
             throw new BadRequestException("2FA is not enabled");
         }
 
-        // Verify password (REQUIRED)
-        if (password == null || password.isEmpty()) {
-            throw new BadRequestException("Password is required");
-        }
+        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+            // OAuth2 user - verify 2FA code ONLY
+            logger.info("OAuth2 user disabling 2FA (no password verification)");
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            logger.error("❌ Invalid password");
-            throw new BadRequestException("Invalid password");
-        }
+            if (code == null || code.isEmpty()) {
+                throw new BadRequestException(
+                        "2FA code is required to disable 2FA for OAuth2 accounts"
+                );
+            }
 
-        // If provided, verify it; if not provided, skip verification
-        if (code != null && !code.isEmpty()) {
             rateLimitService.checkRateLimit(user.getId());
 
             boolean verified = false;
@@ -205,6 +203,40 @@ public class TwoFactorAuthService {
             }
 
             rateLimitService.recordSuccessfulAttempt(user.getId());
+
+        } else {
+            // Local user - verify password (REQUIRED)
+            if (password == null || password.isEmpty()) {
+                throw new BadRequestException("Password is required");
+            }
+
+            if (!passwordEncoder.matches(password, user.getPassword())) {
+                logger.error("❌ Invalid password");
+                throw new BadRequestException("Invalid password");
+            }
+
+            // Code is OPTIONAL for local users
+            if (code != null && !code.isEmpty()) {
+                rateLimitService.checkRateLimit(user.getId());
+
+                boolean verified = false;
+
+                if (code.length() == 6 && code.matches("^[0-9]{6}$")) {
+                    String encryptedSecret = user.getTwoFactorSecret();
+                    String secret = encryptionService.decrypt(encryptedSecret);
+                    verified = verifyCode(secret, code);
+                } else if (code.length() == BACKUP_CODE_LENGTH) {
+                    verified = checkBackupCode(user, code);
+                }
+
+                if (!verified) {
+                    rateLimitService.recordFailedAttempt(user.getId());
+                    logger.error("❌ Invalid 2FA code");
+                    throw new BadRequestException("Invalid 2FA code");
+                }
+
+                rateLimitService.recordSuccessfulAttempt(user.getId());
+            }
         }
 
         // Disable 2FA

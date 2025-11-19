@@ -46,7 +46,6 @@ public class AuthController {
     }
 
     /**
-     * ⭐ UPDATED: Login - Now returns different response if 2FA required
      * Response can be:
      * - JwtResponse (normal login)
      * - TwoFactorRequiredResponse (2FA enabled)
@@ -59,7 +58,6 @@ public class AuthController {
     }
 
     /**
-     * ⭐ NEW: Complete 2FA login
      * POST /auth/login/2fa
      */
     @PostMapping("/login/2fa")

@@ -1,7 +1,9 @@
 package com.edumind.auth.security;
 
-import com.edumind.auth.repository.UserRepository;
+import com.edumind.auth.entity.RefreshToken;
+import com.edumind.auth.service.AuthService;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -26,7 +28,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private JwtTokenProvider tokenProvider;
 
     @Autowired
-    private UserRepository userRepository;
+    private AuthService authService;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -57,14 +59,21 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        // Generate JWT token
-        String token = tokenProvider.generateAccessToken(authentication);
+        String accessToken = tokenProvider.generateAccessToken(authentication);
+        RefreshToken refreshToken = authService.createRefreshToken(userDetails.getId());
 
-        logger.info("✅ JWT token generated for OAuth2 user: {}", userDetails.getUsername());
+        logger.info("✅ Tokens generated and saved for OAuth2 user: {}",
+                userDetails.getUsername());
 
-        // Redirect to frontend with token
+        Cookie refreshCookie = new Cookie("refreshToken", refreshToken.getToken());
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(true);
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
+        response.addCookie(refreshCookie);
+
         return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/redirect")
-                .queryParam("token", token)
+                .queryParam("token", accessToken)
                 .build().toUriString();
     }
 }

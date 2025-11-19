@@ -61,7 +61,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         logger.info("🔄 Processing OAuth2 user from provider: {}", registrationId);
 
-        // Extract user info from OAuth2 provider
+        // Extract user info
         OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(
                 registrationId,
                 oAuth2User.getAttributes()
@@ -76,9 +76,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // Process user (create or update)
         User user = authService.processOAuth2User(registrationId, oAuth2UserInfo);
 
+        if (!user.getIsActive()) {
+            logger.error("❌ User account is deactivated: {}", user.getEmail());
+            throw new OAuth2AuthenticationException(
+                "Your account has been deactivated. Please contact support."
+            );
+        }
+
         logger.info("✅ OAuth2 user processed successfully: {}", user.getEmail());
 
-        // Return UserDetailsImpl with OAuth2 attributes
         return UserDetailsImpl.create(user, oAuth2User.getAttributes());
     }
 }
