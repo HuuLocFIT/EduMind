@@ -356,3 +356,9 @@ app:
     token-expiration: 86400000
     refresh-expiration: 604800000
 
+  # Encryption Configuration
+  encryption:
+    key: ${ENCRYPTION_KEY:5odZkGi0uY/ummD96bqDeZ4m2+hirb2danRFlqKEfy8=}
+
+    
+

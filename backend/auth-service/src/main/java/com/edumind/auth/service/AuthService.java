@@ -172,7 +172,7 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // Verify 2FA code
-        boolean isValid = twoFactorAuthService.verifyCode(user, request.getCode());
+        boolean isValid = twoFactorAuthService.verifyCodeForLogin(user, request.getCode());
 
         if (!isValid) {
             logger.warn("❌ Invalid 2FA code for user: {}", user.getEmail());

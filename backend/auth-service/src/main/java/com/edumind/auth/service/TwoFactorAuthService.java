@@ -1,12 +1,12 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.BackupCodesResponse;
-import com.edumind.auth.dto.TwoFactorSetupResponse;
-import com.edumind.auth.dto.TwoFactorStatusResponse;
+import com.edumind.auth.dto.*;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.ResourceNotFoundException;
+import com.edumind.common.security.EncryptionService;
+import com.edumind.common.security.RateLimitService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.zxing.BarcodeFormat;
@@ -14,12 +14,13 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
-import dev.samstevens.totp.code.*;
+import dev.samstevens.totp.code.CodeVerifier;
+import dev.samstevens.totp.code.DefaultCodeGenerator;
+import dev.samstevens.totp.code.DefaultCodeVerifier;
+import dev.samstevens.totp.code.HashingAlgorithm;
 import dev.samstevens.totp.qr.QrData;
 import dev.samstevens.totp.secret.DefaultSecretGenerator;
-import dev.samstevens.totp.secret.SecretGenerator;
 import dev.samstevens.totp.time.SystemTimeProvider;
-import dev.samstevens.totp.time.TimeProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +38,11 @@ import java.util.stream.Collectors;
 @Service
 public class TwoFactorAuthService {
     private static final Logger logger = LoggerFactory.getLogger(TwoFactorAuthService.class);
+
     private static final String ISSUER = "EduMind";
-    private static final int BACKUP_CODES_COUNT = 10;
+    private static final int BACKUP_CODES_COUNT = 5;
+    private static final int BACKUP_CODE_LENGTH = 12;
+    private static final String ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     @Autowired
     private UserRepository userRepository;
@@ -46,50 +50,22 @@ public class TwoFactorAuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private final SecretGenerator secretGenerator = new DefaultSecretGenerator();
-    private final TimeProvider timeProvider = new SystemTimeProvider();
-    private final CodeGenerator codeGenerator = new DefaultCodeGenerator();
-    private final CodeVerifier verifier = new DefaultCodeVerifier(codeGenerator, timeProvider);
+    @Autowired
+    private EncryptionService encryptionService;
+
+    @Autowired
+    private RateLimitService rateLimitService;
+
+    private final DefaultSecretGenerator secretGenerator = new DefaultSecretGenerator();
+    private final CodeVerifier verifier = new DefaultCodeVerifier(
+            new DefaultCodeGenerator(),
+            new SystemTimeProvider()
+    );
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * Generate 2FA setup (secret + QR code)
-     */
     @Transactional
     public TwoFactorSetupResponse setup2FA() {
-        logger.info("🔐 Setting up 2FA for user");
-
-        User user = getCurrentUser();
-
-        if (Boolean.TRUE.equals(user.getIs2faEnabled())) {
-            throw new BadRequestException("2FA is already enabled. Disable it first to re-setup.");
-        }
-
-        // Generate secret
-        String secret = secretGenerator.generate();
-
-        // Generate QR code
-        String qrCodeUrl = generateQRCodeDataUrl(user.getEmail(), secret);
-
-        // Generate backup codes
-        List<String> backupCodes = generateBackupCodes();
-
-        logger.info("✅ 2FA setup generated for user: {}", user.getEmail());
-
-        return new TwoFactorSetupResponse(
-                secret,
-                qrCodeUrl,
-                secret, // Manual entry key is the same as secret
-                backupCodes
-        );
-    }
-
-    /**
-     * Verify TOTP code and enable 2FA
-     */
-    @Transactional
-    public TwoFactorStatusResponse verify2FA(String code, String secret) {
-        logger.info("🔐 Verifying 2FA code");
+        logger.info("🔐 Setting up 2FA");
 
         User user = getCurrentUser();
 
@@ -97,66 +73,95 @@ public class TwoFactorAuthService {
             throw new BadRequestException("2FA is already enabled");
         }
 
-        // Verify the code
+        String secret = secretGenerator.generate();
+        logger.info("✅ TOTP secret generated");
+
+        List<String> backupCodes = generateAlphanumericBackupCodes();
+        logger.info("✅ Backup codes generated (alphanumeric)");
+
+        String backupCodesJson = convertBackupCodesToJson(backupCodes);
+        user.setBackupCodes(backupCodesJson);
+
+        String encryptedSecret = encryptionService.encrypt(secret);
+        user.setTwoFactorSecret(encryptedSecret);
+
+        userRepository.save(user);
+        logger.info("✅ Secret (encrypted) and backup codes saved to DB");
+
+        String qrCodeUrl = generateQRCodeDataUrl(user.getEmail(), secret);
+
+        return new TwoFactorSetupResponse(
+                secret,
+                qrCodeUrl,
+                secret,
+                backupCodes
+        );
+    }
+
+    @Transactional
+    public TwoFactorStatusResponse verify2FA(String code, String secret) {
+        logger.info("🔐 Verifying 2FA code");
+
+        User user = getCurrentUser();
+
+        rateLimitService.checkRateLimit(user.getId());
+
+        if (Boolean.TRUE.equals(user.getIs2faEnabled())) {
+            throw new BadRequestException("2FA is already enabled");
+        }
+
+        // Verify code against the secret
         if (!verifyCode(secret, code)) {
-            logger.error("❌ Invalid 2FA code");
+            rateLimitService.recordFailedAttempt(user.getId());
+            logger.error("❌ Invalid TOTP code");
             throw new BadRequestException("Invalid verification code");
         }
 
-        // Generate and store backup codes
-        List<String> backupCodes = generateBackupCodes();
-        String backupCodesJson = convertBackupCodesToJson(backupCodes);
+        rateLimitService.recordSuccessfulAttempt(user.getId());
 
-        // Enable 2FA
         user.setIs2faEnabled(true);
-        user.setTwoFactorSecret(secret);
-        user.setBackupCodes(backupCodesJson);
         userRepository.save(user);
 
-        logger.info("✅ 2FA enabled successfully for user: {}", user.getEmail());
+        logger.info("✅ Two-factor authentication enabled for user: {}", user.getEmail());
 
-        return TwoFactorStatusResponse.enabled(backupCodes.size());
+        int backupCodesRemaining = countRemainingBackupCodes(user);
+        return TwoFactorStatusResponse.enabled(backupCodesRemaining);
     }
 
-    /**
-     * Verify 2FA code (used by AuthService during login)
-     */
-    public boolean verifyCode(User user, String code) {
+    public boolean verifyCodeForLogin(User user, String code) {
         logger.info("🔐 Verifying 2FA code for login");
 
-        if (!Boolean.TRUE.equals(user.getIs2faEnabled())) {
-            throw new BadRequestException("2FA is not enabled for this user");
-        }
-
-        // Try TOTP code first
-        if (verifyCode(user.getTwoFactorSecret(), code)) {
-            return true;
-        }
-
-        // Try backup code
-        return verifyAndConsumeBackupCode(user, code);
-    }
-
-    /**
-     * Verify 2FA code for login
-     */
-    public boolean verify2FAForLogin(User user, String code, boolean useBackupCode) {
-        logger.info("🔐 Verifying 2FA for login: {}", user.getEmail());
+        rateLimitService.checkRateLimit(user.getId());
 
         if (!Boolean.TRUE.equals(user.getIs2faEnabled())) {
-            throw new BadRequestException("2FA is not enabled for this user");
+            return false;
         }
 
-        if (useBackupCode) {
-            return verifyAndConsumeBackupCode(user, code);
+        // Check if it's a backup code
+        if (code.length() == BACKUP_CODE_LENGTH) {
+            boolean valid = verifyAndConsumeBackupCode(user, code);
+            if (valid) {
+                rateLimitService.recordSuccessfulAttempt(user.getId());
+                return true;
+            }
+            rateLimitService.recordFailedAttempt(user.getId());
+            return false;
+        }
+
+        String encryptedSecret = user.getTwoFactorSecret();
+        String secret = encryptionService.decrypt(encryptedSecret);
+
+        boolean valid = verifyCode(secret, code);
+
+        if (valid) {
+            rateLimitService.recordSuccessfulAttempt(user.getId());
         } else {
-            return verifyCode(user.getTwoFactorSecret(), code);
+            rateLimitService.recordFailedAttempt(user.getId());
         }
+
+        return valid;
     }
 
-    /**
-     * Disable 2FA
-     */
     @Transactional
     public TwoFactorStatusResponse disable2FA(String password, String code) {
         logger.info("🔐 Disabling 2FA");
@@ -167,27 +172,39 @@ public class TwoFactorAuthService {
             throw new BadRequestException("2FA is not enabled");
         }
 
-        // Verify password
+        // Verify password (REQUIRED)
+        if (password == null || password.isEmpty()) {
+            throw new BadRequestException("Password is required");
+        }
+
         if (!passwordEncoder.matches(password, user.getPassword())) {
             logger.error("❌ Invalid password");
             throw new BadRequestException("Invalid password");
         }
 
-        // Verify 2FA code or backup code
-        boolean verified = false;
+        // If provided, verify it; if not provided, skip verification
         if (code != null && !code.isEmpty()) {
+            rateLimitService.checkRateLimit(user.getId());
+
+            boolean verified = false;
+
             if (code.length() == 6 && code.matches("^[0-9]{6}$")) {
                 // TOTP code
-                verified = verifyCode(user.getTwoFactorSecret(), code);
-            } else {
+                String encryptedSecret = user.getTwoFactorSecret();
+                String secret = encryptionService.decrypt(encryptedSecret);
+                verified = verifyCode(secret, code);
+            } else if (code.length() == BACKUP_CODE_LENGTH) {
                 // Backup code
                 verified = checkBackupCode(user, code);
             }
-        }
 
-        if (!verified) {
-            logger.error("❌ Invalid 2FA code");
-            throw new BadRequestException("Invalid 2FA code");
+            if (!verified) {
+                rateLimitService.recordFailedAttempt(user.getId());
+                logger.error("❌ Invalid 2FA code");
+                throw new BadRequestException("Invalid 2FA code");
+            }
+
+            rateLimitService.recordSuccessfulAttempt(user.getId());
         }
 
         // Disable 2FA
@@ -215,9 +232,6 @@ public class TwoFactorAuthService {
         }
     }
 
-    /**
-     * Regenerate backup codes
-     */
     @Transactional
     public BackupCodesResponse regenerateBackupCodes(String password) {
         logger.info("🔐 Regenerating backup codes");
@@ -234,8 +248,7 @@ public class TwoFactorAuthService {
             throw new BadRequestException("Invalid password");
         }
 
-        // Generate new backup codes
-        List<String> backupCodes = generateBackupCodes();
+        List<String> backupCodes = generateAlphanumericBackupCodes();
         String backupCodesJson = convertBackupCodesToJson(backupCodes);
 
         user.setBackupCodes(backupCodesJson);
@@ -262,7 +275,7 @@ public class TwoFactorAuthService {
 
     private String generateQRCodeDataUrl(String email, String secret) {
         try {
-            QrData data = new QrData.Builder()
+            QrData qrData = new QrData.Builder()
                     .label(email)
                     .secret(secret)
                     .issuer(ISSUER)
@@ -271,14 +284,12 @@ public class TwoFactorAuthService {
                     .period(30)
                     .build();
 
-            String qrCodeText = String.format(
-                    "otpauth://totp/%s:%s?secret=%s&issuer=%s",
-                    ISSUER, email, secret, ISSUER
-            );
+            // Use the proper URI from QrData
+            String otpAuthUrl = qrData.getUri();
 
-            // Generate QR code using ZXing
+            // Generate QR code image
             BitMatrix bitMatrix = new MultiFormatWriter().encode(
-                    qrCodeText,
+                    otpAuthUrl,
                     BarcodeFormat.QR_CODE,
                     300,
                     300
@@ -288,7 +299,7 @@ public class TwoFactorAuthService {
             MatrixToImageWriter.writeToStream(bitMatrix, "PNG", outputStream);
             byte[] qrCodeBytes = outputStream.toByteArray();
 
-            // Convert to data URL
+            // Convert to base64 data URL
             String base64Image = Base64.getEncoder().encodeToString(qrCodeBytes);
             return "data:image/png;base64," + base64Image;
 
@@ -298,14 +309,17 @@ public class TwoFactorAuthService {
         }
     }
 
-    private List<String> generateBackupCodes() {
+    private List<String> generateAlphanumericBackupCodes() {
         SecureRandom random = new SecureRandom();
         List<String> codes = new ArrayList<>();
 
         for (int i = 0; i < BACKUP_CODES_COUNT; i++) {
-            // Generate 8-character alphanumeric code
-            String code = String.format("%08d", random.nextInt(100000000));
-            codes.add(code);
+            StringBuilder code = new StringBuilder(BACKUP_CODE_LENGTH);
+            for (int j = 0; j < BACKUP_CODE_LENGTH; j++) {
+                int index = random.nextInt(ALPHANUMERIC.length());
+                code.append(ALPHANUMERIC.charAt(index));
+            }
+            codes.add(code.toString());
         }
 
         return codes;
@@ -313,13 +327,23 @@ public class TwoFactorAuthService {
 
     private String convertBackupCodesToJson(List<String> backupCodes) {
         try {
-            // Hash backup codes before storing
+            // Hash each backup code before storing
             List<String> hashedCodes = backupCodes.stream()
                     .map(passwordEncoder::encode)
                     .collect(Collectors.toList());
+
             return objectMapper.writeValueAsString(hashedCodes);
         } catch (Exception e) {
             logger.error("❌ Failed to convert backup codes to JSON", e);
+            throw new RuntimeException("Failed to process backup codes", e);
+        }
+    }
+
+    private String convertBackupCodesToJsonFromHashed(List<String> hashedCodes) {
+        try {
+            return objectMapper.writeValueAsString(hashedCodes);
+        } catch (Exception e) {
+            logger.error("❌ Failed to convert hashed codes to JSON", e);
             throw new RuntimeException("Failed to process backup codes", e);
         }
     }
@@ -333,6 +357,7 @@ public class TwoFactorAuthService {
         }
     }
 
+    @Transactional
     private boolean verifyAndConsumeBackupCode(User user, String code) {
         String backupCodesJson = user.getBackupCodes();
         if (backupCodesJson == null || backupCodesJson.isEmpty()) {
@@ -378,16 +403,8 @@ public class TwoFactorAuthService {
         if (backupCodesJson == null || backupCodesJson.isEmpty()) {
             return 0;
         }
+
         List<String> codes = parseBackupCodesFromJson(backupCodesJson);
         return codes.size();
-    }
-
-    private String convertBackupCodesToJsonFromHashed(List<String> hashedCodes) {
-        try {
-            return objectMapper.writeValueAsString(hashedCodes);
-        } catch (Exception e) {
-            logger.error("❌ Failed to convert backup codes to JSON", e);
-            throw new RuntimeException("Failed to process backup codes", e);
-        }
     }
 }
