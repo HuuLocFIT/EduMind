@@ -31,7 +31,7 @@ public class User {
     private String email;
 
     // Password can be NULL for OAuth2 users
-    @Column(length = 100)
+    @Column(length = 255)
     private String password;
 
     @Column(name = "first_name", length = 50)
