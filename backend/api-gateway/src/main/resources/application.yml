@@ -85,6 +85,21 @@ spring:
                       requestedTokens: 1
                 - RewritePath=/api/users/(?<segment>.*), /users/${segment}
 
+            # Upload Service Routes (also in AUTH-SERVICE)
+            - id: upload-service
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/upload/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: 10
+                      burstCapacity: 20
+                      requestedTokens: 1
+                - RewritePath=/api/upload(?<segment>/?.*), /upload${segment}
+
 eureka:
   client:
     service-url:

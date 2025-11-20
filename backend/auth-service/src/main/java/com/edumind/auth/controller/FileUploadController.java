@@ -72,7 +72,7 @@ public class FileUploadController {
 
     /**
      * Delete file
-     * DELETE /upload/{publicId}
+     * DELETE /upload?url=....
      */
     @DeleteMapping
     @PreAuthorize("isAuthenticated()")
@@ -82,17 +82,19 @@ public class FileUploadController {
         logger.info("📥 DELETE /upload - Deleting file from URL: {}", url);
 
         String publicId = cloudinaryService.extractPublicId(url);
+        String resourceType = cloudinaryService.extractResourceType(url);
+
         if (publicId == null) {
             return ResponseEntity.badRequest().body(
                     ApiResponse.<Void>builder()
                             .status(HttpStatus.BAD_REQUEST.value())
                             .success(false)
-                            .message("Invalid Cloudinary URL")
+                            .message("Invalid Cloudinary URL or could not extract public_id")
                             .build()
             );
         }
 
-        cloudinaryService.deleteFile(publicId);
+        cloudinaryService.deleteFile(publicId, resourceType);
 
         ApiResponse<Void> response = ApiResponse.<Void>builder()
                 .status(HttpStatus.OK.value())
