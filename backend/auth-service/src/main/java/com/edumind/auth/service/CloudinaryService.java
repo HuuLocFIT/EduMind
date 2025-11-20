@@ -1,7 +1,9 @@
 package com.edumind.auth.service;
 
 import com.cloudinary.Cloudinary;
+import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
+import com.edumind.auth.dto.FileUploadResponse;
 import com.edumind.common.exception.FileUploadException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,43 +23,53 @@ public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
 
-    /**
-     * Upload document to Cloudinary
-     * Supported: PDF, DOC, DOCX, JPG, JPEG, PNG
-     */
-    public Map<String, Object> uploadDocument(MultipartFile file, String folder) {
+    public FileUploadResponse uploadDocument(MultipartFile file, String folder) {
         validateFile(file);
 
         try {
-            // Generate unique public_id
-            String publicId = folder + "/" + UUID.randomUUID().toString();
+            String originalFilename = file.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
 
-            logger.info("🔄 Uploading file to Cloudinary: {}", file.getOriginalFilename());
+            String publicId = folder + "/" + UUID.randomUUID().toString() + extension;
+
+            logger.info("🔄 Uploading document to Cloudinary: {}", originalFilename);
 
             Map<String, Object> uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
                             "public_id", publicId,
                             "folder", folder,
-                            "resource_type", "auto", // Auto-detect file type
-                            "allowed_formats", "pdf,doc,docx,jpg,jpeg,png"
+                            "resource_type", "raw",
+                            "use_filename", true,
+                            "unique_filename", false
                     )
             );
 
-            logger.info("✅ File uploaded successfully: {}", uploadResult.get("secure_url"));
+            String secureUrl = (String) uploadResult.get("secure_url");
+            logger.info("✅ Upload success: {}", secureUrl);
 
-            return uploadResult;
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(originalFilename)
+                    .fileType(extension.replace(".", ""))
+                    .resourceType((String) uploadResult.get("resource_type"))
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
 
         } catch (IOException e) {
-            logger.error("❌ Failed to upload file to Cloudinary", e);
-            throw new FileUploadException("Failed to upload file: " + e.getMessage());
+            logger.error("❌ Failed to upload document to Cloudinary", e);
+            throw new FileUploadException("Failed to upload document: " + e.getMessage());
         }
     }
 
     /**
      * Upload image (avatar, profile picture)
      */
-    public Map<String, Object> uploadImage(MultipartFile file, String folder) {
+    public FileUploadResponse uploadImage(MultipartFile file, String folder) {
         validateFile(file);
         validateImageFile(file);
 
@@ -72,17 +84,24 @@ public class CloudinaryService {
                             "public_id", publicId,
                             "folder", folder,
                             "resource_type", "image",
-                            "transformation", ObjectUtils.asMap(
-                                    "width", 500,
-                                    "height", 500,
-                                    "crop", "limit"
-                            )
+                            "transformation", new Transformation<>()
+                                    .width(500)
+                                    .height(500)
+                                    .crop("limit")
                     )
             );
 
-            logger.info("✅ Image uploaded successfully: {}", uploadResult.get("secure_url"));
+            String secureUrl = (String) uploadResult.get("secure_url");
+            logger.info("✅ Image uploaded successfully: {}", secureUrl);
 
-            return uploadResult;
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(file.getOriginalFilename())
+                    .fileType((String) uploadResult.get("format"))
+                    .resourceType("image")
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
 
         } catch (IOException e) {
             logger.error("❌ Failed to upload image to Cloudinary", e);
@@ -92,20 +111,49 @@ public class CloudinaryService {
 
     /**
      * Delete file from Cloudinary
+     * @param publicId: The ID of the file on Cloudinary
+     * @param resourceType: "image", "video", or "raw"
      */
-    public void deleteFile(String publicId) {
+    public void deleteFile(String publicId, String resourceType) {
+        // 1. Validate publicId
+        if (publicId == null || publicId.trim().isEmpty()) {
+            logger.warn("⚠️ Delete skipped: publicId is null or empty");
+            return;
+        }
+
         try {
-            logger.info("🔄 Deleting file from Cloudinary: {}", publicId);
+            logger.info("🔄 Deleting file from Cloudinary. PublicId: {}, Type: {}", publicId, resourceType);
+
+            String validResourceType = (resourceType == null || resourceType.trim().isEmpty()) ? "image" : resourceType;
+
+            if (!"image".equals(validResourceType)
+                    && !"video".equals(validResourceType)
+                    && !"raw".equals(validResourceType)) {
+
+                logger.warn("⚠️ Invalid resource_type '{}' detected. Defaulting to 'image'.", resourceType);
+                validResourceType = "image";
+            }
 
             Map<String, Object> deleteResult = cloudinary.uploader().destroy(
                     publicId,
-                    ObjectUtils.asMap("resource_type", "auto")
+                    ObjectUtils.asMap(
+                            "resource_type", validResourceType,
+                            "invalidate", true
+                    )
             );
 
-            logger.info("✅ File deleted: {}", deleteResult);
+            String result = (String) deleteResult.get("result");
+            if ("ok".equals(result)) {
+                logger.info("✅ File deleted successfully: {}", publicId);
+            } else if ("not found".equals(result)) {
+                logger.warn("⚠️ File not found on Cloudinary (already deleted?): {}", publicId);
+            } else {
+                logger.error("❌ Failed to delete file. Cloudinary response: {}", result);
+                throw new FileUploadException("Cloudinary error: " + result);
+            }
 
         } catch (IOException e) {
-            logger.error("❌ Failed to delete file from Cloudinary", e);
+            logger.error("❌ Exception while deleting file from Cloudinary", e);
             throw new FileUploadException("Failed to delete file: " + e.getMessage());
         }
     }
@@ -114,10 +162,11 @@ public class CloudinaryService {
      * Extract public_id from Cloudinary URL
      */
     public String extractPublicId(String url) {
-        // Example URL: https://res.cloudinary.com/demo/image/upload/v1234567890/folder/filename.jpg
-        // Extract: folder/filename
-
         try {
+            if (url == null || url.isEmpty()) return null;
+
+            boolean isRaw = url.contains("/raw/upload/");
+
             String[] parts = url.split("/upload/");
             if (parts.length < 2) {
                 return null;
@@ -126,24 +175,49 @@ public class CloudinaryService {
             String afterUpload = parts[1];
             String[] segments = afterUpload.split("/");
 
-            // Remove version and file extension
-            StringBuilder publicId = new StringBuilder();
-            for (int i = 1; i < segments.length; i++) {
-                if (i > 1) publicId.append("/");
-                String segment = segments[i];
-                // Remove file extension
-                int dotIndex = segment.lastIndexOf(".");
-                if (dotIndex > 0) {
-                    segment = segment.substring(0, dotIndex);
-                }
-                publicId.append(segment);
+            int startIndex = 0;
+            if (segments.length > 0 && segments[0].startsWith("v") && segments[0].matches("v\\d+")) {
+                startIndex = 1;
             }
 
-            return publicId.toString();
+            StringBuilder publicIdBuilder = new StringBuilder();
+            for (int i = startIndex; i < segments.length; i++) {
+                if (i > startIndex) publicIdBuilder.append("/");
+                publicIdBuilder.append(segments[i]);
+            }
+
+            String publicId = publicIdBuilder.toString();
+
+            if (!isRaw) {
+                int lastDotIndex = publicId.lastIndexOf(".");
+                if (lastDotIndex > 0) {
+                    publicId = publicId.substring(0, lastDotIndex);
+                }
+            }
+
+            return publicId;
 
         } catch (Exception e) {
             logger.error("❌ Failed to extract public_id from URL: {}", url);
             return null;
+        }
+    }
+
+    /**
+     * Extract resource_type from Cloudinary URL
+     */
+    public String extractResourceType(String url) {
+        try {
+            String[] parts = url.split("/");
+            for (int i = 0; i < parts.length; i++) {
+                if ("upload".equals(parts[i]) && i > 0) {
+                    return parts[i - 1];
+                }
+            }
+            return "image"; // Default to image if not found
+        } catch (Exception e) {
+            logger.error("❌ Failed to extract resource_type from URL: {}", url);
+            return "image"; // Default on error
         }
     }
 
