@@ -190,10 +190,10 @@ public class TeacherApplicationService {
         application.setAdminNotes(request.getAdminNotes());
 
         // Determine role based on teacherType
-        String roleName;
+        RoleName roleName;
         boolean isTrial = "TRIAL".equals(request.getTeacherType());
         if (isTrial) {
-            roleName = "TEACHER_TRIAL";
+            roleName = RoleName.ROLE_TEACHER_TRIAL;
 
             // Set trial period (30 days)
             applicant.setIsTrial(true);
@@ -202,12 +202,12 @@ public class TeacherApplicationService {
 
             logger.info("📅 Setting trial period: 30 days from now");
         } else {
-            roleName = "TEACHER";
+            roleName = RoleName.ROLE_TEACHER;
             applicant.setIsTrial(false);
         }
 
         // Assign role
-        Role teacherRole = roleRepository.findByName(RoleName.valueOf(roleName))
+        Role teacherRole = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
 
         Set<Role> roles = new HashSet<>(applicant.getRoles());
@@ -291,7 +291,7 @@ public class TeacherApplicationService {
         }
 
         boolean hasTrialRole = user.getRoles().stream()
-                .anyMatch(role -> "TEACHER_TRIAL".equals(role.getName()));
+                .anyMatch(role -> role.getName() == RoleName.ROLE_TEACHER_TRIAL);
 
         if (!hasTrialRole) {
             throw new BadRequestException("User does not have TEACHER_TRIAL role!");

@@ -2,7 +2,9 @@ package com.edumind.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -47,6 +49,7 @@ public class TeacherApplication {
 
     // Documents as JSON
     @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String documents;  // JSON array: [{"url": "...", "type": "...", "name": "..."}]
 
     // Additional info
