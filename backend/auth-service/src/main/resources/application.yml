@@ -1,6 +1,6 @@
 # Server Configuration
 server:
-  port: 8081
+  port: ${AUTH_SERVICE_PORT:8081}
 
 # Spring Application Configuration
 spring:
@@ -12,10 +12,10 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/edumind_auth # Cấu trúc: jdbc:postgresql://<host>:<port>/<database_name>
-    username: postgres
-    password: huuloc123
-    driver-class-name: org.postgresql.Driver
+    url: ${AUTH_DB_URL:jdbc:postgresql://localhost:5432/edumind_auth} # Cấu trúc: jdbc:postgresql://<host>:<port>/<database_name>
+    username: ${AUTH_DB_USERNAME:postgres}
+    password: ${AUTH_DB_PASSWORD}
+    driver-class-name: ${AUTH_DB_DRIVER:org.postgresql.Driver}
 
   # JPA Configuration
   jpa:
@@ -87,10 +87,10 @@ spring:
 
   # Email Configuration (Gmail SMTP)
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME:edumind2026@gmail.com}
-    password: ${MAIL_PASSWORD:ftxqygunjrhrezqc}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -123,12 +123,12 @@ spring:
         registration:
           # Google OAuth2
           google:
-            client-id: ${GOOGLE_CLIENT_ID:312932774862-paeg2jsaadaadvqcnkngktdqlj9k6b9u.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
               - email
               - profile
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: ${GOOGLE_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
             client-name: Google
 
         provider:
@@ -146,7 +146,7 @@ eureka:
       # Eureka = "phonebook" của microservices
       # Auth Service đăng ký vào đây, API Gateway tìm Auth Service qua Eureka
       # Port 8761 - port mặc định của Eureka Server
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
 
     # Download danh sách services từ Eureka về local cache
     # Auth Service cần list này để gọi các services khác
@@ -191,10 +191,10 @@ jwt:
   #   - HS256 algorithm: Minimum 256 bits (32 characters)
   #   - Phải random, không predictable
   #   - Càng dài càng secure
-  secret: edumind-super-secret-key-for-jwt-token-generation-minimum-256-bits-required-for-hs256-algorithm
+  secret: ${JWT_SECRET}
 
-  expiration: 86400000 # 24 hours in milliseconds
-  refresh-expiration: 604800000 # 7 days in milliseconds
+  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
 
 # Email Configuration
 mail:
@@ -203,9 +203,9 @@ mail:
 
 # Cloudinary Configuration
 cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME:dtrjyizzq}
-  api-key: ${CLOUDINARY_API_KEY:815552227534917}
-  api-secret: ${CLOUDINARY_API_SECRET:sryXhjMg6VRywTEy7DuOWCavFCY}
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
 # Logging Configuration
 logging:
@@ -358,7 +358,7 @@ app:
 
   # Encryption Configuration
   encryption:
-    key: ${ENCRYPTION_KEY:5odZkGi0uY/ummD96bqDeZ4m2+hirb2danRFlqKEfy8=}
+    key: ${ENCRYPTION_KEY}
 
     
 

@@ -4,9 +4,9 @@ services:
     image: postgres:16-alpine
     container_name: edumind-postgres-auth
     environment:
-      POSTGRES_DB: edumind_auth
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: huuloc123
+      POSTGRES_DB: ${AUTH_DB_NAME:-edumind_auth}
+      POSTGRES_USER: ${AUTH_DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
@@ -14,7 +14,7 @@ services:
     networks:
       - edumind-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U edumind_user -d edumind_auth"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
