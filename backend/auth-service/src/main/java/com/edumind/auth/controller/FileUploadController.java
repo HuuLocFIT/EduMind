@@ -1,5 +1,6 @@
 package com.edumind.auth.controller;
 
+import com.edumind.auth.dto.FileUploadResponse;
 import com.edumind.auth.service.CloudinaryService;
 import com.edumind.common.response.ApiResponse;
 import org.slf4j.Logger;
@@ -28,15 +29,15 @@ public class FileUploadController {
      */
     @PostMapping("/document")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadDocument(
+    public ResponseEntity<ApiResponse<FileUploadResponse>> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folder", defaultValue = "teacher-documents") String folder) {
 
         logger.info("📥 POST /upload/document - Uploading file: {}", file.getOriginalFilename());
 
-        Map<String, Object> uploadResult = cloudinaryService.uploadDocument(file, folder);
+        FileUploadResponse uploadResult = cloudinaryService.uploadDocument(file, folder);
 
-        ApiResponse<Map<String, Object>> response = ApiResponse.<Map<String, Object>>builder()
+        ApiResponse<FileUploadResponse> response = ApiResponse.<FileUploadResponse>builder()
                 .status(HttpStatus.OK.value())
                 .success(true)
                 .message("Document uploaded successfully")
@@ -52,15 +53,15 @@ public class FileUploadController {
      */
     @PostMapping("/image")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadImage(
+    public ResponseEntity<ApiResponse<FileUploadResponse>> uploadImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folder", defaultValue = "avatars") String folder) {
 
         logger.info("📥 POST /upload/image - Uploading image: {}", file.getOriginalFilename());
 
-        Map<String, Object> uploadResult = cloudinaryService.uploadImage(file, folder);
+        FileUploadResponse uploadResult = cloudinaryService.uploadImage(file, folder);
 
-        ApiResponse<Map<String, Object>> response = ApiResponse.<Map<String, Object>>builder()
+        ApiResponse<FileUploadResponse> response = ApiResponse.<FileUploadResponse>builder()
                 .status(HttpStatus.OK.value())
                 .success(true)
                 .message("Image uploaded successfully")

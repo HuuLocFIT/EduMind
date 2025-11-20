@@ -3,6 +3,7 @@ package com.edumind.auth.service;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
+import com.edumind.auth.dto.FileUploadResponse;
 import com.edumind.common.exception.FileUploadException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,7 @@ public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
 
-    public Map<String, Object> uploadDocument(MultipartFile file, String folder) {
+    public FileUploadResponse uploadDocument(MultipartFile file, String folder) {
         validateFile(file);
 
         try {
@@ -47,9 +48,17 @@ public class CloudinaryService {
                     )
             );
 
-            logger.info("✅ Document uploaded successfully: {}", uploadResult.get("secure_url"));
+            String secureUrl = (String) uploadResult.get("secure_url");
+            logger.info("✅ Upload success: {}", secureUrl);
 
-            return uploadResult;
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(originalFilename)
+                    .fileType(extension.replace(".", ""))
+                    .resourceType((String) uploadResult.get("resource_type"))
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
 
         } catch (IOException e) {
             logger.error("❌ Failed to upload document to Cloudinary", e);
@@ -60,7 +69,7 @@ public class CloudinaryService {
     /**
      * Upload image (avatar, profile picture)
      */
-    public Map<String, Object> uploadImage(MultipartFile file, String folder) {
+    public FileUploadResponse uploadImage(MultipartFile file, String folder) {
         validateFile(file);
         validateImageFile(file);
 
@@ -82,9 +91,17 @@ public class CloudinaryService {
                     )
             );
 
-            logger.info("✅ Image uploaded successfully: {}", uploadResult.get("secure_url"));
+            String secureUrl = (String) uploadResult.get("secure_url");
+            logger.info("✅ Image uploaded successfully: {}", secureUrl);
 
-            return uploadResult;
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(file.getOriginalFilename())
+                    .fileType((String) uploadResult.get("format"))
+                    .resourceType("image")
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
 
         } catch (IOException e) {
             logger.error("❌ Failed to upload image to Cloudinary", e);
