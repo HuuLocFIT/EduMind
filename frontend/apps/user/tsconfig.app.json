@@ -38,5 +38,10 @@
     "../../libs/user/ui/src/**/*.jsx",
     "../../libs/user/ui/src/**/*.ts",
     "../../libs/user/ui/src/**/*.tsx"
+  ],
+  "references": [
+    {
+      "path": "../../libs/user/ui/tsconfig.lib.json"
+    }
   ]
 }
