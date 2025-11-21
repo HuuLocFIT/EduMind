@@ -4,8 +4,8 @@ This workspace hosts the **Angular Admin** and **React User** applications plus 
 
 ## Requirements
 
-- Node.js 18+ (prefer using nvm to match the team version)
-- npm (repo currently ships with `package-lock.json`; pnpm/yarn disabled)
+- Node.js 24+ (prefer using nvm to match the team version) (we use node 24.2.0)
+- npm (repo currently ships with `package-lock.json`)
 - Local Nx CLI is installed via `npm install`
 
 ## Install & Core Commands
