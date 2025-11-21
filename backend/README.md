@@ -154,12 +154,63 @@ EduMind Platform Backend is a microservices-based architecture designed for scal
 **Purpose:** Shared code and utilities across services
 
 **Contains:**
-- Common DTOs and response models
-- Exception handlers
-- Constants
-- Utility classes
+- **Response Models:**
+  - `ApiResponse<T>` - Standardized API response wrapper
+  - `PagedResponse<T>` - Paginated response wrapper
+  - `ErrorResponse` - Standardized error response
+  - `MessageResponse` - Simple message response
+
+- **Exception Handling:**
+  - `GlobalExceptionHandler` - Centralized exception handling
+  - `BadRequestException` - 400 Bad Request
+  - `ResourceNotFoundException` - 404 Not Found
+  - `TokenRefreshException` - Token refresh errors
+  - `EmailSendException` - Email sending errors
+  - `FileUploadException` - File upload errors
+  - `TooManyRequestsException` - 429 Rate Limit errors
+
+- **Constants:**
+  - `ErrorCode` - Standardized error codes
+  - `ResponseStatus` - Response status constants
+
+- **Security Utilities:**
+  - `EncryptionService` - Data encryption/decryption utilities
+  - `RateLimitService` - Rate limiting utilities
 
 **Technology:** Spring Boot (shared library)
+
+**Usage:** All services depend on `common-lib` for consistent response formats and error handling.
+
+## Scripts and Utilities
+
+The `backend/scripts/` directory contains utility scripts for development and deployment:
+
+### Available Scripts
+
+#### `generate-all-service-keys.sh`
+
+Generates secure encryption keys for all microservices.
+
+**Usage:**
+```bash
+cd backend/scripts
+chmod +x generate-all-service-keys.sh
+./generate-all-service-keys.sh
+```
+
+**What it does:**
+- Generates unique 32-byte (256-bit) encryption keys for each service
+- Outputs keys in format ready for `.env` file
+- Provides security warnings and best practices
+
+**Output:**
+- Encryption keys for Auth Service (2FA secrets, OAuth tokens)
+
+**Security Notes:**
+- ⚠️ Never commit keys to version control
+- 🔒 Use different keys for dev/staging/production
+- 🔑 Store production keys in secure vault (AWS Secrets Manager, HashiCorp Vault)
+- 🔄 Rotate keys quarterly
 
 ## Prerequisites
 
@@ -732,6 +783,49 @@ When rate limit is exceeded:
 }
 ```
 
+### API Documentation
+
+**Base URL:** `http://localhost:8080` (via API Gateway)
+
+**Authentication:**
+- Most endpoints require JWT token in `Authorization` header
+- Format: `Authorization: Bearer <token>`
+
+**Response Format:**
+All API responses follow a standard format:
+```json
+{
+  "status": "SUCCESS",
+  "message": "Operation completed successfully",
+  "data": { ... },
+  "timestamp": "2025-01-20T10:30:00Z"
+}
+```
+
+**Error Response Format:**
+```json
+{
+  "status": "ERROR",
+  "message": "Error description",
+  "errorCode": "ERROR_CODE",
+  "timestamp": "2025-01-20T10:30:00Z"
+}
+```
+
+**Detailed API Documentation:**
+- **Auth Service APIs:** See [auth-service/README.md](./auth-service/README.md#api-endpoints) for complete API documentation
+- **API Endpoints Include:**
+  - Authentication (login, signup, OAuth2, 2FA)
+  - User Management (profile, update, search)
+  - Admin Operations (user management, role management, application review)
+  - Teacher Applications (apply, status, documents)
+  - File Upload (profile pictures, documents)
+
+**API Testing:**
+- Use Postman or Insomnia collections (if available)
+- Or use cURL commands (examples provided in sections above)
+- Swagger/OpenAPI documentation (if configured)
+
 ## Development Workflow
 
 ### 1. Making Changes
@@ -820,7 +914,9 @@ curl -X POST http://localhost:8080/api/auth/signup \
     "username": "testuser",
     "email": "test@example.com",
     "password": "Test123!",
-    "fullName": "Test User"
+    "firstName": "John",
+    "lastName": "Doe",
+    "phoneNumber": "+1234567890"
   }'
 
 # Login
@@ -1010,6 +1106,293 @@ curl http://localhost:8081/actuator/health
 curl http://localhost:8080/actuator/health
 ```
 
+## Security Best Practices
+
+### Environment Variables
+
+- ✅ **Never commit secrets to version control**
+  - Use `.env` files (add to `.gitignore`)
+  - Use environment-specific secret management in production
+
+- ✅ **Use strong secrets**
+  - `JWT_SECRET`: Minimum 32 characters, use random generator
+  - `ENCRYPTION_KEY`: Exactly 32 characters (256-bit)
+  - Generate using: `openssl rand -base64 32`
+
+- ✅ **Rotate secrets regularly**
+  - JWT secrets: Every 6 months
+  - Encryption keys: Every 3 months
+  - Database passwords: Every 3 months
+
+### Production Security Checklist
+
+- [ ] **HTTPS/TLS**: Enable SSL/TLS for all services
+- [ ] **CORS**: Configure allowed origins for production domains only
+- [ ] **Rate Limiting**: Verify rate limits are appropriate for production load
+- [ ] **Database Security**:
+  - Use strong database passwords
+  - Enable SSL connections
+  - Restrict network access (firewall rules)
+  - Regular backups
+- [ ] **Redis Security**:
+  - Set Redis password (`REDIS_PASSWORD`)
+  - Disable dangerous commands
+  - Use Redis AUTH
+- [ ] **JWT Configuration**:
+  - Use short expiration times (15-30 minutes for access tokens)
+  - Implement refresh token rotation
+  - Store refresh tokens securely
+- [ ] **OAuth2**:
+  - Use production OAuth2 credentials
+  - Configure proper redirect URIs
+  - Enable OAuth2 state parameter validation
+- [ ] **2FA**:
+  - Enforce 2FA for admin accounts
+  - Store 2FA secrets encrypted
+  - Implement backup code management
+- [ ] **Logging**:
+  - Don't log sensitive data (passwords, tokens)
+  - Use structured logging
+  - Implement log rotation and retention policies
+- [ ] **Monitoring**:
+  - Monitor failed login attempts
+  - Alert on suspicious activity
+  - Track rate limit violations
+
+### Secret Management
+
+**Development:**
+- Use `.env` files (not committed to Git)
+- Use `scripts/generate-all-service-keys.sh` for key generation
+
+**Production:**
+- Use AWS Secrets Manager, HashiCorp Vault, or similar
+- Implement secret rotation policies
+- Use IAM roles for service access
+- Enable audit logging for secret access
+
+### Network Security
+
+- **Firewall Rules**: Only expose necessary ports
+  - API Gateway: 8080 (HTTPS in production)
+  - Eureka: 8761 (internal only in production)
+  - Services: Internal only (not exposed publicly)
+- **Service-to-Service Communication**: Use internal network
+- **Database Access**: Restrict to application servers only
+
+## Deployment and Production Considerations
+
+### Pre-Deployment Checklist
+
+- [ ] All environment variables configured
+- [ ] Database migrations tested and ready
+- [ ] Secrets stored in secure vault
+- [ ] SSL/TLS certificates obtained
+- [ ] Health checks configured
+- [ ] Logging and monitoring set up
+- [ ] Backup strategy in place
+- [ ] Disaster recovery plan documented
+
+### Deployment Options
+
+#### Option 1: Docker Compose (Development/Staging)
+
+```bash
+# Build all services
+mvn clean package
+
+# Start infrastructure
+docker-compose up -d
+
+# Start services (manual or via docker-compose)
+# See Running Services section
+```
+
+#### Option 2: Kubernetes (Production Recommended)
+
+**Prerequisites:**
+- Kubernetes cluster (1.20+)
+- kubectl configured
+- Helm (optional, for easier deployment)
+
+**Deployment Steps:**
+1. Create Kubernetes secrets for environment variables
+2. Deploy PostgreSQL and Redis (or use managed services)
+3. Deploy Discovery Service
+4. Deploy Auth Service
+5. Deploy API Gateway
+6. Configure Ingress for external access
+
+**Example Kubernetes Resources:**
+- ConfigMaps for non-sensitive configuration
+- Secrets for sensitive data (JWT secrets, DB passwords)
+- Deployments for each service
+- Services for service discovery
+- Ingress for API Gateway
+
+#### Option 3: Cloud Platforms
+
+**AWS:**
+- Use ECS/EKS for container orchestration
+- RDS for PostgreSQL
+- ElastiCache for Redis
+- Application Load Balancer for API Gateway
+- Secrets Manager for secret storage
+
+**Azure:**
+- Azure Kubernetes Service (AKS)
+- Azure Database for PostgreSQL
+- Azure Cache for Redis
+- Azure Application Gateway
+
+**GCP:**
+- Google Kubernetes Engine (GKE)
+- Cloud SQL for PostgreSQL
+- Memorystore for Redis
+- Cloud Load Balancing
+
+### Production Configuration
+
+#### Database
+
+- **Connection Pooling**: Configure appropriate pool sizes
+- **Read Replicas**: Consider read replicas for scaling
+- **Backups**: Automated daily backups with retention policy
+- **Monitoring**: Set up database performance monitoring
+
+#### Redis
+
+- **Persistence**: Configure RDB or AOF for data persistence
+- **High Availability**: Use Redis Sentinel or Cluster mode
+- **Memory Limits**: Set appropriate maxmemory policy
+
+#### Service Scaling
+
+- **Horizontal Scaling**: Run multiple instances of each service
+- **Load Balancing**: Use load balancer for service instances
+- **Auto-scaling**: Configure based on CPU/memory metrics
+
+#### Monitoring and Observability
+
+**Metrics:**
+- Service health and availability
+- Request rates and latencies
+- Error rates
+- Database connection pool usage
+- Redis memory usage
+
+**Logging:**
+- Centralized logging (ELK Stack, CloudWatch, etc.)
+- Structured logging (JSON format)
+- Log aggregation and search
+
+**Tracing:**
+- Distributed tracing (Jaeger, Zipkin)
+- Request correlation IDs
+- Service dependency mapping
+
+### Performance Optimization
+
+- **Caching**: Implement Redis caching for frequently accessed data
+- **Database Indexing**: Ensure proper indexes on query columns
+- **Connection Pooling**: Tune connection pool sizes
+- **JVM Tuning**: Configure appropriate heap sizes and GC settings
+- **Rate Limiting**: Adjust rate limits based on expected load
+
+### High Availability
+
+- **Multi-AZ Deployment**: Deploy services across multiple availability zones
+- **Database Replication**: Set up master-slave replication
+- **Service Redundancy**: Run at least 2 instances of each service
+- **Health Checks**: Configure liveness and readiness probes
+- **Circuit Breakers**: Implement circuit breakers for service calls
+
+## Monitoring and Observability
+
+### Health Checks
+
+All services expose health endpoints via Spring Boot Actuator:
+
+```bash
+# Service health checks
+curl http://localhost:8080/actuator/health  # API Gateway
+curl http://localhost:8081/actuator/health  # Auth Service
+curl http://localhost:8761/actuator/health  # Discovery Service
+```
+
+**Health Check Endpoints:**
+- `/actuator/health` - Basic health status
+- `/actuator/health/liveness` - Kubernetes liveness probe
+- `/actuator/health/readiness` - Kubernetes readiness probe
+
+### Metrics
+
+Spring Boot Actuator provides metrics at `/actuator/metrics`:
+
+```bash
+# Available metrics
+curl http://localhost:8080/actuator/metrics
+
+# Specific metric
+curl http://localhost:8080/actuator/metrics/jvm.memory.used
+```
+
+**Key Metrics to Monitor:**
+- `http.server.requests` - HTTP request metrics
+- `jvm.memory.used` - JVM memory usage
+- `jvm.gc.pause` - Garbage collection pauses
+- `process.cpu.usage` - CPU usage
+- `hikaricp.connections.active` - Database connection pool
+- `redis.connections.active` - Redis connections
+
+### Logging
+
+**Log Locations:**
+- `discovery-service/logs/discovery-service.log`
+- `auth-service/logs/auth-service.log`
+- `api-gateway/logs/api-gateway.log`
+
+**Log Configuration:**
+- Log rotation: 10MB per file, 30 days retention
+- Structured logging with timestamps
+- Log levels configurable via `application.yml`
+
+**Viewing Logs:**
+```bash
+# Real-time logs
+tail -f auth-service/logs/auth-service.log
+
+# Search for errors
+grep -i error auth-service/logs/auth-service.log
+
+# Last 100 lines
+tail -n 100 auth-service/logs/auth-service.log
+```
+
+### Eureka Dashboard
+
+Monitor registered services at:
+- **URL:** http://localhost:8761
+- **Features:**
+  - View all registered services
+  - Service instance status
+  - Health check status
+  - Service metadata
+
+### Recommended Monitoring Stack
+
+**Development:**
+- Spring Boot Actuator endpoints
+- Eureka Dashboard
+- Application logs
+
+**Production:**
+- **Metrics:** Prometheus + Grafana
+- **Logging:** ELK Stack (Elasticsearch, Logstash, Kibana) or CloudWatch
+- **Tracing:** Jaeger or Zipkin
+- **APM:** New Relic, Datadog, or Application Insights
+- **Alerts:** PagerDuty, OpsGenie, or similar
+
 ## Additional Resources
 
 ### Documentation
@@ -1019,6 +1402,7 @@ curl http://localhost:8080/actuator/health
 - [Spring Cloud Documentation](https://spring.io/projects/spring-cloud)
 - [Eureka Documentation](https://github.com/Netflix/eureka)
 - [Spring Cloud Gateway Documentation](https://spring.io/projects/spring-cloud-gateway)
+- [Spring Boot Actuator](https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html)
 
 ### Useful Commands
 
@@ -1068,8 +1452,88 @@ For issues or questions:
 3. Check service logs
 4. Contact the development team
 
+## Technology Stack Summary
+
+| Component | Technology | Version |
+|-----------|-----------|---------|
+| **Language** | Java | 21 (LTS) |
+| **Framework** | Spring Boot | 3.5.6 |
+| **Microservices** | Spring Cloud | 2025.0.0 |
+| **Service Discovery** | Eureka | (via Spring Cloud) |
+| **API Gateway** | Spring Cloud Gateway | (via Spring Cloud) |
+| **Database** | PostgreSQL | 16 |
+| **Cache/Rate Limiting** | Redis | 7 |
+| **Migration Tool** | Flyway | 10.20.1 |
+| **Authentication** | JWT (JJWT) | 0.12.6 |
+| **Build Tool** | Maven | 3.6+ |
+| **Containerization** | Docker | Latest |
+
+## Project Status
+
+**Current Phase:** Phase 0 - Core Infrastructure
+
+**Services Status:**
+- ✅ Discovery Service (Eureka) - Production Ready
+- ✅ API Gateway - Production Ready
+- ✅ Auth Service - Production Ready
+- ✅ Common Library - Production Ready
+
+**Future Services (Planned):**
+- 🔄 Course Service
+- 🔄 Content Service
+- 🔄 Payment Service
+- 🔄 Notification Service
+- 🔄 Analytics Service
+
+## Contributing
+
+### Development Workflow
+
+1. **Create Feature Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make Changes**
+   - Follow code style guidelines
+   - Write unit tests
+   - Update documentation
+
+3. **Test Locally**
+   ```bash
+   mvn clean test
+   docker-compose up -d
+   # Test services manually
+   ```
+
+4. **Commit Changes**
+   ```bash
+   git commit -m "feat: your feature description"
+   ```
+
+5. **Push and Create Pull Request**
+
+### Code Style
+
+- Follow Java naming conventions
+- Use meaningful variable and method names
+- Add JavaDoc for public methods
+- Keep methods focused and small
+- Write unit tests for new features
+
+### Commit Message Format
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
 ---
 
 **Last Updated:** 2025-01-20  
-**Version:** 1.0.0-SNAPSHOT
+**Version:** 1.0.0-SNAPSHOT  
+**Maintainers:** EduMind Development Team
 

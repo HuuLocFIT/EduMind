@@ -25,20 +25,28 @@ Auth Service is a Spring Boot microservice that handles:
 - Email verification
 - Password reset
 - User role management
+- **Admin user management** - Create, update, delete, and manage users
+- **Admin application review** - Review and approve/reject teacher applications
+- **Trial teacher management** - Manage trial periods and upgrade to full teachers
 - Teacher application management
-- File upload (profile pictures) via Cloudinary
+- File upload (profile pictures and documents) via Cloudinary
 
 ## Features
 
 - ✅ **JWT-based Authentication** - Secure token-based authentication
 - ✅ **OAuth2 Integration** - Google OAuth2 login
-- ✅ **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes
+- ✅ **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes and backup codes
 - ✅ **Email Verification** - Email verification on registration
 - ✅ **Password Reset** - Secure password reset via email
 - ✅ **Role-Based Access Control (RBAC)** - Admin, Teacher, Student, Guest roles
+- ✅ **Admin User Management** - Create, update, delete, enable/disable users with pagination
+- ✅ **Admin Role Management** - Assign and update user roles
+- ✅ **Admin Application Review** - Review, approve, or reject teacher applications
+- ✅ **Trial Teacher Management** - View trial teachers and upgrade to full teachers
+- ✅ **User Filtering & Search** - Filter users by role with pagination support
 - ✅ **Teacher Application System** - Teachers can apply and get approved by admins
-- ✅ **Trial System** - Trial period management for teachers
-- ✅ **File Upload** - Profile picture upload via Cloudinary
+- ✅ **Trial System** - Trial period management for teachers (30-day trial)
+- ✅ **File Upload** - Profile picture and document upload via Cloudinary
 - ✅ **Service Discovery** - Integrated with Eureka Discovery Service
 - ✅ **Database Migrations** - Flyway for version-controlled database schema
 
@@ -280,7 +288,18 @@ Content-Type: application/json
   "username": "johndoe",
   "email": "john@example.com",
   "password": "SecurePassword123!",
-  "fullName": "John Doe"
+  "firstName": "John",
+  "lastName": "Doe",
+  "phoneNumber": "+1234567890"
+}
+```
+
+**Response:**
+```json
+{
+  "status": 201,
+  "success": true,
+  "message": "User registered successfully. Please check your email for verification."
 }
 ```
 
@@ -298,12 +317,14 @@ Content-Type: application/json
 **Response (Normal Login):**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "type": "Bearer",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refreshToken": "refresh-token-here",
-  "id": 1,
+  "tokenType": "Bearer",
+  "userId": 1,
   "username": "johndoe",
   "email": "john@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
   "roles": ["ROLE_STUDENT"]
 }
 ```
@@ -312,6 +333,7 @@ Content-Type: application/json
 ```json
 {
   "requires2FA": true,
+  "email": "john@example.com",
   "message": "Two-factor authentication required"
 }
 ```
@@ -327,6 +349,21 @@ Content-Type: application/json
 }
 ```
 
+**Response:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "refresh-token-here",
+  "tokenType": "Bearer",
+  "userId": 1,
+  "username": "johndoe",
+  "email": "john@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "roles": ["ROLE_STUDENT"]
+}
+```
+
 #### Refresh Token
 ```http
 POST /auth/refresh
@@ -337,55 +374,107 @@ Content-Type: application/json
 }
 ```
 
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Token refreshed successfully",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "new-refresh-token-here",
+    "tokenType": "Bearer",
+    "userId": 1,
+    "username": "johndoe",
+    "email": "john@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "roles": ["ROLE_STUDENT"]
+  }
+}
+```
+
 #### Logout
 ```http
 POST /auth/logout
 Authorization: Bearer {token}
 ```
 
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
 ### User Management Endpoints
 
 #### Get Current User
 ```http
-GET /api/users/me
+GET /users/me
 Authorization: Bearer {token}
 ```
 
-#### Update User Profile
-```http
-PUT /api/users/me
-Authorization: Bearer {token}
-Content-Type: application/json
-
+**Response:**
+```json
 {
-  "fullName": "John Updated",
-  "bio": "Software Developer"
+  "status": 200,
+  "success": true,
+  "message": "User details retrieved successfully",
+  "data": {
+    "id": 1,
+    "username": "johndoe",
+    "email": "john@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phoneNumber": "+1234567890",
+    "roles": ["ROLE_STUDENT"],
+    "isActive": true,
+    "isEmailVerified": true,
+    "profilePictureUrl": "https://cloudinary.com/profile.jpg",
+    "createdAt": "2025-01-20T10:00:00",
+    "lastLoginAt": "2025-01-20T15:30:00"
+  }
 }
 ```
+
+#### Get User by ID
+```http
+GET /users/{id}
+Authorization: Bearer {token}
+```
+
+**Access:** Admin or Teacher only
+
+**Response:** Same structure as Get Current User
 
 ### Email Verification Endpoints
 
 #### Verify Email
 ```http
-POST /api/email/verify
-Content-Type: application/json
+GET /auth/verify-email?token={verification-token-from-email}
+```
 
+**Example:**
+```http
+GET /auth/verify-email?token=abc123xyz789
+```
+
+**Response:**
+```json
 {
-  "token": "verification-token-from-email"
+  "status": 200,
+  "success": true,
+  "message": "Email verified successfully! You can now log in.",
+  "data": null
 }
 ```
 
 #### Resend Verification Email
 ```http
-POST /api/email/resend
-Authorization: Bearer {token}
-```
-
-### Password Reset Endpoints
-
-#### Request Password Reset
-```http
-POST /api/password/reset
+POST /auth/resend-verification
 Content-Type: application/json
 
 {
@@ -393,14 +482,75 @@ Content-Type: application/json
 }
 ```
 
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Verification email sent! Please check your inbox.",
+  "data": null
+}
+```
+
+### Password Reset Endpoints
+
+#### Request Password Reset
+```http
+POST /auth/password/forgot
+Content-Type: application/json
+
+{
+  "email": "john@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "If your email exists in our system, you will receive a password reset link.",
+  "data": null
+}
+```
+
+#### Validate Reset Token
+```http
+GET /auth/password/validate-token?token={reset-token-from-email}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Token is valid",
+  "data": {
+    "valid": true,
+    "email": "john@example.com"
+  }
+}
+```
+
 #### Confirm Password Reset
 ```http
-POST /api/password/reset/confirm
+POST /auth/password/reset
 Content-Type: application/json
 
 {
   "token": "reset-token-from-email",
-  "newPassword": "NewSecurePassword123!"
+  "newPassword": "NewSecurePassword123!",
+  "confirmPassword": "NewSecurePassword123!"
+}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Password reset successfully! You can now log in with your new password.",
+  "data": null
 }
 ```
 
@@ -408,24 +558,52 @@ Content-Type: application/json
 
 #### Setup 2FA
 ```http
-POST /api/2fa/setup
+POST /auth/2fa/setup
 Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "2FA setup generated. Scan QR code with your authenticator app.",
+  "data": {
+    "qrCodeUrl": "data:image/png;base64,iVBORw0KG...",
+    "secret": "JBSWY3DPEHPK3PXP",
+    "backupCodes": ["12345678", "87654321", ...]
+  }
+}
 ```
 
 #### Verify 2FA Setup
 ```http
-POST /api/2fa/verify
+POST /auth/2fa/verify
 Authorization: Bearer {token}
 Content-Type: application/json
 
 {
-  "code": "123456"
+  "code": "123456",
+  "secret": "JBSWY3DPEHPK3PXP"
+}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Two-factor authentication enabled successfully!",
+  "data": {
+    "enabled": true,
+    "backupCodes": ["12345678", "87654321", ...]
+  }
 }
 ```
 
 #### Disable 2FA
 ```http
-POST /api/2fa/disable
+POST /auth/2fa/disable
 Authorization: Bearer {token}
 Content-Type: application/json
 
@@ -435,67 +613,446 @@ Content-Type: application/json
 }
 ```
 
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Two-factor authentication disabled successfully.",
+  "data": {
+    "enabled": false
+  }
+}
+```
+
 #### Get 2FA Status
 ```http
-GET /api/2fa/status
+GET /auth/2fa/status
 Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "2FA status retrieved",
+  "data": {
+    "enabled": true
+  }
+}
+```
+
+#### Regenerate Backup Codes
+```http
+POST /auth/2fa/backup-codes
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "password": "user-password"
+}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Backup codes regenerated successfully. Save them in a secure location.",
+  "data": {
+    "backupCodes": ["11111111", "22222222", ...]
+  }
+}
 ```
 
 ### Admin Endpoints
 
-#### Get All Users
+#### Create Teacher Account
 ```http
-GET /api/admin/users
-Authorization: Bearer {admin-token}
-```
-
-#### Update User Role
-```http
-PUT /api/admin/users/{userId}/role
+POST /admin/users/teacher
 Authorization: Bearer {admin-token}
 Content-Type: application/json
 
 {
-  "role": "ROLE_TEACHER"
+  "username": "teacher1",
+  "email": "teacher1@example.com",
+  "password": "SecurePassword123!",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "phoneNumber": "+1234567890",
+  "roles": ["ROLE_TEACHER"]
 }
 ```
+
+#### Create Admin Account
+```http
+POST /admin/users/admin
+Authorization: Bearer {admin-token}
+Content-Type: application/json
+
+{
+  "username": "admin2",
+  "email": "admin2@example.com",
+  "password": "SecurePassword123!",
+  "firstName": "Admin",
+  "lastName": "User",
+  "phoneNumber": "+1234567890",
+  "roles": ["ROLE_ADMIN"]
+}
+```
+
+#### Get All Users
+```http
+GET /admin/users?page=0&size=10&sortBy=createdAt
+Authorization: Bearer {admin-token}
+```
+
+**Query Parameters:**
+- `page` (default: 0) - Page number
+- `size` (default: 10) - Page size
+- `sortBy` (default: createdAt) - Sort field
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Users retrieved successfully",
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "username": "johndoe",
+        "email": "john@example.com",
+        "firstName": "John",
+        "lastName": "Doe",
+        "roles": ["ROLE_STUDENT"],
+        "isActive": true,
+        "createdAt": "2025-01-20T10:00:00"
+      }
+    ],
+    "totalElements": 100,
+    "totalPages": 10,
+    "size": 10,
+    "number": 0
+  }
+}
+```
+
+#### Get Users by Role
+```http
+GET /admin/users/role/{roleName}?page=0&size=10
+Authorization: Bearer {admin-token}
+```
+
+**Example:**
+```http
+GET /admin/users/role/TEACHER?page=0&size=10
+Authorization: Bearer {admin-token}
+```
+
+**Response:** Same paginated structure as Get All Users
+
+#### Update User Roles
+```http
+PUT /admin/users/{userId}/role
+Authorization: Bearer {admin-token}
+Content-Type: application/json
+
+{
+  "roles": ["ROLE_TEACHER", "ROLE_STUDENT"]
+}
+```
+
+#### Toggle User Status (Enable/Disable)
+```http
+PATCH /admin/users/{userId}/status?enabled=true
+Authorization: Bearer {admin-token}
+```
+
+**Query Parameters:**
+- `enabled` (required) - true to enable, false to disable
+
+**Example:**
+```http
+PATCH /admin/users/1/status?enabled=false
+Authorization: Bearer {admin-token}
+```
+
+#### Delete User
+```http
+DELETE /admin/users/{userId}
+Authorization: Bearer {admin-token}
+```
+
+**Note:** This performs a soft delete.
+
+#### Get All Teacher Applications
+```http
+GET /admin/users/applications?status=PENDING&page=0&size=10&sortBy=createdAt
+Authorization: Bearer {admin-token}
+```
+
+**Query Parameters:**
+- `status` (optional) - Filter by status: PENDING, APPROVED, REJECTED
+- `page` (default: 0) - Page number
+- `size` (default: 10) - Page size
+- `sortBy` (default: createdAt) - Sort field
+
+**Example:**
+```http
+GET /admin/users/applications?status=PENDING&page=0&size=10
+Authorization: Bearer {admin-token}
+```
+
+#### Get Application by ID
+```http
+GET /admin/users/applications/{id}
+Authorization: Bearer {admin-token}
+```
+
+#### Get All Trial Teachers
+```http
+GET /admin/users/trial-teachers?page=0&size=10
+Authorization: Bearer {admin-token}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Trial teachers retrieved successfully",
+  "data": {
+    "content": [
+      {
+        "userId": 1,
+        "username": "teacher1",
+        "email": "teacher1@example.com",
+        "firstName": "Jane",
+        "lastName": "Smith",
+        "trialStartDate": "2025-01-01T00:00:00",
+        "trialEndDate": "2025-01-31T23:59:59",
+        "isTrialExpired": false,
+        "daysRemaining": 15
+      }
+    ],
+    "totalElements": 5,
+    "totalPages": 1
+  }
+}
+```
+
+#### Upgrade Trial Teacher to Full Teacher
+```http
+POST /admin/users/trial-teachers/{userId}/upgrade
+Authorization: Bearer {admin-token}
+Content-Type: application/json
+
+{
+  "adminNotes": "Upgraded after successful trial period"
+}
+```
+
+**Note:** `adminNotes` is optional.
 
 ### Teacher Application Endpoints
 
 #### Submit Teacher Application
 ```http
-POST /api/teacher/apply
+POST /teacher-application/submit
 Authorization: Bearer {token}
 Content-Type: application/json
 
 {
-  "fullName": "John Doe",
-  "bio": "Experienced teacher",
-  "qualifications": "Masters in Education"
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "subject": "Mathematics",
+  "experienceYears": 5,
+  "qualifications": "Masters in Education",
+  "bio": "Experienced teacher with 5 years of teaching experience",
+  "motivation": "I want to share my knowledge with students",
+  "documents": [
+    {
+      "url": "https://cloudinary.com/image1.jpg",
+      "type": "certificate",
+      "name": "Teaching Certificate.pdf"
+    },
+    {
+      "url": "https://cloudinary.com/image2.jpg",
+      "type": "degree",
+      "name": "Master Degree.pdf"
+    }
+  ]
+}
+```
+
+**Access:** Student or Guest only
+
+#### Get My Application
+```http
+GET /teacher-application/my-application
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Application retrieved successfully",
+  "data": {
+    "id": 1,
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "phone": "+1234567890",
+    "subject": "Mathematics",
+    "experienceYears": 5,
+    "qualifications": "Masters in Education",
+    "bio": "Experienced teacher",
+    "motivation": "I want to share my knowledge",
+    "status": "PENDING",
+    "documents": [...],
+    "createdAt": "2025-01-20T10:00:00",
+    "updatedAt": "2025-01-20T10:00:00"
+  }
+}
+```
+
+#### Get Trial Status
+```http
+GET /teacher-application/trial-status
+Authorization: Bearer {token}
+```
+
+**Access:** Teacher Trial only
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Trial status retrieved",
+  "data": {
+    "userId": 1,
+    "username": "teacher1",
+    "email": "teacher1@example.com",
+    "trialStartDate": "2025-01-01T00:00:00",
+    "trialEndDate": "2025-01-31T23:59:59",
+    "isTrialExpired": false,
+    "daysRemaining": 15
+  }
 }
 ```
 
 #### Review Application (Admin)
 ```http
-PUT /api/admin/applications/{applicationId}/review
+POST /admin/users/applications/{id}/review
 Authorization: Bearer {admin-token}
 Content-Type: application/json
 
 {
-  "status": "APPROVED",
-  "comments": "Approved"
+  "action": "APPROVE",
+  "teacherType": "TRIAL",
+  "adminNotes": "Approved for 30-day trial period"
 }
 ```
 
+**For Rejection:**
+```http
+POST /admin/users/applications/{id}/review
+Authorization: Bearer {admin-token}
+Content-Type: application/json
+
+{
+  "action": "REJECT",
+  "rejectionReason": "Insufficient qualifications",
+  "adminNotes": "Please provide additional certificates"
+}
+```
+
+**Note:** `teacherType` can be `TRIAL` (30 days) or `FULL` (permanent). Only required when `action` is `APPROVE`.
+
 ### File Upload Endpoints
 
-#### Upload Profile Picture
+#### Upload Document
 ```http
-POST /api/files/upload
+POST /upload/document
 Authorization: Bearer {token}
 Content-Type: multipart/form-data
 
 file: [binary file]
+folder: teacher-documents (optional, default: teacher-documents)
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Document uploaded successfully",
+  "data": {
+    "url": "https://cloudinary.com/document.pdf",
+    "publicId": "teacher-documents/abc123",
+    "resourceType": "raw",
+    "format": "pdf",
+    "size": 1024000
+  }
+}
+```
+
+#### Upload Image (Avatar/Profile Picture)
+```http
+POST /upload/image
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+
+file: [binary image file]
+folder: avatars (optional, default: avatars)
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "Image uploaded successfully",
+  "data": {
+    "url": "https://cloudinary.com/image.jpg",
+    "publicId": "avatars/abc123",
+    "resourceType": "image",
+    "format": "jpg",
+    "width": 800,
+    "height": 600,
+    "size": 204800
+  }
+}
+```
+
+#### Delete File
+```http
+DELETE /upload?url={cloudinary-url}
+Authorization: Bearer {token}
+```
+
+**Example:**
+```http
+DELETE /upload?url=https://cloudinary.com/image.jpg
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "File deleted successfully",
+  "data": null
+}
 ```
 
 ### OAuth2 Endpoints
