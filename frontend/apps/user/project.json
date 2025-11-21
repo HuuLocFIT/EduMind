@@ -1,0 +1,70 @@
+{
+  "name": "user",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/user/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/user"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "user:build",
+        "port": 3000,
+        "host": "localhost"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "user:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "user:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "production",
+      "options": {
+        "buildTarget": "user:build:production",
+        "port": 4300,
+        "host": "localhost"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/user/**/*.ts",
+          "apps/user/**/*.tsx",
+          "apps/user/**/*.js",
+          "apps/user/**/*.jsx"
+        ]
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --project apps/user/tsconfig.app.json --noEmit"
+      }
+    }
+  },
+  "tags": ["scope:app", "type:react"]
+}
