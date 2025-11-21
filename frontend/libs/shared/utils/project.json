@@ -1,0 +1,32 @@
+{
+  "name": "shared-utils",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/shared/utils/src",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "main": "libs/shared/utils/src/index.ts",
+        "tsConfig": "libs/shared/utils/tsconfig.lib.json",
+        "outputPath": "libs/shared/utils/dist"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/shared/utils/**/*.ts"
+        ]
+      }
+    }
+  },
+  "tags": [
+    "scope:shared",
+    "type:util"
+  ]
+}
+
