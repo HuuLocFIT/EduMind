@@ -1,4 +1,25 @@
 services:
+  # Discovery Service (Eureka Server)
+  discovery-service:
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
+    container_name: edumind-discovery-service
+    ports:
+      - "${DISCOVERY_SERVER_PORT:-8761}:8761"
+    environment:
+      - DISCOVERY_SERVER_PORT=${DISCOVERY_SERVER_PORT:-8761}
+      - EUREKA_HOSTNAME=discovery-service
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
   # PostgreSQL for Auth Service
   postgres-auth:
     image: postgres:16-alpine
@@ -18,13 +39,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Redis for API Gateway Rate Limiting
   redis:
     image: redis:7-alpine
     container_name: edumind-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     networks:
@@ -34,6 +56,86 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: edumind-auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT:-8081}:8081"
+    environment:
+      - AUTH_SERVICE_PORT=${AUTH_SERVICE_PORT:-8081}
+      - AUTH_DB_URL=jdbc:postgresql://postgres-auth:5432/${AUTH_DB_NAME:-edumind_auth}
+      - AUTH_DB_USERNAME=${AUTH_DB_USERNAME:-postgres}
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:-postgres}
+      - AUTH_DB_DRIVER=org.postgresql.Driver
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM:-noreply@edumind.com}
+      - MAIL_ENABLED=${MAIL_ENABLED:-true}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: edumind-api-gateway
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    environment:
+      - API_GATEWAY_PORT=${API_GATEWAY_PORT:-8080}
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_TIMEOUT=${REDIS_TIMEOUT:-60000ms}
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
 
 volumes:
   postgres-auth-data:
