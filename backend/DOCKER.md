@@ -1,59 +1,62 @@
-# Hướng Dẫn Docker cho EduMind Platform
+# Guide for Docker for EduMind Platform
 
-Tài liệu này hướng dẫn cách build và chạy các Docker images cho các microservices của EduMind Platform.
+This document guides how to build and run Docker images for the microservices of the EduMind Platform.
 
-## 📋 Mục Lục
+## 📋 Table of Contents
 
-- [Tổng Quan](#tổng-quan)
-- [Yêu Cầu](#yêu-cầu)
-- [Cấu Trúc Docker](#cấu-trúc-docker)
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Docker Structure](#docker-structure)
 - [Build Docker Images](#build-docker-images)
-- [Chạy với Docker Compose](#chạy-với-docker-compose)
+- [Run with Docker Compose](#run-with-docker-compose)
 - [Environment Variables](#environment-variables)
 - [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [Development Workflow](#development-workflow)
+- [Reference Documentation](#reference-documentation)
 
-## 📦 Tổng Quan
+## 📦 Overview
 
-Dự án sử dụng Docker để containerize các microservices:
+The project uses Docker to containerize the microservices:
 
 - **discovery-service** (Port 8761): Eureka Server cho service discovery
 - **api-gateway** (Port 8080): Spring Cloud Gateway
 - **auth-service** (Port 8081): Authentication & Authorization service
 - **postgres-auth** (Port 5432): PostgreSQL database
-- **redis** (Port 6379): Redis cho rate limiting
+- **redis** (Port 6379): Redis for rate limiting
 
-## 🔧 Yêu Cầu
+## 🔧 Requirements
 
 - Docker Engine >= 20.10
 - Docker Compose >= 2.0
-- Maven >= 3.9 (để build images)
-- Java 21 (để build local nếu cần)
+- Maven >= 3.9 (to build images)
+- Java 21 (to build locally if needed)
 
-Kiểm tra version:
+Check version:
 ```bash
 docker --version
 docker compose version
 ```
 
-## 📁 Cấu Trúc Docker
+## 📁 Docker Structure
 
 ```
 backend/
-├── docker-compose.yml          # Orchestration cho tất cả services
-├── .dockerignore               # Files/folders bỏ qua khi build
+├── docker-compose.yml          # Orchestration for all services
+├── .dockerignore               # Files/folders to ignore when build
 ├── discovery-service/
-│   └── Dockerfile              # Dockerfile cho discovery-service
+│   └── Dockerfile              # Dockerfile for discovery-service
 ├── api-gateway/
-│   └── Dockerfile              # Dockerfile cho api-gateway
+│   └── Dockerfile              # Dockerfile for api-gateway
 └── auth-service/
     └── Dockerfile              # Dockerfile cho auth-service
 ```
 
 ## 🏗️ Build Docker Images
 
-### Cách 1: Build từng service riêng lẻ
+### Method 1: Build each service separately
 
-Build từ thư mục `backend/`:
+Build from the `backend/` directory:
 
 ```bash
 # Build discovery-service
@@ -66,37 +69,37 @@ docker build -f api-gateway/Dockerfile -t edumind/api-gateway:latest .
 docker build -f auth-service/Dockerfile -t edumind/auth-service:latest .
 ```
 
-### Cách 2: Build tất cả với docker-compose
+### Method 2: Build all with docker-compose
 
 ```bash
-# Build tất cả images
+# Build all images
 docker compose build
 
-# Build lại từ đầu (không dùng cache)
+# Build from scratch (without cache)
 docker compose build --no-cache
 
-# Build một service cụ thể
+# Build a specific service
 docker compose build discovery-service
 ```
 
-### Kiểm tra images đã build
+### Check built images
 
 ```bash
 docker images | grep edumind
 ```
 
-Kết quả mong đợi:
+Expected result:
 ```
 edumind/discovery-service   latest    ...    ...    ...
 edumind/api-gateway         latest    ...    ...    ...
 edumind/auth-service        latest    ...    ...    ...
 ```
 
-## 🚀 Chạy với Docker Compose
+## 🚀 Run with Docker Compose
 
-### Bước 1: Tạo file .env
+### Step 1: Create .env file
 
-Tạo file `.env` trong thư mục `backend/` với các biến môi trường cần thiết:
+Create `.env` file in the `backend/` directory with the necessary environment variables:
 
 ```bash
 # Database
@@ -117,12 +120,12 @@ MAIL_PASSWORD=your_app_password
 MAIL_FROM=noreply@edumind.com
 MAIL_ENABLED=true
 
-# Cloudinary (nếu dùng)
+# Cloudinary (if used)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# Google OAuth2 (nếu dùng)
+# Google OAuth2 (if used)
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:8081/login/oauth2/code/google
@@ -133,41 +136,41 @@ ENCRYPTION_KEY=your_encryption_key
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 
-# Ports (optional, có default values)
+# Ports (optional, default values)
 DISCOVERY_SERVER_PORT=8761
 API_GATEWAY_PORT=8080
 AUTH_SERVICE_PORT=8081
 REDIS_PORT=6379
 ```
 
-**⚠️ Lưu ý:** File `.env` chứa thông tin nhạy cảm, không commit vào Git!
+**⚠️ Note:** The `.env` file contains sensitive information, do not commit to Git!
 
-### Bước 2: Start tất cả services
+### Step 2: Start all services
 
 ```bash
-# Start tất cả services
+# Start all services
 docker compose up -d
 
-# Xem logs
+# View logs
 docker compose logs -f
 
-# Xem logs của một service cụ thể
+# View logs of a specific service
 docker compose logs -f discovery-service
 docker compose logs -f api-gateway
 docker compose logs -f auth-service
 ```
 
-### Bước 3: Kiểm tra services đang chạy
+### Step 3: Check running services
 
 ```bash
-# List tất cả containers
+# List all containers
 docker compose ps
 
-# Kiểm tra health status
+# Check health status
 docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-### Bước 4: Truy cập services
+### Step 4: Access services
 
 - **Discovery Service Dashboard**: http://localhost:8761
 - **API Gateway**: http://localhost:8080
@@ -178,16 +181,16 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 ### Stop và Cleanup
 
 ```bash
-# Stop tất cả services (giữ containers và volumes)
+# Stop all services (keep containers and volumes)
 docker compose stop
 
-# Stop và remove containers (giữ volumes)
+# Stop and remove containers (keep volumes)
 docker compose down
 
-# Stop và remove containers + volumes (xóa data)
+# Stop and remove containers + volumes (delete data)
 docker compose down -v
 
-# Stop và remove containers + volumes + images
+# Stop and remove containers + volumes + images
 docker compose down -v --rmi all
 ```
 
@@ -195,26 +198,26 @@ docker compose down -v --rmi all
 
 ### Discovery Service
 
-| Variable | Default | Mô tả |
+| Variable | Default | Description |
 |----------|---------|-------|
-| `DISCOVERY_SERVER_PORT` | 8761 | Port của Eureka Server |
-| `EUREKA_HOSTNAME` | localhost | Hostname cho Eureka |
+| `DISCOVERY_SERVER_PORT` | 8761 | Port of Eureka Server |
+| `EUREKA_HOSTNAME` | localhost | Hostname of Eureka |
 
 ### API Gateway
 
-| Variable | Default | Mô tả |
+| Variable | Default | Description |
 |----------|---------|-------|
-| `API_GATEWAY_PORT` | 8080 | Port của API Gateway |
-| `REDIS_HOST` | redis | Redis hostname (trong Docker network) |
+| `API_GATEWAY_PORT` | 8080 | Port of API Gateway |
+| `REDIS_HOST` | redis | Redis hostname (in Docker network) |
 | `REDIS_PORT` | 6379 | Redis port |
-| `REDIS_PASSWORD` | - | Redis password (nếu có) |
+| `REDIS_PASSWORD` | - | Redis password (if any) |
 | `EUREKA_DEFAULT_ZONE` | http://discovery-service:8761/eureka/ | Eureka server URL |
 
 ### Auth Service
 
-| Variable | Default | Mô tả |
+| Variable | Default | Description |
 |----------|---------|-------|
-| `AUTH_SERVICE_PORT` | 8081 | Port của Auth Service |
+| `AUTH_SERVICE_PORT` | 8081 | Port of Auth Service |
 | `AUTH_DB_URL` | jdbc:postgresql://postgres-auth:5432/edumind_auth | Database URL |
 | `AUTH_DB_USERNAME` | postgres | Database username |
 | `AUTH_DB_PASSWORD` | - | Database password (required) |
@@ -228,122 +231,122 @@ docker compose down -v --rmi all
 
 ## 🐛 Troubleshooting
 
-### 1. Build fails với "parent POM not found"
+### 1. Build fails with "parent POM not found"
 
-**Nguyên nhân:** Build context không đúng.
+**Reason:** Build context is incorrect.
 
-**Giải pháp:** Đảm bảo build từ thư mục `backend/`:
+**Solution:** Ensure build from the `backend/` directory:
 ```bash
 cd backend
 docker build -f discovery-service/Dockerfile -t edumind/discovery-service:latest .
 ```
 
-### 2. Service không kết nối được database
+### 2. Service cannot connect to database
 
-**Nguyên nhân:** Service start trước khi database ready.
+**Reason:** Service starts before database is ready.
 
-**Giải pháp:** Docker Compose đã có `depends_on` với healthcheck. Kiểm tra:
+**Solution:** Docker Compose has `depends_on` with healthcheck. Check:
 ```bash
 docker compose ps
-# Đảm bảo postgres-auth có status "healthy"
+# Ensure postgres-auth has status "healthy"
 ```
 
-### 3. Service không register với Eureka
+### 3. Service cannot register with Eureka
 
 **Nguyên nhân:** 
-- Discovery service chưa start
-- Network configuration sai
-- Hostname không resolve được
+- Discovery service has not started
+- Network configuration is incorrect
+- Hostname cannot be resolved
 
-**Giải pháp:**
+**Solution:**
 ```bash
-# Kiểm tra discovery-service đang chạy
+# Check discovery-service is running
 docker compose logs discovery-service
 
-# Kiểm tra network
+# Check network
 docker network inspect backend_edumind-network
 
-# Kiểm tra Eureka dashboard
+# Check Eureka dashboard
 curl http://localhost:8761/eureka/apps
 ```
 
-### 4. Port đã được sử dụng
+### 4. Port is already in use
 
-**Nguyên nhân:** Port đã bị chiếm bởi process khác.
+**Reason:** Port is already occupied by another process.
 
-**Giải pháp:**
+**Solution:**
 ```bash
-# Tìm process đang dùng port
+# Find process using port
 lsof -i :8080  # macOS/Linux
 netstat -ano | findstr :8080  # Windows
 
-# Hoặc đổi port trong .env
+# Or change port in .env
 API_GATEWAY_PORT=8082
 ```
 
-### 5. Out of memory khi build
+### 5. Out of memory when build
 
-**Nguyên nhân:** Maven build cần nhiều memory.
+**Reason:** Maven build needs a lot of memory.
 
-**Giải pháp:** Tăng Docker memory limit hoặc build với ít memory:
+**Solution:** Increase Docker memory limit or build with less memory:
 ```bash
 docker build --memory=2g -f discovery-service/Dockerfile -t edumind/discovery-service:latest .
 ```
 
-### 6. JAR file không tìm thấy
+### 6. JAR file not found
 
-**Nguyên nhân:** Build path không đúng hoặc JAR không được tạo.
+**Reason:** Build path is incorrect or JAR is not created.
 
-**Giải pháp:**
+**Solution:**
 ```bash
-# Kiểm tra JAR có được tạo không
+# Check if JAR is created
 ls -la discovery-service/target/*.jar
 
-# Build lại với verbose
+# Build again with verbose
 docker build --progress=plain -f discovery-service/Dockerfile -t edumind/discovery-service:latest .
 ```
 
 ### 7. Health check fails
 
-**Nguyên nhân:** Service chưa start xong hoặc health endpoint không available.
+**Reason:** Service has not started yet or health endpoint is not available.
 
-**Giải pháp:**
+**Solution:**
 ```bash
-# Kiểm tra logs
+# Check logs
 docker compose logs auth-service
 
 # Test health endpoint manually
 docker exec edumind-auth-service wget -O- http://localhost:8081/actuator/health
 
-# Tăng start_period trong docker-compose.yml
+# Increase start_period in docker-compose.yml
 healthcheck:
-  start_period: 120s  # Tăng từ 60s lên 120s
+  start_period: 120s  # Increase from 60s to 120s
 ```
 
 ## 📝 Best Practices
 
-1. **Luôn dùng multi-stage build** để giảm image size
-2. **Sử dụng .dockerignore** để loại bỏ files không cần thiết
-3. **Set health checks** cho tất cả services
-4. **Dùng environment variables** thay vì hardcode values
-5. **Tag images với version** thay vì chỉ dùng `latest`:
+1. **Always use multi-stage build** to reduce image size
+2. **Use .dockerignore** to remove unnecessary files
+3. **Set health checks** for all services
+4. **Use environment variables** instead of hardcode values
+5. **Tag images with version** instead of using `latest`:
    ```bash
    docker build -t edumind/discovery-service:1.0.0 .
    ```
-6. **Không commit .env file** vào Git
-7. **Dùng docker compose** cho development, Kubernetes cho production
+6. **Do not commit .env file** to Git
+7. **Use docker compose** for development, Kubernetes for production
 
 ## 🔄 Development Workflow
 
-### Workflow đề xuất:
+### Suggested Workflow:
 
 1. **Development:**
    ```bash
    # Start infrastructure (DB, Redis)
    docker compose up -d postgres-auth redis
    
-   # Run services locally với IDE
-   # Services connect đến Docker containers
+   # Run services locally with IDE
+   # Services connect to Docker containers
    ```
 
 2. **Testing Docker images:**
@@ -351,7 +354,7 @@ healthcheck:
    # Build images
    docker compose build
    
-   # Start tất cả
+   # Start all
    docker compose up -d
    
    # Test APIs
@@ -360,14 +363,14 @@ healthcheck:
 
 3. **Production:**
    ```bash
-   # Build với production tags
+   # Build with production tags
    docker build -t edumind/discovery-service:v1.0.0 .
    
-   # Push lên registry
+   # Push to registry
    docker push edumind/discovery-service:v1.0.0
    ```
 
-## 📚 Tài Liệu Tham Khảo
+## 📚 Reference Documentation
 
 - [Docker Documentation](https://docs.docker.com/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
@@ -376,10 +379,10 @@ healthcheck:
 
 ---
 
-**Lưu ý:** Đây là tài liệu hướng dẫn cơ bản. Với production, cần thêm:
-- Security scanning (Trivy, Snyk)
-- Image signing
-- Secret management (Vault, AWS Secrets Manager)
-- Monitoring và logging (Prometheus, ELK)
-- CI/CD pipeline
+**Note:** This is a basic guide. For production, additional:
+- Security scanning (Trivy, Snyk, etc.)
+- Image signing (Docker Content Trust, etc.)
+- Secret management (Vault, AWS Secrets Manager, etc.)
+- Monitoring and logging (Prometheus, ELK, etc.)
+- CI/CD pipeline (GitHub Actions, GitLab CI, etc.)
 
