@@ -1,6 +1,7 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig(() => ({
   root: __dirname,
@@ -14,6 +15,13 @@ export default defineConfig(() => ({
     host: 'localhost',
   },
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@edumind/user-ui': fileURLToPath(
+        new URL('../../libs/user/ui/src/index.ts', import.meta.url)
+      ),
+    },
+  },
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [],

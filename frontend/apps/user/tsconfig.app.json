@@ -13,7 +13,7 @@
       "@nx/react/typings/image.d.ts",
       "vite/client"
     ],
-    "rootDir": "src",
+    "rootDir": "../..",
     "module": "esnext",
     "moduleResolution": "bundler"
   },
@@ -33,6 +33,10 @@
     "src/**/*.js",
     "src/**/*.jsx",
     "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
+    "../../libs/user/ui/src/**/*.js",
+    "../../libs/user/ui/src/**/*.jsx",
+    "../../libs/user/ui/src/**/*.ts",
+    "../../libs/user/ui/src/**/*.tsx"
   ]
 }

@@ -17,6 +17,15 @@
     },
     {
       "path": "./libs/shared/constants"
+    },
+    {
+      "path": "./libs/shared/api"
+    },
+    {
+      "path": "./libs/user/ui"
+    },
+    {
+      "path": "./libs/admin/ui"
     }
   ]
 }
