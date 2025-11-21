@@ -49,16 +49,16 @@ EduMind Platform Backend is a microservices-based architecture designed for scal
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Frontend                              │
-│                    (React/Angular)                           │
+│                        Frontend                             │
+│                    (React/Angular)                          │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         │ HTTP/HTTPS
                         │
 ┌───────────────────────▼─────────────────────────────────────┐
-│                    API Gateway                               │
-│              (Spring Cloud Gateway)                          │
-│              Port: 8080                                      │
+│                    API Gateway                              │
+│              (Spring Cloud Gateway)                         │
+│              Port: 8080                                     │
 │  • Routing                                                  │
 │  • Rate Limiting (Redis)                                    │
 │  • CORS                                                     │
@@ -80,14 +80,14 @@ EduMind Platform Backend is a microservices-based architecture designed for scal
                                           │
                           ┌───────────────┼───────────────┐
                           │               │               │
-                  ┌───────▼────┐  ┌──────▼────┐  ┌──────▼────┐
-                  │ PostgreSQL │  │   Redis   │  │ Cloudinary │
-                  │  Port:5432 │  │ Port:6379 │  │  (Cloud)   │
-                  │            │  │           │  │            │
-                  │ • Users    │  │ • Rate    │  │ • File     │
-                  │ • Roles    │  │   Limit   │  │   Upload   │
-                  │ • Tokens   │  │ • Cache   │  │            │
-                  └────────────┘  └───────────┘  └────────────┘
+                  ┌───────▼────┐  ┌───────▼────┐  ┌───────▼────┐
+                  │ PostgreSQL │  │   Redis    │  │ Cloudinary │
+                  │  Port:5432 │  │ Port:6379  │  │  (Cloud)   │
+                  │            │  │            │  │            │
+                  │ • Users    │  │ • Rate     │  │ • File     │
+                  │ • Roles    │  │   Limit    │  │   Upload   │
+                  │ • Tokens   │  │ • Cache    │  │            │
+                  └────────────┘  └────────────┘  └────────────┘
 ```
 
 ### Service Communication Flow
