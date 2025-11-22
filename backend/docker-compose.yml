@@ -90,6 +90,7 @@ services:
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080}
     depends_on:
       postgres-auth:
         condition: service_healthy

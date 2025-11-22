@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth/2fa")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:4200"})
 public class TwoFactorAuthController {
     private static final Logger logger = LoggerFactory.getLogger(TwoFactorAuthController.class);
 

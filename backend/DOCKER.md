@@ -128,7 +128,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 # Google OAuth2 (if used)
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:8081/login/oauth2/code/google
+GOOGLE_REDIRECT_URI={baseUrl}/api/auth/login/oauth2/code/google
 
 # Encryption
 ENCRYPTION_KEY=your_encryption_key

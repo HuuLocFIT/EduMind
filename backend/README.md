@@ -468,7 +468,7 @@ export MAIL_ENABLED="true"
 # Google OAuth2
 export GOOGLE_CLIENT_ID="your-google-client-id"
 export GOOGLE_CLIENT_SECRET="your-google-client-secret"
-export GOOGLE_REDIRECT_URI="{baseUrl}/login/oauth2/code/google"
+export GOOGLE_REDIRECT_URI="{baseUrl}/api/auth/login/oauth2/code/google"
 
 # Cloudinary (File Upload)
 export CLOUDINARY_CLOUD_NAME="your-cloud-name"
@@ -480,6 +480,9 @@ export ENCRYPTION_KEY="your-encryption-key-32-characters"
 
 # Frontend URL
 export FRONTEND_URL="http://localhost:3000"
+
+# Gateway URL
+export GATEWAY_URL="http://localhost:8080"
 
 # Service Ports (optional, defaults shown)
 export DISCOVERY_SERVER_PORT="8761"

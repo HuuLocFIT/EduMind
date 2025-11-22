@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/admin/users")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:4200"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);

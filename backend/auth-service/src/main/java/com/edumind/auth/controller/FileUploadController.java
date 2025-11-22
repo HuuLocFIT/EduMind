@@ -16,7 +16,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/upload")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:4200"})
 public class FileUploadController {
     private static final Logger logger = LoggerFactory.getLogger(FileUploadController.class);
 
