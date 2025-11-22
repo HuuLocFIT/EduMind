@@ -1,56 +1,39 @@
-/** @format */
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useToast, ToastContainer } from "@edumind/user-ui";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
+import DashboardPage from "./pages/DashboardPage";
+import OAuth2CallbackPage from "./pages/OAuth2CallbackPage";
 
-// Uncomment this line to use CSS modules
-// import styles from './app.module.css';
-import NxWelcome from "./nx-welcome";
-import { EdumindUserUi } from "@edumind/user-ui";
+function App() {
+  const { toasts, closeToast } = useToast();
 
-import { Route, Routes, Link } from "react-router-dom";
-
-export function App() {
   return (
-    <div>
-      <NxWelcome title="@frontend/user" />
+    <BrowserRouter>
+      <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      <EdumindUserUi />
-
-      {/* START: routes */}
-      {/* These routes and navigation have been generated for you */}
-      {/* Feel free to move and update them to fit your needs */}
-      <br />
-      <hr />
-      <br />
-      <div role="navigation">
-        <ul>
-          <li>
-            <Link to="/">Home</Link>
-          </li>
-          <li>
-            <Link to="/page-2">Page 2</Link>
-          </li>
-        </ul>
-      </div>
       <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/oauth2/redirect" element={<OAuth2CallbackPage />} />
+
+        {/* Protected routes */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
-            <div>
-              This is the generated root route.{" "}
-              <Link to="/page-2">Click here for page 2.</Link>
-            </div>
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
           }
         />
-        <Route
-          path="/page-2"
-          element={
-            <div>
-              <Link to="/">Click here to go back to root page.</Link>
-            </div>
-          }
-        />
+
+        {/* 404 fallback */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-      {/* END: routes */}
-    </div>
+    </BrowserRouter>
   );
 }
 
