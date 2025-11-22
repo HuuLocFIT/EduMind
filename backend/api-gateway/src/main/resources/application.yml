@@ -41,6 +41,24 @@ spring:
                 maxAge: 3600
 
           routes:
+            # OAuth2 Authorization Endpoints (must be before general auth routes)
+            # Spring Security OAuth2 creates: /oauth2/authorization/{registrationId}
+            - id: oauth2-authorization
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/auth/oauth2/**
+              filters:
+                - RewritePath=/api/auth/oauth2/(?<segment>.*), /oauth2/authorization/${segment}
+            
+            # OAuth2 Callback Endpoints (must be before general auth routes)
+            # Spring Security OAuth2 callback: /login/oauth2/code/{registrationId}
+            - id: oauth2-callback
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/auth/login/oauth2/**
+              filters:
+                - RewritePath=/api/auth/login/oauth2/(?<segment>.*), /login/oauth2/${segment}
+            
             # Auth Service Routes
             - id: auth-service
               uri: lb://AUTH-SERVICE

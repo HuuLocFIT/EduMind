@@ -128,7 +128,10 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: ${GOOGLE_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
+            # Use gateway URL instead of {baseUrl} to avoid private IP issues
+            # {baseUrl} resolves to private IP (192.168.x.x) which Google OAuth2 rejects
+            # Uses app.gateway.url from config (can be overridden via GATEWAY_URL env var)
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/auth/login/oauth2/code/google}
             client-name: Google
 
         provider:
@@ -343,6 +346,12 @@ app:
   # Frontend URL for email links
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
+
+  # Gateway URL for OAuth2 redirect URIs
+  # Use this instead of {baseUrl} to avoid private IP issues
+  # In production, set GATEWAY_URL environment variable (e.g., https://api.yourdomain.com)
+  gateway:
+    url: ${GATEWAY_URL:http://localhost:8080}
 
   # Authentication Configuration
   auth:
