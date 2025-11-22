@@ -2,11 +2,19 @@
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import * as path from 'path';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../../node_modules/.vite/libs/shared/api',
   plugins: [dts({ entryRoot: 'src', tsconfigPath: path.join(__dirname, 'tsconfig.lib.json') })],
+  resolve: {
+    alias: {
+      '@edumind/shared-types': fileURLToPath(
+        new URL('../types/src/index.ts', import.meta.url)
+      ),
+    },
+  },
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [],
@@ -31,7 +39,7 @@ export default defineConfig(() => ({
     },
     rollupOptions: {
       // External packages that should not be bundled into your library.
-      external: []
+      external: ['@edumind/shared-types']
     },
   },
 }));
