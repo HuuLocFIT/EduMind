@@ -62,12 +62,12 @@ export const SignupRequestSchema = z.object({
     .regex(/[^A-Za-z0-9]/, "Must contain special character"),
   firstName: z
     .string()
-    .min(2, "First name must be at least 2 characters")
-    .max(50, "First name too long"),
+    .max(50, "First name too long")
+    .optional(),
   lastName: z
     .string()
-    .min(2, "Last name must be at least 2 characters")
-    .max(50, "Last name too long"),
+    .max(50, "Last name too long")
+    .optional(),
   phoneNumber: z
     .string()
     .regex(/^[0-9+\-\s()]*$/, "Invalid phone number format")

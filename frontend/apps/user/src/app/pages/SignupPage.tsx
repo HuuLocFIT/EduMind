@@ -176,60 +176,32 @@ export const SignupPage = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {/* Username */}
               <Input
-                label="Username *"
-                placeholder="johndoe"
+                label="Username"
                 leftIcon={<User className="w-5 h-5" />}
                 error={errors.username?.message}
                 fullWidth
+                required
                 {...register("username")}
               />
 
               {/* Email */}
               <Input
-                label="Email *"
+                label="Email"
                 type="email"
-                placeholder="john@example.com"
                 leftIcon={<Mail className="w-5 h-5" />}
                 error={errors.email?.message}
                 fullWidth
+                required
                 {...register("email")}
-              />
-
-              {/* First Name & Last Name */}
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="First Name *"
-                  placeholder="John"
-                  error={errors.firstName?.message}
-                  {...register("firstName")}
-                />
-
-                <Input
-                  label="Last Name *"
-                  placeholder="Doe"
-                  error={errors.lastName?.message}
-                  {...register("lastName")}
-                />
-              </div>
-
-              {/* Phone Number */}
-              <Input
-                label="Phone Number (optional)"
-                type="tel"
-                placeholder="+1 234 567 8900"
-                leftIcon={<Phone className="w-5 h-5" />}
-                error={errors.phoneNumber?.message}
-                fullWidth
-                {...register("phoneNumber")}
               />
 
               {/* Password with Strength Indicator */}
               <div>
                 <PasswordInput
-                  label="Password *"
-                  placeholder="••••••••"
+                  label="Password"
                   error={errors.password?.message}
                   fullWidth
+                  required
                   {...register("password")}
                 />
 
@@ -266,6 +238,31 @@ export const SignupPage = () => {
                   </div>
                 )}
               </div>
+
+              {/* First Name & Last Name */}
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="First Name"
+                  error={errors.firstName?.message}
+                  {...register("firstName")}
+                />
+
+                <Input
+                  label="Last Name"
+                  error={errors.lastName?.message}
+                  {...register("lastName")}
+                />
+              </div>
+
+              {/* Phone Number */}
+              <Input
+                label="Phone Number"
+                type="tel"
+                leftIcon={<Phone className="w-5 h-5" />}
+                error={errors.phoneNumber?.message}
+                fullWidth
+                {...register("phoneNumber")}
+              />
 
               {/* Submit Button */}
               <Button
