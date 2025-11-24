@@ -35,6 +35,7 @@ export type AlertVariant = 'info' | 'success' | 'warning' | 'error';
 
       @if (dismissible) {
         <button
+          type="button"
           (click)="onClose.emit()"
           [class]="getCloseButtonClasses()"
           aria-label="Close alert"
@@ -56,34 +57,34 @@ export class AlertComponent {
 
   private variantConfig: Record<AlertVariant, { container: string; icon: string; title: string; message: string }> = {
     info: {
-      container: 'bg-blue-900/30 border-blue-500/50',
-      icon: 'text-blue-400',
-      title: 'text-blue-300',
-      message: 'text-blue-200',
+      container: 'bg-blue-50 border-blue-200',
+      icon: 'text-blue-600',
+      title: 'text-blue-800',
+      message: 'text-blue-700',
     },
     success: {
-      container: 'bg-green-900/30 border-green-500/50',
-      icon: 'text-green-400',
-      title: 'text-green-300',
-      message: 'text-green-200',
+      container: 'bg-emerald-50 border-emerald-200',
+      icon: 'text-emerald-600',
+      title: 'text-emerald-800',
+      message: 'text-emerald-700',
     },
     warning: {
-      container: 'bg-yellow-900/30 border-yellow-500/50',
-      icon: 'text-yellow-400',
-      title: 'text-yellow-300',
-      message: 'text-yellow-200',
+      container: 'bg-amber-50 border-amber-200',
+      icon: 'text-amber-600',
+      title: 'text-amber-800',
+      message: 'text-amber-700',
     },
     error: {
-      container: 'bg-red-900/30 border-red-500/50',
-      icon: 'text-red-400',
-      title: 'text-red-300',
-      message: 'text-red-200',
+      container: 'bg-rose-50 border-rose-200',
+      icon: 'text-rose-600',
+      title: 'text-rose-800',
+      message: 'text-rose-700',
     },
   };
 
   getAlertClasses(): string {
     return [
-      'p-4 border rounded-lg flex items-start gap-3',
+      'p-4 border rounded-xl flex items-center gap-3 shadow-sm',
       this.variantConfig[this.variant].container,
     ].join(' ');
   }

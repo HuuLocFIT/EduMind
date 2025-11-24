@@ -5,7 +5,7 @@
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Admin Panel Login
         </h2>
-        <p class="mt-2 text-center text-sm text-gray-600">
+        <p class="my-2 text-center text-sm text-gray-600">
           Sign in to access the admin dashboard
         </p>
       </div>
@@ -16,7 +16,7 @@
           [variant]="'success'"
           [message]="successMessage()"
           [dismissible]="true"
-          (dismiss)="closeSuccessMessage()"
+          (onClose)="closeSuccessMessage()"
         />
       }
   
@@ -26,7 +26,7 @@
           [variant]="'error'"
           [message]="error"
           [dismissible]="true"
-          (dismiss)="closeError()"
+          (onClose)="closeError()"
         />
       }
   
