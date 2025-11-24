@@ -1,0 +1,93 @@
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+      <!-- Header -->
+      <div>
+        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Admin Panel Login
+        </h2>
+        <p class="mt-2 text-center text-sm text-gray-600">
+          Sign in to access the admin dashboard
+        </p>
+      </div>
+  
+      <!-- Success Alert -->
+      @if (successMessage()) {
+        <app-alert
+          [variant]="'success'"
+          [message]="successMessage()"
+          [dismissible]="true"
+          (dismiss)="closeSuccessMessage()"
+        />
+      }
+  
+      <!-- Error Alert -->
+      @if (error) {
+        <app-alert
+          [variant]="'error'"
+          [message]="error"
+          [dismissible]="true"
+          (dismiss)="closeError()"
+        />
+      }
+  
+      <!-- Login Form -->
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="mt-8 space-y-6">
+        <!-- Username or Email Field -->
+        <div>
+          <app-input
+            [id]="'usernameOrEmail'"
+            [type]="'text'"
+            [label]="'Username or Email'"
+            [placeholder]="'Enter your username or email'"
+            [formControlName]="'usernameOrEmail'"
+            [error]="getFieldError('usernameOrEmail')"
+            [required]="true"
+          />
+        </div>
+  
+        <!-- Password Field -->
+        <div>
+          <app-input
+            [id]="'password'"
+            [type]="showPassword() ? 'text' : 'password'"
+            [label]="'Password'"
+            [placeholder]="'Enter your password'"
+            [formControlName]="'password'"
+            [error]="getFieldError('password')"
+            [required]="true"
+          />
+          
+          <!-- Show/Hide Password Toggle -->
+          <div class="mt-2">
+            <button
+              type="button"
+              (click)="togglePasswordVisibility()"
+              class="text-sm text-indigo-600 hover:text-indigo-500"
+            >
+              {{ showPassword() ? 'Hide' : 'Show' }} password
+            </button>
+          </div>
+        </div>
+  
+        <!-- Submit Button -->
+        <div>
+          <app-button
+            [type]="'submit'"
+            [variant]="'primary'"
+            [fullWidth]="true"
+            [disabled]="loginForm.invalid || isLoading"
+            [isLoading]="isLoading"
+          >
+            {{ isLoading ? 'Signing in...' : 'Sign in' }}
+          </app-button>
+        </div>
+  
+        <!-- Additional Links -->
+        <div class="flex items-center justify-between text-sm">
+          <a href="/auth/forgot-password" class="text-indigo-600 hover:text-indigo-500">
+            Forgot password?
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>

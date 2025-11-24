@@ -19,7 +19,7 @@
   ],
   "references": [
     {
-      "path": "../../libs/admin/ui"
+      "path": "../../libs/admin/ui/tsconfig.lib.json"
     }
   ]
 }
