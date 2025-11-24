@@ -1,4 +1,4 @@
-import { apiClient } from "../api-client.js";
+import { apiClient } from "./api-client.service.js";
 import type {
   SignupRequest,
   LoginRequest,
