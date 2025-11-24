@@ -55,22 +55,34 @@
             [formControlName]="'password'"
             [error]="getFieldError('password')"
             [required]="true"
-          />
-          
-          <!-- Show/Hide Password Toggle -->
-          <div class="mt-2">
+            [rightIcon]="true"
+          >
             <button
+              rightIcon
               type="button"
               (click)="togglePasswordVisibility()"
-              class="text-sm text-indigo-600 hover:text-indigo-500"
+              (mousedown)="$event.preventDefault()"
+              tabindex="-1"
+              class="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0 rounded-full transition-colors"
+              aria-label="Toggle password visibility"
             >
-              {{ showPassword() ? 'Hide' : 'Show' }} password
+              <span class="sr-only">Toggle password visibility</span>
+              @if (showPassword()) {
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M9.88 9.88A3 3 0 0114.12 14.12M6.1 6.1C4.44 7.47 3.09 9.24 2 11.25c2.18 3.89 6.09 6.75 10 6.75 1.35 0 2.67-.26 3.9-.74M9.88 9.88l-3.8-3.8m8.04 8.04l3.77 3.77M15 11a3 3 0 00-3-3" />
+                </svg>
+              } @else {
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              }
             </button>
-          </div>
+          </app-input>
         </div>
   
-        <!-- Submit Button -->
-        <div>
+        <!-- Submit Button & Links -->
+        <div class="space-y-3">
           <app-button
             [type]="'submit'"
             [variant]="'primary'"
@@ -80,13 +92,12 @@
           >
             {{ isLoading ? 'Signing in...' : 'Sign in' }}
           </app-button>
-        </div>
-  
-        <!-- Additional Links -->
-        <div class="flex items-center justify-between text-sm">
-          <a href="/auth/forgot-password" class="text-indigo-600 hover:text-indigo-500">
-            Forgot password?
-          </a>
+
+          <div class="flex items-center justify-between text-sm">
+            <a href="/auth/forgot-password" class="font-medium text-indigo-600 hover:text-indigo-500">
+              Forgot password?
+            </a>
+          </div>
         </div>
       </form>
     </div>

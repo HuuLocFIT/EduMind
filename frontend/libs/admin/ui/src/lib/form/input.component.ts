@@ -16,7 +16,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
   template: `
     <div [class]="fullWidth ? 'w-full' : ''">
       @if (label) {
-        <label class="block text-sm font-medium text-gray-200 mb-1">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
           {{ label }}
           @if (required) {
             <span class="text-red-400 ml-1">*</span>
@@ -58,7 +58,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       }
 
       @if (helperText && !error) {
-        <p class="text-sm text-gray-400 mt-1">{{ helperText }}</p>
+        <p class="text-sm text-gray-500 mt-1">{{ helperText }}</p>
       }
     </div>
   `,
@@ -81,17 +81,20 @@ export class InputComponent implements ControlValueAccessor {
   onTouched: () => void = () => {};
 
   getInputClasses(): string {
-    return [
-      'w-full px-4 py-2.5 border rounded-lg transition-all duration-200',
-      'bg-white text-gray-900 placeholder-gray-500',
-      'focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent',
+    const baseClasses = [
+      'w-full px-4 py-2.5 border rounded-xl transition-all duration-200 shadow-sm bg-white',
+      'text-gray-900 placeholder-gray-400',
+      'focus:outline-none focus:ring-2',
       this.leftIcon ? 'pl-10' : '',
       this.rightIcon ? 'pr-10' : '',
-      this.error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300',
       this.disabled ? 'opacity-60 cursor-not-allowed' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
+    ];
+
+    const stateClasses = this.error
+      ? ['border-red-400 focus:ring-red-500 focus:border-red-400']
+      : ['border-gray-200 hover:border-gray-300 focus:ring-indigo-500 focus:border-indigo-400'];
+
+    return [...baseClasses, ...stateClasses].filter(Boolean).join(' ');
   }
 
   onValueChange(value: string): void {
