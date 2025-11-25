@@ -27,7 +27,7 @@ You can run any target directly: `npx nx <target> <project>` (e.g. `npx nx build
 | --- | --- | --- | --- |
 | `admin` (`apps/admin`) | Angular 20 (`@angular/build`) | `scope:app`,`type:angular` | `nx serve admin`, `nx build admin` |
 | `user` (`apps/user`) | React 19 + Vite | `scope:app`,`type:react` | `nx serve user`, `nx build user`, `nx test user` |
-| `shared-constants`, `shared-types`, `shared-utils` | TypeScript libs (`@nx/js:tsc`) | `scope:shared` | `nx build shared-constants` etc. |
+| `shared-constants`, `shared-types`, `shared-utils` | TypeScript libs (`@nx/js:tsc`) | `scope:shared` | `nx run shared-constants:build`, `nx run shared-types:build`, `nx run shared-utils:build` |
 
 Visualize the dependency graph with `npx nx graph`.
 
