@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { getPrimaryRole } from '@edumind/shared-types';
 
 interface NavItem {
   label: string;
@@ -87,5 +88,10 @@ export class MainLayoutComponent {
       return `${user.firstName} ${user.lastName}`;
     }
     return user?.username || 'Admin';
+  }
+
+  get role(): string | undefined {
+    const user = this.currentUser;
+    return user ? getPrimaryRole(user) : undefined;
   }
 }

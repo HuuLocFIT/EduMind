@@ -19,7 +19,7 @@ import {
   useToast,
   ToastContainer,
 } from "@edumind/user-ui";
-import { Mail, Shield, User } from "lucide-react";
+import { Shield, User } from "lucide-react";
 
 export const LoginPage = () => {
   const navigate = useNavigate();

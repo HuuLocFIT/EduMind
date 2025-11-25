@@ -4,43 +4,16 @@ import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { tap, catchError, finalize } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import type {
+  LoginRequest,
+  JwtResponse,
+  User,
+} from '@edumind/shared-types';
+import { UserRole } from '@edumind/shared-constants';
+import { getPrimaryRole } from '@edumind/shared-types';
 
-// ============================================
-// 📦 AUTH INTERFACES
-// ============================================
-export interface LoginRequest {
-  usernameOrEmail: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken?: string;
-  tokenType: string;
-  userId: number;
-  username: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  roles: string[];
-}
-
-export interface AdminUser {
-  id: string;
-  username: string;
-  email: string;
-  role: 'ROLE_ADMIN';
-  firstName?: string;
-  lastName?: string;
-  profilePictureUrl?: string;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-  timestamp: string;
-}
+// Type alias for backward compatibility
+export type AdminUser = User;
 
 // ============================================
 // 🔐 AUTH SERVICE
@@ -69,12 +42,12 @@ export class AuthService {
   // ============================================
   // 🔑 LOGIN
   // ============================================
-  login(credentials: LoginRequest): Observable<AuthResponse> {
+  login(credentials: LoginRequest): Observable<JwtResponse> {
     this.isLoading.set(true);
     this.error.set(null);
 
     return this.http
-      .post<AuthResponse>(
+      .post<JwtResponse>(
         `${this.API_URL}/auth/login`,
         credentials
       )
@@ -101,9 +74,12 @@ export class AuthService {
   // ============================================
   // ✅ AUTH SUCCESS HANDLER
   // ============================================
-  private handleAuthSuccess(authData: AuthResponse): void {
+  private handleAuthSuccess(authData: JwtResponse): void {
+    const user = authData.user;
+
     // Validate admin role
-    if (!authData.roles.includes('ROLE_ADMIN')) {
+    const primaryRole = getPrimaryRole(user);
+    if (primaryRole !== UserRole.ADMIN) {
       this.error.set('Access denied. Admin privileges required.');
       this.clearAuthData();
       throw new Error('Unauthorized: Admin role required');
@@ -114,22 +90,10 @@ export class AuthService {
     if (authData.refreshToken) {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, authData.refreshToken);
     }
-    const adminUser = this.createAdminUser(authData);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(adminUser));
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
 
     // Update current user
-    this.currentUserSubject.next(adminUser);
-  }
-
-  private createAdminUser(authData: AuthResponse): AdminUser {
-    return {
-      id: authData.userId.toString(),
-      username: authData.username,
-      email: authData.email,
-      role: 'ROLE_ADMIN',
-      firstName: authData.firstName,
-      lastName: authData.lastName,
-    };
+    this.currentUserSubject.next(user);
   }
 
   // ============================================

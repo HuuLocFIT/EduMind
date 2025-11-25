@@ -8,10 +8,10 @@ import type {
   VerifyEmailRequest,
   ResendVerificationRequest,
   Verify2FACodeRequest,
-  AuthResponse,
   RefreshTokenResponse,
   MessageResponse,
   Setup2FAResponse,
+  JwtResponse,
 } from "@edumind/shared-types";
 
 const API_URL = import.meta.env['VITE_API_URL'] || import.meta.env['NX_API_URL'] || "http://localhost:8080";  
@@ -21,16 +21,16 @@ class AuthService {
 
   // ========== BASIC AUTH ==========
 
-  static async signup(data: SignupRequest): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
+  static async signup(data: SignupRequest): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
       `${this.BASE_PATH}/signup`,
       data
     );
     return response.data;
   }
 
-  static async login(data: LoginRequest): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
+  static async login(data: LoginRequest): Promise<JwtResponse> {
+    const response = await apiClient.post<JwtResponse>(
       `${this.BASE_PATH}/login`,
       data
     );
@@ -117,8 +117,8 @@ class AuthService {
 
   static async loginWith2FA(
     data: TwoFactorLoginRequest
-  ): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
+  ): Promise<JwtResponse> {
+    const response = await apiClient.post<JwtResponse>(
       `${this.BASE_PATH}/2fa/login`,
       data
     );
@@ -153,8 +153,8 @@ class AuthService {
   static async handleOAuth2Callback(
     provider: "google" | "facebook",
     code: string
-  ): Promise<AuthResponse> {
-    const response = await apiClient.get<AuthResponse>(
+  ): Promise<JwtResponse> {
+    const response = await apiClient.get<JwtResponse>(
       `${this.BASE_PATH}/oauth2/callback/${provider}`,
       { params: { code } }
     );

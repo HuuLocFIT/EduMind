@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
-          localStorage.setItem("refreshToken", response.refreshToken);
+          localStorage.setItem("refreshToken", response?.refreshToken || 'null');
 
           set({
             user: response.user,
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
-          localStorage.setItem("refreshToken", response.refreshToken);
+          localStorage.setItem("refreshToken", response?.refreshToken || 'null');
 
           set({
             user: response.user,
@@ -104,16 +104,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await AuthService.signup(data);
 
-          // Save tokens
-          localStorage.setItem("accessToken", response.accessToken);
-          localStorage.setItem("refreshToken", response.refreshToken);
-
-          set({
-            user: response.user,
-            accessToken: response.accessToken,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          set({ isLoading: false });
         } catch (error: any) {
           const errorMessage = error.response?.data?.message || error.message || "Signup failed";
           set({ error: errorMessage, isLoading: false });

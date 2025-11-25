@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import {
-  AuthResponseSchema,
+  JwtResponseSchema,
   RefreshTokenResponseSchema,
   MessageResponseSchema,
   Setup2FAResponseSchema,
@@ -42,11 +42,11 @@ apiClient.interceptors.response.use(
       endpoint?.includes('/auth/oauth2') ||
       endpoint?.includes('/auth/2fa/login')
     ) {
-      const result = AuthResponseSchema.safeParse(response.data);
+      const result = JwtResponseSchema.safeParse(response.data);
       if (result.success) {
         // Store tokens
         localStorage.setItem('accessToken', result.data.accessToken);
-        localStorage.setItem('refreshToken', result.data.refreshToken);
+        localStorage.setItem('refreshToken', result.data?.refreshToken || 'null');
         localStorage.setItem('user', JSON.stringify(result.data.user));
         response.data = result.data;
       }

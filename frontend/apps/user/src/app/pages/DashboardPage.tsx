@@ -86,7 +86,7 @@ export const DashboardPage = () => {
                   <strong>Name:</strong> {user.firstName} {user.lastName}
                 </p>
                 <p>
-                  <strong>Role:</strong> {user.roles[0]?.name || "N/A"}
+                  <strong>Role:</strong> {user.roles[0] || "N/A"}
                 </p>
                 <p>
                   <strong>Email Verified:</strong>{" "}

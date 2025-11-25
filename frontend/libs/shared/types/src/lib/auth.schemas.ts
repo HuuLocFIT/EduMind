@@ -1,13 +1,10 @@
 import { z } from "zod";
 
-export const UserRoleSchema = z.enum([
-  "STUDENT",
-  "TEACHER",
-  "TEACHER_TRIAL",
-  "ADMIN",
-]);
+import { UserRole, PROVIDER } from "@edumind/shared-constants";
 
-export const ProviderSchema = z.enum(["LOCAL", "GOOGLE", "FACEBOOK"]);
+export const UserRoleSchema = z.nativeEnum(UserRole);
+
+export const ProviderSchema = z.nativeEnum(PROVIDER);
 
 // ============================================
 // 2. USER SCHEMA
@@ -16,26 +13,27 @@ export const UserSchema = z.object({
   id: z.number(),
   username: z.string(),
   email: z.string().email(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  roles: z.array(
-    z.object({
-      id: z.number(),
-      name: UserRoleSchema,
-    })
-  ),
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
+  phoneNumber: z.string().nullable().optional(),
+  roles: z.array(UserRoleSchema),
   isActive: z.boolean(),
   isEmailVerified: z.boolean(),
   is2faEnabled: z.boolean(),
-  profilePictureUrl: z.string().optional(),
-  createdAt: z.string(), // ISO date
+  isTrial: z.boolean(),
+  trialStartDate: z.string().nullable().optional(),
+  trialEndDate: z.string().nullable().optional(),
+  profilePictureUrl: z.string().nullable().optional(),
+  createdAt: z.string(),
   updatedAt: z.string(),
-  lastLoginAt: z.string().optional(),
-  // Trial fields
-  isTrial: z.boolean().optional(),
-  trialStartDate: z.string().optional(),
-  trialEndDate: z.string().optional(),
+  lastLoginAt: z.string().nullable().optional(),
+});
+
+export const JwtResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string().optional(),
+  tokenType: z.string().default("Bearer"),
+  user: UserSchema,
 });
 
 // ============================================
@@ -129,13 +127,6 @@ export const Verify2FACodeRequestSchema = z.object({
 // 4. RESPONSE SCHEMAS
 // ============================================
 
-// Auth Response - includes tokens + user
-export const AuthResponseSchema = z.object({
-  accessToken: z.string(),
-  refreshToken: z.string(),
-  user: UserSchema,
-});
-
 // Refresh Token Response
 export const RefreshTokenResponseSchema = z.object({
   accessToken: z.string(),
@@ -182,7 +173,7 @@ export type ResendVerificationRequest = z.infer<
 >;
 export type Verify2FACodeRequest = z.infer<typeof Verify2FACodeRequestSchema>;
 
-export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+export type JwtResponse = z.infer<typeof JwtResponseSchema>;
 export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
 export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 export type Setup2FAResponse = z.infer<typeof Setup2FAResponseSchema>;
@@ -204,7 +195,7 @@ export function getUserDisplayName(user: User): string {
 
 // Get primary role
 export function getPrimaryRole(user: User): UserRole {
-  return user.roles[0]?.name || "STUDENT";
+  return user.roles[0] || UserRole.STUDENT;
 }
 
 // Check if trial expired
