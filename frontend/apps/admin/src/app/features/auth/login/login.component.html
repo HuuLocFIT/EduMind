@@ -1,0 +1,109 @@
+<div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50 flex items-center justify-center py-16 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-xl w-full">
+      <div class="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-100">
+        <div class="flex flex-col gap-8 px-8 py-10 sm:px-12 sm:py-12">
+          <!-- Header -->
+          <div class="space-y-3 text-center">
+            <div class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 rounded-lg">
+              <span class="text-white font-bold text-lg">E</span>
+            </div>
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-500">
+                EduMind Admin
+              </p>
+              <h1 class="text-3xl font-bold text-slate-900 sm:text-4xl">
+                Admin Panel Login
+              </h1>
+            </div>
+          </div>
+  
+          <!-- Success Alert -->
+          @if (successMessage()) {
+            <app-alert
+              [variant]="'success'"
+              [message]="successMessage()"
+              [dismissible]="true"
+              (onClose)="closeSuccessMessage()"
+            />
+          }
+  
+          <!-- Error Alert -->
+          @if (error) {
+            <app-alert
+              [variant]="'error'"
+              [message]="error"
+              [dismissible]="true"
+              (onClose)="closeError()"
+            />
+          }
+  
+          <!-- Login Form -->
+          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
+            <!-- Username or Email Field -->
+            <div>
+              <app-input
+                [id]="'usernameOrEmail'"
+                [type]="'text'"
+                [label]="'Username or Email'"
+                [formControlName]="'usernameOrEmail'"
+                [error]="getFieldError('usernameOrEmail')"
+              />
+            </div>
+  
+            <!-- Password Field -->
+            <div>
+              <app-input
+                [id]="'password'"
+                [type]="showPassword() ? 'text' : 'password'"
+                [label]="'Password'"
+                [formControlName]="'password'"
+                [error]="getFieldError('password')"
+                [rightIcon]="true"
+              >
+                <button
+                  rightIcon
+                  type="button"
+                  (click)="togglePasswordVisibility()"
+                  (mousedown)="$event.preventDefault()"
+                  tabindex="-1"
+                  class="flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0 rounded-full transition-colors"
+                  aria-label="Toggle password visibility"
+                >
+                  <span class="sr-only">Toggle password visibility</span>
+                  @if (showPassword()) {
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M9.88 9.88A3 3 0 0114.12 14.12M6.1 6.1C4.44 7.47 3.09 9.24 2 11.25c2.18 3.89 6.09 6.75 10 6.75 1.35 0 2.67-.26 3.9-.74M9.88 9.88l-3.8-3.8m8.04 8.04l3.77 3.77M15 11a3 3 0 00-3-3" />
+                    </svg>
+                  } @else {
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  }
+                </button>
+              </app-input>
+            </div>
+  
+            <!-- Submit Button & Links -->
+            <div class="space-y-4">
+              <app-button
+                [type]="'submit'"
+                [variant]="'primary'"
+                [fullWidth]="true"
+                [disabled]="loginForm.invalid || isLoading"
+                [isLoading]="isLoading"
+              >
+                {{ isLoading ? 'Signing in...' : 'Sign in' }}
+              </app-button>
+  
+              <div class="flex flex-col items-center gap-1 text-sm text-slate-500 sm:flex-row sm:justify-end">
+                <a href="/auth/forgot-password" class="font-medium text-indigo-600 hover:text-indigo-500">
+                  Forgot password?
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>

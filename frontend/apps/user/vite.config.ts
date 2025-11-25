@@ -31,9 +31,6 @@ export default defineConfig(() => ({
       '@edumind/user-ui': fileURLToPath(
         new URL('../../libs/user/ui/src/index.ts', import.meta.url)
       ),
-      '@edumind/shared-api': fileURLToPath(
-        new URL('../../libs/shared/api/src/index.ts', import.meta.url)
-      ),
       '@edumind/shared-types': fileURLToPath(
         new URL('../../libs/shared/types/src/index.ts', import.meta.url)
       ),

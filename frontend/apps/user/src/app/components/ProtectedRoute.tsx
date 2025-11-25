@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { AuthService } from "@edumind/shared-api";
+import AuthService from "../services/auth.service.js";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

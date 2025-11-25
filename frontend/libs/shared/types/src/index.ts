@@ -1,2 +1,2 @@
-export * from './lib/types';
-export * from './lib/auth.schemas';
+export * from './lib/types.js';
+export * from './lib/auth.schemas.js';

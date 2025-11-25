@@ -7,7 +7,7 @@ import {
   type LoginRequest,
   type TwoFactorLoginRequest,
 } from "@edumind/shared-types";
-import { AuthService } from "@edumind/shared-api";
+import AuthService from "../services/auth.service.js";
 import { useAuthStore } from "../stores/auth.store";
 import {
   Button,
@@ -19,7 +19,7 @@ import {
   useToast,
   ToastContainer,
 } from "@edumind/user-ui";
-import { Mail, Shield, User } from "lucide-react";
+import { Shield, User } from "lucide-react";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -191,7 +191,6 @@ export const LoginPage = () => {
                       className={`w-full px-4 py-3 border rounded-lg text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                         twoFAErrors.code ? "border-red-500" : "border-gray-300"
                       }`}
-                      placeholder="000000"
                       maxLength={6}
                       autoFocus
                     />
@@ -304,7 +303,6 @@ export const LoginPage = () => {
                   <Input
                     label="Username or Email"
                     type="text"
-                    placeholder="john@example.com"
                     leftIcon={<User className="w-5 h-5" />}
                     error={loginErrors.usernameOrEmail?.message}
                     fullWidth
@@ -325,7 +323,6 @@ export const LoginPage = () => {
                       </Link>
                     </div>
                     <PasswordInput
-                      placeholder="••••••••"
                       error={loginErrors.password?.message}
                       fullWidth
                       {...registerLogin("password")}
