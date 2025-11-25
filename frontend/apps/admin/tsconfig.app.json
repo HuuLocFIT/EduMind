@@ -22,6 +22,9 @@
       "path": "../../libs/admin/ui/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/shared/utils/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/constants/tsconfig.lib.json"
     },
     {

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button, Card, CardBody, StatCard } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
-import { getUserDisplayName } from "@edumind/shared-types";
+import { getUserDisplayName } from "@edumind/shared-utils";
 import { Users, BookOpen, Trophy } from "lucide-react";
 
 export const DashboardPage = () => {

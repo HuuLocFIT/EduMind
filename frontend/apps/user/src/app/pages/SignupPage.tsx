@@ -5,8 +5,8 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   SignupRequestSchema,
   type SignupRequest,
-  getPasswordStrength,
 } from "@edumind/shared-types";
+import { getPasswordStrength } from "@edumind/shared-utils";
 import AuthService from "../services/auth.service.js";
 import { useAuthStore } from "../stores/auth.store";
 import {
