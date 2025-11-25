@@ -1,14 +1,18 @@
 import { z } from "zod";
 
 import { UserRole, PROVIDER } from "@edumind/shared-constants";
+import {
+  createNumericCodeSchema,
+  createPasswordSchema,
+  createPhoneNumberSchema,
+  createRequiredStringSchema,
+  createUsernameSchema,
+} from "@edumind/shared-utils";
 
 export const UserRoleSchema = z.nativeEnum(UserRole);
 
 export const ProviderSchema = z.nativeEnum(PROVIDER);
 
-// ============================================
-// 2. USER SCHEMA
-// ============================================
 export const UserSchema = z.object({
   id: z.number(),
   username: z.string(),
@@ -36,28 +40,11 @@ export const JwtResponseSchema = z.object({
   user: UserSchema,
 });
 
-// ============================================
-// 3. REQUEST SCHEMAS
-// ============================================
-
-// Signup Request
+// Request schemas
 export const SignupRequestSchema = z.object({
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(50, "Username too long")
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "Username can only contain letters, numbers, underscore, and hyphen"
-    ),
+  username: createUsernameSchema(),
   email: z.string().email("Invalid email format").min(1, "Email is required"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain uppercase letter")
-    .regex(/[a-z]/, "Must contain lowercase letter")
-    .regex(/[0-9]/, "Must contain number")
-    .regex(/[^A-Za-z0-9]/, "Must contain special character"),
+  password: createPasswordSchema(),
   firstName: z
     .string()
     .max(50, "First name too long")
@@ -66,87 +53,58 @@ export const SignupRequestSchema = z.object({
     .string()
     .max(50, "Last name too long")
     .optional(),
-  phoneNumber: z
-    .string()
-    .regex(/^[0-9+\-\s()]*$/, "Invalid phone number format")
-    .optional(),
+  phoneNumber: createPhoneNumberSchema().optional(),
 });
 
-// Login Request
 export const LoginRequestSchema = z.object({
-  usernameOrEmail: z.string().min(1, "Username or email is required"),
-  password: z.string().min(1, "Password is required"),
+  usernameOrEmail: createRequiredStringSchema("Username or email"),
+  password: createRequiredStringSchema("Password"),
 });
 
-// 2FA Login Request
 export const TwoFactorLoginRequestSchema = z.object({
-  usernameOrEmail: z.string().min(1, "Username or email is required"),
-  password: z.string(),
-  code: z
-    .string()
-    .length(6, "2FA code must be 6 digits")
-    .regex(/^\d+$/, "2FA code must be numeric"),
+  usernameOrEmail: createRequiredStringSchema("Username or email"),
+  password: createRequiredStringSchema("Password"),
+  code: createNumericCodeSchema({ fieldLabel: "2FA code" }),
 });
 
-// Forgot Password Request
 export const ForgotPasswordRequestSchema = z.object({
   email: z.string().email("Invalid email format").min(1, "Email is required"),
 });
 
-// Reset Password Request
 export const ResetPasswordRequestSchema = z.object({
-  token: z.string().min(1, "Token is required"),
-  newPassword: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain uppercase letter")
-    .regex(/[a-z]/, "Must contain lowercase letter")
-    .regex(/[0-9]/, "Must contain number")
-    .regex(/[^A-Za-z0-9]/, "Must contain special character"),
+  token: createRequiredStringSchema("Token"),
+  newPassword: createPasswordSchema(),
 });
 
-// Verify Email Request
 export const VerifyEmailRequestSchema = z.object({
-  token: z.string().min(1, "Token is required"),
+  token: createRequiredStringSchema("Token"),
 });
 
-// Resend Verification Request
 export const ResendVerificationRequestSchema = z.object({
   email: z.string().email("Invalid email format"),
 });
 
-// 2FA Setup Verify Request
 export const Verify2FACodeRequestSchema = z.object({
-  code: z
-    .string()
-    .length(6, "2FA code must be 6 digits")
-    .regex(/^\d+$/, "2FA code must be numeric"),
+  code: createNumericCodeSchema({ fieldLabel: "2FA code" }),
 });
 
-// ============================================
-// 4. RESPONSE SCHEMAS
-// ============================================
-
-// Refresh Token Response
+// Response schemas
 export const RefreshTokenResponseSchema = z.object({
   accessToken: z.string(),
 });
 
-// Message Response
 export const MessageResponseSchema = z.object({
   message: z.string(),
   status: z.number().optional(),
   success: z.boolean().optional(),
 });
 
-// 2FA Setup Response - includes QR code data
 export const Setup2FAResponseSchema = z.object({
   qrCodeUrl: z.string(), // data:image/png;base64,...
   secret: z.string(),
   backupCodes: z.array(z.string()),
 });
 
-// API Error Response
 export const ApiErrorSchema = z.object({
   message: z.string(),
   status: z.number(),
@@ -154,10 +112,7 @@ export const ApiErrorSchema = z.object({
   path: z.string().optional(),
 });
 
-// ============================================
-// 5. AUTO-GENERATED TYPES
-// ============================================
-
+// Types
 export type UserRole = z.infer<typeof UserRoleSchema>;
 export type Provider = z.infer<typeof ProviderSchema>;
 export type User = z.infer<typeof UserSchema>;
@@ -178,48 +133,3 @@ export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
 export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 export type Setup2FAResponse = z.infer<typeof Setup2FAResponseSchema>;
 export type ApiError = z.infer<typeof ApiErrorSchema>;
-
-// ============================================
-// 6. HELPER FUNCTIONS
-// ============================================
-
-// Get display name from user
-export function getUserDisplayName(user: User): string {
-  if (user.firstName && user.lastName) {
-    return `${user.firstName} ${user.lastName}`;
-  }
-  if (user.firstName) return user.firstName;
-  if (user.lastName) return user.lastName;
-  return user.username || user.email.split("@")[0];
-}
-
-// Get primary role
-export function getPrimaryRole(user: User): UserRole {
-  return user.roles[0] || UserRole.STUDENT;
-}
-
-// Check if trial expired
-export function isTrialExpired(user: User): boolean {
-  if (!user.isTrial || !user.trialEndDate) return false;
-  return new Date() > new Date(user.trialEndDate);
-}
-
-// Validate password strength (for UI feedback)
-export function getPasswordStrength(password: string): {
-  score: number;
-  label: string;
-  color: string;
-} {
-  let score = 0;
-
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-
-  if (score <= 2) return { score, label: "Weak", color: "red" };
-  if (score <= 4) return { score, label: "Medium", color: "yellow" };
-  return { score, label: "Strong", color: "green" };
-}

@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { getPrimaryRole } from '@edumind/shared-types';
+import { getPrimaryRole } from '@edumind/shared-utils';
 
 interface NavItem {
   label: string;

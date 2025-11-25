@@ -19,6 +19,9 @@
   "references": [
     {
       "path": "../constants/tsconfig.lib.json"
+    },
+    {
+      "path": "../utils/tsconfig.lib.json"
     }
   ]
 }

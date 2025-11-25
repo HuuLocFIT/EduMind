@@ -10,7 +10,7 @@ import type {
   User,
 } from '@edumind/shared-types';
 import { UserRole } from '@edumind/shared-constants';
-import { getPrimaryRole } from '@edumind/shared-types';
+import { getPrimaryRole } from '@edumind/shared-utils';
 
 export type AdminUser = User;
 
