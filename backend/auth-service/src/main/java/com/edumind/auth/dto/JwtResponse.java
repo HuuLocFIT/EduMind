@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Set;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,10 +16,5 @@ public class JwtResponse {
     @Builder.Default
     private String tokenType = "Bearer";
 
-    private Long userId;
-    private String username;
-    private String email;
-    private String firstName;
-    private String lastName;
-    private Set<String> roles;
+    private UserResponse user;
 }

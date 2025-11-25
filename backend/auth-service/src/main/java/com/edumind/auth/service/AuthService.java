@@ -10,6 +10,7 @@ import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.JwtTokenProvider;
 import com.edumind.auth.security.UserDetailsImpl;
+import com.edumind.auth.util.UserMapper;
 import com.edumind.common.constants.ResponseStatus;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.ResourceNotFoundException;
@@ -33,7 +34,6 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
-import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -200,22 +200,15 @@ public class AuthService {
         userRepository.save(user);
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        Set<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toSet());
-
         logger.info("✅ User authenticated successfully: {}", userDetails.getUsername());
+
+        UserResponse userResponse = UserMapper.toUserResponse(user);
 
         return JwtResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenEntity.getToken())
                 .tokenType("Bearer")
-                .userId(userDetails.getId())
-                .username(userDetails.getUsername())
-                .email(userDetails.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .roles(roles)
+                .user(userResponse)
                 .build();
     }
 
@@ -465,22 +458,14 @@ public class AuthService {
 
         String newAccessToken = tokenProvider.generateAccessToken(authentication);
 
-        Set<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toSet());
-
         logger.info("✅ Token refreshed successfully for user: {}", user.getUsername());
+        UserResponse userResponse = UserMapper.toUserResponse(user);
 
         return JwtResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(requestRefreshToken)
                 .tokenType("Bearer")
-                .userId(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .roles(roles)
+                .user(userResponse)
                 .build();
     }
 

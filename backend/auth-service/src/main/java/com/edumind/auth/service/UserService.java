@@ -4,6 +4,7 @@ import com.edumind.auth.dto.UserResponse;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.UserDetailsImpl;
+import com.edumind.auth.util.UserMapper;
 import com.edumind.common.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,8 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -33,7 +32,7 @@ public class UserService {
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return mapToUserResponse(user);
+        return UserMapper.toUserResponse(user);
     }
 
     @Transactional(readOnly = true)
@@ -43,25 +42,6 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-        return mapToUserResponse(user);
-    }
-
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .phoneNumber(user.getPhoneNumber())
-                .roles(user.getRoles().stream()
-                        .map(role -> role.getName().name())
-                        .collect(Collectors.toSet()))
-                .isActive(user.getIsActive())
-                .isEmailVerified(user.getIsEmailVerified())
-                .profilePictureUrl(user.getProfilePictureUrl())
-                .createdAt(user.getCreatedAt())
-                .lastLoginAt(user.getLastLoginAt())
-                .build();
+        return UserMapper.toUserResponse(user);
     }
 }
