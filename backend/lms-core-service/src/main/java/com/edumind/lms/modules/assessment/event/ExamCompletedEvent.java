@@ -1,18 +1,18 @@
-package com.edumind.lms.shared.event.assessment;
+package com.edumind.lms.modules.assessment.event;
 
 import com.edumind.lms.shared.event.DomainEvent;
 import lombok.Getter;
 
 @Getter
-public class QuizSubmittedEvent extends DomainEvent {
-    private final Long quizId;
+public class ExamCompletedEvent extends DomainEvent {
+    private final Long examId;
     private final Long studentId;
     private final Double score;
     private final Boolean passed;
 
-    public QuizSubmittedEvent(Object source, Long quizId, Long studentId, Double score, Boolean passed) {
+    public ExamCompletedEvent(Object source, Long examId, Long studentId, Double score, Boolean passed) {
         super(source);
-        this.quizId = quizId;
+        this.examId = examId;
         this.studentId = studentId;
         this.score = score;
         this.passed = passed;

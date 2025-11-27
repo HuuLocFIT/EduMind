@@ -1,4 +1,4 @@
-package com.edumind.lms.shared.event.course;
+package com.edumind.lms.modules.course.event;
 
 import com.edumind.lms.shared.event.DomainEvent;
 import lombok.Getter;
