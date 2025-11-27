@@ -476,7 +476,8 @@ export CLOUDINARY_API_KEY="your-api-key"
 export CLOUDINARY_API_SECRET="your-api-secret"
 
 # Encryption
-export ENCRYPTION_KEY="your-encryption-key-32-characters"
+export AUTH_SERVICE_ENCRYPTION_KEY="your-encryption-key-32-characters"
+export LMS_CORE_SERVICE_ENCRYPTION_KEY="your-encryption-key-32-characters"
 
 # Frontend URL
 export FRONTEND_URL="http://localhost:3000"
@@ -537,7 +538,8 @@ Get-Content .env | ForEach-Object {
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | - | Yes* |
 | `CLOUDINARY_API_KEY` | Cloudinary API key | - | Yes* |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret | - | Yes* |
-| `ENCRYPTION_KEY` | Encryption key (32 chars) | - | Yes |
+| `AUTH_SERVICE_ENCRYPTION_KEY` | Encryption key (32 chars) | - | Yes |
+| `LMS_CORE_SERVICE_ENCRYPTION_KEY` | Encryption key (32 chars) | - | Yes |
 | `FRONTEND_URL` | Frontend application URL | `http://localhost:3000` | No |
 | `DISCOVERY_SERVER_PORT` | Eureka server port | `8761` | No |
 | `API_GATEWAY_PORT` | API Gateway port | `8080` | No |
@@ -1119,12 +1121,13 @@ curl http://localhost:8080/actuator/health
 
 - ✅ **Use strong secrets**
   - `JWT_SECRET`: Minimum 32 characters, use random generator
-  - `ENCRYPTION_KEY`: Exactly 32 characters (256-bit)
+  - `AUTH_SERVICE_ENCRYPTION_KEY`: Exactly 32 characters (256-bit) for Auth Service
+  - `LMS_CORE_SERVICE_ENCRYPTION_KEY`: Exactly 32 characters (256-bit) for LMS Core Service
   - Generate using: `openssl rand -base64 32`
 
 - ✅ **Rotate secrets regularly**
   - JWT secrets: Every 6 months
-  - Encryption keys: Every 3 months
+  - Encryption keys: Every 3 months for Auth Service and LMS Core Service
   - Database passwords: Every 3 months
 
 ### Production Security Checklist

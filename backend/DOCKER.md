@@ -131,7 +131,8 @@ GOOGLE_CLIENT_SECRET=your_client_secret
 GOOGLE_REDIRECT_URI={baseUrl}/api/auth/login/oauth2/code/google
 
 # Encryption
-ENCRYPTION_KEY=your_encryption_key
+AUTH_SERVICE_ENCRYPTION_KEY=your_encryption_key
+LMS_CORE_SERVICE_ENCRYPTION_KEY=your_encryption_key
 
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
@@ -227,7 +228,8 @@ docker compose down -v --rmi all
 | `MAIL_PASSWORD` | - | Email password (required) |
 | `CLOUDINARY_CLOUD_NAME` | - | Cloudinary cloud name |
 | `GOOGLE_CLIENT_ID` | - | Google OAuth client ID |
-| `ENCRYPTION_KEY` | - | Encryption key (required) |
+| `AUTH_SERVICE_ENCRYPTION_KEY` | - | Encryption key (required) |
+| `LMS_CORE_SERVICE_ENCRYPTION_KEY` | - | Encryption key (required) |
 
 ## 🐛 Troubleshooting
 

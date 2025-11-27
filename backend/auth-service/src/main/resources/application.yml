@@ -367,7 +367,7 @@ app:
 
   # Encryption Configuration
   encryption:
-    key: ${ENCRYPTION_KEY}
+    key: ${AUTH_SERVICE_ENCRYPTION_KEY}
 
     
 

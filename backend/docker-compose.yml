@@ -41,6 +41,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # PostgreSQL for LMS Core Service
+  postgres-lms-core:
+    image: postgres:16-alpine
+    container_name: edumind-postgres-lms-core
+    environment:
+      POSTGRES_DB: ${LMS_CORE_DB_NAME:-edumind_core}
+      POSTGRES_USER: ${LMS_CORE_DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${LMS_CORE_DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"  # Port 5433 to avoid conflict with postgres-auth
+    volumes:
+      - postgres-lms-core-data:/var/lib/postgresql/data
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # Redis for API Gateway Rate Limiting
   redis:
     image: redis:7-alpine
@@ -88,7 +109,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - AUTH_SERVICE_ENCRYPTION_KEY=${AUTH_SERVICE_ENCRYPTION_KEY}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080}
     depends_on:
@@ -140,6 +161,8 @@ services:
 
 volumes:
   postgres-auth-data:
+    driver: local
+  postgres-lms-core-data:
     driver: local
   redis-data:
     driver: local
