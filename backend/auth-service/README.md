@@ -151,7 +151,7 @@ export CLOUDINARY_API_KEY="your-api-key"
 export CLOUDINARY_API_SECRET="your-api-secret"
 
 # Encryption Key (for sensitive data)
-export ENCRYPTION_KEY="your-encryption-key-32-characters"
+export AUTH_SERVICE_ENCRYPTION_KEY="your-encryption-key-32-characters"
 
 # Frontend URL (for email links)
 export FRONTEND_URL="http://localhost:3000"
@@ -166,7 +166,7 @@ export AUTH_SERVICE_PORT="8081"
 **Important Notes:**
 - `JWT_SECRET`: Must be at least 32 characters long for HS256 algorithm
 - `MAIL_PASSWORD`: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833), not your regular password
-- `ENCRYPTION_KEY`: Must be exactly 32 characters for AES-256 encryption
+- `AUTH_SERVICE_ENCRYPTION_KEY`: Must be exactly 32 characters for AES-256 for Auth Service
 
 ## Configuration
 
