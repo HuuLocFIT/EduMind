@@ -1,4 +1,4 @@
-package com.edumind.lms.shared.event.payment;
+package com.edumind.lms.modules.payment.event;
 
 import com.edumind.lms.shared.event.DomainEvent;
 import lombok.Getter;
