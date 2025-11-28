@@ -1,6 +1,10 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.*;
+import com.edumind.auth.dto.request.ReviewApplicationRequest;
+import com.edumind.auth.dto.request.TeacherApplicationRequest;
+import com.edumind.auth.dto.request.UpgradeTrialRequest;
+import com.edumind.auth.dto.response.TeacherApplicationResponse;
+import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.entity.*;
 import com.edumind.auth.enums.ApplicationStatus;
 import com.edumind.auth.enums.RoleName;

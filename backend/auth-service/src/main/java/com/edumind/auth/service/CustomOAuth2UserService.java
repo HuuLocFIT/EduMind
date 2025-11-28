@@ -1,7 +1,7 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.OAuth2UserInfo;
-import com.edumind.auth.dto.OAuth2UserInfoFactory;
+import com.edumind.auth.dto.model.OAuth2UserInfo;
+import com.edumind.auth.dto.model.OAuth2UserInfoFactory;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.security.UserDetailsImpl;
 import com.edumind.common.exception.BadRequestException;

@@ -1,6 +1,8 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.*;
+import com.edumind.auth.dto.request.TeacherApplicationRequest;
+import com.edumind.auth.dto.response.TeacherApplicationResponse;
+import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.service.TeacherApplicationService;
 import com.edumind.common.response.*;
 import jakarta.validation.Valid;

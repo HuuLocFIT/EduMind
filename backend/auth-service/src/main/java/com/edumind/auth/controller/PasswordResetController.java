@@ -1,8 +1,8 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.PasswordResetConfirmRequest;
-import com.edumind.auth.dto.PasswordResetRequest;
-import com.edumind.auth.dto.TokenValidationResponse;
+import com.edumind.auth.dto.request.PasswordResetConfirmRequest;
+import com.edumind.auth.dto.request.PasswordResetRequest;
+import com.edumind.auth.dto.response.TokenValidationResponse;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.service.PasswordResetService;
 import com.edumind.common.response.ApiResponse;

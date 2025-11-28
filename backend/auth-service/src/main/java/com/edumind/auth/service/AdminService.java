@@ -1,8 +1,8 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.CreateUserRequest;
-import com.edumind.auth.dto.UpdateUserRoleRequest;
-import com.edumind.auth.dto.UserListResponse;
+import com.edumind.auth.dto.request.CreateUserRequest;
+import com.edumind.auth.dto.request.UpdateUserRoleRequest;
+import com.edumind.auth.dto.response.UserListResponse;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.entity.User;
