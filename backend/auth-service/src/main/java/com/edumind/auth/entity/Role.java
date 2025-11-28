@@ -1,5 +1,6 @@
 package com.edumind.auth.entity;
 
+import com.edumind.auth.enums.RoleName;
 import jakarta.persistence.*;
 import lombok.*;
 

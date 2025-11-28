@@ -1,7 +1,8 @@
 package com.edumind.auth.repository;
 
 import com.edumind.auth.entity.Role;
-import com.edumind.auth.entity.RoleName;
+import com.edumind.auth.enums.AuthProvider;
+import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,5 +37,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT COUNT(u) FROM User u JOIN u.roles r WHERE r.name = :roleName")
     Long countByRolesName(@Param("roleName") RoleName roleName);
 
-    Optional<User> findByProviderAndProviderUserId(String provider, String providerUserId);
+    Optional<User> findByProviderAndProviderUserId(AuthProvider provider, String providerUserId);
 }
