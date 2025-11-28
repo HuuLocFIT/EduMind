@@ -2,7 +2,8 @@ package com.edumind.auth.enums;
 
 public enum AuthProvider {
     LOCAL,
-    GOOGLE;
+    GOOGLE,
+    FACEBOOK;
 
     /**
      * Parse provider from string (case-insensitive)

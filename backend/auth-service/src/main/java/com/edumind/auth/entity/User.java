@@ -1,5 +1,6 @@
 package com.edumind.auth.entity;
 
+import com.edumind.auth.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -95,8 +96,10 @@ public class User {
     private String backupCodes; // JSON array stored as string
 
     // OAUTH2 FIELDS
+    @Enumerated(EnumType.STRING)
     @Column(length = 20, nullable = false)
-    private String provider = "LOCAL"; // LOCAL, GOOGLE, FACEBOOK
+    @Builder.Default
+    private AuthProvider provider = AuthProvider.LOCAL;
 
     @Column(name = "provider_user_id")
     private String providerUserId;
@@ -126,7 +129,7 @@ public class User {
      * Check if user is using OAuth2 authentication
      */
     public boolean isOAuth2User() {
-        return !"LOCAL".equals(this.provider);
+        return this.provider != null && this.provider.isOAuth2();
     }
 
     /**

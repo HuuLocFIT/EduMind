@@ -3,7 +3,8 @@ package com.edumind.auth.service;
 import com.edumind.auth.dto.*;
 import com.edumind.auth.entity.RefreshToken;
 import com.edumind.auth.entity.Role;
-import com.edumind.auth.entity.RoleName;
+import com.edumind.auth.enums.AuthProvider;
+import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.RefreshTokenRepository;
 import com.edumind.auth.repository.RoleRepository;
@@ -99,7 +100,7 @@ public class AuthService {
                 .phoneNumber(signupRequest.getPhoneNumber())
                 .isActive(true)
                 .isEmailVerified(false)
-                .provider("LOCAL")
+                .provider(AuthProvider.LOCAL)
                 .is2faEnabled(false)
                 .build();
 
@@ -216,11 +217,11 @@ public class AuthService {
     public User processOAuth2User(String provider, OAuth2UserInfo oAuth2UserInfo) {
         logger.info("🔄 Processing OAuth2 user: {}", oAuth2UserInfo.getEmail());
 
-        // Normalize provider name
-        provider = provider.toUpperCase();
+        // Convert string to enum
+        AuthProvider authProvider = AuthProvider.fromString(provider);
 
         Optional<User> userOptional = userRepository.findByProviderAndProviderUserId(
-                provider,
+                authProvider,
                 oAuth2UserInfo.getId() // Use getId() instead of getProviderId()
         );
 
@@ -253,7 +254,7 @@ public class AuthService {
             }
 
             // Check provider consistency
-            if (!user.getProvider().equals(provider)) {
+            if (user.getProvider() != authProvider) {
                 throw new BadRequestException(
                         "You're already signed up with " + user.getProvider() +
                                 " account. Please use " + user.getProvider() + " login."
@@ -269,14 +270,14 @@ public class AuthService {
                 user = userOptional.get();
 
                 // Check if it's a local account
-                if ("LOCAL".equals(user.getProvider())) {
+                if (user.getProvider() == AuthProvider.LOCAL) {
                     throw new BadRequestException(
                             "Email already registered. Please use email/password login."
                     );
                 }
 
                 // Check if it's different OAuth2 provider
-                if (!user.getProvider().equals(provider)) {
+                if (user.getProvider() != authProvider) {
                     throw new BadRequestException(
                             "You're already signed up with " + user.getProvider() +
                                     " account. Please use " + user.getProvider() + " login."
@@ -297,20 +298,20 @@ public class AuthService {
             }
 
             // New user - register
-            return registerNewUser(provider, oAuth2UserInfo);
+            return registerNewUser(authProvider, oAuth2UserInfo);
         }
     }
 
     /**
      * Register new OAuth2 user
      */
-    private User registerNewUser(String provider, OAuth2UserInfo oAuth2UserInfo) {
+    private User registerNewUser(AuthProvider provider, OAuth2UserInfo oAuth2UserInfo) {
         logger.info("📝 Registering new OAuth2 user: {}", oAuth2UserInfo.getEmail());
 
         User user = new User();
 
         // Provider info
-        user.setProvider(provider); // Already uppercase
+        user.setProvider(provider);
         user.setProviderUserId(oAuth2UserInfo.getId());
 
         // Email (verified by OAuth2 provider)

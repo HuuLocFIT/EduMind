@@ -1,9 +1,9 @@
 package com.edumind.auth.entity;
 
+import com.edumind.auth.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
@@ -94,11 +94,5 @@ public class TeacherApplication {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    public enum ApplicationStatus {
-        PENDING,
-        APPROVED,
-        REJECTED
     }
 }
