@@ -1,5 +1,6 @@
 package com.edumind.auth.dto;
 
+import com.edumind.auth.enums.DocumentType;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -54,8 +55,8 @@ public class TeacherApplicationRequest {
         @NotBlank
         private String url;          // Cloudinary URL
 
-        @NotBlank
-        private String type;         // certificate, degree, id_card, etc.
+        @NotNull(message = "Document type is required")
+        private DocumentType type;   // CERTIFICATE, DEGREE, ID_CARD
 
         @NotBlank
         private String name;         // File name
