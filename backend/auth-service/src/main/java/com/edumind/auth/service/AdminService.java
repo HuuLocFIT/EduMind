@@ -4,7 +4,7 @@ import com.edumind.auth.dto.CreateUserRequest;
 import com.edumind.auth.dto.UpdateUserRoleRequest;
 import com.edumind.auth.dto.UserListResponse;
 import com.edumind.auth.entity.Role;
-import com.edumind.auth.entity.RoleName;
+import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.UserRepository;

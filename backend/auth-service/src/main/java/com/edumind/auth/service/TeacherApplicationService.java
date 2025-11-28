@@ -2,6 +2,8 @@ package com.edumind.auth.service;
 
 import com.edumind.auth.dto.*;
 import com.edumind.auth.entity.*;
+import com.edumind.auth.enums.ApplicationStatus;
+import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.repository.*;
 import com.edumind.common.exception.*;
 import com.edumind.common.response.MessageResponse;
@@ -62,10 +64,10 @@ public class TeacherApplicationService {
         if (applicationRepository.existsByUser(user)) {
             Optional<TeacherApplication> existing = applicationRepository.findByUser(user);
             if (existing.isPresent()) {
-                TeacherApplication.ApplicationStatus status = existing.get().getStatus();
-                if (status == TeacherApplication.ApplicationStatus.PENDING) {
+                ApplicationStatus status = existing.get().getStatus();
+                if (status == ApplicationStatus.PENDING) {
                     throw new BadRequestException("You already have a pending application!");
-                } else if (status == TeacherApplication.ApplicationStatus.APPROVED) {
+                } else if (status == ApplicationStatus.APPROVED) {
                     throw new BadRequestException("Your application was already approved!");
                 }
             }
@@ -92,7 +94,7 @@ public class TeacherApplicationService {
                 .documents(documentsJson)
                 .bio(request.getBio())
                 .motivation(request.getMotivation())
-                .status(TeacherApplication.ApplicationStatus.PENDING)
+                .status(ApplicationStatus.PENDING)
                 .build();
 
         applicationRepository.save(application);
@@ -135,8 +137,8 @@ public class TeacherApplicationService {
 
         Page<TeacherApplication> applications;
         if (status != null && !status.isEmpty()) {
-            TeacherApplication.ApplicationStatus appStatus =
-                    TeacherApplication.ApplicationStatus.valueOf(status.toUpperCase());
+            ApplicationStatus appStatus =
+                    ApplicationStatus.valueOf(status.toUpperCase());
             applications = applicationRepository.findByStatus(appStatus, pageable);
         } else {
             applications = applicationRepository.findAll(pageable);
@@ -155,7 +157,7 @@ public class TeacherApplicationService {
         TeacherApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
 
-        if (application.getStatus() != TeacherApplication.ApplicationStatus.PENDING) {
+        if (application.getStatus() != ApplicationStatus.PENDING) {
             throw new BadRequestException("This application has already been reviewed!");
         }
 
@@ -184,7 +186,7 @@ public class TeacherApplicationService {
         logger.info("✅ Approving application for user: {}", applicant.getUsername());
 
         // Update application status
-        application.setStatus(TeacherApplication.ApplicationStatus.APPROVED);
+        application.setStatus(ApplicationStatus.APPROVED);
         application.setReviewedBy(admin);
         application.setReviewedAt(LocalDateTime.now());
         application.setAdminNotes(request.getAdminNotes());
@@ -250,7 +252,7 @@ public class TeacherApplicationService {
             throw new BadRequestException("Rejection reason is required!");
         }
 
-        application.setStatus(TeacherApplication.ApplicationStatus.REJECTED);
+        application.setStatus(ApplicationStatus.REJECTED);
         application.setReviewedBy(admin);
         application.setReviewedAt(LocalDateTime.now());
         application.setRejectionReason(request.getRejectionReason());

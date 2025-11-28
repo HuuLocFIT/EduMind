@@ -1,4 +1,4 @@
-package com.edumind.auth.entity;
+package com.edumind.auth.enums;
 
 public enum RoleName {
     ROLE_GUEST,

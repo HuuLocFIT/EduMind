@@ -1,7 +1,7 @@
 package com.edumind.auth.repository;
 
 import com.edumind.auth.entity.Role;
-import com.edumind.auth.entity.RoleName;
+import com.edumind.auth.enums.RoleName;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
