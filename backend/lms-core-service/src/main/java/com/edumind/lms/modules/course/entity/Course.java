@@ -13,6 +13,12 @@ import java.util.List;
 
 @Entity
 @Table(name = "courses", schema = "course")
+@NamedEntityGraphs({
+    @NamedEntityGraph(
+        name = "Course.withCategory",
+        attributeNodes = @NamedAttributeNode("category")
+    )
+})
 @Getter
 @Setter
 @NoArgsConstructor

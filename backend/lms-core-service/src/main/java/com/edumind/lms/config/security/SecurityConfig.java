@@ -31,7 +31,14 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/courses/**",
-                                "/categories/**").permitAll()
+                                "/categories/**",
+                                "/sections/**",
+                                "/lessons/**",
+                                "/progress/**",
+                                "/reviews/**",
+                                "/enrollments/**",
+                                "/wishlist/**"
+                            ).permitAll()
                         .anyRequest().authenticated()
                 );
 

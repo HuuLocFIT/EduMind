@@ -50,7 +50,7 @@ public class EnrollmentController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('STUDENT', 'TEACHER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER', 'ADMIN')")
     public ResponseEntity<ApiResponse<EnrollmentResponse>> getEnrollmentById(@PathVariable Long id) {
         log.info("Getting enrollment: {}", id);
 
@@ -92,7 +92,7 @@ public class EnrollmentController {
     }
 
     @GetMapping("/student/{studentId}")
-    @PreAuthorize("hasAnyAuthority('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getStudentEnrollments(
             @PathVariable Long studentId,
             @RequestParam(defaultValue = "0") int page,
@@ -114,7 +114,7 @@ public class EnrollmentController {
     }
 
     @GetMapping("/course/{courseId}")
-    @PreAuthorize("hasAnyAuthority('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getCourseEnrollments(
             @PathVariable Long courseId,
             @RequestParam(defaultValue = "0") int page,

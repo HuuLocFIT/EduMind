@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.entity.Section;
 import com.edumind.lms.modules.course.event.LessonCreatedEvent;
@@ -8,6 +9,7 @@ import com.edumind.lms.modules.course.event.LessonUpdatedEvent;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
+import com.edumind.lms.shared.exception.BadRequestException;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
@@ -40,15 +42,24 @@ public class LessonServiceImpl implements LessonService {
             throw new UnauthorizedException("You can only create lessons for your own courses");
         }
 
-        // Set section and order index
+        // Set section, course and order index
         lesson.setSection(section);
+        // Ensure non-null course_id in lessons table by inheriting from section
+        lesson.setCourse(section.getCourse());
 
         // Get max order index and set next
         Integer maxOrder = lessonRepository.findMaxOrderIndexBySectionId(sectionId);
         lesson.setOrderIndex(maxOrder != null ? maxOrder + 1 : 0);
 
         Lesson savedLesson = lessonRepository.save(lesson);
-        log.info("Lesson created successfully with ID: {}", savedLesson.getId());
+
+        // Update course statistics: totalLessons
+        Course course = section.getCourse();
+        Integer currentTotalLessons = course.getTotalLessons() != null ? course.getTotalLessons() : 0;
+        course.setTotalLessons(currentTotalLessons + 1);
+
+        log.info("Lesson created successfully with ID: {}. Course {} totalLessons updated to {}",
+                savedLesson.getId(), course.getId(), course.getTotalLessons());
 
         // Publish event
         eventPublisher.publishEvent(new LessonCreatedEvent(this, savedLesson));
@@ -124,8 +135,14 @@ public class LessonServiceImpl implements LessonService {
             throw new UnauthorizedException("You can only delete lessons of your own courses");
         }
 
+        // Update course statistics: totalLessons
+        Course course = lesson.getSection().getCourse();
+        Integer currentTotalLessons = course.getTotalLessons() != null ? course.getTotalLessons() : 0;
+        int newTotal = Math.max(0, currentTotalLessons - 1);
+        course.setTotalLessons(newTotal);
+
         lessonRepository.delete(lesson);
-        log.info("Lesson deleted successfully");
+        log.info("Lesson deleted successfully. Course {} totalLessons updated to {}", course.getId(), newTotal);
 
         // Publish event
         eventPublisher.publishEvent(new LessonDeletedEvent(this, lesson));
@@ -193,20 +210,49 @@ public class LessonServiceImpl implements LessonService {
             throw new UnauthorizedException("You can only reorder lessons of your own courses");
         }
 
-        // Update order index for each lesson
-        for (int i = 0; i < lessonIds.size(); i++) {
-            Long lessonId = lessonIds.get(i);
-            Lesson lesson = lessonRepository.findById(lessonId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
-
-            // Verify lesson belongs to the section
-            if (!lesson.getSection().getId().equals(sectionId)) {
-                throw new UnauthorizedException("Lesson does not belong to this section");
-            }
-
-            lesson.setOrderIndex(i);
-            lessonRepository.save(lesson);
+        if (lessonIds == null || lessonIds.isEmpty()) {
+            throw new BadRequestException("Lesson IDs are required for reordering");
         }
+
+        // Ensure there are no duplicate IDs in the request
+        java.util.Set<Long> uniqueIds = new java.util.LinkedHashSet<>(lessonIds);
+        if (uniqueIds.size() != lessonIds.size()) {
+            throw new BadRequestException("Duplicate lesson IDs detected in reorder request");
+        }
+
+        // Fetch lessons for the section and validate the request covers all lessons
+        List<Lesson> sectionLessons = lessonRepository.findBySectionIdOrderByOrderIndexAsc(sectionId);
+        if (sectionLessons.size() != lessonIds.size()) {
+            throw new BadRequestException("Lesson list must include all lessons of the section");
+        }
+
+        java.util.Map<Long, Lesson> lessonMap = sectionLessons.stream()
+                .collect(java.util.stream.Collectors.toMap(Lesson::getId, lesson -> lesson));
+
+        // Validate every provided lesson belongs to the section and build ordered list
+        List<Lesson> lessonsToUpdate = lessonIds.stream()
+                .map(lessonId -> {
+                    Lesson lesson = lessonMap.get(lessonId);
+                    if (lesson == null) {
+                        throw new BadRequestException("Lesson ID " + lessonId + " does not belong to this section");
+                    }
+                    return lesson;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+        // First pass: assign temporary order indexes beyond the current range
+        int tempBaseIndex = sectionLessons.size();
+        for (int i = 0; i < lessonsToUpdate.size(); i++) {
+            lessonsToUpdate.get(i).setOrderIndex(tempBaseIndex + i);
+        }
+        lessonRepository.saveAll(lessonsToUpdate);
+        lessonRepository.flush();
+
+        // Second pass: assign the final order indexes
+        for (int i = 0; i < lessonsToUpdate.size(); i++) {
+            lessonsToUpdate.get(i).setOrderIndex(i);
+        }
+        lessonRepository.saveAll(lessonsToUpdate);
 
         log.info("Lessons reordered successfully");
     }

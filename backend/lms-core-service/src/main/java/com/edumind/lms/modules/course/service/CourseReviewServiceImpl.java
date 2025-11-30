@@ -59,18 +59,22 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         // Create review
         CourseReview review = new CourseReview();
         review.setCourse(course);
+        review.setEnrollment(enrollment);
         review.setStudentId(studentId);
         review.setRating(rating);
         review.setReviewText(reviewText);
         review.setIsApproved(false); // Requires approval
 
         CourseReview savedReview = reviewRepository.save(review);
-        log.info("Review created successfully with ID: {}", savedReview.getId());
+        // Reload with associations to ensure they're available
+        CourseReview reloaded = reviewRepository.findByIdWithAssociations(savedReview.getId())
+                .orElse(savedReview);
+        log.info("Review created successfully with ID: {}", reloaded.getId());
 
         // Publish event
-        eventPublisher.publishEvent(new ReviewCreatedEvent(this, savedReview));
+        eventPublisher.publishEvent(new ReviewCreatedEvent(this, reloaded));
 
-        return savedReview;
+        return reloaded;
     }
 
     @Override
@@ -83,7 +87,7 @@ public class CourseReviewServiceImpl implements CourseReviewService {
             throw new InvalidRatingException("Rating must be between 1 and 5");
         }
 
-        CourseReview review = reviewRepository.findById(reviewId)
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
 
         // Check authorization
@@ -97,9 +101,12 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         review.setIsApproved(false); // Requires re-approval after edit
 
         CourseReview updatedReview = reviewRepository.save(review);
+        // Reload with associations to ensure they're available
+        CourseReview reloaded = reviewRepository.findByIdWithAssociations(reviewId)
+                .orElse(updatedReview);
         log.info("Review updated successfully");
 
-        return updatedReview;
+        return reloaded;
     }
 
     @Override
@@ -107,7 +114,7 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     public void deleteReview(Long reviewId, Long studentId) {
         log.info("Deleting review {} by student {}", reviewId, studentId);
 
-        CourseReview review = reviewRepository.findById(reviewId)
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
 
         // Check authorization
@@ -122,43 +129,43 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     @Override
     @Transactional(readOnly = true)
     public CourseReview getReviewById(Long reviewId) {
-        return reviewRepository.findById(reviewId)
+        return reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getApprovedReviewsByCourse(Long courseId, Pageable pageable) {
-        // FIXED: Using correct repository method
-        return reviewRepository.findByCourseIdAndIsApprovedTrue(courseId, pageable);
+        // FIXED: Using correct repository method with eager fetching
+        return reviewRepository.findByCourseIdAndIsApprovedTrueWithAssociations(courseId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getAllReviewsByCourse(Long courseId, Pageable pageable) {
-        // FIXED: Using correct repository method
-        return reviewRepository.findByCourseId(courseId, pageable);
+        // FIXED: Using correct repository method with eager fetching
+        return reviewRepository.findByCourseIdWithAssociations(courseId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public CourseReview getStudentReviewForCourse(Long courseId, Long studentId) {
-        // USING CORRECT METHOD
-        return reviewRepository.findByCourseIdAndStudentId(courseId, studentId).orElse(null);
+        // USING CORRECT METHOD WITH EAGER FETCHING
+        return reviewRepository.findByCourseIdAndStudentIdWithAssociations(courseId, studentId).orElse(null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getReviewsByStudent(Long studentId, Pageable pageable) {
-        // USING REPOSITORY METHOD
-        return reviewRepository.findByStudentId(studentId, pageable);
+        // USING REPOSITORY METHOD WITH EAGER FETCHING
+        return reviewRepository.findByStudentIdWithAssociations(studentId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getPendingReviews(Pageable pageable) {
-        // USING REPOSITORY METHOD
-        return reviewRepository.findByIsApprovedFalse(pageable);
+        // USING REPOSITORY METHOD WITH EAGER FETCHING
+        return reviewRepository.findByIsApprovedFalseWithAssociations(pageable);
     }
 
     @Override
@@ -166,17 +173,20 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     public CourseReview approveReview(Long reviewId) {
         log.info("Approving review {}", reviewId);
 
-        CourseReview review = reviewRepository.findById(reviewId)
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
 
         review.setIsApproved(true);
         CourseReview approvedReview = reviewRepository.save(review);
+        // Reload with associations to ensure they're available
+        CourseReview reloaded = reviewRepository.findByIdWithAssociations(reviewId)
+                .orElse(approvedReview);
         log.info("Review approved successfully");
 
         // Publish event
-        eventPublisher.publishEvent(new ReviewApprovedEvent(this, approvedReview));
+        eventPublisher.publishEvent(new ReviewApprovedEvent(this, reloaded));
 
-        return approvedReview;
+        return reloaded;
     }
 
     @Override
@@ -184,7 +194,7 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     public void rejectReview(Long reviewId) {
         log.info("Rejecting review {}", reviewId);
 
-        CourseReview review = reviewRepository.findById(reviewId)
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
 
         reviewRepository.delete(review);

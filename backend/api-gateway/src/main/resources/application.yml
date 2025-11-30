@@ -173,7 +173,43 @@ spring:
                       burstCapacity: 40
                       requestedTokens: 1
                 - RewritePath=/api/categories(?<segment>/?.*), /categories${segment}
-            
+
+            # Section Routes (6 endpoints)
+            # PUBLIC: browse sections
+            # TEACHER: create, update, delete
+            # External: /api/sections/** → Internal: /sections/**
+            - id: section-service
+              uri: lb://LMS-CORE-SERVICE
+              predicates:
+                - Path=/api/sections/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: 20
+                      burstCapacity: 40
+                      requestedTokens: 1
+                - RewritePath=/api/sections(?<segment>/?.*), /sections${segment}
+
+            # Lesson Routes (12 endpoints)
+            # PUBLIC: browse lessons
+            # TEACHER: create, update, delete
+            # External: /api/lessons/** → Internal: /lessons/**
+            - id: lesson-service
+              uri: lb://LMS-CORE-SERVICE
+              predicates:
+                - Path=/api/lessons/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: 20
+                      burstCapacity: 40
+                      requestedTokens: 1
+                - RewritePath=/api/lessons(?<segment>/?.*), /lessons${segment}
+
             # Enrollment Routes (10 endpoints)
             # STUDENT: enroll, view my enrollments, check status
             # TEACHER/ADMIN: view course enrollments

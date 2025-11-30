@@ -190,13 +190,14 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
-        courseRepository.deleteById(courseId);
+        course.setStatus(CourseStatus.ARCHIVED);
+        courseRepository.save(course);
         log.info("Course deleted successfully: {}", courseId);
     }
 
     @Override
     public Course getCourseById(Long courseId) {
-        return courseRepository.findById(courseId)
+        return courseRepository.findByIdWithCategory(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
     }
 

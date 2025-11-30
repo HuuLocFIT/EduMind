@@ -44,7 +44,7 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                 .orElseThrow(() -> new LessonNotFoundException(lessonId));
 
         // Check if progress already exists
-        return lessonProgressRepository.findByEnrollmentIdAndLessonId(enrollmentId, lessonId)
+        return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
                 .orElseGet(() -> {
                     // Create new progress
                     LessonProgress progress = LessonProgress.builder()
@@ -63,7 +63,9 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                     enrollmentService.updateLastAccessed(enrollmentId);
 
                     log.info("Lesson progress created: {}", saved.getId());
-                    return saved;
+                    // Reload with associations to ensure they're available
+                    return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
+                            .orElse(saved);
                 });
     }
 
@@ -74,7 +76,7 @@ public class LessonProgressServiceImpl implements LessonProgressService {
         log.debug("Updating watch progress for lesson: {} in enrollment: {}", lessonId, enrollmentId);
 
         LessonProgress progress = lessonProgressRepository
-                .findByEnrollmentIdAndLessonId(enrollmentId, lessonId)
+                .findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
                 .orElseGet(() -> {
                     // Create if doesn't exist
                     Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
@@ -82,13 +84,18 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                     Lesson lesson = lessonRepository.findById(lessonId)
                             .orElseThrow(() -> new LessonNotFoundException(lessonId));
 
-                    return LessonProgress.builder()
+                    LessonProgress newProgress = LessonProgress.builder()
                             .enrollment(enrollment)
                             .lesson(lesson)
                             .studentId(enrollment.getStudentId())
                             .isCompleted(false)
                             .startedAt(LocalDateTime.now())
                             .build();
+                    
+                    LessonProgress saved = lessonProgressRepository.save(newProgress);
+                    // Reload with associations
+                    return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
+                            .orElse(saved);
                 });
 
         // Update watch time
@@ -111,11 +118,14 @@ public class LessonProgressServiceImpl implements LessonProgressService {
         }
 
         LessonProgress updated = lessonProgressRepository.save(progress);
+        // Reload with associations to ensure they're available after save
+        LessonProgress reloaded = lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
+                .orElse(updated);
 
         // Update last accessed
         enrollmentService.updateLastAccessed(enrollmentId);
 
-        return updated;
+        return reloaded;
     }
 
     @Override
@@ -124,7 +134,7 @@ public class LessonProgressServiceImpl implements LessonProgressService {
         log.info("Marking lesson: {} as completed for enrollment: {}", lessonId, enrollmentId);
 
         LessonProgress progress = lessonProgressRepository
-                .findByEnrollmentIdAndLessonId(enrollmentId, lessonId)
+                .findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "LessonProgress not found for enrollment " + enrollmentId + " and lesson " + lessonId));
 
@@ -154,13 +164,13 @@ public class LessonProgressServiceImpl implements LessonProgressService {
     @Override
     public List<LessonProgress> getEnrollmentProgress(Long enrollmentId) {
         log.debug("Getting all progress for enrollment: {}", enrollmentId);
-        return lessonProgressRepository.findByEnrollmentId(enrollmentId);
+        return lessonProgressRepository.findByEnrollmentIdWithAssociations(enrollmentId);
     }
 
     @Override
     public List<LessonProgress> getCompletedLessons(Long enrollmentId) {
         log.debug("Getting completed lessons for enrollment: {}", enrollmentId);
-        return lessonProgressRepository.findByEnrollmentIdAndIsCompletedTrue(enrollmentId);
+        return lessonProgressRepository.findByEnrollmentIdAndIsCompletedTrueWithAssociations(enrollmentId);
     }
 
     @Override
