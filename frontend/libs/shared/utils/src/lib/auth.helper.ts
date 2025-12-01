@@ -4,7 +4,7 @@ import {
   PASSWORD_NUMBER_REGEX,
   PASSWORD_SPECIAL_CHAR_REGEX,
   PASSWORD_UPPERCASE_REGEX,
-} from "./auth.regex.js";
+} from "@edumind/shared-types";
 
 type NameableUser = {
   username: string;

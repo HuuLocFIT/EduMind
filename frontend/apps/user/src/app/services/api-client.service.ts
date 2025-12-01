@@ -7,8 +7,10 @@ import {
   ApiErrorSchema,
   type ApiError,
 } from '@edumind/shared-types';
+import { unwrapApiResponse } from '@edumind/shared-utils';
 
-const API_URL = import.meta.env['VITE_API_URL'] || import.meta.env['NX_API_URL'] || 'http://localhost:8080';
+const API_URL =
+  import.meta.env['VITE_API_URL'] || import.meta.env['NX_API_URL'] || 'http://localhost:8080';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -33,6 +35,7 @@ apiClient.interceptors.request.use(
 // Response interceptor - Validate with Zod & handle token refresh
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    response.data = unwrapApiResponse(response.data);
     const endpoint = response.config.url;
 
     // Validate auth responses
