@@ -130,6 +130,48 @@ public class TeacherApplicationService {
     }
 
     /**
+     * Get current trial teacher's status
+     */
+    public TrialStatusResponse getMyTrialStatus() {
+        logger.info("🔄 Fetching current trial teacher status");
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        long daysRemaining = 0;
+        if (user.getTrialEndDate() != null) {
+            daysRemaining = ChronoUnit.DAYS.between(LocalDateTime.now(), user.getTrialEndDate());
+        }
+
+        return TrialStatusResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .isTrial(user.getIsTrial())
+                .trialStartDate(user.getTrialStartDate())
+                .trialEndDate(user.getTrialEndDate())
+                .daysRemaining(Math.max(0, daysRemaining))
+                .isExpired(user.isTrialExpired())
+                .build();
+    }
+
+    /**
+     * Admin: Get specific application by ID
+     */
+    public TeacherApplicationResponse getApplicationById(Long id) {
+        logger.info("🔄 Admin fetching application details for ID: {}", id);
+
+        TeacherApplication application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+
+        return mapToResponse(application);
+    }
+
+    /**
      * Admin: Get all applications with filtering
      */
     public Page<TeacherApplicationResponse> getAllApplications(

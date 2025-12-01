@@ -5,6 +5,8 @@ import com.edumind.auth.dto.response.TeacherApplicationResponse;
 import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.service.TeacherApplicationService;
 import com.edumind.common.response.*;
+
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,17 +70,21 @@ public class TeacherApplicationController {
      */
     @GetMapping("/trial-status")
     @PreAuthorize("hasRole('TEACHER_TRIAL')")
-    public ResponseEntity<ApiResponse<TrialStatusResponse>> getMyTrialStatus() {
+    public ResponseEntity<ApiResponse<TrialStatusResponse>> getMyTrialStatus(
+        HttpServletRequest httpRequest) {
 
         logger.info("📥 GET /teacher-application/trial-status - Checking trial status");
 
-        // This would need implementation in service to get current user's trial info
-        // For now, placeholder
+        TrialStatusResponse trialStatus = applicationService.getMyTrialStatus();
 
-        return ResponseEntity.ok(ApiResponse.<TrialStatusResponse>builder()
+        ApiResponse<TrialStatusResponse> response = ApiResponse.<TrialStatusResponse>builder()
                 .status(HttpStatus.OK.value())
                 .success(true)
                 .message("Trial status retrieved")
-                .build());
+                .data(trialStatus)
+                .path(httpRequest.getRequestURI())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 }
