@@ -2,6 +2,7 @@ package com.edumind.auth.repository;
 
 import com.edumind.auth.entity.TeacherApplication;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.enums.ApplicationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,9 +17,9 @@ public interface TeacherApplicationRepository extends JpaRepository<TeacherAppli
 
     Optional<TeacherApplication> findByUserId(Long userId);
 
-    Page<TeacherApplication> findByStatus(TeacherApplication.ApplicationStatus status, Pageable pageable);
+    Page<TeacherApplication> findByStatus(ApplicationStatus status, Pageable pageable);
 
-    List<TeacherApplication> findByStatusOrderByCreatedAtDesc(TeacherApplication.ApplicationStatus status);
+    List<TeacherApplication> findByStatusOrderByCreatedAtDesc(ApplicationStatus status);
 
     Boolean existsByUser(User user);
 

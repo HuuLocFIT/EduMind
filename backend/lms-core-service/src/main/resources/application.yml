@@ -18,6 +18,7 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+      schema: course,assessment,gamification,payment,notification,public
 
   jpa:
     hibernate:
@@ -27,6 +28,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        default_schema: public
         use_sql_comments: true
         jdbc:
           batch_size: 20
@@ -38,7 +40,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
-    schemas: public
+    schemas: course,assessment,gamification,payment,notification,public
+    create-schemas: true
 
   servlet:
     multipart:
@@ -79,6 +82,8 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/lms-core-service.log
+    max-size: 10MB
+    max-history: 30
 
 # Management Endpoints
 management:
