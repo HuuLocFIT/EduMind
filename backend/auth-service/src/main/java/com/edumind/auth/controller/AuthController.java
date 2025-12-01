@@ -7,7 +7,6 @@ import com.edumind.auth.dto.request.TwoFactorLoginRequest;
 import com.edumind.auth.dto.response.JwtResponse;
 import com.edumind.auth.service.AuthService;
 import com.edumind.common.response.ApiResponse;
-import com.edumind.common.response.MessageResponse;
 import com.edumind.common.constants.ResponseStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -31,7 +30,7 @@ public class AuthController {
      * POST /auth/signup
      */
     @PostMapping("/signup")
-    public ResponseEntity<MessageResponse> registerUser(
+    public ResponseEntity<ApiResponse<Void>> registerUser(
             @Valid @RequestBody SignupRequest signUpRequest,
             HttpServletRequest request) {
 
@@ -39,10 +38,11 @@ public class AuthController {
 
         authService.registerUser(signUpRequest);
 
-        MessageResponse response = MessageResponse.builder()
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
                 .status(HttpStatus.CREATED.value())
                 .success(true)
                 .message(ResponseStatus.REGISTER_SUCCESS)
+                .path(request.getRequestURI())
                 .build();
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -50,13 +50,36 @@ public class AuthController {
 
     /**
      * Response can be:
-     * - JwtResponse (normal login)
-     * - TwoFactorRequiredResponse (2FA enabled)
+     * - ApiResponse<JwtResponse> (normal login)
+     * - ApiResponse<TwoFactorRequiredResponse> (2FA enabled)
      */
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> authenticateUser(
+            @Valid @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request) {
         logger.info("📥 POST /auth/login - Authenticate user: {}", loginRequest.getUsernameOrEmail());
-        Object response = authService.authenticateUser(loginRequest);
+        Object authResponse = authService.authenticateUser(loginRequest);
+        
+        // Wrap response in ApiResponse
+        ApiResponse<?> response;
+        if (authResponse instanceof JwtResponse) {
+            response = ApiResponse.<JwtResponse>builder()
+                    .status(HttpStatus.OK.value())
+                    .success(true)
+                    .message(ResponseStatus.LOGIN_SUCCESS)
+                    .data((JwtResponse) authResponse)
+                    .path(request.getRequestURI())
+                    .build();
+        } else {
+            // TwoFactorRequiredResponse
+            response = ApiResponse.builder()
+                    .status(HttpStatus.OK.value())
+                    .success(true)
+                    .data(authResponse)
+                    .path(request.getRequestURI())
+                    .build();
+        }
+        
         return ResponseEntity.ok(response);
     }
 
@@ -64,9 +87,20 @@ public class AuthController {
      * POST /auth/login/2fa
      */
     @PostMapping("/login/2fa")
-    public ResponseEntity<JwtResponse> verify2FALogin(@Valid @RequestBody TwoFactorLoginRequest request) {
+    public ResponseEntity<ApiResponse<JwtResponse>> verify2FALogin(
+            @Valid @RequestBody TwoFactorLoginRequest request,
+            HttpServletRequest httpRequest) {
         logger.info("📥 POST /auth/login/2fa - Verify 2FA for: {}", request.getUsernameOrEmail());
-        JwtResponse response = authService.verify2FAAndLogin(request);
+        JwtResponse jwtResponse = authService.verify2FAAndLogin(request);
+        
+        ApiResponse<JwtResponse> response = ApiResponse.<JwtResponse>builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message(ResponseStatus.LOGIN_SUCCESS)
+                .data(jwtResponse)
+                .path(httpRequest.getRequestURI())
+                .build();
+        
         return ResponseEntity.ok(response);
     }
 
@@ -99,15 +133,16 @@ public class AuthController {
      * POST /auth/logout
      */
     @PostMapping("/logout")
-    public ResponseEntity<MessageResponse> logout(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
         logger.info("📥 POST /auth/logout - User logout");
 
         authService.logout();
 
-        MessageResponse response = MessageResponse.builder()
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
                 .status(HttpStatus.OK.value())
                 .success(true)
                 .message(ResponseStatus.LOGOUT_SUCCESS)
+                .path(request.getRequestURI())
                 .build();
 
         return ResponseEntity.ok(response);
