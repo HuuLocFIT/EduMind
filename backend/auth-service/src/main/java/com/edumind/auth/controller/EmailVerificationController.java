@@ -1,6 +1,6 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.EmailVerificationRequest;
+import com.edumind.auth.dto.request.EmailVerificationRequest;
 import com.edumind.auth.service.EmailVerificationService;
 import com.edumind.common.response.ApiResponse;
 import jakarta.validation.Valid;

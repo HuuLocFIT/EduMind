@@ -1,0 +1,55 @@
+package com.edumind.lms.modules.course.entity;
+
+import com.edumind.lms.shared.entity.BaseEntity;
+import com.edumind.lms.modules.course.enums.ContentType;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.List;
+
+@Entity
+@Table(name = "lessons", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"section_id", "order_index"})
+}, schema = "course")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Lesson extends BaseEntity {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_id", nullable = false)
+    private Section section;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ContentType contentType;
+
+    private String videoUrl;
+    private Integer videoDuration; // seconds
+
+    @Column(columnDefinition = "TEXT")
+    private String articleContent;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "JSONB")
+    private List<LessonResource> resources;
+
+    @Column(nullable = false)
+    private Integer orderIndex;
+
+    private Boolean isPreview = false;
+    private Boolean isMandatory = true;
+}

@@ -1,6 +1,6 @@
 package com.edumind.auth.util;
 
-import com.edumind.auth.dto.UserResponse;
+import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.entity.User;
 import lombok.experimental.UtilityClass;

@@ -1,6 +1,8 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.*;
+import com.edumind.auth.dto.response.BackupCodesResponse;
+import com.edumind.auth.dto.response.TwoFactorSetupResponse;
+import com.edumind.auth.dto.response.TwoFactorStatusResponse;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
