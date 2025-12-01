@@ -130,6 +130,18 @@ public class TeacherApplicationService {
     }
 
     /**
+     * Admin: Get specific application by ID
+     */
+    public TeacherApplicationResponse getApplicationById(Long id) {
+        logger.info("🔄 Admin fetching application details for ID: {}", id);
+
+        TeacherApplication application = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+
+        return mapToResponse(application);
+    }
+
+    /**
      * Admin: Get all applications with filtering
      */
     public Page<TeacherApplicationResponse> getAllApplications(
