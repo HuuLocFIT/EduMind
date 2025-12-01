@@ -13,6 +13,12 @@ import java.util.List;
 @Table(name = "enrollments", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"course_id", "student_id"})
 }, schema = "course")
+@NamedEntityGraphs({
+    @NamedEntityGraph(
+        name = "Enrollment.withCourse",
+        attributeNodes = @NamedAttributeNode("course")
+    )
+})
 @Getter
 @Setter
 @NoArgsConstructor

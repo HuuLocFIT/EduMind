@@ -4,6 +4,7 @@ import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -15,8 +16,16 @@ import java.util.Optional;
 @Repository
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     /**
-     * Find enrollment by course and student
+     * Find enrollment by ID (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
+    @Override
+    Optional<Enrollment> findById(Long id);
+
+    /**
+     * Find enrollment by course and student (with course fetched)
+     */
+    @EntityGraph("Enrollment.withCourse")
     Optional<Enrollment> findByCourseIdAndStudentId(Long courseId, Long studentId);
 
     /**
@@ -25,29 +34,34 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     boolean existsByCourseIdAndStudentId(Long courseId, Long studentId);
 
     /**
-     * Find all enrollments for student
+     * Find all enrollments for student (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
     Page<Enrollment> findByStudentId(Long studentId, Pageable pageable);
 
     /**
-     * Find active enrollments for student
+     * Find active enrollments for student (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
     Page<Enrollment> findByStudentIdAndStatus(Long studentId, EnrollmentStatus status, Pageable pageable);
 
     /**
-     * Find enrollments for course
+     * Find enrollments for course (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
     Page<Enrollment> findByCourseId(Long courseId, Pageable pageable);
 
     /**
-     * Find completed enrollments for student
+     * Find completed enrollments for student (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
     @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId AND e.status = 'COMPLETED'")
     List<Enrollment> findCompletedEnrollmentsByStudent(Long studentId);
 
     /**
-     * Find enrollments with progress above threshold
+     * Find enrollments with progress above threshold (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
     @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId " +
             "AND e.progressPercentage >= :minProgress ORDER BY e.lastAccessedAt DESC")
     List<Enrollment> findInProgressCourses(Long studentId, Integer minProgress);
@@ -79,8 +93,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     Object[] getStudentStatistics(Long studentId);
 
     /**
-     * Find recently accessed courses
+     * Find recently accessed courses (with course fetched)
      */
+    @EntityGraph("Enrollment.withCourse")
     @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId " +
             "AND e.status = 'ACTIVE' ORDER BY e.lastAccessedAt DESC")
     List<Enrollment> findRecentlyAccessedCourses(Long studentId, Pageable pageable);

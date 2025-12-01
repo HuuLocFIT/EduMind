@@ -90,7 +90,8 @@ public class CategoryServiceImpl implements CategoryService {
             throw new BadRequestException("Cannot delete category with existing courses");
         }
 
-        categoryRepository.deleteById(categoryId);
+        category.setIsActive(false);
+        categoryRepository.save(category);
         log.info("Category deleted successfully: {}", categoryId);
     }
 

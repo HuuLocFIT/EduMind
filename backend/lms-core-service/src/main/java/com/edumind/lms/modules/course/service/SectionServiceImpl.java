@@ -3,10 +3,11 @@ package com.edumind.lms.modules.course.service;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Section;
 import com.edumind.lms.modules.course.event.SectionCreatedEvent;
-import com.edumind.lms.modules.course.event.SectionUpdatedEvent;
 import com.edumind.lms.modules.course.event.SectionDeletedEvent;
+import com.edumind.lms.modules.course.event.SectionUpdatedEvent;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
+import com.edumind.lms.shared.exception.BadRequestException;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -129,20 +134,49 @@ public class SectionServiceImpl implements SectionService {
             throw new UnauthorizedException("You can only reorder sections of your own courses");
         }
 
-        // Update order index for each section
-        for (int i = 0; i < sectionIds.size(); i++) {
-            Long sectionId = sectionIds.get(i);
-            Section section = sectionRepository.findById(sectionId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + sectionId));
-
-            // Verify section belongs to the course
-            if (!section.getCourse().getId().equals(courseId)) {
-                throw new UnauthorizedException("Section does not belong to this course");
-            }
-
-            section.setOrderIndex(i);
-            sectionRepository.save(section);
+        if (sectionIds == null || sectionIds.isEmpty()) {
+            throw new BadRequestException("Section IDs are required for reordering");
         }
+
+        // Ensure there are no duplicate IDs in the request
+        Set<Long> uniqueIds = new LinkedHashSet<>(sectionIds);
+        if (uniqueIds.size() != sectionIds.size()) {
+            throw new BadRequestException("Duplicate section IDs detected in reorder request");
+        }
+
+        // Fetch sections for the course and validate the request covers all sections
+        List<Section> courseSections = sectionRepository.findByCourseIdOrderByOrderIndexAsc(courseId);
+        if (courseSections.size() != sectionIds.size()) {
+            throw new BadRequestException("Section list must include all sections of the course");
+        }
+
+        Map<Long, Section> sectionMap = courseSections.stream()
+                .collect(Collectors.toMap(Section::getId, section -> section));
+
+        // Validate every provided section belongs to the course
+        List<Section> sectionsToUpdate = sectionIds.stream()
+                .map(sectionId -> {
+                    Section section = sectionMap.get(sectionId);
+                    if (section == null) {
+                        throw new BadRequestException("Section ID " + sectionId + " does not belong to this course");
+                    }
+                    return section;
+                })
+                .collect(Collectors.toList());
+
+        // First pass: assign temporary order indexes beyond the current range to avoid unique constraint collisions
+        int tempBaseIndex = courseSections.size();
+        for (int i = 0; i < sectionsToUpdate.size(); i++) {
+            sectionsToUpdate.get(i).setOrderIndex(tempBaseIndex + i);
+        }
+        sectionRepository.saveAll(sectionsToUpdate);
+        sectionRepository.flush();
+
+        // Second pass: assign the final order indexes
+        for (int i = 0; i < sectionsToUpdate.size(); i++) {
+            sectionsToUpdate.get(i).setOrderIndex(i);
+        }
+        sectionRepository.saveAll(sectionsToUpdate);
 
         log.info("Sections reordered successfully");
     }

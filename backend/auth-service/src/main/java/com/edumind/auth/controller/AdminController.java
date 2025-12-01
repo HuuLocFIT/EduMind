@@ -1,6 +1,12 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.*;
+import com.edumind.auth.dto.request.CreateUserRequest;
+import com.edumind.auth.dto.request.ReviewApplicationRequest;
+import com.edumind.auth.dto.request.UpdateUserRoleRequest;
+import com.edumind.auth.dto.request.UpgradeTrialRequest;
+import com.edumind.auth.dto.response.TeacherApplicationResponse;
+import com.edumind.auth.dto.response.TrialStatusResponse;
+import com.edumind.auth.dto.response.UserListResponse;
 import com.edumind.auth.service.AdminService;
 import com.edumind.auth.service.TeacherApplicationService;
 import com.edumind.common.response.ApiResponse;

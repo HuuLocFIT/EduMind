@@ -1,6 +1,6 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.FileUploadResponse;
+import com.edumind.auth.dto.response.FileUploadResponse;
 import com.edumind.auth.service.CloudinaryService;
 import com.edumind.common.response.ApiResponse;
 import org.slf4j.Logger;
@@ -11,8 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/upload")

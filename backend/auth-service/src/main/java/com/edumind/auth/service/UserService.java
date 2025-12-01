@@ -1,6 +1,6 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.UserResponse;
+import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.UserDetailsImpl;

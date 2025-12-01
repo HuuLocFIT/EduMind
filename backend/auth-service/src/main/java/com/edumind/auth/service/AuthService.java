@@ -1,6 +1,13 @@
 package com.edumind.auth.service;
 
-import com.edumind.auth.dto.*;
+import com.edumind.auth.dto.model.OAuth2UserInfo;
+import com.edumind.auth.dto.request.LoginRequest;
+import com.edumind.auth.dto.request.RefreshTokenRequest;
+import com.edumind.auth.dto.request.SignupRequest;
+import com.edumind.auth.dto.request.TwoFactorLoginRequest;
+import com.edumind.auth.dto.response.JwtResponse;
+import com.edumind.auth.dto.response.TwoFactorRequiredResponse;
+import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.entity.RefreshToken;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.enums.AuthProvider;

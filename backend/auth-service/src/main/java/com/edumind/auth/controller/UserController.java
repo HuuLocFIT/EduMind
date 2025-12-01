@@ -1,6 +1,6 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.UserResponse;
+import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.service.UserService;
 import com.edumind.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;

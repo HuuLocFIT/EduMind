@@ -1,6 +1,10 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.*;
+import com.edumind.auth.dto.request.TwoFactorDisableRequest;
+import com.edumind.auth.dto.request.TwoFactorVerifyRequest;
+import com.edumind.auth.dto.response.BackupCodesResponse;
+import com.edumind.auth.dto.response.TwoFactorSetupResponse;
+import com.edumind.auth.dto.response.TwoFactorStatusResponse;
 import com.edumind.auth.service.TwoFactorAuthService;
 import com.edumind.common.response.ApiResponse;
 import jakarta.validation.Valid;

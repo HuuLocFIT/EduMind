@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.course.repository;
 
 import com.edumind.lms.modules.course.entity.LessonProgress;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -16,14 +17,35 @@ public interface LessonProgressRepository extends JpaRepository<LessonProgress, 
     Optional<LessonProgress> findByEnrollmentIdAndLessonId(Long enrollmentId, Long lessonId);
 
     /**
+     * Find progress for specific lesson and enrollment with eager fetching
+     */
+    @EntityGraph(attributePaths = {"lesson", "enrollment"})
+    @Query("SELECT lp FROM LessonProgress lp WHERE lp.enrollment.id = :enrollmentId AND lp.lesson.id = :lessonId")
+    Optional<LessonProgress> findByEnrollmentIdAndLessonIdWithAssociations(Long enrollmentId, Long lessonId);
+
+    /**
      * Find all progress for enrollment
      */
     List<LessonProgress> findByEnrollmentId(Long enrollmentId);
 
     /**
+     * Find all progress for enrollment with eager fetching
+     */
+    @EntityGraph(attributePaths = {"lesson", "enrollment"})
+    @Query("SELECT lp FROM LessonProgress lp WHERE lp.enrollment.id = :enrollmentId")
+    List<LessonProgress> findByEnrollmentIdWithAssociations(Long enrollmentId);
+
+    /**
      * Find completed lessons for enrollment
      */
     List<LessonProgress> findByEnrollmentIdAndIsCompletedTrue(Long enrollmentId);
+
+    /**
+     * Find completed lessons for enrollment with eager fetching
+     */
+    @EntityGraph(attributePaths = {"lesson", "enrollment"})
+    @Query("SELECT lp FROM LessonProgress lp WHERE lp.enrollment.id = :enrollmentId AND lp.isCompleted = true")
+    List<LessonProgress> findByEnrollmentIdAndIsCompletedTrueWithAssociations(Long enrollmentId);
 
     /**
      * Count completed lessons for enrollment

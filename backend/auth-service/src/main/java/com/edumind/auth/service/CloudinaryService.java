@@ -3,7 +3,7 @@ package com.edumind.auth.service;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
-import com.edumind.auth.dto.FileUploadResponse;
+import com.edumind.auth.dto.response.FileUploadResponse;
 import com.edumind.common.exception.FileUploadException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
