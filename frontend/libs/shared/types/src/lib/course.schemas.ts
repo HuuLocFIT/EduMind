@@ -219,9 +219,23 @@ export const CategoryResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
+// Category schema for CourseDetailResponse (without courseCount requirement)
+export const CategoryInCourseSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().nullable().optional(),
+  iconUrl: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
+  courseCount: z.number().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export type CreateCategoryRequest = z.infer<typeof CreateCategoryRequestSchema>;
 export type UpdateCategoryRequest = z.infer<typeof UpdateCategoryRequestSchema>;
 export type CategoryResponse = z.infer<typeof CategoryResponseSchema>;
+export type CategoryInCourse = z.infer<typeof CategoryInCourseSchema>;
 
 // ============================================================================
 // COURSE SCHEMAS
@@ -371,7 +385,7 @@ export const CourseDetailResponseSchema = z.object({
   shortDescription: z.string().nullable().optional(),
   instructorId: z.number(),
   instructorName: z.string(),
-  category: CategoryResponseSchema.optional().nullable(),
+  category: CategoryInCourseSchema.optional().nullable(),
   price: z.number(),
   currency: z.string(),
   discountPrice: z.number().nullable().optional(),

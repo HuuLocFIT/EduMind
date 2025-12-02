@@ -6,6 +6,9 @@ import SignupPage from "./pages/SignupPage";
 import DashboardPage from "./pages/DashboardPage";
 import OAuth2CallbackPage from "./pages/OAuth2CallbackPage";
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { BrowseCoursesPage } from "./pages/BrowseCoursesPage";
+import { CourseDetailPage } from "./pages/CourseDetailPage";
+import { MyLearningPage } from "./pages/MyLearningPage";
 
 function App() {
   const { toasts, closeToast } = useToast();
@@ -21,12 +24,24 @@ function App() {
         <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
         <Route path={USER_ROUTES.OAUTH2_REDIRECT} element={<OAuth2CallbackPage />} />
 
+        <Route path={USER_ROUTES.COURSES.replace('/', '')} element={<BrowseCoursesPage />} />
+        <Route path={USER_ROUTES.COURSE_DETAIL.replace('/', '')} element={<CourseDetailPage />} />
+
         {/* Protected routes */}
         <Route
           path={USER_ROUTES.DASHBOARD}
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={USER_ROUTES.LEARNING}
+          element={
+            <ProtectedRoute>
+              <MyLearningPage />
             </ProtectedRoute>
           }
         />

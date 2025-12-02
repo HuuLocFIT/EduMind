@@ -1,11 +1,11 @@
 import React from "react";
 import { CourseCard } from "./CourseCard";
-import type { CourseDetailResponse } from "@edumind/shared-types";
+import type { CourseResponse } from "@edumind/shared-types";
 import { BookOpen } from "lucide-react";
 
 interface CourseGridProps {
-  courses: CourseDetailResponse[];
-  onCourseClick?: (course: CourseDetailResponse) => void;
+  courses: CourseResponse[];
+  onCourseClick?: (course: CourseResponse) => void;
   columns?: 2 | 3 | 4;
   className?: string;
 }
