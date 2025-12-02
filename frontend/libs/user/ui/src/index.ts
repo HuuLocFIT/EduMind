@@ -16,3 +16,8 @@ export * from './lib/Toast';
 
 // Overlays
 export * from './lib/Modal';
+
+// Components
+export * from './lib/RatingStars/RatingStars';   
+export * from './lib/PriceTag/PriceTag';
+export * from './lib/ProgressBar/ProgressBar';
