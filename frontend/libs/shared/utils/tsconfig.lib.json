@@ -13,8 +13,12 @@
       "vite/client"
     ]
   },
-  "include": [
-    "src/**/*.ts"
+  "files": [
+    "src/index.ts",
+    "src/lib/auth.helper.ts",
+    "src/lib/api-response.helper.ts",
+    "src/lib/api-endpoints.ts",
+    "src/lib/env.config.ts"
   ],
   "references": [
     {

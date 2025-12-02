@@ -40,6 +40,10 @@ export default defineConfig(() => ({
       '@edumind/shared-utils': fileURLToPath(
         new URL('../../libs/shared/utils/src/index.ts', import.meta.url)
       ),
+      '@user/services': resolve(__dirname, 'src/app/services'),
+      '@user/stores': resolve(__dirname, 'src/app/stores'),
+      '@user/components': resolve(__dirname, 'src/app/components'),
+      '@user/pages': resolve(__dirname, 'src/app/pages'),
     },
   },
   // Uncomment this if you are using workers.

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, LoginRequest, SignupRequest, TwoFactorLoginRequest } from "@edumind/shared-types";
-import AuthService from "../services/auth.service.js";
+import AuthService from "@user/services/auth.service.js";
 
 interface AuthState {
   user: User | null;

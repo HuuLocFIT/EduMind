@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button, Card, CardBody, StatCard } from "@edumind/user-ui";
-import { useAuthStore } from "../stores/auth.store";
+import { useAuthStore } from "@user/stores/auth.store";
 import { getUserDisplayName } from "@edumind/shared-utils";
 import { Users, BookOpen, Trophy } from "lucide-react";
 

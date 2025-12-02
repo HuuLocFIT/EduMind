@@ -7,8 +7,8 @@ import {
   type SignupRequest,
 } from "@edumind/shared-types";
 import { getPasswordStrength } from "@edumind/shared-utils";
-import AuthService from "../services/auth.service.js";
-import { useAuthStore } from "../stores/auth.store";
+import AuthService from "@user/services/auth.service.js";
+import { useAuthStore } from "@user/stores/auth.store";
 import {
   Button,
   Input,

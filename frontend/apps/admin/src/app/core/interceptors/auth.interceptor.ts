@@ -2,7 +2,7 @@ import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { map } from 'rxjs/operators';
 import { unwrapApiResponse } from '@edumind/shared-utils';
-import { AuthService } from '../services/auth.service';
+import { AuthService } from '@admin/core/services/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);

@@ -3,14 +3,14 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
+import { environment } from '@admin/environments/environment';
 import type {
   LoginRequest,
   JwtResponse,
   User,
 } from '@edumind/shared-types';
 import { UserRole } from '@edumind/shared-constants';
-import { getPrimaryRole } from '@edumind/shared-utils';
+import { getPrimaryRole, AUTH_ENDPOINTS } from '@edumind/shared-utils';
 
 export type AdminUser = User;
 
@@ -40,7 +40,7 @@ export class AuthService {
     this.error.set(null);
 
     return this.http
-      .post<JwtResponse>(`${this.API_URL}/auth/login`, credentials)
+      .post<JwtResponse>(`${this.API_URL}${AUTH_ENDPOINTS.LOGIN}`, credentials)
       .pipe(
         switchMap((response) => {
           if (!response) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuthStore } from "../stores/auth.store";
+import { useAuthStore } from "@user/stores/auth.store";
 import { useToast } from "@edumind/user-ui";
 
 export const OAuth2CallbackPage = () => {

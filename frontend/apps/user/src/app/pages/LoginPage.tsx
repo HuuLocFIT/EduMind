@@ -7,8 +7,8 @@ import {
   type LoginRequest,
   type TwoFactorLoginRequest,
 } from "@edumind/shared-types";
-import AuthService from "../services/auth.service.js";
-import { useAuthStore } from "../stores/auth.store";
+import AuthService from "@user/services/auth.service.js";
+import { useAuthStore } from "@user/stores/auth.store";
 import {
   Button,
   Input,
