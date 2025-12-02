@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '@admin/core/services/auth.service';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
 
 export const authGuard = () => {
   const authService = inject(AuthService);
@@ -11,6 +12,6 @@ export const authGuard = () => {
   }
 
   // Redirect to login if not authenticated
-  router.navigate(['/auth/login']);
+  router.navigate([ADMIN_ROUTES.AUTH_LOGIN]);
   return false;
 };

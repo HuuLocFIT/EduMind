@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '@admin/core/services/auth.service';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
 import {
   ButtonComponent,
   InputComponent,
@@ -61,7 +62,7 @@ export class LoginComponent {
       next: () => {
         this.successMessage.set('Login successful! Redirecting...');
         setTimeout(() => {
-          this.router.navigate(['/dashboard']);
+          this.router.navigate([ADMIN_ROUTES.DASHBOARD]);
         }, 1000);
       },
       error: (error) => {

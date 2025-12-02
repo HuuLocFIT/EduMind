@@ -1,6 +1,7 @@
 import { Route } from "@angular/router";
 import { guestGuard } from "./core/guards/guest.guard";
 import { authGuard } from "./core/guards/auth.guard";
+import { ADMIN_ROUTES } from "@edumind/shared-utils";
 
 export const appRoutes: Route[] = [
   {
@@ -18,7 +19,7 @@ export const appRoutes: Route[] = [
       ),
     children: [
       {
-        path: 'dashboard',
+        path: ADMIN_ROUTES.DASHBOARD.replace('/', ''),
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then(
             (m) => m.DashboardComponent

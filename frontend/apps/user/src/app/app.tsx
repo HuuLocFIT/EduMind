@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import DashboardPage from "./pages/DashboardPage";
 import OAuth2CallbackPage from "./pages/OAuth2CallbackPage";
+import { USER_ROUTES } from "@edumind/shared-utils";
 
 function App() {
   const { toasts, closeToast } = useToast();
@@ -15,14 +16,14 @@ function App() {
 
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/oauth2/redirect" element={<OAuth2CallbackPage />} />
+        <Route path={USER_ROUTES.ROOT} element={<Navigate to={USER_ROUTES.LOGIN} replace />} />
+        <Route path={USER_ROUTES.LOGIN} element={<LoginPage />} />
+        <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
+        <Route path={USER_ROUTES.OAUTH2_REDIRECT} element={<OAuth2CallbackPage />} />
 
         {/* Protected routes */}
         <Route
-          path="/dashboard"
+          path={USER_ROUTES.DASHBOARD}
           element={
             <ProtectedRoute>
               <DashboardPage />
@@ -31,7 +32,7 @@ function App() {
         />
 
         {/* 404 fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to={USER_ROUTES.LOGIN} replace />} />
       </Routes>
     </BrowserRouter>
   );

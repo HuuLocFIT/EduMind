@@ -10,7 +10,7 @@ import type {
   User,
 } from '@edumind/shared-types';
 import { UserRole } from '@edumind/shared-constants';
-import { getPrimaryRole, AUTH_ENDPOINTS } from '@edumind/shared-utils';
+import { getPrimaryRole, AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
 
 export type AdminUser = User;
 
@@ -59,7 +59,7 @@ export class AuthService {
   logout(): void {
     this.clearAuthData();
     this.currentUserSubject.next(null);
-    this.router.navigate(['/auth/login']);
+    this.router.navigate([ADMIN_ROUTES.AUTH_LOGIN]);
   }
 
   private validateAdminRole(user: User): void {
