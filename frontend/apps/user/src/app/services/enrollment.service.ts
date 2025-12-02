@@ -1,0 +1,105 @@
+import { apiClient } from "./api-client.service.js";
+import { z } from "zod";
+import {
+  EnrollRequestSchema,
+  EnrollmentResponseSchema,
+  type EnrollRequest,
+  type EnrollmentResponse,
+  type PagedResponse,
+  createPagedResponseSchema,
+} from "@edumind/shared-types";
+import { ENROLLMENT_ENDPOINTS } from "@edumind/shared-utils";
+
+const EnrollmentListSchema = z.array(EnrollmentResponseSchema);
+const EnrollmentPagedResponseSchema = createPagedResponseSchema(
+  EnrollmentResponseSchema
+);
+
+type EnrollmentPagedResponse = z.infer<typeof EnrollmentPagedResponseSchema> &
+  PagedResponse<EnrollmentResponse>;
+
+export interface EnrollmentQueryParams {
+  status?: string;
+  page?: number;
+  size?: number;
+}
+
+const parseEnrollment = (payload: unknown): EnrollmentResponse =>
+  EnrollmentResponseSchema.parse(payload);
+
+const parseEnrollmentList = (payload: unknown): EnrollmentResponse[] =>
+  EnrollmentListSchema.parse(payload);
+
+const parseEnrollmentPagedResponse = (
+  payload: unknown
+): EnrollmentPagedResponse =>
+  EnrollmentPagedResponseSchema.parse(payload) as EnrollmentPagedResponse;
+
+export const enrollmentService = {
+  async enrollInCourse(courseId: number | string): Promise<EnrollmentResponse> {
+    const payload: EnrollRequest = EnrollRequestSchema.parse({
+      courseId: Number(courseId),
+    });
+
+    const response = await apiClient.post<EnrollmentResponse>(
+      ENROLLMENT_ENDPOINTS.BASE,
+      payload
+    );
+
+    return parseEnrollment(response.data);
+  },
+
+  async getEnrollmentById(
+    enrollmentId: number | string
+  ): Promise<EnrollmentResponse> {
+    const response = await apiClient.get<EnrollmentResponse>(
+      ENROLLMENT_ENDPOINTS.DETAIL(enrollmentId)
+    );
+    return parseEnrollment(response.data);
+  },
+
+  async getMyEnrollments(
+    params: EnrollmentQueryParams = {}
+  ): Promise<PagedResponse<EnrollmentResponse>> {
+    const response = await apiClient.get<EnrollmentPagedResponse>(
+      ENROLLMENT_ENDPOINTS.MINE,
+      { params }
+    );
+    return parseEnrollmentPagedResponse(response.data);
+  },
+
+  async getMyCompletedCourses(): Promise<EnrollmentResponse[]> {
+    const response = await apiClient.get<EnrollmentResponse[]>(
+      ENROLLMENT_ENDPOINTS.MY_COMPLETED
+    );
+    return parseEnrollmentList(response.data);
+  },
+
+  async getMyInProgressCourses(
+    minProgress?: number
+  ): Promise<EnrollmentResponse[]> {
+    const response = await apiClient.get<EnrollmentResponse[]>(
+      ENROLLMENT_ENDPOINTS.MY_IN_PROGRESS,
+      { params: minProgress ? { minProgress } : undefined }
+    );
+    return parseEnrollmentList(response.data);
+  },
+
+  async getRecentlyAccessedCourses(limit?: number): Promise<EnrollmentResponse[]> {
+    const response = await apiClient.get<EnrollmentResponse[]>(
+      ENROLLMENT_ENDPOINTS.MY_RECENT,
+      { params: limit ? { limit } : undefined }
+    );
+    return parseEnrollmentList(response.data);
+  },
+
+  async checkEnrollmentStatus(courseId: number | string): Promise<boolean> {
+    const response = await apiClient.get<boolean>(
+      ENROLLMENT_ENDPOINTS.CHECK(courseId)
+    );
+    return z.boolean().parse(response.data);
+  },
+};
+
+export type EnrollmentService = typeof enrollmentService;
+
