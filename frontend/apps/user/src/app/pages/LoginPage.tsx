@@ -7,8 +7,9 @@ import {
   type LoginRequest,
   type TwoFactorLoginRequest,
 } from "@edumind/shared-types";
-import AuthService from "../services/auth.service.js";
-import { useAuthStore } from "../stores/auth.store";
+import AuthService from "@user/services/auth.service.js";
+import { useAuthStore } from "@user/stores/auth.store";
+import { USER_ROUTES } from "@edumind/shared-utils";
 import {
   Button,
   Input,
@@ -65,7 +66,7 @@ export const LoginPage = () => {
       showSuccess("Login successful!");
 
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate(USER_ROUTES.DASHBOARD);
       }, 500);
     } catch (err: any) {
       // Check if 2FA is required
@@ -98,7 +99,7 @@ export const LoginPage = () => {
       showSuccess("2FA verification successful!");
 
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate(USER_ROUTES.DASHBOARD);
       }, 500);
     } catch (err: any) {
       const errorMsg = err.message || "Invalid 2FA code";
@@ -225,7 +226,7 @@ export const LoginPage = () => {
                 <p className="mt-6 text-center text-sm text-gray-500">
                   Can't access your authenticator app?{" "}
                   <Link
-                    to="/2fa-recovery"
+                    to={USER_ROUTES.TWO_FA_RECOVERY}
                     className="text-blue-600 hover:text-blue-700 font-medium"
                   >
                     Use backup code
@@ -316,7 +317,7 @@ export const LoginPage = () => {
                         Password
                       </label>
                       <Link
-                        to="/forgot-password"
+                        to={USER_ROUTES.FORGOT_PASSWORD}
                         className="text-sm text-blue-600 hover:text-blue-700"
                       >
                         Forgot?
@@ -344,7 +345,7 @@ export const LoginPage = () => {
                 <p className="mt-6 text-center text-sm text-gray-600">
                   Don't have an account?{" "}
                   <Link
-                    to="/signup"
+                    to={USER_ROUTES.SIGNUP}
                     className="text-blue-600 hover:text-blue-700 font-medium"
                   >
                     Sign up
@@ -360,7 +361,7 @@ export const LoginPage = () => {
           <p className="mt-6 text-center text-sm text-gray-500">
             Haven't verified your email?{" "}
             <Link
-              to="/resend-verification"
+              to={USER_ROUTES.RESEND_VERIFICATION}
               className="text-blue-600 hover:text-blue-700"
             >
               Resend verification email

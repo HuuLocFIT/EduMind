@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button, Card, CardBody, StatCard } from "@edumind/user-ui";
-import { useAuthStore } from "../stores/auth.store";
-import { getUserDisplayName } from "@edumind/shared-utils";
+import { useAuthStore } from "@user/stores/auth.store";
+import { getUserDisplayName, USER_ROUTES } from "@edumind/shared-utils";
 import { Users, BookOpen, Trophy } from "lucide-react";
 
 export const DashboardPage = () => {
@@ -11,11 +11,11 @@ export const DashboardPage = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/login");
+      navigate(USER_ROUTES.LOGIN);
     } catch (error) {
       console.error("Logout error:", error);
       // Navigate anyway even if logout fails
-      navigate("/login");
+      navigate(USER_ROUTES.LOGIN);
     }
   };
 

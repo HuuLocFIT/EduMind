@@ -6,9 +6,9 @@ import {
   SignupRequestSchema,
   type SignupRequest,
 } from "@edumind/shared-types";
-import { getPasswordStrength } from "@edumind/shared-utils";
-import AuthService from "../services/auth.service.js";
-import { useAuthStore } from "../stores/auth.store";
+import { getPasswordStrength, USER_ROUTES } from "@edumind/shared-utils";
+import AuthService from "@user/services/auth.service.js";
+import { useAuthStore } from "@user/stores/auth.store";
 import {
   Button,
   Input,
@@ -50,7 +50,7 @@ export const SignupPage = () => {
       showSuccess("Account created! Please check your email to verify.");
 
       setTimeout(() => {
-        navigate("/login", {
+        navigate(USER_ROUTES.LOGIN, {
           state: {
             message:
               "Account created! Please check your email to verify your account.",
@@ -278,12 +278,12 @@ export const SignupPage = () => {
             {/* Login Link */}
             <p className="mt-6 text-center text-sm text-gray-600">
               Already have an account?{" "}
-              <Link
-                to="/login"
-                className="text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Sign in
-              </Link>
+                <Link
+                  to={USER_ROUTES.LOGIN}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Sign in
+                </Link>
             </p>
           </CardBody>
         </Card>

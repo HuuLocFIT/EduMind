@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from '../services/auth.service';
+import { AuthService } from '@admin/core/services/auth.service';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
 
 export const guestGuard = () => {
   const authService = inject(AuthService);
@@ -10,6 +11,6 @@ export const guestGuard = () => {
     return true;
   }
 
-  router.navigate(['/dashboard']);
+  router.navigate([ADMIN_ROUTES.DASHBOARD]);
   return false;
 };

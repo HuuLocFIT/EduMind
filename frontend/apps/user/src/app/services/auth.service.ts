@@ -13,17 +13,22 @@ import type {
   Setup2FAResponse,
   JwtResponse,
 } from "@edumind/shared-types";
+import {
+  AUTH_ENDPOINTS,
+  USER_ENDPOINTS,
+  getOAuth2Url,
+  getApiUrl,
+} from "@edumind/shared-utils";
 
-const API_URL = import.meta.env['VITE_API_URL'] || import.meta.env['NX_API_URL'] || "http://localhost:8080";  
+const API_URL = getApiUrl();  
 
 class AuthService {
-  private static readonly BASE_PATH = "/api/auth";
 
   // ========== BASIC AUTH ==========
 
   static async signup(data: SignupRequest): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/signup`,
+      AUTH_ENDPOINTS.SIGNUP,
       data
     );
     return response.data;
@@ -31,7 +36,7 @@ class AuthService {
 
   static async login(data: LoginRequest): Promise<JwtResponse> {
     const response = await apiClient.post<JwtResponse>(
-      `${this.BASE_PATH}/login`,
+      AUTH_ENDPOINTS.LOGIN,
       data
     );
     return response.data;
@@ -39,7 +44,7 @@ class AuthService {
 
   static async logout(): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/logout`
+      AUTH_ENDPOINTS.LOGOUT
     );
     localStorage.clear();
     return response.data;
@@ -48,7 +53,7 @@ class AuthService {
   static async refreshToken(): Promise<RefreshTokenResponse> {
     const refreshToken = localStorage.getItem("refreshToken");
     const response = await apiClient.post<RefreshTokenResponse>(
-      `${this.BASE_PATH}/refresh`,
+      AUTH_ENDPOINTS.REFRESH,
       { refreshToken }
     );
     return response.data;
@@ -60,7 +65,7 @@ class AuthService {
     data: ForgotPasswordRequest
   ): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/forgot-password`,
+      AUTH_ENDPOINTS.FORGOT_PASSWORD,
       data
     );
     return response.data;
@@ -70,7 +75,7 @@ class AuthService {
     data: ResetPasswordRequest
   ): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/reset-password`,
+      AUTH_ENDPOINTS.RESET_PASSWORD,
       data
     );
     return response.data;
@@ -80,7 +85,7 @@ class AuthService {
 
   static async verifyEmail(data: VerifyEmailRequest): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/verify-email`,
+      AUTH_ENDPOINTS.VERIFY_EMAIL,
       data
     );
     return response.data;
@@ -90,7 +95,7 @@ class AuthService {
     data: ResendVerificationRequest
   ): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/resend-verification`,
+      AUTH_ENDPOINTS.RESEND_VERIFICATION,
       data
     );
     return response.data;
@@ -100,7 +105,7 @@ class AuthService {
 
   static async setup2FA(): Promise<Setup2FAResponse> {
     const response = await apiClient.post<Setup2FAResponse>(
-      `${this.BASE_PATH}/2fa/setup`
+      AUTH_ENDPOINTS.SETUP_2FA
     );
     return response.data;
   }
@@ -109,7 +114,7 @@ class AuthService {
     data: Verify2FACodeRequest
   ): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/2fa/verify`,
+      AUTH_ENDPOINTS.VERIFY_2FA,
       data
     );
     return response.data;
@@ -119,7 +124,7 @@ class AuthService {
     data: TwoFactorLoginRequest
   ): Promise<JwtResponse> {
     const response = await apiClient.post<JwtResponse>(
-      `${this.BASE_PATH}/2fa/login`,
+      AUTH_ENDPOINTS.LOGIN_2FA,
       data
     );
     return response.data;
@@ -127,14 +132,14 @@ class AuthService {
 
   static async disable2FA(): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      `${this.BASE_PATH}/2fa/disable`
+      AUTH_ENDPOINTS.DISABLE_2FA
     );
     return response.data;
   }
 
   static async getBackupCodes(): Promise<{ backupCodes: string[] }> {
     const response = await apiClient.post<{ backupCodes: string[] }>(
-      `${this.BASE_PATH}/2fa/backup-codes`
+      AUTH_ENDPOINTS.BACKUP_CODES
     );
     return response.data;
   }
@@ -142,11 +147,11 @@ class AuthService {
   // ========== OAUTH2 ==========
 
   static getGoogleOAuthUrl(): string {
-    return `${API_URL}${this.BASE_PATH}/oauth2/google`;
+    return getOAuth2Url('google', API_URL);
   }
 
   static getFacebookOAuthUrl(): string {
-    return `${API_URL}${this.BASE_PATH}/oauth2/facebook`;
+    return getOAuth2Url('facebook', API_URL);
   }
 
   // Handle OAuth2 callback (called from OAuth2CallbackPage)
@@ -155,7 +160,7 @@ class AuthService {
     code: string
   ): Promise<JwtResponse> {
     const response = await apiClient.get<JwtResponse>(
-      `${this.BASE_PATH}/oauth2/callback/${provider}`,
+      AUTH_ENDPOINTS.OAUTH2_CALLBACK(provider),
       { params: { code } }
     );
     return response.data;
@@ -164,7 +169,7 @@ class AuthService {
   // ========== USER INFO ==========
 
   static async fetchCurrentUser(): Promise<any> {
-    const response = await apiClient.get<any>("/api/users/me");
+    const response = await apiClient.get<any>(USER_ENDPOINTS.ME);
     return response.data;
   }
 

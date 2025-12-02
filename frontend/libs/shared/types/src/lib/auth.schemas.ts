@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type ZodTypeAny } from "zod";
 
 import { UserRole, PROVIDER } from "@edumind/shared-constants";
 import {
@@ -7,7 +7,7 @@ import {
   createPhoneNumberSchema,
   createRequiredStringSchema,
   createUsernameSchema,
-} from "@edumind/shared-utils";
+} from "./auth.validation.js";
 
 export const UserRoleSchema = z.nativeEnum(UserRole);
 
@@ -112,6 +112,37 @@ export const ApiErrorSchema = z.object({
   path: z.string().optional(),
 });
 
+// Generic ApiResponse helpers & schemas
+export const ApiResponseBaseSchema = z.object({
+  status: z.number(),
+  success: z.boolean(),
+  message: z.string().optional(),
+  timestamp: z.string().optional(),
+  requestId: z.string().optional(),
+  path: z.string().optional(),
+});
+
+export const createApiResponseSchema = <T extends ZodTypeAny>(dataSchema?: T) =>
+  ApiResponseBaseSchema.extend({
+    data: dataSchema ? dataSchema.optional() : z.any().optional(),
+  });
+
+export const PaginationMetadataSchema = z.object({
+  page: z.number(),
+  size: z.number(),
+  totalElements: z.number(),
+  totalPages: z.number(),
+  first: z.boolean().optional(),
+  last: z.boolean().optional(),
+  hasNext: z.boolean().optional(),
+  hasPrevious: z.boolean().optional(),
+});
+
+export const createPagedResponseSchema = <T extends ZodTypeAny>(itemSchema: T) =>
+  createApiResponseSchema(z.array(itemSchema)).extend({
+    pagination: PaginationMetadataSchema.optional(),
+  });
+
 // Types
 export type UserRole = z.infer<typeof UserRoleSchema>;
 export type Provider = z.infer<typeof ProviderSchema>;
@@ -133,3 +164,18 @@ export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
 export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 export type Setup2FAResponse = z.infer<typeof Setup2FAResponseSchema>;
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+export interface ApiResponse<T = unknown> {
+  status: number;
+  success: boolean;
+  message?: string;
+  data?: T;
+  timestamp?: string;
+  requestId?: string;
+  path?: string;
+}
+
+export type PaginationMetadata = z.infer<typeof PaginationMetadataSchema>;
+
+export interface PagedResponse<T = unknown> extends ApiResponse<T[]> {
+  pagination?: PaginationMetadata;
+}

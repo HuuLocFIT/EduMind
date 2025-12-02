@@ -7,8 +7,9 @@ import {
   ApiErrorSchema,
   type ApiError,
 } from '@edumind/shared-types';
+import { unwrapApiResponse, AUTH_ENDPOINTS, getApiUrl } from '@edumind/shared-utils';
 
-const API_URL = import.meta.env['VITE_API_URL'] || import.meta.env['NX_API_URL'] || 'http://localhost:8080';
+const API_URL = getApiUrl();
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -33,14 +34,15 @@ apiClient.interceptors.request.use(
 // Response interceptor - Validate with Zod & handle token refresh
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    response.data = unwrapApiResponse(response.data);
     const endpoint = response.config.url;
 
     // Validate auth responses
     if (
-      endpoint?.includes('/auth/login') ||
-      endpoint?.includes('/auth/signup') ||
+      endpoint?.includes(AUTH_ENDPOINTS.LOGIN) ||
+      endpoint?.includes(AUTH_ENDPOINTS.SIGNUP) ||
       endpoint?.includes('/auth/oauth2') ||
-      endpoint?.includes('/auth/2fa/login')
+      endpoint?.includes(AUTH_ENDPOINTS.LOGIN_2FA)
     ) {
       const result = JwtResponseSchema.safeParse(response.data);
       if (result.success) {
@@ -53,7 +55,7 @@ apiClient.interceptors.response.use(
     }
 
     // Validate refresh response
-    if (endpoint?.includes('/auth/refresh')) {
+    if (endpoint?.includes(AUTH_ENDPOINTS.REFRESH)) {
       const result = RefreshTokenResponseSchema.safeParse(response.data);
       if (result.success) {
         localStorage.setItem('accessToken', result.data.accessToken);
@@ -63,13 +65,13 @@ apiClient.interceptors.response.use(
 
     // Validate message responses
     if (
-      endpoint?.includes('/auth/forgot-password') ||
-      endpoint?.includes('/auth/reset-password') ||
-      endpoint?.includes('/auth/verify-email') ||
-      endpoint?.includes('/auth/resend-verification') ||
-      endpoint?.includes('/auth/2fa/verify') ||
-      endpoint?.includes('/auth/2fa/disable') ||
-      endpoint?.includes('/auth/logout')
+      endpoint?.includes(AUTH_ENDPOINTS.FORGOT_PASSWORD) ||
+      endpoint?.includes(AUTH_ENDPOINTS.RESET_PASSWORD) ||
+      endpoint?.includes(AUTH_ENDPOINTS.VERIFY_EMAIL) ||
+      endpoint?.includes(AUTH_ENDPOINTS.RESEND_VERIFICATION) ||
+      endpoint?.includes(AUTH_ENDPOINTS.VERIFY_2FA) ||
+      endpoint?.includes(AUTH_ENDPOINTS.DISABLE_2FA) ||
+      endpoint?.includes(AUTH_ENDPOINTS.LOGOUT)
     ) {
       const result = MessageResponseSchema.safeParse(response.data);
       if (result.success) {
@@ -78,7 +80,7 @@ apiClient.interceptors.response.use(
     }
 
     // Validate 2FA setup response
-    if (endpoint?.includes('/auth/2fa/setup')) {
+    if (endpoint?.includes(AUTH_ENDPOINTS.SETUP_2FA)) {
       const result = Setup2FAResponseSchema.safeParse(response.data);
       if (result.success) {
         response.data = result.data;
@@ -98,7 +100,7 @@ apiClient.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
           const response = await axios.post(
-            `${API_URL}/api/auth/refresh`,
+            `${API_URL}${AUTH_ENDPOINTS.REFRESH}`,
             { refreshToken },
             { withCredentials: true }
           );

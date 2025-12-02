@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuthStore } from "../stores/auth.store";
+import { useAuthStore } from "@user/stores/auth.store";
 import { useToast } from "@edumind/user-ui";
+import { USER_ROUTES } from "@edumind/shared-utils";
 
 export const OAuth2CallbackPage = () => {
   const navigate = useNavigate();
@@ -19,13 +20,13 @@ export const OAuth2CallbackPage = () => {
 
         if (error) {
           showError(`OAuth2 authentication failed: ${error}`);
-          navigate("/login");
+          navigate(USER_ROUTES.LOGIN);
           return;
         }
 
         if (!token) {
           showError("No token received from OAuth2 provider");
-          navigate("/login");
+          navigate(USER_ROUTES.LOGIN);
           return;
         }
 
@@ -33,13 +34,13 @@ export const OAuth2CallbackPage = () => {
         await loginWithOAuth2(token);
 
         showSuccess("Successfully logged in with OAuth2!");
-        navigate("/dashboard");
+        navigate(USER_ROUTES.DASHBOARD);
       } catch (err: any) {
         console.error("OAuth2 callback error:", err);
         const errorMessage =
           err.response?.data?.message || err.message || "OAuth2 authentication failed";
         showError(errorMessage);
-        navigate("/login");
+        navigate(USER_ROUTES.LOGIN);
       } finally {
         setIsProcessing(false);
       }
