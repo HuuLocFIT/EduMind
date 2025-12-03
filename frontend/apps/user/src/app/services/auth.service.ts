@@ -173,6 +173,14 @@ class AuthService {
     return response.data;
   }
 
+  static async changePassword(data: { currentPassword: string; newPassword: string }): Promise<MessageResponse> {
+    const response = await apiClient.put<MessageResponse>(
+      USER_ENDPOINTS.CHANGE_PASSWORD,
+      data
+    );
+    return response.data;
+  }
+
   // ========== HELPERS ==========
 
   static getCurrentUser() {
