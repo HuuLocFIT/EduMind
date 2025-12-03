@@ -124,10 +124,10 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-12">
+    <>
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      <div className="max-w-md w-full">
+      <div className="max-w-md w-full mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -369,7 +369,7 @@ export const LoginPage = () => {
           </p>
         )}
       </div>
-    </div>
+    </>
   );
 };
 

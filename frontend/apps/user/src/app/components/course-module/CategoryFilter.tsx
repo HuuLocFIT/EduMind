@@ -42,7 +42,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
           }`}
         >
           {category.name}
-          {category.courseCount && (
+          {(category.courseCount || category.courseCount === 0) && (
             <span className="ml-2 text-sm opacity-75">
               ({category.courseCount})
             </span>

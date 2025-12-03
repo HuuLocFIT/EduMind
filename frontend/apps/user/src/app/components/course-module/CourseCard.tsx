@@ -1,12 +1,10 @@
 import React from "react";
-import { Card } from "@edumind/user-ui";
-import { RatingStars } from "@edumind/user-ui";
-import { PriceTag } from "@edumind/user-ui";
+import { Card, RatingStars, PriceTag } from "@edumind/user-ui";
 import { Clock, Users, BookOpen } from "lucide-react";
-import { type CourseDetailResponse } from "@edumind/shared-types";
+import type { CourseResponse } from "@edumind/shared-types";
 
 interface CourseCardProps {
-  course: CourseDetailResponse;
+  course: CourseResponse;
   onClick?: () => void;
   className?: string;
 }
