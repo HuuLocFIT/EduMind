@@ -1,9 +1,12 @@
 package com.edumind.auth.controller;
 
+import com.edumind.auth.dto.request.ChangePasswordRequest;
+import com.edumind.auth.dto.request.UpdateProfileRequest;
 import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.service.UserService;
 import com.edumind.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,5 +68,33 @@ public class UserController {
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request) {
+
+        logger.info("📥 PUT /users/me - Update profile");
+
+        UserResponse userResponse = userService.updateProfile(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Profile updated successfully", userResponse)
+        );
+    }
+
+    @PostMapping("/me/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+
+        logger.info("📥 POST /users/me/change-password - Change password");
+
+        userService.changePassword(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Password changed successfully", null)
+        );
     }
 }
