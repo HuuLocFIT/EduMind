@@ -12,10 +12,15 @@ import type {
   MessageResponse,
   Setup2FAResponse,
   JwtResponse,
+  ChangePasswordRequest,
+  UpdateProfileRequest,
+  FileUploadResponse,
+  User,
 } from "@edumind/shared-types";
 import {
   AUTH_ENDPOINTS,
   USER_ENDPOINTS,
+  UPLOAD_ENDPOINTS,
   getOAuth2Url,
   getApiUrl,
 } from "@edumind/shared-utils";
@@ -173,11 +178,35 @@ class AuthService {
     return response.data;
   }
 
-  static async changePassword(data: { currentPassword: string; newPassword: string }): Promise<MessageResponse> {
-    const response = await apiClient.put<MessageResponse>(
+  static async updateProfile(data: UpdateProfileRequest): Promise<User> {
+    const response = await apiClient.put<User>(
+      USER_ENDPOINTS.UPDATE_PROFILE(),
+      data
+    );
+    localStorage.setItem("user", JSON.stringify(response.data));
+    return response.data;
+  }
+
+  static async changePassword(data: ChangePasswordRequest): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
       USER_ENDPOINTS.CHANGE_PASSWORD,
       data
     );
+    return response.data;
+  }
+
+  static async uploadProfileImage(file: File): Promise<FileUploadResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.post<FileUploadResponse>(
+      UPLOAD_ENDPOINTS.IMAGE,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+
     return response.data;
   }
 

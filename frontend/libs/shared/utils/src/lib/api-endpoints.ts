@@ -56,9 +56,19 @@ export const USER_ENDPOINTS = {
     userId ? `${API_BASE_PATH}/users/${userId}/profile` : `${API_BASE_PATH}/users/profile`,
   UPDATE_PROFILE: (userId?: string | number) => 
     userId ? `${API_BASE_PATH}/users/${userId}` : `${API_BASE_PATH}/users/me`,
-  CHANGE_PASSWORD: `${API_BASE_PATH}/users/me/password`,
+  CHANGE_PASSWORD: `${API_BASE_PATH}/users/me/change-password`,
   AVATAR: (userId?: string | number) => 
     userId ? `${API_BASE_PATH}/users/${userId}/avatar` : `${API_BASE_PATH}/users/me/avatar`,
+} as const;
+
+/**
+ * File upload endpoints
+ */
+export const UPLOAD_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/upload`,
+  IMAGE: `${API_BASE_PATH}/upload/image`,
+  DOCUMENT: `${API_BASE_PATH}/upload/document`,
+  DELETE: `${API_BASE_PATH}/upload`,
 } as const;
 
 /**
