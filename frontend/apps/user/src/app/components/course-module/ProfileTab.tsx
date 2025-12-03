@@ -71,19 +71,19 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
     const payload: Record<string, string> = {};
 
     if (formData.firstName.trim()) {
-      payload.firstName = formData.firstName.trim();
+      payload['firstName'] = formData.firstName.trim();
     }
 
     if (formData.lastName.trim()) {
-      payload.lastName = formData.lastName.trim();
+      payload['lastName'] = formData.lastName.trim();
     }
 
     if (formData.phoneNumber.trim()) {
-      payload.phoneNumber = formData.phoneNumber.trim();
+      payload['phoneNumber'] = formData.phoneNumber.trim();
     }
 
     if (formData.profilePictureUrl) {
-      payload.profilePictureUrl = formData.profilePictureUrl;
+      payload['profilePictureUrl'] = formData.profilePictureUrl; 
     }
 
     if (Object.keys(payload).length === 0) {

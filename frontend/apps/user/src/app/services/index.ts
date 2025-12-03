@@ -12,3 +12,5 @@ export { courseReviewService } from './course-review.service';
 
 export { wishlistService } from './wishlist.service';
 
+export { sectionService } from './section.service';
+

@@ -11,6 +11,7 @@ import type {
   CourseResponse,
   CategoryResponse,
 } from "@edumind/shared-types";
+import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 
 export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -84,7 +85,7 @@ export const BrowseCoursesPage: React.FC = () => {
       setCourses(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch courses');
+      setError(err?.message || 'Failed to fetch courses');
       console.error('Error fetching courses:', err);
     } finally {
       setLoading(false);
@@ -92,7 +93,7 @@ export const BrowseCoursesPage: React.FC = () => {
   };
 
   const handleCourseClick = (course: CourseResponse) => {
-    navigate(`/courses/${course.id}`);
+    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id }));
   };
 
   const handleSearch = (keyword: string) => {

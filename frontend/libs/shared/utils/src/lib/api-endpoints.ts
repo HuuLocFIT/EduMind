@@ -139,6 +139,24 @@ export const ENROLLMENT_ENDPOINTS = {
   COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/course/${courseId}`,
 } as const;
 
+// Section endpoints
+export const SECTION_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/sections`,
+  DETAIL: (sectionId: string | number) => `${API_BASE_PATH}/sections/${sectionId}`,
+  COURSE: (courseId: string | number) => `${API_BASE_PATH}/sections/courses/${courseId}`,
+  LESSON: (lessonId: string | number) => `${API_BASE_PATH}/sections/lessons/${lessonId}`,
+} as const;
+
+// Lesson endpoints
+export const LESSON_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/lessons`,
+  DETAIL: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}`,
+  COURSE: (courseId: string | number) => `${API_BASE_PATH}/lessons/courses/${courseId}`,
+  SECTION: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}`,
+  WATCH: `${API_BASE_PATH}/lessons/watch`,
+  COMPLETE: `${API_BASE_PATH}/lessons/complete`,
+} as const;
+
 /**
  * Lesson progress endpoints
  */

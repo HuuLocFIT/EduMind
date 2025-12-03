@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Star,
 } from 'lucide-react';
+import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ export const HomePage: React.FC = () => {
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => navigate('/courses')}
+                onClick={() => navigate(USER_ROUTES.COURSES)}
                 className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 min-w-[180px]"
                 rightIcon={<ArrowRight className="w-5 h-5" />}
               >
@@ -126,7 +127,7 @@ export const HomePage: React.FC = () => {
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={() => navigate('/signup')}
+                onClick={() => navigate(USER_ROUTES.SIGNUP)}
                 className="!border-2 !border-white !text-white hover:!bg-white/20 backdrop-blur-sm min-w-[180px]"
               >
                 Get Started Free
@@ -241,7 +242,7 @@ export const HomePage: React.FC = () => {
               <CourseGrid
                 courses={featuredCourses}
                 onCourseClick={(course: CourseResponse) =>
-                  navigate(`/courses/${course.id}`)
+                  navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id || '' }))
                 }
                 columns={3}
               />
@@ -250,7 +251,7 @@ export const HomePage: React.FC = () => {
                   <Button
                     variant="primary"
                     size="lg"
-                    onClick={() => navigate('/courses')}
+                    onClick={() => navigate(USER_ROUTES.COURSES)}
                     rightIcon={<ArrowRight className="w-5 h-5" />}
                     className="shadow-md hover:shadow-lg"
                   >
@@ -283,7 +284,7 @@ export const HomePage: React.FC = () => {
             <CourseGrid
               courses={popularCourses}
               onCourseClick={(course: CourseResponse) =>
-                navigate(`/courses/${course.id}`)
+                navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id || '' }))
               }
               columns={3}
             />
@@ -312,7 +313,7 @@ export const HomePage: React.FC = () => {
             <Button
               variant="outline"
               size="lg"
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate(USER_ROUTES.SIGNUP)}
               className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 min-w-[200px]"
               rightIcon={<ArrowRight className="w-5 h-5" />}
             >
@@ -321,7 +322,7 @@ export const HomePage: React.FC = () => {
             <Button
               variant="ghost"
               size="lg"
-              onClick={() => navigate('/courses')}
+              onClick={() => navigate(USER_ROUTES.COURSES)}
               className="!border-2 !border-white !text-white hover:!bg-white/20 backdrop-blur-sm min-w-[200px]"
             >
               Browse Courses

@@ -12,6 +12,7 @@ import { wishlistService, enrollmentService } from '@user/services/index';
 import type { WishlistItemResponse } from '@edumind/shared-types';
 import { WishlistCard } from '../components/course-module/WishlistCard';
 import { Heart, Trash2 } from 'lucide-react';
+import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 
 export const WishlistPage: React.FC = () => {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ export const WishlistPage: React.FC = () => {
       setWishlistItems(prev => prev.filter(item => item.courseId !== courseId));
       
       // Navigate to course or my learning
-      navigate(`/courses/${courseId}`);
+      navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
     } catch (err: any) {
       showError(err?.message || 'Failed to enroll in course');
     } finally {
@@ -171,7 +172,7 @@ export const WishlistPage: React.FC = () => {
               </p>
               <Button
                 variant="primary"
-                onClick={() => navigate('/courses')}
+                onClick={() => navigate(USER_ROUTES.COURSES)}
               >
                 Browse Courses
               </Button>
@@ -189,7 +190,7 @@ export const WishlistPage: React.FC = () => {
                     item={item}
                     onRemove={handleRemoveFromWishlist}
                     onEnroll={handleEnroll}
-                    onViewCourse={() => navigate(`/courses/${item.courseId}`)}
+                    onViewCourse={() => navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: item.courseId || '' }))}
                     isRemoving={removingIds.has(item.courseId)}
                     isEnrolling={enrollingIds.has(item.courseId)}
                   />
@@ -233,7 +234,7 @@ export const WishlistPage: React.FC = () => {
                     
                     <Button
                       variant="primary"
-                      onClick={() => navigate('/courses')}
+                      onClick={() => navigate(USER_ROUTES.COURSES)}
                       className="w-full"
                     >
                       Continue Browsing

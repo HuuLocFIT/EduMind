@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@edumind/user-ui";
 import { FileQuestion, Home, Search } from "lucide-react";
+import { USER_ROUTES } from "@edumind/shared-utils";
 
 export const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,11 +29,11 @@ export const NotFoundPage: React.FC = () => {
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button variant="primary" onClick={() => navigate("/")}>
+          <Button variant="primary" onClick={() => navigate(USER_ROUTES.ROOT)}>
             <Home className="w-4 h-4 mr-2" />
             Back to Home
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/courses")}>
+          <Button variant="secondary" onClick={() => navigate(USER_ROUTES.COURSES)}>
             <Search className="w-4 h-4 mr-2" />
             Browse Courses
           </Button>

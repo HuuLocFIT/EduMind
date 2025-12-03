@@ -39,6 +39,7 @@ import {
   Star,
   ArrowLeft,
 } from 'lucide-react';
+import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 
 export const CourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -72,7 +73,7 @@ export const CourseDetailPage: React.FC = () => {
       const data = await courseService.getCourseById(Number(courseId));
       setCourse(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch course details');
+      setError(err?.message || 'Failed to fetch course details');
       console.error('Error fetching course:', err);
     } finally {
       setLoading(false);
@@ -125,9 +126,9 @@ export const CourseDetailPage: React.FC = () => {
       await checkEnrollmentStatus();
       showSuccess('Successfully enrolled in course!');
       // Show success message or redirect
-      navigate('/my-learning');
+      navigate(USER_ROUTES.LEARNING);
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to enroll in course');
+      showError(err?.message || 'Failed to enroll in course');
     }
   };
 
@@ -143,7 +144,7 @@ export const CourseDetailPage: React.FC = () => {
         showSuccess('Added to wishlist');
       }
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to update wishlist');
+      showError(err?.message || 'Failed to update wishlist');
     }
   };
 
@@ -154,7 +155,7 @@ export const CourseDetailPage: React.FC = () => {
       fetchReviews();
       showSuccess('Review submitted successfully!');
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to submit review');
+      showError(err?.message || 'Failed to submit review');
     }
   };
 
@@ -171,7 +172,7 @@ export const CourseDetailPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="p-8 text-center max-w-md">
           <p className="text-red-600 text-lg mb-4">{error || 'Course not found'}</p>
-          <Button variant="primary" onClick={() => navigate('/courses')}>
+          <Button variant="primary" onClick={() => navigate(USER_ROUTES.COURSES)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Courses
           </Button>
@@ -198,7 +199,7 @@ export const CourseDetailPage: React.FC = () => {
             {/* Back Button */}
             <Button
               variant="ghost"
-              onClick={() => navigate('/courses')}
+              onClick={() => navigate(USER_ROUTES.COURSES)}  
               className="mb-6 !text-white hover:!bg-white/10"
               leftIcon={<ArrowLeft className="w-4 h-4" />}
             >
