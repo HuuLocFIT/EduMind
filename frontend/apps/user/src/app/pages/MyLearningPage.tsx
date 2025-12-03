@@ -131,7 +131,7 @@ export const MyLearningPage: React.FC = () => {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(['all', 'active', 'completed'] as const).map((status) => (
               <button
                 key={status}

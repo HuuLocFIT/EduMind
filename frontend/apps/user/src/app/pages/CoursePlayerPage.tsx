@@ -31,6 +31,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { USER_ROUTES } from '@edumind/shared-utils';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -43,7 +44,8 @@ export const CoursePlayerPage: React.FC = () => {
   const [lessonProgress, setLessonProgress] = useState<LessonProgressResponse | null>(null);
   const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
 
   // Refs
@@ -69,6 +71,29 @@ export const CoursePlayerPage: React.FC = () => {
       updateLastAccessedLesson();
     }
   }, [currentLesson, enrollment]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+
+    setIsDesktop(mediaQuery.matches);
+    if (mediaQuery.matches) {
+      setSidebarOpen(true);
+    }
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop) {
+      setSidebarOpen(true);
+    }
+  }, [isDesktop]);
 
 
   const fetchCourseData = async () => {
@@ -324,7 +349,7 @@ export const CoursePlayerPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <Button
               variant="secondary"
-              onClick={() => navigate('/my-learning')}
+              onClick={() => navigate(USER_ROUTES.LEARNING)}  
               className="bg-gray-700 hover:bg-gray-600"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
@@ -361,7 +386,16 @@ export const CoursePlayerPage: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex">
+      {!isDesktop && sidebarOpen && (
+        <div
+          className="fixed inset-x-0 bottom-0 bg-black/40 z-30 md:hidden"
+          style={{ top: '57px' }}
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className="flex relative">
         {/* Main Content */}
         <main className={`flex-1 ${sidebarOpen ? 'md:mr-80' : ''}`}>
           {/* Video Player */}

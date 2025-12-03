@@ -140,10 +140,10 @@ export const BrowseCoursesPage: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Sidebar - Filters */}
-          <aside className="w-64 flex-shrink-0">
-            <div className="sticky top-8 space-y-6">
+          <aside className="w-full lg:w-64 lg:flex-shrink-0 mb-8 lg:mb-0">
+            <div className="lg:sticky lg:top-8 space-y-6">
               {/* Category Filter */}
               <CategoryFilter
                 categories={categories}
@@ -187,7 +187,7 @@ export const BrowseCoursesPage: React.FC = () => {
           {/* Main Content */}
           <main className="flex-1">
             {/* Sort & Results Count */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div className="text-gray-600">
                 {loading ? (
                   'Loading...'
@@ -261,7 +261,7 @@ export const BrowseCoursesPage: React.FC = () => {
 
             {/* Pagination */}
             {!loading && courses.length > 0 && totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-8">
                 <Button
                   variant="secondary"
                   onClick={() => setPage(p => Math.max(0, p - 1))}
