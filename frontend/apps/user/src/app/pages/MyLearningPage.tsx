@@ -10,6 +10,7 @@ import {
 import { enrollmentService } from '../services';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { BookOpen, Clock, Award, PlayCircle, TrendingUp } from 'lucide-react';
+import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 
 export const MyLearningPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export const MyLearningPage: React.FC = () => {
 
   const handleContinueLearning = (enrollment: EnrollmentResponse) => {
     // Navigate to course player or detail page
-    navigate(`/courses/${enrollment.courseId}/learn`);
+    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId: enrollment.courseId }));
   };
 
   const handleViewCourse = (courseId: number) => {

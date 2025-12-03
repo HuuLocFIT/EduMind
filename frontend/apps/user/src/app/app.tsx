@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useToast, ToastContainer } from "@edumind/user-ui";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
@@ -12,6 +12,11 @@ import { MyLearningPage } from "./pages/MyLearningPage";
 import { MainLayout } from "./layouts/MainLayout";
 import { AuthLayout } from "./layouts/AuthLayout";
 import { HomePage } from "./pages/HomePage";
+import { CertificatesPage } from "./pages/CertificatesPage";
+import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { WishlistPage } from "./pages/WishlistPage";
+import { CoursePlayerPage } from "./pages/CoursePlayerPage";
 
 function App() {
   const { toasts, closeToast } = useToast();
@@ -41,11 +46,17 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
             <Route path={USER_ROUTES.LEARNING} element={<MyLearningPage />} />
+            <Route path={USER_ROUTES.LEARNING_COURSE.replace('/', '')} element={<CoursePlayerPage />} />
+            
+            <Route path={USER_ROUTES.CERTIFICATES} element={<CertificatesPage />} />
+            <Route path={USER_ROUTES.PROFILE_SETTINGS} element={<ProfileSettingsPage />} />
+            <Route path={USER_ROUTES.WISHLIST} element={<WishlistPage />} />
           </Route>
         </Route>
 
         {/* 404 fallback */}
-        <Route path="*" element={<Navigate to={USER_ROUTES.LOGIN} replace />} />
+        <Route path={USER_ROUTES.NOT_FOUND} element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

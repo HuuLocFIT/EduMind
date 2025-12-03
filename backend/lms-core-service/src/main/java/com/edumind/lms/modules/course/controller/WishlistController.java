@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.course.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.dto.response.WishlistItemResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Wishlist;
@@ -52,7 +53,7 @@ public class WishlistController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<WishlistItemResponse>>> getWishlist(
+    public ResponseEntity<PagedResponse<WishlistItemResponse>> getWishlist(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
@@ -61,9 +62,15 @@ public class WishlistController {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Wishlist> wishlist = wishlistService.getWishlist(studentId, pageable);
-        Page<WishlistItemResponse> response = wishlist.map(this::toResponse);
+        Page<WishlistItemResponse> responsePage = wishlist.map(this::toResponse);
 
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(PagedResponse.of(
+            responsePage.getContent(),
+            responsePage.getNumber(),
+            responsePage.getSize(),
+            responsePage.getTotalElements(),
+            responsePage.getTotalPages()
+    ));
     }
 
     @GetMapping("/courses/{courseId}/check")
