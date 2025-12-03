@@ -73,8 +73,8 @@ export const SignupPage = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-        <Card className="max-w-md w-full text-center">
+      <div className="max-w-md w-full mx-auto">
+        <Card className="text-center">
           <CardBody>
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10 text-green-600" />
@@ -92,10 +92,10 @@ export const SignupPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-12">
+    <>
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      <div className="max-w-md w-full">
+      <div className="max-w-md w-full mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -288,7 +288,7 @@ export const SignupPage = () => {
           </CardBody>
         </Card>
       </div>
-    </div>
+    </>
   );
 };
 

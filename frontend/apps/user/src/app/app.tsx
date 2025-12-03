@@ -9,6 +9,9 @@ import { USER_ROUTES } from "@edumind/shared-utils";
 import { BrowseCoursesPage } from "./pages/BrowseCoursesPage";
 import { CourseDetailPage } from "./pages/CourseDetailPage";
 import { MyLearningPage } from "./pages/MyLearningPage";
+import { MainLayout } from "./layouts/MainLayout";
+import { AuthLayout } from "./layouts/AuthLayout";
+import { HomePage } from "./pages/HomePage";
 
 function App() {
   const { toasts, closeToast } = useToast();
@@ -18,33 +21,28 @@ function App() {
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
       <Routes>
-        {/* Public routes */}
-        <Route path={USER_ROUTES.ROOT} element={<Navigate to={USER_ROUTES.LOGIN} replace />} />
-        <Route path={USER_ROUTES.LOGIN} element={<LoginPage />} />
-        <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
-        <Route path={USER_ROUTES.OAUTH2_REDIRECT} element={<OAuth2CallbackPage />} />
+        {/* Public Routes */}
+        <Route path="/" element={<MainLayout />}>
+          <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
+          <Route path={USER_ROUTES.COURSES.replace('/', '')} element={<BrowseCoursesPage />} />
+          <Route path={USER_ROUTES.COURSE_DETAIL.replace('/', '')} element={<CourseDetailPage />} />
+        </Route>
+        {/* <Route path={USER_ROUTES.ROOT} element={<Navigate to={USER_ROUTES.LOGIN} replace />} /> */}
 
-        <Route path={USER_ROUTES.COURSES.replace('/', '')} element={<BrowseCoursesPage />} />
-        <Route path={USER_ROUTES.COURSE_DETAIL.replace('/', '')} element={<CourseDetailPage />} />
+        {/* Auth Routes */}
+        <Route element={<AuthLayout />}>
+          <Route path={USER_ROUTES.LOGIN} element={<LoginPage />} />
+          <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
+          <Route path={USER_ROUTES.OAUTH2_REDIRECT} element={<OAuth2CallbackPage />} />
+        </Route>
 
-        {/* Protected routes */}
-        <Route
-          path={USER_ROUTES.DASHBOARD}
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path={USER_ROUTES.LEARNING}
-          element={
-            <ProtectedRoute>
-              <MyLearningPage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Protected Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<MainLayout />}>
+            <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
+            <Route path={USER_ROUTES.LEARNING} element={<MyLearningPage />} />
+          </Route>
+        </Route>
 
         {/* 404 fallback */}
         <Route path="*" element={<Navigate to={USER_ROUTES.LOGIN} replace />} />
