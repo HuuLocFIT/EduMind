@@ -28,6 +28,7 @@ export const UserSchema = z.object({
   trialStartDate: z.string().nullable().optional(),
   trialEndDate: z.string().nullable().optional(),
   profilePictureUrl: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   lastLoginAt: z.string().nullable().optional(),

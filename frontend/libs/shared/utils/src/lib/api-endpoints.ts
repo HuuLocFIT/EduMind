@@ -136,7 +136,7 @@ export const ENROLLMENT_ENDPOINTS = {
   MY_RECENT: `${API_BASE_PATH}/enrollments/my-recent`,
   CHECK: (courseId: string | number) => `${API_BASE_PATH}/enrollments/check/${courseId}`,
   STUDENT: (studentId: string | number) => `${API_BASE_PATH}/enrollments/student/${studentId}`,
-  COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/course/${courseId}`,
+  COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
 } as const;
 
 // Section endpoints

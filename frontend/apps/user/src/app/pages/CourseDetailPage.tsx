@@ -39,12 +39,14 @@ import {
   Star,
   ArrowLeft,
 } from 'lucide-react';
-import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
+import { USER_ROUTES } from '@edumind/shared-utils';
+import { useAuthStore } from '@user/stores/auth.store';
 
 export const CourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { toasts, success: showSuccess, error: showError, closeToast } = useToast();
+  const { isAuthenticated } = useAuthStore();
 
   // State
   const [course, setCourse] = useState<CourseDetailResponse | null>(null);
@@ -59,13 +61,17 @@ export const CourseDetailPage: React.FC = () => {
   useEffect(() => {
     if (courseId) {
       fetchCourseDetail();
-      checkEnrollmentStatus();
-      checkWishlistStatus();
+
+      if(isAuthenticated) {
+        checkEnrollmentStatus();
+        checkWishlistStatus();
+      }
+
       fetchReviews();
     }
   }, [courseId]);
 
-  const fetchCourseDetail = async () => {
+  const fetchCourseDetail: () => Promise<void> = async () => {
     setLoading(true);
     setError(null);
 
@@ -114,7 +120,7 @@ export const CourseDetailPage: React.FC = () => {
         page: 0,
         size: 10,
       });
-      setReviews(response.content || []);
+      setReviews(response.data || []);
     } catch (err) {
       console.error('Error fetching reviews:', err);
     }
@@ -152,7 +158,8 @@ export const CourseDetailPage: React.FC = () => {
     try {
       await courseReviewService.createReview(Number(courseId), { rating, comment });
       setShowReviewForm(false);
-      fetchReviews();
+      await fetchReviews();
+      await fetchCourseDetail();
       showSuccess('Review submitted successfully!');
     } catch (err: any) {
       showError(err?.message || 'Failed to submit review');

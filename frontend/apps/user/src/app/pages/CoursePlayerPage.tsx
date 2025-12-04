@@ -24,7 +24,6 @@ import { ContentType } from '@edumind/shared-constants';
 import {
   Play,
   CheckCircle,
-  Lock,
   ChevronLeft,
   ChevronRight,
   BookOpen,

@@ -517,6 +517,8 @@ export const ReviewResponseSchema = z.object({
   courseTitle: z.string(),
   studentId: z.number(),
   studentName: z.string(),
+  avatarUrl: z.string().nullable().optional(),
+  profilePictureUrl: z.string().nullable().optional(),
   rating: z.number(),
   comment: z.string().nullable().optional(),
   isApproved: z.boolean(),
