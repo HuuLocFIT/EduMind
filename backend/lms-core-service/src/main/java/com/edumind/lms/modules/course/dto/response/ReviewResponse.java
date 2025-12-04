@@ -17,6 +17,8 @@ public class ReviewResponse {
     private String courseTitle;
     private Long studentId;
     private String studentName;
+    private String avatarUrl;
+    private String profilePictureUrl;
     private Integer rating;
     private String comment;
     private Boolean isApproved;

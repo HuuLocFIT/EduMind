@@ -29,6 +29,7 @@ public class UserMapper {
                 .trialStartDate(user.getTrialStartDate())
                 .trialEndDate(user.getTrialEndDate())
                 .profilePictureUrl(user.getProfilePictureUrl())
+                .avatarUrl(user.getAvatarUrl())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .lastLoginAt(user.getLastLoginAt())

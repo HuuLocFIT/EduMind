@@ -31,6 +31,7 @@ public class UserResponse {
     private LocalDateTime trialEndDate;
 
     private String profilePictureUrl;
+    private String avatarUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;
