@@ -89,6 +89,8 @@ export const COURSE_ENDPOINTS = {
   MOST_POPULAR: `${API_BASE_PATH}/courses/most-popular`,
   NEWEST: `${API_BASE_PATH}/courses/newest`,
   FREE: `${API_BASE_PATH}/courses/free`,
+  INSTRUCTOR_STATS: (instructorId: string | number) =>
+    `${API_BASE_PATH}/courses/instructors/${instructorId}/stats`,
 } as const;
 
 /**

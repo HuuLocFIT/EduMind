@@ -21,6 +21,7 @@ public class UserMapper {
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .phoneNumber(user.getPhoneNumber())
+                .bio(user.getBio())
                 .roles(extractRoleNames(user.getRoles()))
                 .isActive(user.getIsActive())
                 .isEmailVerified(user.getIsEmailVerified())

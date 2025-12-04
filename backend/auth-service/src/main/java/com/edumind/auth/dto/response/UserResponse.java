@@ -19,6 +19,7 @@ public class UserResponse {
     private String firstName;
     private String lastName;
     private String phoneNumber;
+    private String bio;
 
     private Set<String> roles;
     private Boolean isActive;

@@ -102,6 +102,7 @@ public class UserController {
                 .displayName(displayName)
                 .avatarUrl(user.getAvatarUrl())
                 .profilePictureUrl(user.getProfilePictureUrl())
+                .bio(user.getBio())
                 .build();
 
         ApiResponse<PublicUserProfileResponse> response = ApiResponse

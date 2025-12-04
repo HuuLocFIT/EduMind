@@ -16,5 +16,6 @@ public class PublicUserProfileResponse {
     private String displayName;
     private String avatarUrl;
     private String profilePictureUrl;
+    private String bio;
 }
 

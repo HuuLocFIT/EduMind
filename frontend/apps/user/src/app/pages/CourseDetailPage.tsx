@@ -27,6 +27,7 @@ import type {
   CourseDetailResponse,
   ReviewResponse,
   EnrollmentResponse,
+  InstructorStatsResponse,
 } from '@edumind/shared-types';
 import {
   Play,
@@ -57,6 +58,7 @@ export const CourseDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'reviews'>('overview');
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [instructorStats, setInstructorStats] = useState<InstructorStatsResponse | null>(null);
 
   useEffect(() => {
     if (courseId) {
@@ -74,15 +76,28 @@ export const CourseDetailPage: React.FC = () => {
   const fetchCourseDetail: () => Promise<void> = async () => {
     setLoading(true);
     setError(null);
+    setInstructorStats(null);
 
     try {
       const data = await courseService.getCourseById(Number(courseId));
       setCourse(data);
+      if (data?.instructorId) {
+        fetchInstructorStats(data.instructorId);
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to fetch course details');
       console.error('Error fetching course:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInstructorStats = async (instructorId: number) => {
+    try {
+      const data = await courseService.getInstructorStats(instructorId);
+      setInstructorStats(data);
+    } catch (err) {
+      console.error('Error fetching instructor stats:', err);
     }
   };
 
@@ -519,7 +534,21 @@ export const CourseDetailPage: React.FC = () => {
           <div className="lg:col-span-1">
             {/* Instructor Info */}
             <InstructorInfo
-              name={course.instructorName || 'Instructor'}
+              name={
+                instructorStats?.instructorName ||
+                course.instructorName ||
+                'Instructor'
+              }
+              bio={instructorStats?.bio || undefined}
+              avatar={instructorStats?.avatarUrl || undefined}
+              totalStudents={instructorStats?.totalStudents ?? undefined}
+              totalCourses={instructorStats?.totalCourses ?? undefined}
+              rating={
+                typeof instructorStats?.averageRating === 'number'
+                  ? instructorStats.averageRating
+                  : undefined
+              }
+              totalReviews={instructorStats?.totalReviews ?? undefined}
               className="mb-6"
             />
 

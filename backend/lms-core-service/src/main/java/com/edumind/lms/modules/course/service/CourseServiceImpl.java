@@ -1,5 +1,10 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.common.response.ApiResponse;
+import com.edumind.lms.modules.course.client.UserClient;
+import com.edumind.lms.modules.course.dto.model.InstructorStatsProjection;
+import com.edumind.lms.modules.course.dto.response.InstructorStatsResponse;
+import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseLevel;
 import com.edumind.lms.modules.course.enums.CourseStatus;
@@ -30,6 +35,7 @@ public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserClient userClient;
 
     @Override
     @Transactional
@@ -305,5 +311,50 @@ public class CourseServiceImpl implements CourseService {
 
         courseRepository.save(course);
         log.debug("Course statistics updated: {}", courseId);
+    }
+
+    @Override
+    public InstructorStatsResponse getInstructorStats(Long instructorId) {
+        // 1. Get profile from Auth Service
+        UserPublicProfileResponse profile = fetchInstructorProfile(instructorId);
+
+        // 2. Get stats from courses
+        InstructorStatsProjection stats = courseRepository
+                .getInstructorStats(instructorId)
+                .orElse(null);
+
+        // 3. Combine
+        return InstructorStatsResponse.builder()
+                .instructorId(instructorId)
+                .instructorName(profile.getDisplayName())
+                .bio(profile.getBio())
+                .avatarUrl(profile.getAvatarUrl() != null
+                        ? profile.getAvatarUrl()
+                        : profile.getProfilePictureUrl())
+                .totalCourses(stats != null ? stats.getTotalCourses().intValue() : 0)
+                .totalStudents(stats != null ? stats.getTotalStudents() : 0L)
+                .averageRating(stats != null
+                        ? BigDecimal.valueOf(stats.getAverageRating())
+                        : BigDecimal.ZERO)
+                .totalReviews(stats != null ? stats.getTotalReviews() : 0L)
+                .build();
+    }
+
+    private UserPublicProfileResponse fetchInstructorProfile(Long instructorId) {
+        try {
+            ApiResponse<UserPublicProfileResponse> response =
+                    userClient.getUserPublicProfile(instructorId);
+            
+            if (response != null && response.getData() != null) {
+                return response.getData();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch instructor profile for id {}", instructorId, e);
+        }
+
+        return UserPublicProfileResponse.builder()
+                .id(instructorId)
+                .displayName("Instructor #" + instructorId)
+                .build();
     }
 }
