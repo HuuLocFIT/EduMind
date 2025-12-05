@@ -1,5 +1,6 @@
 package com.edumind.auth.security;
 
+import com.edumind.common.constants.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +20,14 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+
+    public static final String JWT_ERROR_CODE_ATTRIBUTE = "jwt.errorCode";
+    public static final String JWT_ERROR_MESSAGE_ATTRIBUTE = "jwt.errorMessage";
+
+    public static final String ERROR_TOKEN_EXPIRED = ErrorCode.TOKEN_EXPIRED;
+    public static final String ERROR_TOKEN_INVALID = ErrorCode.TOKEN_INVALID;
 
     @Autowired
     private JwtTokenProvider tokenProvider;
@@ -33,19 +41,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String username = tokenProvider.getUsernameFromToken(jwt);
+            // Case 1: No token provided - let Spring Security handle based on SecurityConfig
+            if (!StringUtils.hasText(jwt)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
+            // Case 2 & 3: Validate token with details
+            JwtValidationResult validationResult = tokenProvider.validateTokenWithDetails(jwt);
+
+            if (validationResult.isValid()) {
+                // Token valid - set authentication
+                String username = tokenProvider.getUsernameFromToken(jwt);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 logger.debug("✅ Set authentication for user: {}", username);
+            } else {
+                // Token invalid - set error attributes to be handled by EntryPoint
+                request.setAttribute(JWT_ERROR_CODE_ATTRIBUTE, validationResult.getErrorType());
+                request.setAttribute(JWT_ERROR_MESSAGE_ATTRIBUTE, validationResult.getErrorMessage());
+                logger.warn("❌ JWT validation failed: {} - {}", 
+                        validationResult.getErrorType(), validationResult.getErrorMessage());
             }
+
         } catch (Exception ex) {
             logger.error("❌ Could not set user authentication in security context", ex);
+            request.setAttribute(JWT_ERROR_CODE_ATTRIBUTE, ERROR_TOKEN_INVALID);
+            request.setAttribute(JWT_ERROR_MESSAGE_ATTRIBUTE, "Authentication processing failed");
         }
 
         filterChain.doFilter(request, response);

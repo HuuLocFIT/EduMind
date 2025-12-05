@@ -16,6 +16,7 @@ public final class ErrorCode {
     public static final String TOKEN_EXPIRED = "ERR_2002";
     public static final String TOKEN_INVALID = "ERR_2003";
     public static final String TOKEN_REFRESH_FAILED = "ERR_2004";
+    public static final String TOKEN_MISSING = "ERR_2005";
 
     // Authorization Errors (3xxx)
     public static final String ACCESS_DENIED = "ERR_3000";
