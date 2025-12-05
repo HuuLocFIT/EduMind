@@ -1,5 +1,6 @@
 package com.edumind.lms.config.security;
 
+import com.edumind.common.constants.ErrorCode;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,8 +21,11 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private final JwtTokenProvider tokenProvider;
+
+    // Request attribute keys to pass error information to JwtAuthenticationEntryPoint
+    public static final String JWT_ERROR_CODE_ATTRIBUTE = "jwt.errorCode";
+    public static final String JWT_ERROR_MESSAGE_ATTRIBUTE = "jwt.errorMessage";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -29,7 +33,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = resolveToken(request);
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+
+            // Case 1: No token provided - let Spring Security handle based on SecurityConfig
+            if (!StringUtils.hasText(jwt)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // Case 2 & 3: Validate token with details
+            JwtValidationResult validationResult = tokenProvider.validateTokenWithDetails(jwt);
+
+            if (validationResult.isValid()) {
+                // Token valid - set authentication
                 Claims claims = tokenProvider.parseClaims(jwt);
                 var authorities = tokenProvider.extractAuthorities(claims);
 
@@ -45,9 +60,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Set authentication for user: {} with roles: {}", 
+                        claims.getSubject(), authorities);
+            } else {
+                // Token invalid - set error attributes to be handled by EntryPoint
+                request.setAttribute(JWT_ERROR_CODE_ATTRIBUTE, validationResult.getErrorCode());
+                request.setAttribute(JWT_ERROR_MESSAGE_ATTRIBUTE, validationResult.getErrorMessage());
+                log.warn("JWT validation failed: {} - {}", 
+                        validationResult.getErrorCode(), validationResult.getErrorMessage());
             }
+
         } catch (Exception ex) {
-            log.warn("Could not set user authentication from JWT: {}", ex.getMessage());
+            log.error("Could not set user authentication from JWT: {}", ex.getMessage());
+            request.setAttribute(JWT_ERROR_CODE_ATTRIBUTE, ErrorCode.TOKEN_INVALID);
+            request.setAttribute(JWT_ERROR_MESSAGE_ATTRIBUTE, "Authentication processing failed");
         }
 
         filterChain.doFilter(request, response);
@@ -61,4 +87,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
-
