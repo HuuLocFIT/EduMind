@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.config.ReviewConfigProperties;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.CourseReview;
 import com.edumind.lms.modules.course.entity.Enrollment;
@@ -21,6 +22,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,6 +35,7 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ReviewConfigProperties reviewConfig;
 
     @Override
     @Transactional
@@ -63,13 +67,24 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         review.setStudentId(studentId);
         review.setRating(rating);
         review.setReviewText(reviewText);
-        review.setIsApproved(false); // Requires approval
+        
+        // Determine if review should be auto-approved
+        boolean autoApprove = shouldAutoApprove(rating);
+        review.setIsApproved(autoApprove);
+        log.info("Review auto-approve status: {} (enabled: {}, threshold: {}, rating: {})", 
+                autoApprove, reviewConfig.isAutoApproveEnabled(), reviewConfig.getAutoApproveThreshold(), rating);
 
         CourseReview savedReview = reviewRepository.save(review);
+        
+        // Refresh aggregates if approved
+        if (autoApprove) {
+            refreshCourseAggregates(course);
+        }
+        
         // Reload with associations to ensure they're available
         CourseReview reloaded = reviewRepository.findByIdWithAssociations(savedReview.getId())
                 .orElse(savedReview);
-        log.info("Review created successfully with ID: {}", reloaded.getId());
+        log.info("Review created successfully with ID: {} (approved: {})", reloaded.getId(), autoApprove);
 
         // Publish event
         eventPublisher.publishEvent(new ReviewCreatedEvent(this, reloaded));
@@ -95,12 +110,21 @@ public class CourseReviewServiceImpl implements CourseReviewService {
             throw new UnauthorizedException("You can only update your own reviews");
         }
 
+        // Track current approval state
+        boolean wasApproved = Boolean.TRUE.equals(review.getIsApproved());
+
         // Update review
         review.setRating(rating);
         review.setReviewText(reviewText);
         review.setIsApproved(false); // Requires re-approval after edit
 
         CourseReview updatedReview = reviewRepository.save(review);
+
+        // If it was approved before, refresh aggregates since it is now pending
+        if (wasApproved) {
+            refreshCourseAggregates(review.getCourse());
+        }
+
         // Reload with associations to ensure they're available
         CourseReview reloaded = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElse(updatedReview);
@@ -120,6 +144,14 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         // Check authorization
         if (!review.getStudentId().equals(studentId)) {
             throw new UnauthorizedException("You can only delete your own reviews");
+        }
+
+        // If review was approved, decrease totalReviews
+        if (review.getIsApproved()) {
+            Course course = review.getCourse();
+            course.setTotalReviews(Math.max(0, (course.getTotalReviews() != null ? course.getTotalReviews() : 0) - 1));
+            courseRepository.save(course);
+            log.info("Course {} totalReviews updated to: {}", course.getId(), course.getTotalReviews());
         }
 
         reviewRepository.delete(review);
@@ -176,11 +208,18 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
 
-        review.setIsApproved(true);
-        CourseReview approvedReview = reviewRepository.save(review);
+        // Only update if not already approved
+        if (!review.getIsApproved()) {
+            review.setIsApproved(true);
+            reviewRepository.save(review);
+            
+            // Refresh aggregates after approval
+            refreshCourseAggregates(review.getCourse());
+        }
+        
         // Reload with associations to ensure they're available
         CourseReview reloaded = reviewRepository.findByIdWithAssociations(reviewId)
-                .orElse(approvedReview);
+                .orElse(review);
         log.info("Review approved successfully");
 
         // Publish event
@@ -197,7 +236,14 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
 
+        // If review was approved, refresh aggregates after removal
+        Course course = review.getCourse();
+        boolean wasApproved = Boolean.TRUE.equals(review.getIsApproved());
+
         reviewRepository.delete(review);
+        if (wasApproved) {
+            refreshCourseAggregates(course);
+        }
         log.info("Review rejected and deleted");
     }
 
@@ -242,5 +288,44 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     public boolean hasStudentReviewedCourse(Long courseId, Long studentId) {
         // USING CORRECT METHOD
         return reviewRepository.existsByCourseIdAndStudentId(courseId, studentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isAutoApproveEnabled() {
+        return reviewConfig.isAutoApproveEnabled();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean shouldAutoApprove(Integer rating) {
+        if (!reviewConfig.isAutoApproveEnabled()) {
+            return false;
+        }
+        
+        // If threshold is set, check if rating meets the threshold
+        Integer threshold = reviewConfig.getAutoApproveThreshold();
+        if (threshold != null && threshold > 0) {
+            return rating >= threshold;
+        }
+        
+        // If no threshold, auto-approve all
+        return true;
+    }
+
+    // Recalculate and persist course averageRating and totalReviews from approved reviews
+    private void refreshCourseAggregates(Course course) {
+        Long courseId = course.getId();
+        long approvedCount = reviewRepository.countByCourseIdAndIsApprovedTrue(courseId);
+        Double avg = reviewRepository.calculateAverageRating(courseId);
+        BigDecimal avgBd = BigDecimal.valueOf(avg != null ? avg : 0.0)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        course.setTotalReviews(Math.toIntExact(approvedCount));
+        course.setAverageRating(avgBd);
+        courseRepository.save(course);
+
+        log.info("Refreshed aggregates for course {} -> totalReviews: {}, averageRating: {}",
+                courseId, approvedCount, avgBd);
     }
 }

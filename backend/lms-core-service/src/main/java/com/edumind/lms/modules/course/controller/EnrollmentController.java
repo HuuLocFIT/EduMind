@@ -113,7 +113,7 @@ public class EnrollmentController {
         ));
     }
 
-    @GetMapping("/course/{courseId}")
+    @GetMapping("/courses/{courseId}")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getCourseEnrollments(
             @PathVariable Long courseId,

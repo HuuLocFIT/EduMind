@@ -121,4 +121,17 @@ public interface CourseReviewService {
      * @return true if reviewed
      */
     boolean hasStudentReviewedCourse(Long courseId, Long studentId);
+
+    /**
+     * Check if auto-approve is enabled
+     * @return true if auto-approve is enabled
+     */
+    boolean isAutoApproveEnabled();
+
+    /**
+     * Check if review should be auto-approved based on rating
+     * @param rating Review rating
+     * @return true if review meets auto-approve criteria
+     */
+    boolean shouldAutoApprove(Integer rating);
 }

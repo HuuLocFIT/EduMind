@@ -74,6 +74,12 @@ export const USER_ROUTES = {
   // Learning (for future use)
   LEARNING: '/learning',
   LEARNING_COURSE: '/learning/:courseId',
+
+  // Certificates
+  CERTIFICATES: '/certificates',
+
+  // Wishlist
+  WISHLIST: '/wishlist',
   
   // Not found
   NOT_FOUND: '/404',

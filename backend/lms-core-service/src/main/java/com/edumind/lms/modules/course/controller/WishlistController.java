@@ -1,12 +1,14 @@
 package com.edumind.lms.modules.course.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.dto.response.WishlistItemResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Wishlist;
 import com.edumind.lms.modules.course.service.CourseReviewService;
 import com.edumind.lms.modules.course.service.WishlistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,12 +18,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/wishlist")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('STUDENT')")
 public class WishlistController {
-
     private final WishlistService wishlistService;
     private final CourseReviewService reviewService;
 
@@ -52,7 +54,7 @@ public class WishlistController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<WishlistItemResponse>>> getWishlist(
+    public ResponseEntity<PagedResponse<WishlistItemResponse>> getWishlist(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
@@ -61,9 +63,15 @@ public class WishlistController {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Wishlist> wishlist = wishlistService.getWishlist(studentId, pageable);
-        Page<WishlistItemResponse> response = wishlist.map(this::toResponse);
+        Page<WishlistItemResponse> responsePage = wishlist.map(this::toResponse);
 
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(PagedResponse.of(
+            responsePage.getContent(),
+            responsePage.getNumber(),
+            responsePage.getSize(),
+            responsePage.getTotalElements(),
+            responsePage.getTotalPages()
+    ));
     }
 
     @GetMapping("/courses/{courseId}/check")
@@ -115,7 +123,7 @@ public class WishlistController {
                 .discountPrice(course.getDiscountPrice())
                 .level(course.getLevel())
                 .instructorId(course.getInstructorId())
-                .instructorName("Instructor #" + course.getInstructorId()) // TODO: Fetch from User Service
+                .instructorName(course.getInstructorName())
                 .rating(averageRating)
                 .reviewCount(reviewCount)
                 .addedAt(wishlist.getCreatedAt())

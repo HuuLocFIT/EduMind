@@ -2,6 +2,7 @@ package com.edumind.auth.controller;
 
 import com.edumind.auth.dto.request.ChangePasswordRequest;
 import com.edumind.auth.dto.request.UpdateProfileRequest;
+import com.edumind.auth.dto.response.PublicUserProfileResponse;
 import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.service.UserService;
 import com.edumind.common.response.ApiResponse;
@@ -64,6 +65,52 @@ public class UserController {
                 .success(true)
                 .message("User details retrieved successfully")
                 .data(userResponse)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get user public profile by ID (Public endpoint for displaying user info)
+     * GET /users/{id}/public-profile
+     */
+    @GetMapping("/{id}/public-profile")
+    public ResponseEntity<ApiResponse<PublicUserProfileResponse>> getUserPublicProfile(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+
+        logger.info("📥 GET /users/{}/public-profile - Get user public profile", id);
+
+        UserResponse user = userService.getUserById(id);
+
+        // Build safe public profile
+        String displayName = null;
+        if (user.getFirstName() != null || user.getLastName() != null) {
+            displayName = String.format("%s %s",
+                    user.getFirstName() != null ? user.getFirstName() : "",
+                    user.getLastName() != null ? user.getLastName() : "").trim();
+            if (displayName.isBlank()) {
+                displayName = null;
+            }
+        }
+
+        PublicUserProfileResponse publicProfile = PublicUserProfileResponse.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .displayName(displayName)
+                .avatarUrl(user.getAvatarUrl())
+                .profilePictureUrl(user.getProfilePictureUrl())
+                .bio(user.getBio())
+                .build();
+
+        ApiResponse<PublicUserProfileResponse> response = ApiResponse
+                .<PublicUserProfileResponse>builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message("User profile retrieved successfully")
+                .data(publicProfile)
                 .path(request.getRequestURI())
                 .build();
 
