@@ -1,12 +1,15 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { environment } from '@admin/environments/environment';
 import { CATEGORY_ENDPOINTS } from '@edumind/shared-utils';
 import {
   ApiResponse,
+  CategoryListResponse,
+  CategoryListResponseSchema,
   CategoryResponse,
+  CategoryResponseSchema,
   CreateCategoryRequest,
   UpdateCategoryRequest,
 } from '@edumind/shared-types';
@@ -19,18 +22,18 @@ export class CategoryService {
 
   constructor(private http: HttpClient) {}
 
-  createCategory(payload: CreateCategoryRequest): Observable<ApiResponse<CategoryResponse>> {
-    return this.http.post<ApiResponse<CategoryResponse>>(
+  createCategory(payload: CreateCategoryRequest): Observable<CategoryResponse> {
+    return this.http.post<CategoryResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.CREATE}`,
       payload
-    );
+    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
   }
 
-  updateCategory(id: number, payload: UpdateCategoryRequest): Observable<ApiResponse<CategoryResponse>> {
-    return this.http.put<ApiResponse<CategoryResponse>>(
+  updateCategory(id: number, payload: UpdateCategoryRequest): Observable<CategoryResponse> {
+    return this.http.put<CategoryResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.UPDATE(id)}`,
       payload
-    );
+    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
   }
 
   deleteCategory(id: number): Observable<ApiResponse<void>> {
@@ -39,35 +42,35 @@ export class CategoryService {
     );
   }
 
-  getCategoryById(id: number): Observable<ApiResponse<CategoryResponse>> {
-    return this.http.get<ApiResponse<CategoryResponse>>(
+  getCategoryById(id: number): Observable<CategoryResponse> {
+    return this.http.get<CategoryResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.DETAIL(id)}`
-    );
+    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
   }
 
-  getActiveCategories(): Observable<ApiResponse<CategoryResponse[]>> {
-    return this.http.get<ApiResponse<CategoryResponse[]>>(
+  getActiveCategories(): Observable<CategoryListResponse> {
+    return this.http.get<CategoryListResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.ACTIVE}`
-    );
+    ).pipe(map((response: CategoryListResponse) => CategoryListResponseSchema.parse(response)));
   }
 
-  getAllCategories(): Observable<ApiResponse<CategoryResponse[]>> {
-    return this.http.get<ApiResponse<CategoryResponse[]>>(
+  getAllCategories(): Observable<CategoryListResponse> {
+    return this.http.get<CategoryListResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.ALL}`
-    );
+    ).pipe(map((response: CategoryListResponse) => CategoryListResponseSchema.parse(response)));
   }
 
-  getCategoriesWithCourses(): Observable<ApiResponse<CategoryResponse[]>> {
-    return this.http.get<ApiResponse<CategoryResponse[]>>(
+  getCategoriesWithCourses(): Observable<CategoryListResponse> {
+    return this.http.get<CategoryListResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.WITH_COURSES}`
-    );
+    ).pipe(map((response: CategoryListResponse) => CategoryListResponseSchema.parse(response)));
   }
 
-  toggleCategoryStatus(id: number): Observable<ApiResponse<CategoryResponse>> {
-    return this.http.patch<ApiResponse<CategoryResponse>>(
+  toggleCategoryStatus(id: number): Observable<CategoryResponse> {
+    return this.http.patch<CategoryResponse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.TOGGLE_STATUS(id)}`,
       {}
-    );
+    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
   }
 }
 

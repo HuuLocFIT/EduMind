@@ -219,6 +219,9 @@ export const CategoryResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
+export const CategoryListResponseSchema = z.array(CategoryResponseSchema);
+export type CategoryListResponse = z.infer<typeof CategoryListResponseSchema>;
+
 // Category schema for CourseDetailResponse (without courseCount requirement)
 export const CategoryInCourseSchema = z.object({
   id: z.number(),
