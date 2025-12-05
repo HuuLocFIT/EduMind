@@ -36,7 +36,6 @@ export const UserSchema = z.object({
 
 export const JwtResponseSchema = z.object({
   accessToken: z.string(),
-  refreshToken: z.string().optional(),
   tokenType: z.string().default("Bearer"),
   user: UserSchema,
 });
@@ -130,6 +129,8 @@ export const Verify2FACodeRequestSchema = z.object({
 // Response schemas
 export const RefreshTokenResponseSchema = z.object({
   accessToken: z.string(),
+  tokenType: z.string().default('Bearer'),
+  user: UserSchema.optional(),
 });
 
 export const MessageResponseSchema = z.object({
@@ -158,6 +159,8 @@ export const ApiErrorSchema = z.object({
   status: z.number(),
   timestamp: z.string(),
   path: z.string().optional(),
+  errorCode: z.string().optional(),
+  error: z.string().optional(),
 });
 
 // Generic ApiResponse helpers & schemas

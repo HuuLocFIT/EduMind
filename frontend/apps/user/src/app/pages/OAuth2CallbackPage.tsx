@@ -4,6 +4,17 @@ import { useAuthStore } from "@user/stores/auth.store";
 import { ToastContainer, useToast } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
+/**
+ * OAuth2 Callback Page
+ * 
+ * Handles redirect from OAuth2 provider after successful authentication.
+ * 
+ * Flow:
+ * 1. Backend redirects to /oauth2/redirect?token=<accessToken>
+ * 2. refreshToken is already set in HTTP-Only Cookie by backend
+ * 3. This page extracts accessToken from URL and stores it
+ * 4. Redirects to dashboard
+ */
 export const OAuth2CallbackPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -19,7 +30,8 @@ export const OAuth2CallbackPage = () => {
   useEffect(() => {
     const handleOAuth2Callback = async () => {
       try {
-        // Get token from query params (sent by backend)
+        // Get access token from query params (sent by backend)
+        // Note: refreshToken is in HTTP-Only Cookie (not in URL)
         const token = searchParams.get("token");
         const error = searchParams.get("error");
 
@@ -36,9 +48,13 @@ export const OAuth2CallbackPage = () => {
         }
 
         // Use auth store method to handle OAuth2 login
+        // This stores accessToken and fetches user info
         await loginWithOAuth2(token);
 
-        showSuccess("Successfully logged in with OAuth2!");
+        // Clean URL (remove token from address bar)
+        window.history.replaceState({}, '', USER_ROUTES.DASHBOARD);
+
+        showSuccess("Successfully logged in!");
         navigate(USER_ROUTES.DASHBOARD);
       } catch (err: any) {
         console.error("OAuth2 callback error:", err);

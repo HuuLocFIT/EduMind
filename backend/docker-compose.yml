@@ -95,7 +95,7 @@ services:
       - AUTH_DB_DRIVER=org.postgresql.Driver
       - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
       - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-900000}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
       - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
       - MAIL_PORT=${MAIL_PORT:-587}

@@ -56,10 +56,9 @@ class AuthService {
   }
 
   static async refreshToken(): Promise<RefreshTokenResponse> {
-    const refreshToken = localStorage.getItem("refreshToken");
     const response = await apiClient.post<RefreshTokenResponse>(
       AUTH_ENDPOINTS.REFRESH,
-      { refreshToken }
+      {} // Empty body - cookie is sent automatically
     );
     return response.data;
   }

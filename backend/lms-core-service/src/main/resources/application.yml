@@ -62,7 +62,7 @@ eureka:
 # JWT Configuration (for validation only, not generation)
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 86400000
+  expiration: ${JWT_EXPIRATION:900000} # 15 minutes in milliseconds
 
 # Cloudinary Configuration
 cloudinary:
