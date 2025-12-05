@@ -1,11 +1,13 @@
 package com.edumind.lms.config.security;
 
+import com.edumind.common.constants.ErrorCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,20 +46,53 @@ public class JwtTokenProvider {
         this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Simple validation (backward compatible)
+     */
     public boolean validateToken(String token) {
+        return validateTokenWithDetails(token).isValid();
+    }
+
+    public JwtValidationResult validateTokenWithDetails(String token) {
         try {
             parseClaims(token);
-            return true;
+            return JwtValidationResult.success();
+
         } catch (ExpiredJwtException ex) {
-            log.warn("Expired JWT token");
+            log.warn("Expired JWT token: {}", ex.getMessage());
+            return JwtValidationResult.failure(
+                    ErrorCode.TOKEN_EXPIRED,
+                    "Access token has expired. Please refresh your token or login again."
+            );
+
+        } catch (SignatureException ex) {
+            log.warn("Invalid JWT signature: {}", ex.getMessage());
+            return JwtValidationResult.failure(
+                    ErrorCode.TOKEN_INVALID,
+                    "Invalid token signature. Token may have been tampered with."
+            );
+
         } catch (MalformedJwtException ex) {
-            log.warn("Invalid JWT token");
+            log.warn("Invalid JWT token: {}", ex.getMessage());
+            return JwtValidationResult.failure(
+                    ErrorCode.TOKEN_INVALID,
+                    "Malformed token. Please provide a valid JWT token."
+            );
+
         } catch (UnsupportedJwtException ex) {
-            log.warn("Unsupported JWT token");
+            log.warn("Unsupported JWT token: {}", ex.getMessage());
+            return JwtValidationResult.failure(
+                    ErrorCode.TOKEN_INVALID,
+                    "Unsupported token format."
+            );
+
         } catch (IllegalArgumentException ex) {
-            log.warn("JWT claims string is empty");
+            log.warn("JWT claims string is empty: {}", ex.getMessage());
+            return JwtValidationResult.failure(
+                    ErrorCode.TOKEN_INVALID,
+                    "Token claims are empty or invalid."
+            );
         }
-        return false;
     }
 
     public Claims parseClaims(String token) {
@@ -116,4 +151,3 @@ public class JwtTokenProvider {
         return Arrays.stream(rawRoles.split("(?=ROLE_)")).toList();
     }
 }
-

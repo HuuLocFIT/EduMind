@@ -23,6 +23,8 @@ public class ErrorResponse {
 
     private String error;
 
+    private String errorCode;
+
     private String message;
 
     private List<String> details;
@@ -38,54 +40,115 @@ public class ErrorResponse {
 
     private String trace;
 
-    // Static factory methods
     public static ErrorResponse badRequest(String message) {
         return ErrorResponse.builder()
                 .status(400)
-                .success(false)
                 .error("Bad Request")
                 .message(message)
-                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static ErrorResponse badRequest(String message, String errorCode) {
+        return ErrorResponse.builder()
+                .status(400)
+                .error("Bad Request")
+                .errorCode(errorCode)
+                .message(message)
                 .build();
     }
 
     public static ErrorResponse unauthorized(String message) {
         return ErrorResponse.builder()
                 .status(401)
-                .success(false)
                 .error("Unauthorized")
                 .message(message)
-                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static ErrorResponse unauthorized(String message, String errorCode) {
+        return ErrorResponse.builder()
+                .status(401)
+                .error("Unauthorized")
+                .errorCode(errorCode)
+                .message(message)
                 .build();
     }
 
     public static ErrorResponse forbidden(String message) {
         return ErrorResponse.builder()
                 .status(403)
-                .success(false)
                 .error("Forbidden")
                 .message(message)
-                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static ErrorResponse forbidden(String message, String errorCode) {
+        return ErrorResponse.builder()
+                .status(403)
+                .error("Forbidden")
+                .errorCode(errorCode)
+                .message(message)
                 .build();
     }
 
     public static ErrorResponse notFound(String message) {
         return ErrorResponse.builder()
                 .status(404)
-                .success(false)
                 .error("Not Found")
                 .message(message)
-                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public static ErrorResponse notFound(String message, String errorCode) {
+        return ErrorResponse.builder()
+                .status(404)
+                .error("Not Found")
+                .errorCode(errorCode)
+                .message(message)
+                .build();
+    }
+
+    public static ErrorResponse conflict(String message) {
+        return ErrorResponse.builder()
+                .status(409)
+                .error("Conflict")
+                .message(message)
+                .build();
+    }
+
+    public static ErrorResponse conflict(String message, String errorCode) {
+        return ErrorResponse.builder()
+                .status(409)
+                .error("Conflict")
+                .errorCode(errorCode)
+                .message(message)
                 .build();
     }
 
     public static ErrorResponse internalServerError(String message) {
         return ErrorResponse.builder()
                 .status(500)
-                .success(false)
                 .error("Internal Server Error")
                 .message(message)
-                .timestamp(LocalDateTime.now())
                 .build();
+    }
+
+    public static ErrorResponse internalServerError(String message, String errorCode) {
+        return ErrorResponse.builder()
+                .status(500)
+                .error("Internal Server Error")
+                .errorCode(errorCode)
+                .message(message)
+                .build();
+    }
+
+    public ErrorResponse withPath(String path) {
+        this.path = path;
+        return this;
+    }
+
+    public ErrorResponse withRequestId(String requestId) {
+        this.requestId = requestId;
+        return this;
     }
 }
