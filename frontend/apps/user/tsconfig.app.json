@@ -41,6 +41,9 @@
   ],
   "references": [
     {
+      "path": "../../libs/shared/constants/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/types/tsconfig.lib.json"
     },
     {

@@ -9,31 +9,21 @@ import {
   type ReviewResponse,
   type UpdateReviewRequest,
   type RatingDistributionResponse,
+  PagedResponse,
+  createPagedResponseSchema,
 } from "@edumind/shared-types";
 import { REVIEW_ENDPOINTS } from "@edumind/shared-utils";
 
-const ReviewArraySchema = z.array(ReviewResponseSchema);
-const SpringPageSchema = z
-  .object({
-    content: ReviewArraySchema,
-  })
-  .passthrough();
+const ReviewPagedResponseSchema = createPagedResponseSchema(ReviewResponseSchema);
 
-type SpringPage<T> = {
-  content: T[];
-  totalElements?: number;
-  totalPages?: number;
-  size?: number;
-  number?: number;
-  [key: string]: unknown;
-};
+type ReviewPagedResponse = z.infer<typeof ReviewPagedResponseSchema> & PagedResponse<ReviewResponse>;
 
 const parseReview = (payload: unknown): ReviewResponse =>
   ReviewResponseSchema.parse(payload);
 
-const parseReviewPage = (
+const parseReviewPagedResponse = (
   payload: unknown
-): SpringPage<ReviewResponse> => SpringPageSchema.parse(payload) as SpringPage<ReviewResponse>;
+): ReviewPagedResponse => ReviewPagedResponseSchema.parse(payload) as ReviewPagedResponse;
 
 export interface ReviewQueryParams {
   page?: number;
@@ -74,12 +64,12 @@ export const courseReviewService = {
   async getCourseReviews(
     courseId: number | string,
     params: ReviewQueryParams = {}
-  ): Promise<SpringPage<ReviewResponse>> {
-    const response = await apiClient.get<SpringPage<ReviewResponse>>(
+  ): Promise<PagedResponse<ReviewResponse>> {
+    const response = await apiClient.get<PagedResponse<ReviewResponse>>(
       REVIEW_ENDPOINTS.COURSE(courseId),
       { params }
     );
-    return parseReviewPage(response.data);
+    return ReviewPagedResponseSchema.parse(response.data);
   },
 
   async getMyReview(courseId: number | string): Promise<ReviewResponse | null> {
@@ -96,12 +86,12 @@ export const courseReviewService = {
 
   async getMyReviews(
     params: ReviewQueryParams = {}
-  ): Promise<SpringPage<ReviewResponse>> {
-    const response = await apiClient.get<SpringPage<ReviewResponse>>(
+  ): Promise<PagedResponse<ReviewResponse>> {
+    const response = await apiClient.get<PagedResponse<ReviewResponse>>(
       REVIEW_ENDPOINTS.MY_REVIEWS,
       { params }
     );
-    return parseReviewPage(response.data);
+    return parseReviewPagedResponse(response.data);
   },
 
   async getRatingDistribution(

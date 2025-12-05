@@ -33,7 +33,7 @@ export const MyLearningPage: React.FC = () => {
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
       setEnrollments(response.data || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch enrollments');
+      setError(err?.message || 'Failed to fetch enrollments');
       console.error('Error fetching enrollments:', err);
     } finally {
       setLoading(false);
@@ -46,7 +46,7 @@ export const MyLearningPage: React.FC = () => {
   };
 
   const handleViewCourse = (courseId: number) => {
-    navigate(`/courses/${courseId}`);
+    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
   };
 
   const filteredEnrollments = enrollments.filter((enrollment) => {
@@ -131,7 +131,7 @@ export const MyLearningPage: React.FC = () => {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(['all', 'active', 'completed'] as const).map((status) => (
               <button
                 key={status}
@@ -288,17 +288,16 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             <>
               <Button
                 variant="primary"
-                onClick={onViewCourse}
-                className="flex-1"
-              >
-                View Course
-              </Button>
-              <Button
-                variant="secondary"
                 onClick={onContinue}
                 className="flex-1"
               >
-                Review
+                Continue Learning
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={onViewCourse}
+              >
+                Details
               </Button>
             </>
           ) : (

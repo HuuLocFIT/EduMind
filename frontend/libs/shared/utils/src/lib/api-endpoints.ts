@@ -56,9 +56,19 @@ export const USER_ENDPOINTS = {
     userId ? `${API_BASE_PATH}/users/${userId}/profile` : `${API_BASE_PATH}/users/profile`,
   UPDATE_PROFILE: (userId?: string | number) => 
     userId ? `${API_BASE_PATH}/users/${userId}` : `${API_BASE_PATH}/users/me`,
-  CHANGE_PASSWORD: `${API_BASE_PATH}/users/me/password`,
+  CHANGE_PASSWORD: `${API_BASE_PATH}/users/me/change-password`,
   AVATAR: (userId?: string | number) => 
     userId ? `${API_BASE_PATH}/users/${userId}/avatar` : `${API_BASE_PATH}/users/me/avatar`,
+} as const;
+
+/**
+ * File upload endpoints
+ */
+export const UPLOAD_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/upload`,
+  IMAGE: `${API_BASE_PATH}/upload/image`,
+  DOCUMENT: `${API_BASE_PATH}/upload/document`,
+  DELETE: `${API_BASE_PATH}/upload`,
 } as const;
 
 /**
@@ -79,6 +89,8 @@ export const COURSE_ENDPOINTS = {
   MOST_POPULAR: `${API_BASE_PATH}/courses/most-popular`,
   NEWEST: `${API_BASE_PATH}/courses/newest`,
   FREE: `${API_BASE_PATH}/courses/free`,
+  INSTRUCTOR_STATS: (instructorId: string | number) =>
+    `${API_BASE_PATH}/courses/instructors/${instructorId}/stats`,
 } as const;
 
 /**
@@ -126,7 +138,25 @@ export const ENROLLMENT_ENDPOINTS = {
   MY_RECENT: `${API_BASE_PATH}/enrollments/my-recent`,
   CHECK: (courseId: string | number) => `${API_BASE_PATH}/enrollments/check/${courseId}`,
   STUDENT: (studentId: string | number) => `${API_BASE_PATH}/enrollments/student/${studentId}`,
-  COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/course/${courseId}`,
+  COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
+} as const;
+
+// Section endpoints
+export const SECTION_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/sections`,
+  DETAIL: (sectionId: string | number) => `${API_BASE_PATH}/sections/${sectionId}`,
+  COURSE: (courseId: string | number) => `${API_BASE_PATH}/sections/courses/${courseId}`,
+  LESSON: (lessonId: string | number) => `${API_BASE_PATH}/sections/lessons/${lessonId}`,
+} as const;
+
+// Lesson endpoints
+export const LESSON_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/lessons`,
+  DETAIL: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}`,
+  COURSE: (courseId: string | number) => `${API_BASE_PATH}/lessons/courses/${courseId}`,
+  SECTION: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}`,
+  WATCH: `${API_BASE_PATH}/lessons/watch`,
+  COMPLETE: `${API_BASE_PATH}/lessons/complete`,
 } as const;
 
 /**

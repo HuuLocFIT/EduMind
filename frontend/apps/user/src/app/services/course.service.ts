@@ -3,8 +3,10 @@ import { z } from "zod";
 import {
   CourseDetailResponseSchema,
   CourseResponseSchema,
+  InstructorStatsResponseSchema,
   type CourseDetailResponse,
   type CourseResponse,
+  type InstructorStatsResponse,
   type PagedResponse,
   createPagedResponseSchema,
 } from "@edumind/shared-types";
@@ -38,6 +40,9 @@ const parseCourseDetail = (payload: unknown): CourseDetailResponse =>
 
 const parseCoursePagedResponse = (payload: unknown): CoursePagedResponse =>
   CoursePagedResponseSchema.parse(payload) as CoursePagedResponse;
+
+const parseInstructorStats = (payload: unknown): InstructorStatsResponse =>
+  InstructorStatsResponseSchema.parse(payload);
 
 export const courseService = {
   async getCourseById(courseId: number | string): Promise<CourseDetailResponse> {
@@ -130,6 +135,15 @@ export const courseService = {
       { params }
     );
     return parseCoursePagedResponse(response.data);
+  },
+
+  async getInstructorStats(
+    instructorId: number | string
+  ): Promise<InstructorStatsResponse> {
+    const response = await apiClient.get<InstructorStatsResponse>(
+      COURSE_ENDPOINTS.INSTRUCTOR_STATS(instructorId)
+    );
+    return parseInstructorStats(response.data);
   },
 };
 

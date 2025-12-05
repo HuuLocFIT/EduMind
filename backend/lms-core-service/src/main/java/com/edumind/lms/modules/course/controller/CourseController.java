@@ -6,6 +6,7 @@ import com.edumind.lms.modules.course.dto.request.CreateCourseRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateCourseRequest;
 import com.edumind.lms.modules.course.dto.response.CourseDetailResponse;
 import com.edumind.lms.modules.course.dto.response.CourseResponse;
+import com.edumind.lms.modules.course.dto.response.InstructorStatsResponse;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseLevel;
@@ -13,6 +14,7 @@ import com.edumind.lms.modules.course.service.CategoryService;
 import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.util.CategoryMapper;
 import com.edumind.lms.modules.course.util.CourseMapper;
+import com.edumind.lms.modules.course.service.InstructorNameResolver;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ public class CourseController {
     private final CategoryService categoryService;
     private final CourseMapper courseMapper;
     private final CategoryMapper categoryMapper;
+    private final InstructorNameResolver instructorNameResolver;
 
     @PostMapping
     @PreAuthorize("hasRole('TEACHER')")
@@ -48,7 +51,7 @@ public class CourseController {
         log.info("Creating course: {}", request.getTitle());
 
         Long instructorId = Long.valueOf(authentication.getPrincipal().toString());
-        String instructorName = authentication.getName();
+        String instructorName = instructorNameResolver.resolveInstructorName(instructorId);
 
         // Get category
         Category category = categoryService.getCategoryById(request.getCategoryId());
@@ -312,6 +315,20 @@ public class CourseController {
                 responsePage.getSize(),
                 responsePage.getTotalElements(),
                 responsePage.getTotalPages()
+        ));
+    }
+
+    @GetMapping("/instructors/{instructorId}/stats")
+    public ResponseEntity<ApiResponse<InstructorStatsResponse>> getInstructorStats(
+            @PathVariable Long instructorId) {
+
+        log.info("Getting stats for instructor: {}", instructorId);
+
+        InstructorStatsResponse stats = courseService.getInstructorStats(instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Instructor stats retrieved successfully",
+                stats
         ));
     }
 }

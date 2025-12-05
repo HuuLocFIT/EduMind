@@ -64,6 +64,37 @@ public class TeacherApplicationService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        boolean userUpdated = false;
+
+        if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
+            user.setFirstName(request.getFirstName().trim());
+            userUpdated = true;
+            logger.debug("Synced firstName from teacher application: {}", request.getFirstName());
+        }
+
+        if (request.getLastName() != null && !request.getLastName().isBlank()) {
+            user.setLastName(request.getLastName().trim());
+            userUpdated = true;
+            logger.debug("Synced lastName from teacher application: {}", request.getLastName());
+        }
+
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            user.setPhoneNumber(request.getPhone().trim());
+            userUpdated = true;
+            logger.debug("Synced phoneNumber from teacher application");
+        }
+
+        if (request.getBio() != null && !request.getBio().isBlank()) {
+            user.setBio(request.getBio().trim());
+            userUpdated = true;
+            logger.debug("Synced bio from teacher application");
+        }
+
+        if (userUpdated) {
+            userRepository.save(user);
+            logger.info("✅ User profile synced from teacher application for username: {}", user.getUsername());
+        }
+
         // Check if already has pending/approved application
         if (applicationRepository.existsByUser(user)) {
             Optional<TeacherApplication> existing = applicationRepository.findByUser(user);

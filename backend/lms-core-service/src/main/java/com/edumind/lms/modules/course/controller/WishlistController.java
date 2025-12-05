@@ -8,6 +8,7 @@ import com.edumind.lms.modules.course.entity.Wishlist;
 import com.edumind.lms.modules.course.service.CourseReviewService;
 import com.edumind.lms.modules.course.service.WishlistService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,12 +18,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/wishlist")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('STUDENT')")
 public class WishlistController {
-
     private final WishlistService wishlistService;
     private final CourseReviewService reviewService;
 
@@ -122,7 +123,7 @@ public class WishlistController {
                 .discountPrice(course.getDiscountPrice())
                 .level(course.getLevel())
                 .instructorId(course.getInstructorId())
-                .instructorName("Instructor #" + course.getInstructorId()) // TODO: Fetch from User Service
+                .instructorName(course.getInstructorName())
                 .rating(averageRating)
                 .reviewCount(reviewCount)
                 .addedAt(wishlist.getCreatedAt())

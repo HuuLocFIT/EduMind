@@ -27,6 +27,7 @@ import type {
   CourseDetailResponse,
   ReviewResponse,
   EnrollmentResponse,
+  InstructorStatsResponse,
 } from '@edumind/shared-types';
 import {
   Play,
@@ -39,11 +40,14 @@ import {
   Star,
   ArrowLeft,
 } from 'lucide-react';
+import { USER_ROUTES } from '@edumind/shared-utils';
+import { useAuthStore } from '@user/stores/auth.store';
 
 export const CourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { toasts, success: showSuccess, error: showError, closeToast } = useToast();
+  const { isAuthenticated } = useAuthStore();
 
   // State
   const [course, setCourse] = useState<CourseDetailResponse | null>(null);
@@ -54,28 +58,46 @@ export const CourseDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'reviews'>('overview');
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [instructorStats, setInstructorStats] = useState<InstructorStatsResponse | null>(null);
 
   useEffect(() => {
     if (courseId) {
       fetchCourseDetail();
-      checkEnrollmentStatus();
-      checkWishlistStatus();
+
+      if(isAuthenticated) {
+        checkEnrollmentStatus();
+        checkWishlistStatus();
+      }
+
       fetchReviews();
     }
   }, [courseId]);
 
-  const fetchCourseDetail = async () => {
+  const fetchCourseDetail: () => Promise<void> = async () => {
     setLoading(true);
     setError(null);
+    setInstructorStats(null);
 
     try {
       const data = await courseService.getCourseById(Number(courseId));
       setCourse(data);
+      if (data?.instructorId) {
+        fetchInstructorStats(data.instructorId);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch course details');
+      setError(err?.message || 'Failed to fetch course details');
       console.error('Error fetching course:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInstructorStats = async (instructorId: number) => {
+    try {
+      const data = await courseService.getInstructorStats(instructorId);
+      setInstructorStats(data);
+    } catch (err) {
+      console.error('Error fetching instructor stats:', err);
     }
   };
 
@@ -113,7 +135,7 @@ export const CourseDetailPage: React.FC = () => {
         page: 0,
         size: 10,
       });
-      setReviews(response.content || []);
+      setReviews(response.data || []);
     } catch (err) {
       console.error('Error fetching reviews:', err);
     }
@@ -125,9 +147,9 @@ export const CourseDetailPage: React.FC = () => {
       await checkEnrollmentStatus();
       showSuccess('Successfully enrolled in course!');
       // Show success message or redirect
-      navigate('/my-learning');
+      navigate(USER_ROUTES.LEARNING);
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to enroll in course');
+      showError(err?.message || 'Failed to enroll in course');
     }
   };
 
@@ -143,7 +165,7 @@ export const CourseDetailPage: React.FC = () => {
         showSuccess('Added to wishlist');
       }
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to update wishlist');
+      showError(err?.message || 'Failed to update wishlist');
     }
   };
 
@@ -151,10 +173,11 @@ export const CourseDetailPage: React.FC = () => {
     try {
       await courseReviewService.createReview(Number(courseId), { rating, comment });
       setShowReviewForm(false);
-      fetchReviews();
+      await fetchReviews();
+      await fetchCourseDetail();
       showSuccess('Review submitted successfully!');
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to submit review');
+      showError(err?.message || 'Failed to submit review');
     }
   };
 
@@ -171,7 +194,7 @@ export const CourseDetailPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="p-8 text-center max-w-md">
           <p className="text-red-600 text-lg mb-4">{error || 'Course not found'}</p>
-          <Button variant="primary" onClick={() => navigate('/courses')}>
+          <Button variant="primary" onClick={() => navigate(USER_ROUTES.COURSES)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Courses
           </Button>
@@ -198,7 +221,7 @@ export const CourseDetailPage: React.FC = () => {
             {/* Back Button */}
             <Button
               variant="ghost"
-              onClick={() => navigate('/courses')}
+              onClick={() => navigate(USER_ROUTES.COURSES)}  
               className="mb-6 !text-white hover:!bg-white/10"
               leftIcon={<ArrowLeft className="w-4 h-4" />}
             >
@@ -511,7 +534,21 @@ export const CourseDetailPage: React.FC = () => {
           <div className="lg:col-span-1">
             {/* Instructor Info */}
             <InstructorInfo
-              name={course.instructorName || 'Instructor'}
+              name={
+                instructorStats?.instructorName ||
+                course.instructorName ||
+                'Instructor'
+              }
+              bio={instructorStats?.bio || undefined}
+              avatar={instructorStats?.avatarUrl || undefined}
+              totalStudents={instructorStats?.totalStudents ?? undefined}
+              totalCourses={instructorStats?.totalCourses ?? undefined}
+              rating={
+                typeof instructorStats?.averageRating === 'number'
+                  ? instructorStats.averageRating
+                  : undefined
+              }
+              totalReviews={instructorStats?.totalReviews ?? undefined}
               className="mb-6"
             />
 

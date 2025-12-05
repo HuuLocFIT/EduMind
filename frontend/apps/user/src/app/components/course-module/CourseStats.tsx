@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, Clock, BookOpen, Award } from "lucide-react";
+import { Users, Clock, BookOpen, Star } from "lucide-react";
 
 interface CourseStatsProps {
   totalStudents?: number;
@@ -11,7 +11,7 @@ interface CourseStatsProps {
 
 export const CourseStats: React.FC<CourseStatsProps> = ({
   totalStudents,
-  duration,
+  duration, 
   totalLessons,
   averageRating,
   className = "",
@@ -25,7 +25,7 @@ export const CourseStats: React.FC<CourseStatsProps> = ({
     },
     { icon: BookOpen, label: "Lessons", value: totalLessons },
     {
-      icon: Award,
+      icon: Star,
       label: "Rating",
       value: averageRating ? averageRating.toFixed(1) : undefined,
     },
@@ -37,7 +37,7 @@ export const CourseStats: React.FC<CourseStatsProps> = ({
         const Icon = stat.icon;
         return (
           <div key={index} className="flex items-center gap-2 text-gray-600">
-            <Icon className="w-5 h-5" />
+            <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
             <div>
               <p className="font-semibold text-gray-900">{stat.value}</p>
               <p className="text-sm">{stat.label}</p>

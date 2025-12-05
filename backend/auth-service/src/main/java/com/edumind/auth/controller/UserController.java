@@ -1,9 +1,13 @@
 package com.edumind.auth.controller;
 
+import com.edumind.auth.dto.request.ChangePasswordRequest;
+import com.edumind.auth.dto.request.UpdateProfileRequest;
+import com.edumind.auth.dto.response.PublicUserProfileResponse;
 import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.service.UserService;
 import com.edumind.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,5 +69,79 @@ public class UserController {
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get user public profile by ID (Public endpoint for displaying user info)
+     * GET /users/{id}/public-profile
+     */
+    @GetMapping("/{id}/public-profile")
+    public ResponseEntity<ApiResponse<PublicUserProfileResponse>> getUserPublicProfile(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+
+        logger.info("📥 GET /users/{}/public-profile - Get user public profile", id);
+
+        UserResponse user = userService.getUserById(id);
+
+        // Build safe public profile
+        String displayName = null;
+        if (user.getFirstName() != null || user.getLastName() != null) {
+            displayName = String.format("%s %s",
+                    user.getFirstName() != null ? user.getFirstName() : "",
+                    user.getLastName() != null ? user.getLastName() : "").trim();
+            if (displayName.isBlank()) {
+                displayName = null;
+            }
+        }
+
+        PublicUserProfileResponse publicProfile = PublicUserProfileResponse.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .displayName(displayName)
+                .avatarUrl(user.getAvatarUrl())
+                .profilePictureUrl(user.getProfilePictureUrl())
+                .bio(user.getBio())
+                .build();
+
+        ApiResponse<PublicUserProfileResponse> response = ApiResponse
+                .<PublicUserProfileResponse>builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message("User profile retrieved successfully")
+                .data(publicProfile)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request) {
+
+        logger.info("📥 PUT /users/me - Update profile");
+
+        UserResponse userResponse = userService.updateProfile(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Profile updated successfully", userResponse)
+        );
+    }
+
+    @PostMapping("/me/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+
+        logger.info("📥 POST /users/me/change-password - Change password");
+
+        userService.changePassword(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Password changed successfully", null)
+        );
     }
 }

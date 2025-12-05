@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.dto.response.InstructorStatsResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseLevel;
 import com.edumind.lms.modules.course.enums.CourseStatus;
@@ -110,4 +111,6 @@ public interface CourseService {
      * Update course statistics (internal use)
      */
     void updateCourseStatistics(Long courseId);
+
+    InstructorStatsResponse getInstructorStats(Long instructorId);
 }

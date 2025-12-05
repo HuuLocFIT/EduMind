@@ -4,6 +4,7 @@ import {
   LessonResponseSchema,
   type LessonResponse,
 } from "@edumind/shared-types";
+import { LESSON_ENDPOINTS } from "@edumind/shared-utils";
 
 const LessonListSchema = z.array(LessonResponseSchema);
 
@@ -16,7 +17,7 @@ export const lessonService = {
    */
   async getCourseLessons(courseId: number | string): Promise<LessonResponse[]> {
     const response = await apiClient.get<LessonResponse[]>(
-      `/api/lessons/courses/${courseId}`
+      LESSON_ENDPOINTS.COURSE(courseId)
     );
     return parseLessonList(response.data);
   },
@@ -26,7 +27,7 @@ export const lessonService = {
    */
   async getSectionLessons(sectionId: number | string): Promise<LessonResponse[]> {
     const response = await apiClient.get<LessonResponse[]>(
-      `/api/lessons/sections/${sectionId}`
+      LESSON_ENDPOINTS.SECTION(sectionId)
     );
     return parseLessonList(response.data);
   },

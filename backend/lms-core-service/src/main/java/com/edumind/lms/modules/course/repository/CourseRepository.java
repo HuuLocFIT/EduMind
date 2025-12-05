@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.repository;
 
+import com.edumind.lms.modules.course.dto.model.InstructorStatsProjection;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseLevel;
 import com.edumind.lms.modules.course.enums.CourseStatus;
@@ -10,7 +11,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
 import java.math.BigDecimal;
 import java.util.Optional;
 
@@ -160,4 +160,20 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      */
     @Query("SELECT SUM(c.totalStudents) FROM Course c WHERE c.instructorId = :instructorId")
     Long getTotalStudentsByInstructor(@Param("instructorId") Long instructorId);
+
+    @Query("""
+    SELECT new com.edumind.lms.modules.course.dto.model.InstructorStatsProjection(
+        c.instructorId,
+        COUNT(c),
+        COALESCE(SUM(c.totalStudents), 0L),
+        COALESCE(AVG(c.averageRating), 0.0),
+        COALESCE(SUM(c.totalReviews), 0L)
+    )
+    FROM Course c
+    WHERE c.instructorId = :instructorId
+      AND c.status = 'PUBLISHED'
+    GROUP BY c.instructorId
+    """)
+    Optional<InstructorStatsProjection> getInstructorStats(
+            @Param("instructorId") Long instructorId);
 }

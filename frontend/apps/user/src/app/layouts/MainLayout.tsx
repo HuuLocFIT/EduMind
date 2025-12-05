@@ -28,14 +28,16 @@ export const MainLayout: React.FC = () => {
   };
 
   const isActivePath = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(path + "/");
+    return (
+      location.pathname === path || location.pathname.startsWith(path + "/")
+    );
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
       <nav className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to={USER_ROUTES.ROOT} className="flex items-center gap-2">
@@ -48,7 +50,8 @@ export const MainLayout: React.FC = () => {
               <Link
                 to={USER_ROUTES.COURSES}
                 className={`transition-colors ${
-                  isActivePath(USER_ROUTES.COURSES) && !isActivePath(USER_ROUTES.COURSES + "/")
+                  isActivePath(USER_ROUTES.COURSES) &&
+                  !isActivePath(USER_ROUTES.COURSES + "/")
                     ? "text-blue-600 font-medium"
                     : "text-gray-700 hover:text-blue-600"
                 }`}
@@ -91,7 +94,9 @@ export const MainLayout: React.FC = () => {
                   >
                     <Heart
                       className={`w-5 h-5 ${
-                        isActivePath(USER_ROUTES.WISHLIST) ? "text-red-500" : "text-gray-600"
+                        isActivePath(USER_ROUTES.WISHLIST)
+                          ? "text-red-500"
+                          : "text-gray-600"
                       }`}
                     />
                   </button>
@@ -103,7 +108,15 @@ export const MainLayout: React.FC = () => {
                       className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
-                        {user?.firstName?.charAt(0).toUpperCase() || "U"}
+                        {user?.profilePictureUrl ? (
+                          <img
+                            src={user?.profilePictureUrl}
+                            alt="User Avatar"
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          user?.firstName?.charAt(0).toUpperCase() || "U"
+                        )}
                       </div>
                     </button>
 
@@ -208,7 +221,11 @@ export const MainLayout: React.FC = () => {
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
           </div>
 
@@ -325,7 +342,10 @@ export const MainLayout: React.FC = () => {
               <h4 className="font-semibold text-gray-900 mb-4">Courses</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li>
-                  <Link to={USER_ROUTES.COURSES} className="hover:text-blue-600">
+                  <Link
+                    to={USER_ROUTES.COURSES}
+                    className="hover:text-blue-600"
+                  >
                     Browse All
                   </Link>
                 </li>

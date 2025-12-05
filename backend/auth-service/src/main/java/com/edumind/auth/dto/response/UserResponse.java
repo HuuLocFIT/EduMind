@@ -19,6 +19,7 @@ public class UserResponse {
     private String firstName;
     private String lastName;
     private String phoneNumber;
+    private String bio;
 
     private Set<String> roles;
     private Boolean isActive;
@@ -31,6 +32,7 @@ public class UserResponse {
     private LocalDateTime trialEndDate;
 
     private String profilePictureUrl;
+    private String avatarUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;

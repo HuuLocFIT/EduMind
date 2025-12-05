@@ -119,6 +119,7 @@ public class SecurityConfig {
                                 .requestMatchers("/auth/password/forgot").permitAll()
                                 .requestMatchers("/auth/password/validate-token").permitAll()
                                 .requestMatchers("/auth/password/reset").permitAll()
+                                .requestMatchers("/users/*/public-profile").permitAll()
                                 .requestMatchers("/oauth2/**").permitAll()
                                 .requestMatchers("/login/oauth2/**").permitAll()
                                 .requestMatchers("/actuator/**").permitAll()

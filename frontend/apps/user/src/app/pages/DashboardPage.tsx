@@ -304,7 +304,7 @@ export const DashboardPage: React.FC = () => {
             </div>
             <Button
               variant="secondary"
-              onClick={() => navigate('/courses')}
+              onClick={() => navigate(USER_ROUTES.COURSES)}
             >
               Explore More
             </Button>

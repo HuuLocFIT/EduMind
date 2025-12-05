@@ -98,3 +98,6 @@ management:
 app:
   encryption:
     key: ${LMS_CORE_SERVICE_ENCRYPTION_KEY}
+  review:
+    auto-approve-enabled: ${REVIEW_AUTO_APPROVE_ENABLED:true}
+    auto-approve-threshold: ${REVIEW_AUTO_APPROVE_THRESHOLD:0}

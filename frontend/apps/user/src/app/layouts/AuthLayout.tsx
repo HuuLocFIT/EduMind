@@ -1,13 +1,14 @@
 import React from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
+import { USER_ROUTES } from "@edumind/shared-utils";
 
 export const AuthLayout: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={USER_ROUTES.DASHBOARD} replace />;
   }
 
   return (
