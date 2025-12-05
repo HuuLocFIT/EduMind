@@ -195,8 +195,7 @@ jwt:
   #   - Phải random, không predictable
   #   - Càng dài càng secure
   secret: ${JWT_SECRET}
-
-  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+  expiration: ${JWT_EXPIRATION:900000} # 15 minutes in milliseconds
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days in milliseconds
 
 # Email Configuration
@@ -364,6 +363,21 @@ app:
     # Token expiration (duplicated for clarity)
     token-expiration: 86400000
     refresh-expiration: 604800000
+
+  # Cookie settings for refresh token
+  cookie:
+    # Set to true in production (HTTPS required)
+    secure: ${COOKIE_SECURE:false}
+    # SameSite policy: Strict, Lax, or None
+    # Use "Lax" for same-site requests
+    # Use "None" for cross-origin (requires secure=true)
+    same-site: ${COOKIE_SAME_SITE:Lax}
+
+  # PRODUCTION
+  # app:
+  #   cookie:
+  #     secure: true
+  #     same-site: Strict
 
   # Encryption Configuration
   encryption:

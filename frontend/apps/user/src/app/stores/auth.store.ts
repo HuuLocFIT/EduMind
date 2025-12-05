@@ -36,7 +36,6 @@ export const useAuthStore = create<AuthState>()(
 
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
-          localStorage.setItem("refreshToken", response?.refreshToken || 'null');
 
           set({
             user: response.user,
@@ -58,10 +57,11 @@ export const useAuthStore = create<AuthState>()(
 
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
-          localStorage.setItem("refreshToken", response?.refreshToken || 'null');
+          const user = await AuthService.fetchCurrentUser();
+          localStorage.setItem('user', JSON.stringify(user.data));
 
           set({
-            user: response.user,
+            user: user.data,
             accessToken: response.accessToken,
             isAuthenticated: true,
             isLoading: false,
@@ -93,6 +93,17 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error: any) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+
+          set({
+            user: null,
+            accessToken: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: error.message || 'OAuth2 login failed',
+          });
+
           const errorMessage = error.response?.data?.message || error.message || "OAuth2 login failed";
           set({ error: errorMessage, isLoading: false });
           throw error;
@@ -121,7 +132,7 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           // Clear all auth data
           localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          localStorage.removeItem('user');
 
           set({
             user: null,

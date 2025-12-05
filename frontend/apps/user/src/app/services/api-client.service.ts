@@ -6,8 +6,13 @@ import {
   Setup2FAResponseSchema,
   ApiErrorSchema,
   type ApiError,
+  RefreshTokenResponse,
 } from '@edumind/shared-types';
-import { unwrapApiResponse, AUTH_ENDPOINTS, getApiUrl } from '@edumind/shared-utils';
+import { 
+  unwrapApiResponse, 
+  AUTH_ENDPOINTS, 
+  getApiUrl,
+} from '@edumind/shared-utils';
 
 const API_URL = getApiUrl();
 
@@ -16,10 +21,44 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // For refresh token cookie
+  withCredentials: true, // IMPORTANT: Send cookies with every request
 });
 
-// Request interceptor - Add access token
+// Track ongoing refresh token request to avoid multiple simultaneous refreshes
+let refreshTokenPromise: Promise<string> | null = null;
+
+/**
+ * Refresh access token using refresh token from HTTP-Only cookie
+ * Uses a promise cache to prevent multiple simultaneous refresh requests
+ */
+async function refreshAccessToken(): Promise<string> {
+  // If there's already a refresh in progress, wait for it
+  if (refreshTokenPromise) {
+    return refreshTokenPromise;
+  }
+
+  // Create new refresh request
+  refreshTokenPromise = axios
+    .post(
+      `${API_URL}${AUTH_ENDPOINTS.REFRESH}`,
+      {},
+      { withCredentials: true }
+    )
+    .then((response) => {
+      const data = unwrapApiResponse(response.data);
+      const newAccessToken = (data as RefreshTokenResponse).accessToken;
+      localStorage.setItem('accessToken', newAccessToken);
+      return newAccessToken;
+    })
+    .finally(() => {
+      // Clear the promise cache after refresh completes (success or failure)
+      refreshTokenPromise = null;
+    });
+
+  return refreshTokenPromise;
+}
+
+// Request interceptor - Add access token to requests
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
@@ -37,7 +76,7 @@ apiClient.interceptors.response.use(
     response.data = unwrapApiResponse(response.data);
     const endpoint = response.config.url;
 
-    // Validate auth responses
+    // Validate auth responses (login, OAuth2, 2FA)
     if (
       endpoint?.includes(AUTH_ENDPOINTS.LOGIN) ||
       endpoint?.includes(AUTH_ENDPOINTS.SIGNUP) ||
@@ -46,9 +85,9 @@ apiClient.interceptors.response.use(
     ) {
       const result = JwtResponseSchema.safeParse(response.data);
       if (result.success) {
-        // Store tokens
+        // Store access token and user info
+        // NOTE: refreshToken is NOT in response - it's in HTTP-Only Cookie
         localStorage.setItem('accessToken', result.data.accessToken);
-        localStorage.setItem('refreshToken', result.data?.refreshToken || 'null');
         localStorage.setItem('user', JSON.stringify(result.data.user));
         response.data = result.data;
       }
@@ -92,40 +131,42 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
 
-    // Token expired - try refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Validate error response first to get errorCode
+    let apiError: ApiError | null = null;
+    if (error.response?.data) {
+      const result = ApiErrorSchema.safeParse(error.response.data);
+      if (result.success) {
+        apiError = result.data;
+      }
+    }
+
+    // Check if token expired (by errorCode or 401 status)
+    const isTokenExpired = 
+      apiError?.errorCode === 'ERR_2002' || // TOKEN_EXPIRED
+      (error.response?.status === 401 && !originalRequest._retry);
+
+    if (isTokenExpired) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await axios.post(
-            `${API_URL}${AUTH_ENDPOINTS.REFRESH}`,
-            { refreshToken },
-            { withCredentials: true }
-          );
+        // Use the shared refresh function to avoid duplicate requests
+        const newAccessToken = await refreshAccessToken();
 
-          const newAccessToken = response.data.accessToken;
-          localStorage.setItem('accessToken', newAccessToken);
-
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return apiClient(originalRequest);
-        }
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed - logout user
-        localStorage.clear();
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }
 
-    // Validate error response
-    if (error.response?.data) {
-      const result = ApiErrorSchema.safeParse(error.response.data);
-      if (result.success) {
-        throw result.data;
-      }
+    // Throw the validated error or fallback error
+    if (apiError) {
+      throw apiError;
     }
 
     // Fallback error

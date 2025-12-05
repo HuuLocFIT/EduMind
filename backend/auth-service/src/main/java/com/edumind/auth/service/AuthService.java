@@ -2,7 +2,6 @@ package com.edumind.auth.service;
 
 import com.edumind.auth.dto.model.OAuth2UserInfo;
 import com.edumind.auth.dto.request.LoginRequest;
-import com.edumind.auth.dto.request.RefreshTokenRequest;
 import com.edumind.auth.dto.request.SignupRequest;
 import com.edumind.auth.dto.request.TwoFactorLoginRequest;
 import com.edumind.auth.dto.response.JwtResponse;
@@ -24,6 +23,8 @@ import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.ResourceNotFoundException;
 import com.edumind.common.exception.TokenRefreshException;
 import com.edumind.common.response.MessageResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ import java.util.HashSet;
 @Service
 public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
+
+    private static final String REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
+    private static final int REFRESH_TOKEN_COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
 
     private final AuthenticationManager authenticationManager;
 
@@ -73,17 +77,264 @@ public class AuthService {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
-    /**
-     * Constructor injection with @Lazy to break circular dependency
-     */
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site:Lax}")
+    private String cookieSameSite;
+
     @Autowired
     public AuthService(@Lazy AuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
     }
 
+    // ==================== AUTHENTICATION ====================
+
     /**
-     * Register new STUDENT (public signup)
+     * Authenticate user with username/email and password
+     * Sets refresh token in HTTP-Only cookie
      */
+    @Transactional
+    public Object authenticateUser(LoginRequest loginRequest, HttpServletResponse response) {
+        logger.info("🔐 Authenticating user: {}", loginRequest.getUsernameOrEmail());
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsernameOrEmail(),
+                        loginRequest.getPassword()
+                )
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (Boolean.TRUE.equals(user.getIs2faEnabled())) {
+            logger.info("🔐 2FA required for user: {}", user.getEmail());
+            return new TwoFactorRequiredResponse(
+                    user.getEmail(),
+                    "Two-factor authentication required. Please provide your 2FA code."
+            );
+        }
+
+        return generateAuthResponse(authentication, user, response);
+    }
+
+    /**
+     * Verify 2FA code and complete login
+     * Sets refresh token in HTTP-Only cookie
+     */
+    @Transactional
+    public JwtResponse verify2FAAndLogin(TwoFactorLoginRequest request, HttpServletResponse response) {
+        logger.info("🔐 Verifying 2FA for user: {}", request.getUsernameOrEmail());
+
+        User user = userRepository.findByUsername(request.getUsernameOrEmail())
+                .or(() -> userRepository.findByEmail(request.getUsernameOrEmail()))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        boolean isValid = twoFactorAuthService.verifyCodeForLogin(user, request.getCode());
+
+        if (!isValid) {
+            logger.warn("❌ Invalid 2FA code for user: {}", user.getEmail());
+            throw new BadRequestException("Invalid 2FA code");
+        }
+
+        logger.info("✅ 2FA verified successfully for user: {}", user.getEmail());
+
+        UserDetailsImpl userDetails = UserDetailsImpl.build(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        return generateAuthResponse(authentication, user, response);
+    }
+
+    /**
+     * Generate authentication response with access token
+     * Refresh token is set in HTTP-Only cookie (not returned in response body)
+     */
+    private JwtResponse generateAuthResponse(Authentication authentication, User user, HttpServletResponse response) {
+        // Generate access token
+        String accessToken = tokenProvider.generateAccessToken(authentication);
+        
+        // Create refresh token and save to DB
+        RefreshToken refreshTokenEntity = createRefreshToken(user.getId());
+        
+        // Set refresh token in HTTP-Only cookie
+        setRefreshTokenCookie(response, refreshTokenEntity.getToken());
+
+        // Update last login
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        logger.info("✅ User authenticated successfully: {}", userDetails.getUsername());
+
+        UserResponse userResponse = UserMapper.toUserResponse(user);
+
+        // Return response WITHOUT refresh token (it's in cookie)
+        return JwtResponse.builder()
+                .accessToken(accessToken)
+                .tokenType("Bearer")
+                .user(userResponse)
+                .build();
+    }
+
+    // ==================== TOKEN REFRESH ====================
+
+    /**
+     * Refresh access token using refresh token from cookie
+     */
+    @Transactional
+    public JwtResponse refreshToken(String refreshTokenValue, HttpServletResponse response) {
+        logger.info("🔄 Refreshing token");
+
+        if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
+            logger.error("❌ Refresh token not found in cookie");
+            throw new TokenRefreshException("Refresh token not found!");
+        }
+
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
+                .orElseThrow(() -> new TokenRefreshException("Refresh token not found!"));
+
+        if (refreshToken.getRevoked()) {
+            logger.error("❌ Refresh token is revoked");
+            clearRefreshTokenCookie(response);
+            throw new TokenRefreshException("Refresh token is revoked!");
+        }
+
+        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(refreshToken);
+            clearRefreshTokenCookie(response);
+            logger.error("❌ Refresh token is expired");
+            throw new TokenRefreshException("Refresh token is expired!");
+        }
+
+        User user = refreshToken.getUser();
+        UserDetailsImpl userDetails = UserDetailsImpl.build(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+
+        String newAccessToken = tokenProvider.generateAccessToken(authentication);
+
+        logger.info("✅ Token refreshed successfully for user: {}", user.getUsername());
+        UserResponse userResponse = UserMapper.toUserResponse(user);
+
+        // Return response WITHOUT refresh token (cookie remains unchanged)
+        return JwtResponse.builder()
+                .accessToken(newAccessToken)
+                .tokenType("Bearer")
+                .user(userResponse)
+                .build();
+    }
+
+    // ==================== LOGOUT ====================
+
+    /**
+     * Logout user - revoke all refresh tokens and clear cookie
+     */
+    @Transactional
+    public MessageResponse logout(HttpServletResponse response) {
+        logger.info("👋 User logging out");
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Revoke all refresh tokens in DB
+        refreshTokenRepository.revokeAllUserTokens(user);
+        
+        // Clear the cookie
+        clearRefreshTokenCookie(response);
+
+        logger.info("✅ User logged out successfully: {}", user.getUsername());
+
+        return MessageResponse.builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message(ResponseStatus.LOGOUT_SUCCESS)
+                .build();
+    }
+
+    // ==================== COOKIE HELPERS ====================
+
+    /**
+     * Set refresh token in HTTP-Only cookie
+     */
+    private void setRefreshTokenCookie(HttpServletResponse response, String token) {
+        Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, token);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecure);
+        cookie.setPath("/");
+        cookie.setMaxAge(REFRESH_TOKEN_COOKIE_MAX_AGE);
+        // Note: SameSite requires using ResponseCookie or setting header manually
+        response.addCookie(cookie);
+        
+        // Set SameSite attribute via header (Cookie class doesn't support it directly)
+        response.setHeader("Set-Cookie", 
+            String.format("%s=%s; Path=/; Max-Age=%d; HttpOnly; %s; SameSite=%s",
+                REFRESH_TOKEN_COOKIE_NAME,
+                token,
+                REFRESH_TOKEN_COOKIE_MAX_AGE,
+                cookieSecure ? "Secure" : "",
+                cookieSameSite
+            )
+        );
+    }
+
+    /**
+     * Clear refresh token cookie
+     */
+    private void clearRefreshTokenCookie(HttpServletResponse response) {
+        Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, "");
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecure);
+        cookie.setPath("/");
+        cookie.setMaxAge(0); // Delete cookie
+        response.addCookie(cookie);
+    }
+
+    // ==================== REFRESH TOKEN MANAGEMENT ====================
+
+    /**
+     * Create and save refresh token to database
+     * Used by both normal login and OAuth2 login
+     */
+    @Transactional
+    public RefreshToken createRefreshToken(Long userId) {
+        logger.info("🔄 Creating refresh token for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Revoke all existing refresh tokens for this user
+        refreshTokenRepository.revokeAllUserTokens(user);
+
+        // Generate new refresh token string
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                UserDetailsImpl.build(user), null, null);
+        String tokenString = tokenProvider.generateRefreshToken(authentication);
+
+        // Create and save refresh token entity
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(tokenString)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
+                .revoked(false)
+                .build();
+
+        return refreshTokenRepository.save(refreshToken);
+    }
+
+    // ==================== REGISTRATION ====================
+
     @Transactional
     public MessageResponse registerUser(SignupRequest signupRequest) {
         logger.info("🔄 Processing user registration for: {}", signupRequest.getUsername());
@@ -133,109 +384,22 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional
-    public Object authenticateUser(LoginRequest loginRequest) {
-        logger.info("🔐 Authenticating user: {}", loginRequest.getUsernameOrEmail());
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginRequest.getUsernameOrEmail(),
-                        loginRequest.getPassword()
-                )
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (Boolean.TRUE.equals(user.getIs2faEnabled())) {
-            logger.info("🔐 2FA required for user: {}", user.getEmail());
-
-            // Return 2FA required response - DON'T generate tokens yet
-            return new TwoFactorRequiredResponse(
-                    user.getEmail(),
-                    "Two-factor authentication required. Please provide your 2FA code."
-            );
-        }
-
-        // No 2FA - proceed with normal token generation
-        return generateAuthResponse(authentication, user);
-    }
-
-    @Transactional
-    public JwtResponse verify2FAAndLogin(TwoFactorLoginRequest request) {
-        logger.info("🔐 Verifying 2FA for user: {}", request.getUsernameOrEmail());
-
-        // Find user by username or email
-        User user = userRepository.findByUsername(request.getUsernameOrEmail())
-                .or(() -> userRepository.findByEmail(request.getUsernameOrEmail()))
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        // Verify 2FA code
-        boolean isValid = twoFactorAuthService.verifyCodeForLogin(user, request.getCode());
-
-        if (!isValid) {
-            logger.warn("❌ Invalid 2FA code for user: {}", user.getEmail());
-            throw new BadRequestException("Invalid 2FA code");
-        }
-
-        logger.info("✅ 2FA verified successfully for user: {}", user.getEmail());
-
-        // Create authentication
-        UserDetailsImpl userDetails = UserDetailsImpl.build(user);
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        // Generate tokens
-        return generateAuthResponse(authentication, user);
-    }
-
-    /**
-     * Helper method to generate authentication response with tokens
-     * Used by both normal login and 2FA login
-     */
-    private JwtResponse generateAuthResponse(Authentication authentication, User user) {
-        // Generate tokens
-        String accessToken = tokenProvider.generateAccessToken(authentication);
-        RefreshToken refreshTokenEntity = createRefreshToken(user.getId());
-
-        // Update last login
-        user.setLastLoginAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        logger.info("✅ User authenticated successfully: {}", userDetails.getUsername());
-
-        UserResponse userResponse = UserMapper.toUserResponse(user);
-
-        return JwtResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshTokenEntity.getToken())
-                .tokenType("Bearer")
-                .user(userResponse)
-                .build();
-    }
+    // ==================== OAUTH2 ====================
 
     @Transactional
     public User processOAuth2User(String provider, OAuth2UserInfo oAuth2UserInfo) {
         logger.info("🔄 Processing OAuth2 user: {}", oAuth2UserInfo.getEmail());
 
-        // Convert string to enum
         AuthProvider authProvider = AuthProvider.fromString(provider);
 
         Optional<User> userOptional = userRepository.findByProviderAndProviderUserId(
                 authProvider,
-                oAuth2UserInfo.getId() // Use getId() instead of getProviderId()
+                oAuth2UserInfo.getId()
         );
 
         User user;
 
         if (userOptional.isPresent()) {
-            // Existing user found by providerUserId
             user = userOptional.get();
 
             if (!user.getEmail().equals(oAuth2UserInfo.getEmail())) {
@@ -245,7 +409,6 @@ public class AuthService {
                         oAuth2UserInfo.getEmail()
                 );
 
-                // Check if new email already exists with different account
                 Optional<User> existingWithNewEmail = userRepository
                         .findByEmail(oAuth2UserInfo.getEmail());
 
@@ -260,7 +423,6 @@ public class AuthService {
                 user.setEmail(oAuth2UserInfo.getEmail());
             }
 
-            // Check provider consistency
             if (user.getProvider() != authProvider) {
                 throw new BadRequestException(
                         "You're already signed up with " + user.getProvider() +
@@ -276,14 +438,12 @@ public class AuthService {
             if (userOptional.isPresent()) {
                 user = userOptional.get();
 
-                // Check if it's a local account
                 if (user.getProvider() == AuthProvider.LOCAL) {
                     throw new BadRequestException(
                             "Email already registered. Please use email/password login."
                     );
                 }
 
-                // Check if it's different OAuth2 provider
                 if (user.getProvider() != authProvider) {
                     throw new BadRequestException(
                             "You're already signed up with " + user.getProvider() +
@@ -291,44 +451,32 @@ public class AuthService {
                     );
                 }
 
-                // Migration case - update providerUserId if missing
                 if (user.getProviderUserId() == null) {
                     logger.info("📝 Migrating user - updating providerUserId");
                     user.setProviderUserId(oAuth2UserInfo.getId());
                     return updateExistingUser(user, oAuth2UserInfo);
                 }
 
-                // Should not reach here
                 throw new BadRequestException(
                         "Account configuration error. Please contact support."
                 );
             }
 
-            // New user - register
             return registerNewUser(authProvider, oAuth2UserInfo);
         }
     }
 
-    /**
-     * Register new OAuth2 user
-     */
     private User registerNewUser(AuthProvider provider, OAuth2UserInfo oAuth2UserInfo) {
         logger.info("📝 Registering new OAuth2 user: {}", oAuth2UserInfo.getEmail());
 
         User user = new User();
 
-        // Provider info
         user.setProvider(provider);
         user.setProviderUserId(oAuth2UserInfo.getId());
-
-        // Email (verified by OAuth2 provider)
         user.setEmail(oAuth2UserInfo.getEmail());
         user.setIsEmailVerified(true);
-
-        // Avatar
         user.setAvatarUrl(oAuth2UserInfo.getImageUrl());
 
-        // Name - use getFirstName() and getLastName()
         String firstName = oAuth2UserInfo.getFirstName();
         String lastName = oAuth2UserInfo.getLastName();
 
@@ -336,7 +484,6 @@ public class AuthService {
                 firstName : oAuth2UserInfo.getEmail().split("@")[0]);
         user.setLastName(lastName != null ? lastName : "");
 
-        // Generate unique username from email
         String baseUsername = oAuth2UserInfo.getEmail().split("@")[0];
         String username = baseUsername;
         int counter = 1;
@@ -347,13 +494,9 @@ public class AuthService {
         }
         user.setUsername(username);
 
-        // No password for OAuth2 users
         user.setPassword(null);
-
-        // Active by default
         user.setIsActive(true);
 
-        // Set default role: STUDENT
         Set<Role> roles = new HashSet<>();
         Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
                 .orElseThrow(() -> new ResourceNotFoundException("Role STUDENT not found"));
@@ -366,22 +509,17 @@ public class AuthService {
         return savedUser;
     }
 
-    /**
-     * Update existing OAuth2 user
-     */
     private User updateExistingUser(User existingUser, OAuth2UserInfo oAuth2UserInfo) {
         logger.info("🔄 Updating existing OAuth2 user: {}", existingUser.getEmail());
 
         boolean updated = false;
 
-        // Update avatar if changed
         String newAvatarUrl = oAuth2UserInfo.getImageUrl();
         if (newAvatarUrl != null && !newAvatarUrl.equals(existingUser.getAvatarUrl())) {
             existingUser.setAvatarUrl(newAvatarUrl);
             updated = true;
         }
 
-        // Update name if changed - use getFirstName() and getLastName()
         String newFirstName = oAuth2UserInfo.getFirstName();
         String newLastName = oAuth2UserInfo.getLastName();
 
@@ -404,102 +542,5 @@ public class AuthService {
         }
 
         return existingUser;
-    }
-
-    /**
-     * Create and save refresh token to database
-     * Used by both normal login and OAuth2 login
-     */
-    @Transactional
-    public RefreshToken createRefreshToken(Long userId) {
-        logger.info("🔄 Creating refresh token for user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        // Revoke all existing refresh tokens for this user
-        refreshTokenRepository.revokeAllUserTokens(user);
-
-        // Generate new refresh token string
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                UserDetailsImpl.build(user), null, null);
-        String tokenString = tokenProvider.generateRefreshToken(authentication);
-
-        // Create and save refresh token entity
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(tokenString)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
-                .revoked(false)
-                .build();
-
-        return refreshTokenRepository.save(refreshToken);
-    }
-
-    /**
-     * Refresh access token using refresh token
-     */
-    @Transactional
-    public JwtResponse refreshToken(RefreshTokenRequest request) {
-        logger.info("🔄 Refreshing token");
-
-        String requestRefreshToken = request.getRefreshToken();
-
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(requestRefreshToken)
-                .orElseThrow(() -> new TokenRefreshException("Refresh token not found!"));
-
-        if (refreshToken.getRevoked()) {
-            logger.error("❌ Refresh token is revoked");
-            throw new TokenRefreshException("Refresh token is revoked!");
-        }
-
-        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            refreshTokenRepository.delete(refreshToken);
-            logger.error("❌ Refresh token is expired");
-            throw new TokenRefreshException("Refresh token is expired!");
-        }
-
-        User user = refreshToken.getUser();
-        UserDetailsImpl userDetails = UserDetailsImpl.build(user);
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-
-        String newAccessToken = tokenProvider.generateAccessToken(authentication);
-
-        logger.info("✅ Token refreshed successfully for user: {}", user.getUsername());
-        UserResponse userResponse = UserMapper.toUserResponse(user);
-
-        return JwtResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(requestRefreshToken)
-                .tokenType("Bearer")
-                .user(userResponse)
-                .build();
-    }
-
-    /**
-     * Logout user - revoke all refresh tokens
-     */
-    @Transactional
-    public MessageResponse logout() {
-        logger.info("👋 User logging out");
-
-        UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
-
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        refreshTokenRepository.revokeAllUserTokens(user);
-
-        logger.info("✅ User logged out successfully: {}", user.getUsername());
-
-        return MessageResponse.builder()
-                .status(HttpStatus.OK.value())
-                .success(true)
-                .message(ResponseStatus.LOGOUT_SUCCESS)
-                .build();
     }
 }

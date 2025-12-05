@@ -38,6 +38,9 @@ spring:
                   - OPTIONS
                 allowedHeaders: "*"
                 allowCredentials: true
+                # Expose headers that frontend might need
+                exposed-headers:
+                  - "Set-Cookie"
                 maxAge: 3600
 
           routes:
