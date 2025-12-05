@@ -77,6 +77,10 @@ export const UPLOAD_ENDPOINTS = {
 export const COURSE_ENDPOINTS = {
   BASE: `${API_BASE_PATH}/courses`,
   LIST: `${API_BASE_PATH}/courses`,
+  CREATE: `${API_BASE_PATH}/courses`,
+  UPDATE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  DELETE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  PUBLISH: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}/publish`,
   DETAIL: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
   DETAIL_BY_SLUG: (slug: string) => `${API_BASE_PATH}/courses/slug/${slug}`,
   SEARCH: `${API_BASE_PATH}/courses/search`,
@@ -122,6 +126,9 @@ export const CATEGORY_ENDPOINTS = {
   ACTIVE: `${API_BASE_PATH}/categories`,
   ALL: `${API_BASE_PATH}/categories/all`,
   WITH_COURSES: `${API_BASE_PATH}/categories/with-courses`,
+  CREATE: `${API_BASE_PATH}/categories`,
+  UPDATE: (categoryId: string | number) => `${API_BASE_PATH}/categories/${categoryId}`,
+  DELETE: (categoryId: string | number) => `${API_BASE_PATH}/categories/${categoryId}`,
   TOGGLE_STATUS: (categoryId: string | number) =>
     `${API_BASE_PATH}/categories/${categoryId}/toggle-status`,
 } as const;
@@ -220,36 +227,54 @@ export const PAYMENT_ENDPOINTS = {
  */
 export const ADMIN_ENDPOINTS = {
   BASE: `${API_BASE_PATH}/admin`,
-  
+
   // Dashboard
   DASHBOARD_STATS: `${API_BASE_PATH}/admin/dashboard/stats`,
-  
-  // Users Management
+
+  // User Management (Auth Service)
   USERS: `${API_BASE_PATH}/admin/users`,
+  USERS_BY_ROLE: (roleName: string) => `${API_BASE_PATH}/admin/users/role/${roleName}`,
   USER_DETAIL: (userId: string | number) => `${API_BASE_PATH}/admin/users/${userId}`,
-  USER_UPDATE: (userId: string | number) => `${API_BASE_PATH}/admin/users/${userId}`,
+  USER_CREATE_TEACHER: `${API_BASE_PATH}/admin/users/teacher`,
+  USER_CREATE_ADMIN: `${API_BASE_PATH}/admin/users/admin`,
+  USER_UPDATE_ROLES: (userId: string | number) =>
+    `${API_BASE_PATH}/admin/users/${userId}/role`,
+  USER_TOGGLE_STATUS: (userId: string | number) =>
+    `${API_BASE_PATH}/admin/users/${userId}/status`,
   USER_DELETE: (userId: string | number) => `${API_BASE_PATH}/admin/users/${userId}`,
-  
+
+  // Teacher applications
+  APPLICATIONS: `${API_BASE_PATH}/admin/users/applications`,
+  APPLICATION_DETAIL: (applicationId: string | number) =>
+    `${API_BASE_PATH}/admin/users/applications/${applicationId}`,
+  APPLICATION_REVIEW: (applicationId: string | number) =>
+    `${API_BASE_PATH}/admin/users/applications/${applicationId}/review`,
+
+  // Trial teachers
+  TRIAL_TEACHERS: `${API_BASE_PATH}/admin/users/trial-teachers`,
+  TRIAL_TEACHER_UPGRADE: (userId: string | number) =>
+    `${API_BASE_PATH}/admin/users/trial-teachers/${userId}/upgrade`,
+
   // Courses Management
   COURSES: `${API_BASE_PATH}/admin/courses`,
   COURSE_CREATE: `${API_BASE_PATH}/admin/courses`,
   COURSE_DETAIL: (courseId: string | number) => `${API_BASE_PATH}/admin/courses/${courseId}`,
   COURSE_UPDATE: (courseId: string | number) => `${API_BASE_PATH}/admin/courses/${courseId}`,
   COURSE_DELETE: (courseId: string | number) => `${API_BASE_PATH}/admin/courses/${courseId}`,
-  
+
   // Teachers Management
   TEACHERS: `${API_BASE_PATH}/admin/teachers`,
   TEACHER_CREATE: `${API_BASE_PATH}/admin/teachers`,
   TEACHER_DETAIL: (teacherId: string | number) => `${API_BASE_PATH}/admin/teachers/${teacherId}`,
   TEACHER_UPDATE: (teacherId: string | number) => `${API_BASE_PATH}/admin/teachers/${teacherId}`,
   TEACHER_DELETE: (teacherId: string | number) => `${API_BASE_PATH}/admin/teachers/${teacherId}`,
-  
+
   // Students Management
   STUDENTS: `${API_BASE_PATH}/admin/students`,
   STUDENT_DETAIL: (studentId: string | number) => `${API_BASE_PATH}/admin/students/${studentId}`,
   STUDENT_UPDATE: (studentId: string | number) => `${API_BASE_PATH}/admin/students/${studentId}`,
   STUDENT_DELETE: (studentId: string | number) => `${API_BASE_PATH}/admin/students/${studentId}`,
-  
+
   // Reports
   REPORTS: `${API_BASE_PATH}/admin/reports`,
   REPORT_GENERATE: (reportType: string) => `${API_BASE_PATH}/admin/reports/${reportType}`,
