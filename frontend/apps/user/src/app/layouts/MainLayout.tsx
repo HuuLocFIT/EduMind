@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
@@ -12,8 +12,13 @@ import {
   LayoutDashboard,
   Award,
   Settings,
+  UserPlus,
+  FileText,
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { UserRole } from "@edumind/shared-constants";
+import { ApplicationStatus } from "@edumind/shared-types";
+import teacherApplicationService from "@user/services/teacher-application.service";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -21,6 +26,15 @@ export const MainLayout: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+
+  const [applicationStatus, setApplicationStatus] =
+    useState<ApplicationStatus | null>(null);
+  const [hasApplication, setHasApplication] = useState(false);
+
+  const isStudent = user?.roles.includes(UserRole.STUDENT);
+  const isTeacher =
+    user?.roles.includes(UserRole.TEACHER) ||
+    user?.roles.includes(UserRole.TEACHER_TRIAL);
 
   const handleLogout = () => {
     logout();
@@ -32,6 +46,27 @@ export const MainLayout: React.FC = () => {
       location.pathname === path || location.pathname.startsWith(path + "/")
     );
   };
+
+  useEffect(() => {
+    const fetchApplicationStatus = async () => {
+      if (!isStudent) return;
+
+      try {
+        const response = await teacherApplicationService.getMyApplication();
+        if (response) {
+          setHasApplication(true);
+          setApplicationStatus(response.status as ApplicationStatus);
+        }
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          setHasApplication(false);
+          setApplicationStatus(null);
+        }
+      }
+    };
+
+    fetchApplicationStatus();
+  }, [isStudent]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -174,6 +209,52 @@ export const MainLayout: React.FC = () => {
                           Wishlist
                         </button>
 
+                        {/* ========================================== */}
+                        {/* STUDENT: Teacher Application Section */}
+                        {/* ========================================== */}
+                        {isStudent && (
+                          <>
+                            <div className="border-t border-gray-100 my-2" />
+
+                            {!hasApplication ? (
+                              <Link
+                                to={USER_ROUTES.TEACHER_APPLICATION}
+                                className="flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium"
+                                onClick={() => setUserMenuOpen(false)}
+                              >
+                                <UserPlus className="w-4 h-4 mr-3" />
+                                <span>Become a Teacher</span>
+                              </Link>
+                            ) : (
+                              <Link
+                                to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                onClick={() => setUserMenuOpen(false)}
+                              >
+                                <FileText className="w-4 h-4 mr-3 text-gray-400" />
+                                <span >Application Status</span>
+                              </Link>
+                            )}
+                          </>
+                        )}
+
+                        {/* ========================================== */}
+                        {/* TEACHER: Teacher Dashboard Link */}
+                        {/* ========================================== */}
+                        {isTeacher && (
+                          <>
+                            <div className="border-t border-gray-100 my-2" />
+                            <Link
+                              to="/teacher/dashboard"
+                              className="flex items-center px-4 py-2 text-sm text-green-600 hover:bg-green-50 font-medium"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <GraduationCap className="w-4 h-4 mr-3" />
+                              Teacher Dashboard
+                            </Link>
+                          </>
+                        )}
+
                         <div className="border-t my-2" />
 
                         <button
@@ -278,6 +359,53 @@ export const MainLayout: React.FC = () => {
                     >
                       Settings
                     </Link>
+
+                    {/* ========================================== */}
+                    {/* MOBILE: Teacher Application Links */}
+                    {/* ========================================== */}
+                    {isStudent && (
+                      <>
+                        <div className="border-t border-gray-200 my-2" />
+                        {!hasApplication ? (
+                          <Link
+                            to={USER_ROUTES.TEACHER_APPLICATION}
+                            className="flex items-center justify-between text-blue-600 font-medium"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <UserPlus className="w-5 h-5" />
+                              <span>Become a Teacher</span>
+                            </div>
+                          </Link>
+                        ) : (
+                          <Link
+                            to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+                            className="flex items-center justify-between text-gray-700 hover:text-blue-600"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-5 h-5" />
+                              <span>Application Status</span>
+                            </div>
+                          </Link>
+                        )}
+                      </>
+                    )}
+
+                    {/* MOBILE: Teacher Dashboard Link */}
+                    {isTeacher && (
+                      <>
+                        <div className="border-t border-gray-200 my-2" />
+                        <Link
+                          to="/teacher/dashboard"
+                          className="flex items-center gap-2 text-green-600 font-medium"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <GraduationCap className="w-5 h-5" />
+                          <span>Teacher Dashboard</span>
+                        </Link>
+                      </>
+                    )}
                   </>
                 )}
 
