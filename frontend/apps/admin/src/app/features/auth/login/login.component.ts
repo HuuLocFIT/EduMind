@@ -1,8 +1,8 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from '@admin/core/services/auth.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
 import {
   ButtonComponent,
@@ -23,18 +23,18 @@ import {
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
 })
-export class LoginComponent {
-  loginForm: FormGroup;
+export class LoginComponent implements OnInit {
+  loginForm!: FormGroup;
   showPassword = signal(false);
   successMessage = signal('');
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router
-  ) {
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
+  ngOnInit(): void {
     this.loginForm = this.fb.group({
-      usernameOrEmail: ['', [Validators.required, Validators.minLength(3)]], // ✅ FIXED
+      usernameOrEmail: ['', [Validators.required, Validators.minLength(3)]],
       password: ['', [Validators.required, Validators.minLength(6)]],
     });
   }

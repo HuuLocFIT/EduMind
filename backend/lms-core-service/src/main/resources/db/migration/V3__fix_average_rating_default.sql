@@ -7,6 +7,9 @@ WHERE total_reviews = 0;
 
 -- Step 2: Alter column to allow NULL and remove default 0.00
 ALTER TABLE courses
+DROP CONSTRAINT IF EXISTS check_rating_consistency;
+
+ALTER TABLE courses
 ALTER COLUMN average_rating DROP DEFAULT;
 
 ALTER TABLE courses 

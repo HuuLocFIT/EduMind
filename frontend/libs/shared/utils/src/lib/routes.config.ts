@@ -22,6 +22,8 @@ export const ADMIN_ROUTES = {
   
   // Feature routes (for future use)
   TEACHERS: '/teachers',
+  TEACHER_APPLICATIONS: '/teachers/applications',
+  TRIAL_TEACHERS: '/teachers/trial',
   STUDENTS: '/students',
   COURSES: '/courses',
   PAYMENTS: '/payments',

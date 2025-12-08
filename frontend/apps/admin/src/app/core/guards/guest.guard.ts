@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from '@admin/core/services/auth.service';
+import { AuthService } from '../services/auth.service';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
 
 export const guestGuard = () => {

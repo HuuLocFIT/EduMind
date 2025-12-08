@@ -1,9 +1,9 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
 import { catchError, finalize, switchMap, tap } from 'rxjs/operators';
-import { environment } from '@admin/environments/environment';
+import { environment } from '../../../environments/environment';
 import type {
   LoginRequest,
   JwtResponse,
@@ -22,6 +22,9 @@ export class AuthService {
   private readonly API_URL = environment.apiUrl;
   private readonly TOKEN_KEY = 'admin_auth_token';
   private readonly USER_KEY = 'admin_user';
+  
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   // NOTE: REFRESH_TOKEN_KEY removed - refresh token is in HTTP-Only Cookie
 
   // Signals for reactive state
@@ -36,8 +39,6 @@ export class AuthService {
     this.getUserFromStorage()
   );
   public currentUser$ = this.currentUserSubject.asObservable();
-
-  constructor(private http: HttpClient, private router: Router) {}
 
   /**
    * Login with credentials
