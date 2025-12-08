@@ -62,6 +62,16 @@ export const USER_ENDPOINTS = {
 } as const;
 
 /**
+ * Teacher Application endpoints
+ */
+export const TEACHER_APPLICATION_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/teacher-application`,
+  SUBMIT: `${API_BASE_PATH}/teacher-application/submit`,
+  MY_APPLICATION: `${API_BASE_PATH}/teacher-application/my-application`,
+  TRIAL_STATUS: `${API_BASE_PATH}/teacher-application/trial-status`,
+} as const;
+
+/**
  * File upload endpoints
  */
 export const UPLOAD_ENDPOINTS = {

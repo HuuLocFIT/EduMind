@@ -51,7 +51,9 @@ class AuthService {
     const response = await apiClient.post<MessageResponse>(
       AUTH_ENDPOINTS.LOGOUT
     );
-    localStorage.clear();
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("auth-storage");
     return response.data;
   }
 
@@ -226,8 +228,8 @@ class AuthService {
 
   static clearAuth(): void {
     localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("auth-storage");
   }
 }
 

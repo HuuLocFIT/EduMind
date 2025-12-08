@@ -80,6 +80,10 @@ export const USER_ROUTES = {
 
   // Wishlist
   WISHLIST: '/wishlist',
+
+  // Teacher Application
+  TEACHER_APPLICATION: '/teacher/application',
+  TEACHER_APPLICATION_STATUS: '/teacher/application/status',
   
   // Not found
   NOT_FOUND: '/404',
