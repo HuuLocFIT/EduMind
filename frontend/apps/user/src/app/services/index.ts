@@ -14,3 +14,6 @@ export { wishlistService } from './wishlist.service';
 
 export { sectionService } from './section.service';
 
+export { default as teacherApplicationService } from './teacher-application.service';
+export { default as fileUploadService } from './file-upload.service';
+

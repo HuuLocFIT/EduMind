@@ -7,6 +7,21 @@ a[routerLinkActive] {
   transition: all 0.2s ease-in-out;
 }
 
+/* Remove all focus outlines from navigation */
+nav button:focus,
+nav a:focus,
+nav button:active,
+nav a:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+nav button:focus-visible,
+nav a:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Dropdown animations */
 .dropdown-menu {
   animation: slideDown 0.2s ease-out;

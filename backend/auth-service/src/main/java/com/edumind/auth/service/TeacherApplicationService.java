@@ -3,6 +3,7 @@ package com.edumind.auth.service;
 import com.edumind.auth.dto.request.ReviewApplicationRequest;
 import com.edumind.auth.dto.request.TeacherApplicationRequest;
 import com.edumind.auth.dto.request.UpgradeTrialRequest;
+import com.edumind.auth.dto.response.StatusHistoryResponse;
 import com.edumind.auth.dto.response.TeacherApplicationResponse;
 import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.entity.*;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TeacherApplicationService {
@@ -41,6 +43,9 @@ public class TeacherApplicationService {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private ApplicationStatusHistoryRepository statusHistoryRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -132,7 +137,9 @@ public class TeacherApplicationService {
                 .status(ApplicationStatus.PENDING)
                 .build();
 
-        applicationRepository.save(application);
+        TeacherApplication savedApplication = applicationRepository.save(application);
+
+        recordStatusChange(savedApplication, null, "PENDING", user, "Application submitted");
 
         logger.info("✅ Teacher application submitted successfully by user: {}", username);
 
@@ -262,6 +269,8 @@ public class TeacherApplicationService {
         User applicant = application.getUser();
         logger.info("✅ Approving application for user: {}", applicant.getUsername());
 
+        String oldStatus = application.getStatus().name();
+
         // Update application status
         application.setStatus(ApplicationStatus.APPROVED);
         application.setReviewedBy(admin);
@@ -270,9 +279,12 @@ public class TeacherApplicationService {
 
         // Determine role based on teacherType
         RoleName roleName;
+        String approvalDetail;
         boolean isTrial = "TRIAL".equals(request.getTeacherType());
+
         if (isTrial) {
             roleName = RoleName.ROLE_TEACHER_TRIAL;
+            approvalDetail = "Approved as TRIAL teacher (30 days)";
 
             // Set trial period (30 days)
             applicant.setIsTrial(true);
@@ -282,6 +294,7 @@ public class TeacherApplicationService {
             logger.info("📅 Setting trial period: 30 days from now");
         } else {
             roleName = RoleName.ROLE_TEACHER;
+            approvalDetail = "Approved as FULL teacher";
             applicant.setIsTrial(false);
         }
 
@@ -296,12 +309,16 @@ public class TeacherApplicationService {
         userRepository.save(applicant);
         applicationRepository.save(application);
 
+        String changeReason = request.getAdminNotes() != null
+                ? approvalDetail + ". Notes: " + request.getAdminNotes()
+                : approvalDetail;
+        recordStatusChange(application, oldStatus, "APPROVED", admin, changeReason);
+
         try {
             emailService.sendApplicationApprovedEmail(applicant, isTrial, applicant.getTrialEndDate());
             logger.info("📧 Approval email sent to: {}", applicant.getEmail());
         } catch (Exception e) {
             logger.error("❌ Failed to send approval email", e);
-            // Don't fail the approval if email fails
         }
 
         String message = isTrial
@@ -329,6 +346,8 @@ public class TeacherApplicationService {
             throw new BadRequestException("Rejection reason is required!");
         }
 
+        String oldStatus = application.getStatus().name();
+
         application.setStatus(ApplicationStatus.REJECTED);
         application.setReviewedBy(admin);
         application.setReviewedAt(LocalDateTime.now());
@@ -337,12 +356,13 @@ public class TeacherApplicationService {
 
         applicationRepository.save(application);
 
+        recordStatusChange(application, oldStatus, "REJECTED", admin, request.getRejectionReason());
+
         try {
             emailService.sendApplicationRejectedEmail(application.getUser(), request.getRejectionReason());
             logger.info("📧 Rejection email sent to: {}", application.getUser().getEmail());
         } catch (Exception e) {
             logger.error("❌ Failed to send rejection email", e);
-            // Don't fail the rejection if email fails
         }
 
         logger.info("✅ Application rejected for user: {}", application.getUser().getUsername());
@@ -363,6 +383,12 @@ public class TeacherApplicationService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Get admin user
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String adminUsername = auth.getName();
+        User admin = userRepository.findByUsername(adminUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
 
         // Check if user is trial teacher
         if (!user.getIsTrial()) {
@@ -395,6 +421,14 @@ public class TeacherApplicationService {
         user.setTrialEndDate(null);
 
         userRepository.save(user);
+
+        Optional<TeacherApplication> applicationOpt = applicationRepository.findByUser(user);
+        if (applicationOpt.isPresent()) {
+            String upgradeReason = request != null && request.getReason() != null
+                    ? "Upgraded from trial to full teacher. Reason: " + request.getReason()
+                    : "Upgraded from trial to full teacher";
+            recordStatusChange(applicationOpt.get(), "TRIAL_TEACHER", "FULL_TEACHER", admin, upgradeReason);
+        }
 
         logger.info("✅ Trial teacher upgraded to full teacher: {}", user.getUsername());
 
@@ -438,6 +472,55 @@ public class TeacherApplicationService {
     }
 
     /**
+     * Record status change for audit trail
+     */
+    private void recordStatusChange(TeacherApplication application,
+                                    String oldStatus,
+                                    String newStatus,
+                                    User changedBy,
+                                    String reason) {
+        ApplicationStatusHistory history = ApplicationStatusHistory.builder()
+                .application(application)
+                .oldStatus(oldStatus)
+                .newStatus(newStatus)
+                .changedBy(changedBy)
+                .changeReason(reason)
+                .build();
+
+        statusHistoryRepository.save(history);
+        application.addStatusHistory(history);
+
+        logger.info("📝 Status history recorded: {} -> {} by {}",
+                oldStatus, newStatus, changedBy.getUsername());
+    }
+
+    /**
+     * Map StatusHistory entity to DTO
+     */
+    private StatusHistoryResponse mapToStatusHistoryResponse(ApplicationStatusHistory history) {
+        return StatusHistoryResponse.builder()
+                .id(history.getId())
+                .oldStatus(history.getOldStatus())
+                .newStatus(history.getNewStatus())
+                .changedByUsername(history.getChangedBy().getUsername())
+                .changedByEmail(history.getChangedBy().getEmail())
+                .changeReason(history.getChangeReason())
+                .createdAt(history.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * Get status history for an application
+     */
+    public List<StatusHistoryResponse> getStatusHistory(Long applicationId) {
+        return statusHistoryRepository
+                .findByApplicationIdOrderByCreatedAtDesc(applicationId)
+                .stream()
+                .map(this::mapToStatusHistoryResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Helper: Map entity to response
      */
     private TeacherApplicationResponse mapToResponse(TeacherApplication app) {
@@ -454,6 +537,12 @@ public class TeacherApplicationService {
                 logger.error("Error parsing documents JSON", e);
             }
         }
+
+        List<StatusHistoryResponse> historyResponses = app.getStatusHistory() != null
+                ? app.getStatusHistory().stream()
+                .map(this::mapToStatusHistoryResponse)
+                .collect(Collectors.toList())
+                : new ArrayList<>();
 
         return TeacherApplicationResponse.builder()
                 .id(app.getId())
@@ -475,6 +564,7 @@ public class TeacherApplicationService {
                 .createdAt(app.getCreatedAt())
                 .reviewedAt(app.getReviewedAt())
                 .reviewedBy(app.getReviewedBy() != null ? app.getReviewedBy().getUsername() : null)
+                .statusHistory(historyResponses)
                 .build();
     }
 }

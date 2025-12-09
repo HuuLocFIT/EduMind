@@ -17,6 +17,8 @@ export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
 export class CardComponent {
   @Input() variant: CardVariant = 'default';
   @Input() padding: CardPadding = 'md';
+  /** Optional extra utility classes for consumer overrides (e.g. light surfaces). */
+  @Input() customClass = '';
 
   private variantClasses: Record<CardVariant, string> = {
     default: 'bg-slate-800',
@@ -36,6 +38,7 @@ export class CardComponent {
       'rounded-lg',
       this.variantClasses[this.variant],
       this.paddingClasses[this.padding],
+      this.customClass,
     ].join(' ');
   }
 }

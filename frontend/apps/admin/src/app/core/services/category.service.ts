@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 
-import { environment } from '@admin/environments/environment';
+import { environment } from '../../../environments/environment';
 import { CATEGORY_ENDPOINTS } from '@edumind/shared-utils';
 import {
   ApiResponse,
@@ -20,7 +20,7 @@ import {
 export class CategoryService {
   private readonly API_URL = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  private readonly http = inject(HttpClient);
 
   createCategory(payload: CreateCategoryRequest): Observable<CategoryResponse> {
     return this.http.post<CategoryResponse>(

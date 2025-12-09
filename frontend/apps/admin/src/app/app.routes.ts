@@ -25,6 +25,20 @@ export const appRoutes: Route[] = [
             (m) => m.DashboardComponent
           ),
       },
+      {
+        path: ADMIN_ROUTES.TEACHER_APPLICATIONS.replace('/', ''),
+        loadComponent: () =>
+          import('./features/teachers/teacher-applications/teacher-applications.component').then(
+            (m) => m.TeacherApplicationsComponent
+          ),
+      },
+      {
+        path: ADMIN_ROUTES.TRIAL_TEACHERS.replace('/', ''),
+        loadComponent: () =>
+          import('./features/teachers/trial-teachers/trial-teachers.component').then(
+            (m) => m.TrialTeachersComponent
+          ),
+      },
     ],
   },
 ];

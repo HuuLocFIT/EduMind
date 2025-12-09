@@ -26,3 +26,4 @@ export * from './lib/Spinner/Spinner';
 export * from './lib/LoadingOverlay/LoadingOverlay';
 export * from './lib/Skeleton/Skeleton';
 export * from './lib/FullPageLoading/FullPageLoading';
+export * from './lib/FileUpload/FileUpload';

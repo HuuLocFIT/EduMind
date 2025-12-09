@@ -9,7 +9,7 @@ import { inject } from '@angular/core';
 import { map, catchError, switchMap } from 'rxjs/operators';
 import { throwError, BehaviorSubject, filter, take } from 'rxjs';
 import { unwrapApiResponse } from '@edumind/shared-utils';
-import { AuthService } from '@admin/core/services/auth.service';
+import { AuthService } from '../services/auth.service';
 
 // Track refresh state across interceptor calls
 let isRefreshing = false;

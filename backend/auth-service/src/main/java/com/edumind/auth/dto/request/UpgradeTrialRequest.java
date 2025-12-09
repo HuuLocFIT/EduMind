@@ -9,4 +9,5 @@ import lombok.*;
 @Builder
 public class UpgradeTrialRequest {
     private String adminNotes;  // Optional notes from admin
+    private String reason;
 }

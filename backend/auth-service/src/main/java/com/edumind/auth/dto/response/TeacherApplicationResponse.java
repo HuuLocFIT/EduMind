@@ -31,4 +31,5 @@ public class TeacherApplicationResponse {
     private LocalDateTime createdAt;
     private LocalDateTime reviewedAt;
     private String reviewedBy;
+    private List<StatusHistoryResponse> statusHistory;
 }

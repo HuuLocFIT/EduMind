@@ -17,6 +17,9 @@ import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { WishlistPage } from "./pages/WishlistPage";
 import { CoursePlayerPage } from "./pages/CoursePlayerPage";
+import { TeacherApplicationPage } from "./pages/TeacherApplicationPage";
+import { ApplicationStatusPage } from "./pages/ApplicationStatusPage";
+import { TeacherApplicationRoute, TeacherApplicationStatusRoute } from "./components/TeacherApplicationGuards";
 
 function App() {
   const { toasts, closeToast } = useToast();
@@ -51,6 +54,13 @@ function App() {
             <Route path={USER_ROUTES.CERTIFICATES} element={<CertificatesPage />} />
             <Route path={USER_ROUTES.PROFILE_SETTINGS} element={<ProfileSettingsPage />} />
             <Route path={USER_ROUTES.WISHLIST} element={<WishlistPage />} />
+
+            <Route element={<TeacherApplicationStatusRoute />}>
+              <Route path={USER_ROUTES.TEACHER_APPLICATION_STATUS} element={<ApplicationStatusPage />} />
+            </Route>
+            <Route element={<TeacherApplicationRoute />}>
+              <Route path={USER_ROUTES.TEACHER_APPLICATION} element={<TeacherApplicationPage />} />
+            </Route>
           </Route>
         </Route>
 

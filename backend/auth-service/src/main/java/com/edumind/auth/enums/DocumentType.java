@@ -16,6 +16,7 @@ public enum DocumentType {
 
     /**
      * JSON deserialization - case-insensitive
+     * Accepts both enum name (ID_CARD) and value (id_card)
      */
     @JsonCreator
     public static DocumentType fromString(String type) {
@@ -33,15 +34,16 @@ public enum DocumentType {
         }
         
         throw new IllegalArgumentException("Invalid document type: " + type + 
-                ". Valid types are: certificate, degree, id_card");
+                ". Valid types are: CERTIFICATE, DEGREE, ID_CARD (or certificate, degree, id_card)");
     }
 
     /**
-     * JSON serialization - returns lowercase value
+     * JSON serialization - returns enum name (uppercase) for consistency with FE
+     * This ensures FE receives "ID_CARD" instead of "id_card"
      */
     @JsonValue
     public String getValue() {
-        return value;
+        return this.name(); // Return enum name (ID_CARD) instead of value (id_card)
     }
 }
 

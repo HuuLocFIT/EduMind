@@ -22,6 +22,8 @@ export const ADMIN_ROUTES = {
   
   // Feature routes (for future use)
   TEACHERS: '/teachers',
+  TEACHER_APPLICATIONS: '/teachers/applications',
+  TRIAL_TEACHERS: '/teachers/trial',
   STUDENTS: '/students',
   COURSES: '/courses',
   PAYMENTS: '/payments',
@@ -80,6 +82,10 @@ export const USER_ROUTES = {
 
   // Wishlist
   WISHLIST: '/wishlist',
+
+  // Teacher Application
+  TEACHER_APPLICATION: '/teacher/application',
+  TEACHER_APPLICATION_STATUS: '/teacher/application/status',
   
   // Not found
   NOT_FOUND: '/404',

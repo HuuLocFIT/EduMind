@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 
-import { environment } from '@admin/environments/environment';
+import { environment } from '../../../environments/environment';
 import { COURSE_ENDPOINTS } from '@edumind/shared-utils';
 import {
   CourseDetailResponse,
@@ -28,7 +28,7 @@ export type CoursePagedResponse = z.infer<typeof CoursePagedResponseSchema> & Pa
 export class CourseService {
   private readonly API_URL = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  private readonly http = inject(HttpClient);
 
   createCourse(payload: CreateCourseRequest): Observable<CourseResponse> {
     return this.http.post<CourseResponse>(
