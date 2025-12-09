@@ -170,7 +170,7 @@
       @for (teacher of displayedTeachers(); track teacher.userId) {
         <app-card
           [padding]="'sm'"
-          [customClass]="'border border-gray-200 bg-white shadow-sm text-gray-900 hover:shadow-md transition-shadow duration-200'"
+          [customClass]="'border border-gray-200 bg-white shadow-sm text-gray-900 hover:shadow-md transition-shadow duration-200 mb-4'"
           [class.border-l-4]="teacher.daysRemaining !== null && teacher.daysRemaining !== undefined && teacher.daysRemaining <= 7 && !teacher.isExpired"
           [class.border-l-orange-400]="(teacher.daysRemaining ?? 0) <= 7 && !teacher.isExpired"
           [class.border-l-red-400]="teacher.isExpired"
@@ -241,16 +241,10 @@
                     <span class="text-gray-600 font-medium">Trial Progress</span>
                     <span class="font-semibold text-gray-900">{{ getTrialProgress(teacher) }}%</span>
                   </div>
-                  <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                  <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden shadow-inner w-full relative">
                     <div 
                       class="h-full transition-all duration-500 ease-out rounded-full"
-                      [ngClass]="{
-                        'bg-gradient-to-r from-blue-500 to-blue-400': !teacher.isExpired && teacher.daysRemaining > 7,
-                        'bg-gradient-to-r from-orange-500 to-orange-400': !teacher.isExpired && teacher.daysRemaining <= 7 && teacher.daysRemaining > 3,
-                        'bg-gradient-to-r from-red-500 to-red-400': !teacher.isExpired && teacher.daysRemaining <= 3,
-                        'bg-red-500': teacher.isExpired
-                      }"
-                      [style.width.%]="getTrialProgress(teacher)"
+                      [ngStyle]="getProgressBarStyle(teacher)"
                     ></div>
                   </div>
                 </div>

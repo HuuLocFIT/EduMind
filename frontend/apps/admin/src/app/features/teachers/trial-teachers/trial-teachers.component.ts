@@ -133,10 +133,38 @@ export class TrialTeachersComponent implements OnInit {
 
   getTrialProgress(teacher: TrialStatusResponse): number {
     if (teacher.isExpired) return 100;
-    if (typeof teacher.daysRemaining !== 'number') return 0;
+    if (typeof teacher.daysRemaining !== 'number' || teacher.daysRemaining === null) return 0;
+    
     const totalDays = 30;
-    const usedDays = totalDays - teacher.daysRemaining;
-    return Math.min(100, Math.round((usedDays / totalDays) * 100));
+    // Ensure daysRemaining is within valid range
+    const daysRemaining = Math.max(0, Math.min(totalDays, teacher.daysRemaining));
+    const usedDays = totalDays - daysRemaining;
+    const progress = (usedDays / totalDays) * 100;
+    
+    // Clamp between 0 and 100
+    return Math.max(0, Math.min(100, Math.round(progress)));
+  }
+
+  getProgressBarStyle(teacher: TrialStatusResponse): { [key: string]: string } {
+    const width = this.getTrialProgress(teacher) + '%';
+    let background = '';
+    
+    if (teacher.isExpired) {
+      background = '#ef4444'; // red-500
+    } else if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 3) {
+      background = 'linear-gradient(to right, #ef4444, #f87171)'; // red-500 to red-400
+    } else if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 7) {
+      background = 'linear-gradient(to right, #f97316, #fb923c)'; // orange-500 to orange-400
+    } else {
+      background = 'linear-gradient(to right, #3b82f6, #60a5fa)'; // blue-500 to blue-400
+    }
+    
+    return {
+      'width': width,
+      'min-width': '0',
+      'display': 'block',
+      'background': background
+    };
   }
 
   getFullName(teacher: TrialStatusResponse): string {
