@@ -93,6 +93,36 @@ export const USER_ROUTES = {
 } as const;
 
 /**
+ * Teacher Portal Routes (within User App)
+ */
+export const TEACHER_ROUTES = {
+  // Base
+  ROOT: '/teacher',
+  DASHBOARD: '/teacher/dashboard',
+  
+  // Course Management
+  COURSES: '/teacher/courses',
+  COURSE_CREATE: '/teacher/courses/create',
+  COURSE_EDIT: '/teacher/courses/:courseId/edit',
+  COURSE_DETAIL: '/teacher/courses/:courseId',
+  COURSE_CURRICULUM: '/teacher/courses/:courseId/curriculum',
+  
+  // Students
+  STUDENTS: '/teacher/students',
+  COURSE_STUDENTS: '/teacher/courses/:courseId/students',
+  
+  // Reviews
+  REVIEWS: '/teacher/reviews',
+  
+  // Analytics
+  ANALYTICS: '/teacher/analytics',
+  
+  // Settings
+  SETTINGS: '/teacher/settings',
+  PROFILE: '/teacher/profile',
+} as const;
+
+/**
  * Helper function to build route with query parameters
  */
 export const buildRoute = (
@@ -145,4 +175,21 @@ export const UserRouteHelpers = {
   courseDetail: (courseId: string | number) => `/courses/${courseId}`,
   learningCourse: (courseId: string | number) => `/learning/${courseId}`,
 } as const;
+
+/**
+ * Helper functions for teacher routes
+ */
+export const TeacherRouteHelpers = {
+  courseDetail: (courseId: string | number) => `/teacher/courses/${courseId}`,
+  courseEdit: (courseId: string | number) => `/teacher/courses/${courseId}/edit`,
+  courseCurriculum: (courseId: string | number) => `/teacher/courses/${courseId}/curriculum`,
+  courseStudents: (courseId: string | number) => `/teacher/courses/${courseId}/students`,
+} as const;
+
+/**
+ * Type-safe route navigation helper for Teacher
+ */
+export const getTeacherRoute = (route: keyof typeof TEACHER_ROUTES): string => {
+  return TEACHER_ROUTES[route];
+};
 
