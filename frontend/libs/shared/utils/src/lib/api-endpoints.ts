@@ -118,6 +118,48 @@ export const TEACHER_ENDPOINTS = {
 } as const;
 
 /**
+ * Teacher Portal endpoints - for teacher dashboard & course management
+ * Uses existing endpoints but organized for teacher portal use
+ */
+export const TEACHER_PORTAL_ENDPOINTS = {
+  // Stats - uses COURSE_ENDPOINTS.INSTRUCTOR_STATS
+  MY_STATS: (instructorId: string | number) =>
+    `${API_BASE_PATH}/courses/instructors/${instructorId}/stats`,
+  
+  // My Courses - uses COURSE_ENDPOINTS.BY_INSTRUCTOR
+  MY_COURSES: (instructorId: string | number) =>
+    `${API_BASE_PATH}/courses/instructor/${instructorId}`,
+  
+  // Course CRUD
+  COURSE_CREATE: `${API_BASE_PATH}/courses`,
+  COURSE_UPDATE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  COURSE_DELETE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  COURSE_DETAIL: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  COURSE_PUBLISH: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}/publish`,
+  
+  // Sections
+  SECTIONS: (courseId: string | number) => `${API_BASE_PATH}/sections/courses/${courseId}`,
+  SECTIONS_DETAIL: (courseId: string | number) => `${API_BASE_PATH}/sections/courses/${courseId}/detail`,
+  SECTION_CREATE: (courseId: string | number) => `${API_BASE_PATH}/sections/courses/${courseId}`,
+  SECTION_UPDATE: (sectionId: string | number) => `${API_BASE_PATH}/sections/${sectionId}`,
+  SECTION_DELETE: (sectionId: string | number) => `${API_BASE_PATH}/sections/${sectionId}`,
+  SECTION_REORDER: (courseId: string | number) => `${API_BASE_PATH}/sections/courses/${courseId}/reorder`,
+  
+  // Lessons
+  LESSONS: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}`,
+  LESSON_CREATE: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}`,
+  LESSON_UPDATE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}`,
+  LESSON_DELETE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}`,
+  LESSON_REORDER: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}/reorder`,
+  
+  // Course Students (enrollments)
+  COURSE_STUDENTS: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
+  
+  // Course Reviews
+  COURSE_REVIEWS: (courseId: string | number) => `${API_BASE_PATH}/reviews/courses/${courseId}/all`,
+} as const;
+
+/**
  * Student endpoints (for future use)
  */
 export const STUDENT_ENDPOINTS = {

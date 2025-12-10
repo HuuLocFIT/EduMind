@@ -1,16 +1,18 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useToast, ToastContainer } from "@edumind/user-ui";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { TeacherGuard } from "./components/teacher/TeacherGuard";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import DashboardPage from "./pages/DashboardPage";
 import OAuth2CallbackPage from "./pages/OAuth2CallbackPage";
-import { USER_ROUTES } from "@edumind/shared-utils";
+import { USER_ROUTES, TEACHER_ROUTES } from "@edumind/shared-utils";
 import { BrowseCoursesPage } from "./pages/BrowseCoursesPage";
 import { CourseDetailPage } from "./pages/CourseDetailPage";
 import { MyLearningPage } from "./pages/MyLearningPage";
 import { MainLayout } from "./layouts/MainLayout";
 import { AuthLayout } from "./layouts/AuthLayout";
+import { TeacherLayout } from "./layouts/TeacherLayout";
 import { HomePage } from "./pages/HomePage";
 import { CertificatesPage } from "./pages/CertificatesPage";
 import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
@@ -20,6 +22,19 @@ import { CoursePlayerPage } from "./pages/CoursePlayerPage";
 import { TeacherApplicationPage } from "./pages/TeacherApplicationPage";
 import { ApplicationStatusPage } from "./pages/ApplicationStatusPage";
 import { TeacherApplicationRoute, TeacherApplicationStatusRoute } from "./components/TeacherApplicationGuards";
+
+// Teacher Portal Pages
+import {
+  TeacherDashboardPage,
+  TeacherCoursesPage,
+  TeacherCourseCreatePage,
+  TeacherCourseEditPage,
+  TeacherCourseDetailPage,
+  TeacherStudentsPage,
+  TeacherReviewsPage,
+  TeacherAnalyticsPage,
+  TeacherSettingsPage,
+} from "./pages/teacher";
 
 function App() {
   const { toasts, closeToast } = useToast();
@@ -44,7 +59,7 @@ function App() {
           <Route path={USER_ROUTES.OAUTH2_REDIRECT} element={<OAuth2CallbackPage />} />
         </Route>
 
-        {/* Protected Routes */}
+        {/* Protected Routes - Main Site */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<MainLayout />}>
             <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
@@ -61,6 +76,34 @@ function App() {
             <Route element={<TeacherApplicationRoute />}>
               <Route path={USER_ROUTES.TEACHER_APPLICATION} element={<TeacherApplicationPage />} />
             </Route>
+          </Route>
+        </Route>
+
+        {/* ================================================================ */}
+        {/* Teacher Portal Routes - Protected with TeacherGuard             */}
+        {/* ================================================================ */}
+        <Route element={<TeacherGuard />}>
+          <Route element={<TeacherLayout />}>
+            {/* Dashboard */}
+            <Route path={TEACHER_ROUTES.DASHBOARD} element={<TeacherDashboardPage />} />
+            
+            {/* Courses */}
+            <Route path={TEACHER_ROUTES.COURSES} element={<TeacherCoursesPage />} />
+            <Route path={TEACHER_ROUTES.COURSE_CREATE} element={<TeacherCourseCreatePage />} />
+            <Route path={TEACHER_ROUTES.COURSE_EDIT} element={<TeacherCourseEditPage />} />
+            <Route path={TEACHER_ROUTES.COURSE_DETAIL} element={<TeacherCourseDetailPage />} />
+            
+            {/* Students */}
+            <Route path={TEACHER_ROUTES.STUDENTS} element={<TeacherStudentsPage />} />
+            
+            {/* Reviews */}
+            <Route path={TEACHER_ROUTES.REVIEWS} element={<TeacherReviewsPage />} />
+            
+            {/* Analytics */}
+            <Route path={TEACHER_ROUTES.ANALYTICS} element={<TeacherAnalyticsPage />} />
+            
+            {/* Settings */}
+            <Route path={TEACHER_ROUTES.SETTINGS} element={<TeacherSettingsPage />} />
           </Route>
         </Route>
 
