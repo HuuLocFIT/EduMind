@@ -39,6 +39,27 @@ export const appRoutes: Route[] = [
             (m) => m.TrialTeachersComponent
           ),
       },
+      {
+        path: ADMIN_ROUTES.CATEGORIES.replace('/', ''),
+        loadComponent: () =>
+          import('./features/categories/categories.component').then(
+            (m) => m.CategoriesComponent
+          ),
+      },
+      {
+        path: ADMIN_ROUTES.COURSES.replace('/', ''),
+        loadComponent: () =>
+          import('./features/courses/courses.component').then(
+            (m) => m.CoursesComponent
+          ),
+      },
+      {
+        path: `${ADMIN_ROUTES.COURSES.replace('/', '')}/:id`,
+        loadComponent: () =>
+          import('./features/courses/course-detail.component').then(
+            (m) => m.CourseDetailComponent
+          ),
+      },
     ],
   },
 ];

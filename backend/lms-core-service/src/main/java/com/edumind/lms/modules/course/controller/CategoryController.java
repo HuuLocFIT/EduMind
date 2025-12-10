@@ -101,7 +101,10 @@ public class CategoryController {
 
         List<Category> categories = categoryService.getAllCategories();
         List<CategoryResponse> responses = categories.stream()
-                .map(categoryMapper::toResponse)
+                .map(cat -> {
+                    long count = categoryService.getCourseCount(cat.getId());
+                    return categoryMapper.toResponseWithCount(cat, count);
+                })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(ApiResponse.success(responses));

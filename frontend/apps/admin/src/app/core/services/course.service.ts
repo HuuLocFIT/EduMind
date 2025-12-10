@@ -9,12 +9,10 @@ import {
   CourseDetailResponseSchema,
   CourseResponse,
   CourseResponseSchema,
-  CreateCourseRequest,
   createPagedResponseSchema,
   InstructorStatsResponse,
   InstructorStatsResponseSchema,
   PagedResponse,
-  UpdateCourseRequest,
 } from '@edumind/shared-types';
 import { z } from 'zod';
 
@@ -29,27 +27,6 @@ export class CourseService {
   private readonly API_URL = environment.apiUrl;
 
   private readonly http = inject(HttpClient);
-
-  createCourse(payload: CreateCourseRequest): Observable<CourseResponse> {
-    return this.http.post<CourseResponse>(
-      `${this.API_URL}${COURSE_ENDPOINTS.CREATE}`,
-      payload
-    ).pipe(map((response: CourseResponse) => CourseResponseSchema.parse(response)));
-  }
-
-  updateCourse(id: number, payload: UpdateCourseRequest): Observable<CourseResponse> {
-    return this.http.put<CourseResponse>(
-      `${this.API_URL}${COURSE_ENDPOINTS.UPDATE(id)}`,
-      payload
-    ).pipe(map((response: CourseResponse) => CourseResponseSchema.parse(response)));
-  }
-
-  publishCourse(id: number): Observable<CourseResponse> {
-    return this.http.post<CourseResponse>(
-      `${this.API_URL}${COURSE_ENDPOINTS.PUBLISH(id)}`,
-      {}
-    ).pipe(map((response: CourseResponse) => CourseResponseSchema.parse(response)));
-  }
 
   deleteCourse(id: number): Observable<void> {
     return this.http.delete<void>(

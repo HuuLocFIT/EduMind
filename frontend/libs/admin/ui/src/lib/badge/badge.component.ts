@@ -38,13 +38,13 @@ export class BadgeComponent {
     };
 
     const variants: Record<BadgeVariant, string> = {
-      default: 'bg-gray-700 text-gray-300',
-      primary: 'bg-purple-900/50 text-purple-300 border border-purple-700/50',
-      secondary: 'bg-gray-800 text-gray-300 border border-gray-700',
-      success: 'bg-green-900/50 text-green-300 border border-green-700/50',
-      warning: 'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50',
-      error: 'bg-red-900/50 text-red-300 border border-red-700/50',
-      info: 'bg-blue-900/50 text-blue-300 border border-blue-700/50',
+      default: 'bg-gray-100 text-gray-800',
+      primary: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
+      secondary: 'bg-gray-100 text-gray-700 border border-gray-200',
+      success: 'bg-green-50 text-green-700 border border-green-100',
+      warning: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+      error: 'bg-red-50 text-red-700 border border-red-100',
+      info: 'bg-blue-50 text-blue-700 border border-blue-100',
     };
 
     const roundedClasses: Record<string, string> = {

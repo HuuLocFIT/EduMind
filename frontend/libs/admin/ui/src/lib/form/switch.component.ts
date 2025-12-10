@@ -27,7 +27,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
         <div
           class="w-11 h-6 rounded-full transition-colors duration-200 peer-focus:ring-2 peer-focus:ring-purple-500 peer-focus:ring-offset-2"
           [class.bg-purple-600]="checked"
-          [class.bg-gray-600]="!checked"
+          [class.bg-gray-300]="!checked"
           [class.opacity-50]="disabled"
           [class.cursor-not-allowed]="disabled"
         >
@@ -40,7 +40,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
 
       @if (label) {
         <span
-          class="text-sm text-gray-200"
+          class="text-sm text-gray-800"
           [class.opacity-50]="disabled"
           [class.cursor-not-allowed]="disabled"
         >

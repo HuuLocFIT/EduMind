@@ -22,10 +22,10 @@ export interface SelectOption {
   template: `
     <div class="relative">
       @if (label) {
-        <label [for]="id" class="block text-sm font-medium text-gray-300 mb-1.5">
+        <label [for]="id" class="block text-sm font-medium text-gray-700 mb-1.5">
           {{ label }}
           @if (required) {
-            <span class="text-red-400">*</span>
+            <span class="text-red-500">*</span>
           }
         </label>
       }
@@ -63,7 +63,7 @@ export interface SelectOption {
       </div>
 
       @if (error) {
-        <p class="mt-1.5 text-sm text-red-400">{{ error }}</p>
+        <p class="mt-1.5 text-sm text-red-500">{{ error }}</p>
       }
       @if (helperText && !error) {
         <p class="mt-1.5 text-sm text-gray-500">{{ helperText }}</p>
@@ -112,8 +112,9 @@ export class SelectComponent implements ControlValueAccessor {
   }
 
   getSelectClasses(): string {
-    const base = 'block appearance-none bg-gray-800 border text-gray-100 rounded-lg focus:outline-none focus:ring-2 transition-colors cursor-pointer pr-10';
-    
+    const base =
+      'block appearance-none bg-white border text-gray-900 placeholder-gray-400 rounded-lg shadow-sm focus:outline-none focus:ring-2 transition-colors cursor-pointer pr-10';
+
     const sizes = {
       sm: 'px-3 py-1.5 text-sm',
       md: 'px-4 py-2.5 text-sm',
@@ -122,7 +123,7 @@ export class SelectComponent implements ControlValueAccessor {
 
     const states = this.error
       ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
-      : 'border-gray-700 focus:ring-purple-500/20 focus:border-purple-500 hover:border-gray-600';
+      : 'border-gray-300 focus:ring-indigo-500/20 focus:border-indigo-500 hover:border-gray-400';
 
     const width = this.fullWidth ? 'w-full' : '';
     const disabledClass = this.disabled ? 'opacity-50 cursor-not-allowed' : '';

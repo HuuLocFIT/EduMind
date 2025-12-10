@@ -33,7 +33,7 @@ import { debounceTime, Subject } from 'rxjs';
           <button
             type="button"
             (click)="onClear()"
-            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -44,7 +44,7 @@ import { debounceTime, Subject } from 'rxjs';
         <!-- Loading Spinner -->
         @if (isLoading) {
           <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-            <svg class="w-5 h-5 text-purple-400 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
             </svg>
@@ -95,7 +95,8 @@ export class SearchBarComponent {
   }
 
   getInputClasses(): string {
-    const base = 'block w-full bg-gray-800 border border-gray-700 text-gray-100 rounded-lg pl-10 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 hover:border-gray-600 transition-colors';
+    const base =
+      'block w-full bg-white border border-gray-300 text-gray-900 placeholder-gray-400 rounded-lg pl-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 hover:border-gray-400 transition-colors';
     
     const sizes = {
       sm: 'py-1.5 pr-10 text-sm',

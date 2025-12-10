@@ -26,6 +26,7 @@ export const ADMIN_ROUTES = {
   TRIAL_TEACHERS: '/teachers/trial',
   STUDENTS: '/students',
   COURSES: '/courses',
+  CATEGORIES: '/categories',
   PAYMENTS: '/payments',
   REPORTS: '/reports',
   SETTINGS: '/settings',
