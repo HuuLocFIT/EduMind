@@ -7,6 +7,10 @@ export interface TableColumn<T = unknown> {
   sortable?: boolean;
   width?: string;
   align?: 'left' | 'center' | 'right';
+  /** Freeze column while horizontal scrolling */
+  sticky?: 'left' | 'right';
+  /** Offset for sticky column to avoid overlap (e.g., '80px') */
+  stickyOffset?: string;
   template?: TemplateRef<{ $implicit: T; row: T; index: number }>;
 }
 
@@ -25,12 +29,12 @@ export interface PageEvent {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800/50">
+    <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <!-- Table -->
       <div class="overflow-x-auto">
-        <table class="w-full">
+        <table class="w-full relative min-w-full">
           <!-- Header -->
-          <thead class="bg-gray-800 border-b border-gray-700">
+          <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               @if (selectable) {
                 <th class="w-12 px-4 py-3">
@@ -39,7 +43,7 @@ export interface PageEvent {
                     [checked]="isAllSelected()"
                     [indeterminate]="isIndeterminate()"
                     (change)="toggleSelectAll()"
-                    class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500/20"
+                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/20"
                   />
                 </th>
               }
@@ -47,19 +51,23 @@ export interface PageEvent {
                 <th 
                   [class]="getHeaderClasses(column)"
                   [style.width]="column.width"
+                  [style.minWidth]="column.width"
+                  [style.maxWidth]="column.width"
+                  [style.left]="column.sticky === 'left' ? (column.stickyOffset || '0px') : null"
+                  [style.right]="column.sticky === 'right' ? (column.stickyOffset || '0px') : null"
                   (click)="column.sortable ? onSort(column.key) : null"
                 >
-                  <div class="flex items-center gap-2">
-                    <span>{{ column.header }}</span>
+                  <div class="flex items-center gap-2 text-gray-600">
+                    <span class="font-semibold">{{ column.header }}</span>
                     @if (column.sortable) {
-                      <span class="text-gray-500">
+                      <span class="text-gray-400">
                         @if (sortColumn === column.key) {
                           @if (sortDirection === 'asc') {
-                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                             </svg>
                           } @else {
-                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
                           }
@@ -74,7 +82,12 @@ export interface PageEvent {
                 </th>
               }
               @if (showActions) {
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th
+                  class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  [class]="getActionsHeaderClasses()"
+                  [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
+                  [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
+                >
                   Actions
                 </th>
               }
@@ -82,18 +95,18 @@ export interface PageEvent {
           </thead>
 
           <!-- Body -->
-          <tbody class="divide-y divide-gray-700">
+          <tbody class="divide-y divide-gray-200 bg-white">
             @if (isLoading) {
               @for (i of [1, 2, 3, 4, 5]; track i) {
                 <tr class="animate-pulse">
                   @if (selectable) {
-                    <td class="px-4 py-4"><div class="h-4 w-4 bg-gray-700 rounded"></div></td>
+                    <td class="px-4 py-4"><div class="h-4 w-4 bg-gray-200 rounded"></div></td>
                   }
                   @for (column of columns; track column.key) {
-                    <td class="px-4 py-4"><div class="h-4 bg-gray-700 rounded w-3/4"></div></td>
+                    <td class="px-4 py-4"><div class="h-4 bg-gray-200 rounded w-3/4"></div></td>
                   }
                   @if (showActions) {
-                    <td class="px-4 py-4"><div class="h-4 bg-gray-700 rounded w-16 ml-auto"></div></td>
+                    <td class="px-4 py-4"><div class="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
                   }
                 </tr>
               }
@@ -101,22 +114,22 @@ export interface PageEvent {
               <tr>
                 <td 
                   [attr.colspan]="getTotalColumns()"
-                  class="px-4 py-12 text-center text-gray-400"
+                  class="px-4 py-12 text-center text-gray-500 bg-white"
                 >
                   <div class="flex flex-col items-center gap-2">
-                    <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
                         d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
-                    <span>{{ emptyMessage }}</span>
+                    <span class="text-sm">{{ emptyMessage }}</span>
                   </div>
                 </td>
               </tr>
             } @else {
               @for (row of data; track trackByFn ? trackByFn($index, row) : $index; let i = $index) {
                 <tr 
-                  class="hover:bg-gray-700/30 transition-colors"
-                  [class.bg-purple-900/10]="isSelected(row)"
+                  class="hover:bg-gray-50 transition-colors"
+                  [class.bg-indigo-50]="isSelected(row)"
                   (click)="onRowClick(row)"
                 >
                   @if (selectable) {
@@ -125,12 +138,19 @@ export interface PageEvent {
                         type="checkbox"
                         [checked]="isSelected(row)"
                         (change)="toggleSelect(row)"
-                        class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500/20"
+                        class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/20"
                       />
                     </td>
                   }
                   @for (column of columns; track column.key) {
-                    <td [class]="getCellClasses(column)">
+                    <td 
+                      [class]="getCellClasses(column)"
+                      [style.width]="column.width"
+                      [style.minWidth]="column.width"
+                      [style.maxWidth]="column.width"
+                      [style.left]="column.sticky === 'left' ? (column.stickyOffset || '0px') : null"
+                      [style.right]="column.sticky === 'right' ? (column.stickyOffset || '0px') : null"
+                    >
                       @if (column.template) {
                         <ng-container 
                           *ngTemplateOutlet="column.template; context: { $implicit: row, row: row, index: i }"
@@ -141,7 +161,13 @@ export interface PageEvent {
                     </td>
                   }
                   @if (showActions) {
-                    <td class="px-4 py-4 text-right" (click)="$event.stopPropagation()">
+                    <td 
+                      class="px-4 py-4 text-right"
+                      [class]="getActionsCellClasses()"
+                      [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
+                      [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
+                      (click)="$event.stopPropagation()"
+                    >
                       <ng-content select="[actions]" />
                       <ng-container 
                         *ngTemplateOutlet="actionsTemplate; context: { $implicit: row, row: row, index: i }"
@@ -157,15 +183,15 @@ export interface PageEvent {
 
       <!-- Footer with Pagination -->
       @if (showPagination && totalItems > 0) {
-        <div class="px-4 py-3 border-t border-gray-700 flex items-center justify-between">
-          <div class="text-sm text-gray-400">
+        <div class="px-4 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
+          <div class="text-sm text-gray-600">
             Showing {{ getStartIndex() }} to {{ getEndIndex() }} of {{ totalItems }} results
           </div>
           <div class="flex items-center gap-2">
             <button
               (click)="onPageChange(currentPage - 1)"
               [disabled]="currentPage === 1"
-              class="px-3 py-1.5 text-sm bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
@@ -177,8 +203,8 @@ export interface PageEvent {
                 <button
                   (click)="onPageChange(+page)"
                   [class]="page === currentPage 
-                    ? 'px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg' 
-                    : 'px-3 py-1.5 text-sm bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors'"
+                    ? 'px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg border border-indigo-600' 
+                    : 'px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors'"
                 >
                   {{ page }}
                 </button>
@@ -188,7 +214,7 @@ export interface PageEvent {
             <button
               (click)="onPageChange(currentPage + 1)"
               [disabled]="currentPage === totalPages"
-              class="px-3 py-1.5 text-sm bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>
@@ -209,6 +235,9 @@ export class DataTableComponent<T = unknown> {
   @Input() currentPage = 1;
   @Input() pageSize = 10;
   @Input() totalItems = 0;
+  /** Sticky actions column */
+  @Input() actionsSticky?: 'left' | 'right';
+  @Input() actionsStickyOffset?: string;
   @Input() trackByFn?: (index: number, item: T) => unknown;
 
   @Output() sort = new EventEmitter<SortEvent>();
@@ -227,16 +256,48 @@ export class DataTableComponent<T = unknown> {
   }
 
   getHeaderClasses(column: TableColumn<T>): string {
-    const base = 'px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider';
+    const base = 'px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-600';
     const align = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
-    const sortable = column.sortable ? 'cursor-pointer hover:text-gray-300 select-none' : '';
-    return `${base} ${align} ${sortable}`;
+    const sortable = column.sortable ? 'cursor-pointer hover:text-gray-800 select-none' : '';
+    const sticky = column.sticky ? 'sticky bg-white z-30' : '';
+    const shadow = column.sticky === 'left'
+      ? 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+      : column.sticky === 'right'
+        ? 'shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+        : '';
+    return `${base} ${align} ${sortable} ${sticky} ${shadow}`;
   }
 
   getCellClasses(column: TableColumn<T>): string {
-    const base = 'px-4 py-4 text-sm text-gray-300';
+    const base = 'px-4 py-4 text-sm text-gray-800';
     const align = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
-    return `${base} ${align}`;
+    const sticky = column.sticky ? 'sticky bg-white z-20' : '';
+    const shadow = column.sticky === 'left'
+      ? 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+      : column.sticky === 'right'
+        ? 'shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+        : '';
+    return `${base} ${align} ${sticky} ${shadow}`;
+  }
+
+  getActionsHeaderClasses(): string {
+    const sticky = this.actionsSticky ? 'sticky bg-white z-20' : '';
+    const shadow = this.actionsSticky === 'left'
+      ? 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+      : this.actionsSticky === 'right'
+        ? 'shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+        : '';
+    return `${sticky} ${shadow}`;
+  }
+
+  getActionsCellClasses(): string {
+    const sticky = this.actionsSticky ? 'sticky bg-white z-10' : '';
+    const shadow = this.actionsSticky === 'left'
+      ? 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+      : this.actionsSticky === 'right'
+        ? 'shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.08)]'
+        : '';
+    return `${sticky} ${shadow}`;
   }
 
   getTotalColumns(): number {

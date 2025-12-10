@@ -63,9 +63,9 @@ export class TabsComponent {
   getTabListClasses(): string {
     const base = 'flex';
     const variants = {
-      default: 'border-b border-gray-700 gap-0',
-      pills: 'bg-gray-800 rounded-lg p-1 gap-1',
-      underline: 'border-b border-gray-700 gap-4',
+      default: 'border-b border-gray-200 gap-0',
+      pills: 'bg-gray-100 rounded-lg p-1 gap-1',
+      underline: 'border-b border-gray-200 gap-4',
     };
     const width = this.fullWidth ? 'w-full' : '';
     return `${base} ${variants[this.variant]} ${width}`;
@@ -77,14 +77,14 @@ export class TabsComponent {
     
     const variants = {
       default: isActive
-        ? 'px-4 py-3 text-sm text-purple-400 border-b-2 border-purple-500 -mb-px bg-gray-800/50'
-        : 'px-4 py-3 text-sm text-gray-400 hover:text-gray-300 border-b-2 border-transparent -mb-px',
+        ? 'px-4 py-3 text-sm text-indigo-600 border-b-2 border-indigo-500 -mb-px bg-white'
+        : 'px-4 py-3 text-sm text-gray-600 hover:text-gray-900 border-b-2 border-transparent -mb-px',
       pills: isActive
-        ? 'px-4 py-2 text-sm text-white bg-purple-600 rounded-md'
-        : 'px-4 py-2 text-sm text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded-md',
+        ? 'px-4 py-2 text-sm text-white bg-indigo-600 rounded-md'
+        : 'px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-md',
       underline: isActive
-        ? 'pb-3 text-sm text-purple-400 border-b-2 border-purple-500 -mb-px'
-        : 'pb-3 text-sm text-gray-400 hover:text-gray-300 border-b-2 border-transparent -mb-px',
+        ? 'pb-3 text-sm text-indigo-600 border-b-2 border-indigo-500 -mb-px'
+        : 'pb-3 text-sm text-gray-600 hover:text-gray-900 border-b-2 border-transparent -mb-px',
     };
 
     const width = this.fullWidth ? 'flex-1 justify-center' : '';

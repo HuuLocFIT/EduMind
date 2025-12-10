@@ -23,7 +23,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
           [(ngModel)]="checked"
           (ngModelChange)="onValueChange($event)"
           (blur)="onTouched()"
-          class="w-4 h-4 mt-0.5 rounded border-gray-600 bg-white/10 text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-0 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-4 h-4 mt-0.5 rounded border-gray-300 bg-white text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           [attr.aria-invalid]="error ? 'true' : null"
           [attr.aria-describedby]="error ? checkboxId + '-error' : null"
         />
@@ -31,7 +31,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
         @if (label) {
           <label
             [for]="checkboxId"
-            class="text-sm text-gray-200 cursor-pointer select-none"
+            class="text-sm text-gray-800 cursor-pointer select-none"
             [class.opacity-50]="disabled"
             [class.cursor-not-allowed]="disabled"
           >
@@ -41,7 +41,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       </div>
 
       @if (error) {
-        <p [id]="checkboxId + '-error'" class="text-sm text-red-400 ml-6">
+        <p [id]="checkboxId + '-error'" class="text-sm text-red-500 ml-6">
           {{ error }}
         </p>
       }

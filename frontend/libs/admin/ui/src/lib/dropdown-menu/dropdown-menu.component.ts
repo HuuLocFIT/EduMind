@@ -39,7 +39,7 @@ export interface DropdownMenuItem {
         >
           @for (item of items; track item.id) {
             @if (item.divider) {
-              <div class="border-t border-gray-700 my-1"></div>
+              <div class="border-t border-gray-200 my-1"></div>
             } @else {
               <button
                 type="button"
@@ -90,11 +90,11 @@ export class DropdownMenuComponent {
   }
 
   getTriggerClasses(): string {
-    return 'p-2 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20';
+    return 'p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
   }
 
   getMenuClasses(): string {
-    const base = 'absolute z-50 mt-2 w-48 rounded-lg bg-gray-800 border border-gray-700 shadow-xl py-1';
+    const base = 'absolute z-50 mt-2 w-48 rounded-lg bg-white border border-gray-200 shadow-lg py-1';
     const position = this.position === 'right' ? 'right-0' : 'left-0';
     return `${base} ${position}`;
   }
@@ -102,10 +102,10 @@ export class DropdownMenuComponent {
   getItemClasses(item: DropdownMenuItem): string {
     const base = 'w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors';
     const state = item.disabled
-      ? 'text-gray-500 cursor-not-allowed'
+      ? 'text-gray-400 cursor-not-allowed'
       : item.danger
-        ? 'text-red-400 hover:bg-red-900/20'
-        : 'text-gray-300 hover:bg-gray-700';
+        ? 'text-red-600 hover:bg-red-50'
+        : 'text-gray-700 hover:bg-gray-50';
     return `${base} ${state}`;
   }
 }
