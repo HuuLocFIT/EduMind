@@ -218,6 +218,7 @@ export class CategoriesComponent implements OnInit {
         this.isSubmitting.set(false);
       },
       error: (err) => {
+        console.log(err);
         this.errorMessage.set(err.error?.message || 'Failed to toggle category status');
         this.isSubmitting.set(false);
       },

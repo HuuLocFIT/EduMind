@@ -6,6 +6,8 @@ import { environment } from '../../../environments/environment';
 import { CATEGORY_ENDPOINTS } from '@edumind/shared-utils';
 import {
   ApiResponse,
+  CategoryInCourse,
+  CategoryInCourseSchema,
   CategoryListResponse,
   CategoryListResponseSchema,
   CategoryResponse,
@@ -22,18 +24,18 @@ export class CategoryService {
 
   private readonly http = inject(HttpClient);
 
-  createCategory(payload: CreateCategoryRequest): Observable<CategoryResponse> {
-    return this.http.post<CategoryResponse>(
+  createCategory(payload: CreateCategoryRequest): Observable<CategoryInCourse> {
+    return this.http.post<CategoryInCourse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.CREATE}`,
       payload
-    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
+    ).pipe(map((response: CategoryInCourse) => CategoryInCourseSchema.parse(response)));
   }
 
-  updateCategory(id: number, payload: UpdateCategoryRequest): Observable<CategoryResponse> {
-    return this.http.put<CategoryResponse>(
+  updateCategory(id: number, payload: UpdateCategoryRequest): Observable<CategoryInCourse> {
+    return this.http.put<CategoryInCourse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.UPDATE(id)}`,
       payload
-    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
+    ).pipe(map((response: CategoryInCourse) => CategoryInCourseSchema.parse(response)));
   }
 
   deleteCategory(id: number): Observable<ApiResponse<void>> {
@@ -66,11 +68,11 @@ export class CategoryService {
     ).pipe(map((response: CategoryListResponse) => CategoryListResponseSchema.parse(response)));
   }
 
-  toggleCategoryStatus(id: number): Observable<CategoryResponse> {
-    return this.http.patch<CategoryResponse>(
+  toggleCategoryStatus(id: number): Observable<CategoryInCourse> {
+    return this.http.patch<CategoryInCourse>(
       `${this.API_URL}${CATEGORY_ENDPOINTS.TOGGLE_STATUS(id)}`,
       {}
-    ).pipe(map((response: CategoryResponse) => CategoryResponseSchema.parse(response)));
+    ).pipe(map((response: CategoryInCourse) => CategoryInCourseSchema.parse(response)));
   }
 }
 
