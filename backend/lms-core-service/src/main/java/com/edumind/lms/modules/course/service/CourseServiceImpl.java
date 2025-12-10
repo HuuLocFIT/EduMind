@@ -56,7 +56,7 @@ public class CourseServiceImpl implements CourseService {
         // Initialize statistics
         course.setTotalLessons(0);
         course.setTotalStudents(0);
-        course.setAverageRating(BigDecimal.ZERO);
+        course.setAverageRating(null); // Must be NULL when totalReviews = 0 (per check_rating_consistency constraint)
         course.setTotalReviews(0);
 
         Course savedCourse = courseRepository.save(course);

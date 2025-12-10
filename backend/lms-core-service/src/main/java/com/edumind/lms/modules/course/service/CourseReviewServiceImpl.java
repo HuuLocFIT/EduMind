@@ -317,15 +317,23 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     private void refreshCourseAggregates(Course course) {
         Long courseId = course.getId();
         long approvedCount = reviewRepository.countByCourseIdAndIsApprovedTrue(courseId);
-        Double avg = reviewRepository.calculateAverageRating(courseId);
-        BigDecimal avgBd = BigDecimal.valueOf(avg != null ? avg : 0.0)
-                .setScale(2, RoundingMode.HALF_UP);
-
+        
         course.setTotalReviews(Math.toIntExact(approvedCount));
-        course.setAverageRating(avgBd);
+        
+        // Set averageRating based on constraint: NULL when totalReviews = 0, otherwise calculate average
+        if (approvedCount == 0) {
+            course.setAverageRating(null);
+            log.info("Refreshed aggregates for course {} -> totalReviews: 0, averageRating: NULL",
+                    courseId);
+        } else {
+            Double avg = reviewRepository.calculateAverageRating(courseId);
+            BigDecimal avgBd = BigDecimal.valueOf(avg != null ? avg : 0.0)
+                    .setScale(2, RoundingMode.HALF_UP);
+            course.setAverageRating(avgBd);
+            log.info("Refreshed aggregates for course {} -> totalReviews: {}, averageRating: {}",
+                    courseId, approvedCount, avgBd);
+        }
+        
         courseRepository.save(course);
-
-        log.info("Refreshed aggregates for course {} -> totalReviews: {}, averageRating: {}",
-                courseId, approvedCount, avgBd);
     }
 }
