@@ -130,6 +130,7 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
+    const endpoint = originalRequest?.url || '';
 
     // Validate error response first to get errorCode
     let apiError: ApiError | null = null;
@@ -140,10 +141,33 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Check if token expired (by errorCode or 401 status)
+    // Skip token refresh for auth endpoints (login, signup, etc.)
+    // These endpoints should not trigger automatic token refresh
+    const isAuthEndpoint = 
+      endpoint?.includes(AUTH_ENDPOINTS.LOGIN) ||
+      endpoint?.includes(AUTH_ENDPOINTS.SIGNUP) ||
+      endpoint?.includes(AUTH_ENDPOINTS.LOGIN_2FA) ||
+      endpoint?.includes(AUTH_ENDPOINTS.REFRESH) ||
+      endpoint?.includes('/auth/oauth2') ||
+      endpoint?.includes(AUTH_ENDPOINTS.FORGOT_PASSWORD) ||
+      endpoint?.includes(AUTH_ENDPOINTS.RESET_PASSWORD) ||
+      endpoint?.includes(AUTH_ENDPOINTS.VERIFY_EMAIL) ||
+      endpoint?.includes(AUTH_ENDPOINTS.RESEND_VERIFICATION);
+
+    // Check if token expired
+    // Only refresh if:
+    // 1. Error code is TOKEN_EXPIRED (ERR_2002), OR
+    // 2. 401 status on non-auth endpoints (likely token expired)
+    // Do NOT refresh for INVALID_CREDENTIALS (ERR_2001) or AUTH_FAILED (ERR_2000)
     const isTokenExpired = 
-      apiError?.errorCode === 'ERR_2002' || // TOKEN_EXPIRED
-      (error.response?.status === 401 && !originalRequest._retry);
+      !isAuthEndpoint && // Never refresh for auth endpoints
+      !originalRequest._retry && // Prevent infinite retry loops
+      (
+        apiError?.errorCode === 'ERR_2002' || // TOKEN_EXPIRED
+        (error.response?.status === 401 && 
+         apiError?.errorCode !== 'ERR_2001' && // INVALID_CREDENTIALS
+         apiError?.errorCode !== 'ERR_2000')   // AUTH_FAILED
+      );
 
     if (isTokenExpired) {
       originalRequest._retry = true;
