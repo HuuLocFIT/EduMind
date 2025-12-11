@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Fetch user info using the token
           const userResponse = await AuthService.fetchCurrentUser();
-          const user = userResponse.data || userResponse;
+          const user = userResponse;
 
           // Save user to localStorage
           localStorage.setItem("user", JSON.stringify(user));

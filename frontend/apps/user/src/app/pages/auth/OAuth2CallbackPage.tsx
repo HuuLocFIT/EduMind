@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "@user/stores/auth.store";
 import { useToast } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { useRef } from "react";
 
 /**
  * OAuth2 Callback Page
@@ -24,8 +25,12 @@ export const OAuth2CallbackPage = () => {
     error: showError,
   } = useToast();
   const [isProcessing, setIsProcessing] = useState(true);
+  const hasHandled = useRef(false); // prevent double-run in React StrictMode
 
   useEffect(() => {
+    if (hasHandled.current) return;
+    hasHandled.current = true;
+
     const handleOAuth2Callback = async () => {
       try {
         // Get access token from query params (sent by backend)

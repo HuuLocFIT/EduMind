@@ -16,8 +16,7 @@ import {
   Alert,
   Card,
   CardBody,
-  useToast,
-  ToastContainer,
+  useToast
 } from "@edumind/user-ui";
 import { Mail, User, Phone, CheckCircle } from "lucide-react";
 
