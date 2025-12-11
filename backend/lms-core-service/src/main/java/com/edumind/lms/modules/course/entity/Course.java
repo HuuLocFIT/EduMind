@@ -91,7 +91,7 @@ public class Course extends BaseEntity {
     private Integer totalStudents = 0;
 
     @Column(precision = 3, scale = 2)
-    private BigDecimal averageRating = BigDecimal.ZERO;
+    private BigDecimal averageRating; // NULL when totalReviews = 0 (per check_rating_consistency constraint)
 
     private Integer totalReviews = 0;
 

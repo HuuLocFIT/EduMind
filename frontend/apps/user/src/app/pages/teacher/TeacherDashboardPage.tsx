@@ -8,15 +8,12 @@ import { CourseStatus } from "@edumind/shared-constants";
 import type {
   InstructorStatsResponse,
   CourseResponse,
-  ReviewResponse,
 } from "@edumind/shared-types";
 import {
   StatCard,
   Button,
   Skeleton,
-  Alert,
-  RatingStars,
-  ProgressBar,
+  Alert
 } from "@edumind/user-ui";
 import {
   BookOpen,
