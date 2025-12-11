@@ -160,7 +160,7 @@ export const TeacherCourseDetailPage: React.FC = () => {
         <CurriculumTab
           courseId={course.id}
           sections={sections}
-          onEdit={() => navigate(TeacherRouteHelpers.courseEdit(course.id))}
+          onEdit={() => navigate(TeacherRouteHelpers.courseEdit(course.id, 'curriculum'))}
         />
       )}
       {activeTab === "students" && <StudentsTab courseId={course.id} />}

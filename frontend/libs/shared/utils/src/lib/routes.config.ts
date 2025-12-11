@@ -181,7 +181,7 @@ export const UserRouteHelpers = {
  */
 export const TeacherRouteHelpers = {
   courseDetail: (courseId: string | number) => `/teacher/courses/${courseId}`,
-  courseEdit: (courseId: string | number) => `/teacher/courses/${courseId}/edit`,
+  courseEdit: (courseId: string | number, tab?: string) => `/teacher/courses/${courseId}/edit${tab ? `?tab=${tab}` : ''}`,
   courseCurriculum: (courseId: string | number) => `/teacher/courses/${courseId}/curriculum`,
   courseStudents: (courseId: string | number) => `/teacher/courses/${courseId}/students`,
 } as const;
