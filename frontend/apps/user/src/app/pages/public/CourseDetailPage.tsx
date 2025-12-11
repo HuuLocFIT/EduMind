@@ -15,13 +15,13 @@ import {
   CourseStats,
   ReviewCard,
   ReviewForm,
-} from '../components/course-module';
+} from '../../components/course-module';
 import {
   courseService,
   enrollmentService,
   courseReviewService,
   wishlistService,
-} from '../services';
+} from '../../services';
 import type {
   CourseDetailResponse,
   ReviewResponse,
