@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useToast, ToastContainer } from "@edumind/user-ui";
+import { ToastProvider, useToast, ToastContainer } from "@edumind/user-ui";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { TeacherGuard } from "./components/teacher/TeacherGuard";
 import LoginPage from "./pages/LoginPage";
@@ -36,7 +36,7 @@ import {
   TeacherSettingsPage,
 } from "./pages/teacher";
 
-function App() {
+function AppContent() {
   const { toasts, closeToast } = useToast();
 
   return (
@@ -112,6 +112,14 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 

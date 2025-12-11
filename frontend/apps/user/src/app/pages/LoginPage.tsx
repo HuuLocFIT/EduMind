@@ -18,7 +18,6 @@ import {
   Card,
   CardBody,
   useToast,
-  ToastContainer,
 } from "@edumind/user-ui";
 import { Shield, User } from "lucide-react";
 
@@ -30,10 +29,8 @@ export const LoginPage = () => {
   const [loginData, setLoginData] = useState<LoginRequest | null>(null);
   const [localError, setLocalError] = useState<string>("");
   const {
-    toasts,
     success: showSuccess,
     error: showError,
-    closeToast,
   } = useToast();
 
   // Success message from signup or email verification
@@ -124,10 +121,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <>
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-
-      <div className="max-w-md w-full mx-auto">
+    <div className="max-w-md w-full mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -368,8 +362,7 @@ export const LoginPage = () => {
             </Link>
           </p>
         )}
-      </div>
-    </>
+    </div>
   );
 };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, Input, useToast, ToastContainer } from '@edumind/user-ui';
+import { Card, Button, Input, useToast } from '@edumind/user-ui';
 import AuthService from '@user/services/auth.service';
 
 export const PasswordTab: React.FC = () => {
@@ -10,10 +10,8 @@ export const PasswordTab: React.FC = () => {
       confirmPassword: '',
     });
     const {
-      toasts,
       success: showSuccess,
       error: showError,
-      closeToast,
     } = useToast();
   
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,10 +54,7 @@ export const PasswordTab: React.FC = () => {
     };
   
     return (
-      <>
-        <ToastContainer toasts={toasts} onClose={closeToast} />
-
-        <Card className="p-6">
+      <Card className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Change Password</h2>
     
           <form onSubmit={handleSubmit} className="space-y-6 max-w-md">
@@ -127,6 +122,5 @@ export const PasswordTab: React.FC = () => {
             </ul>
           </div>
         </Card>
-      </>
     );
   };

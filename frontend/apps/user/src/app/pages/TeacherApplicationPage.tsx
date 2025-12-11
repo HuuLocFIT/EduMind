@@ -18,7 +18,6 @@ import {
   CardHeader,
   CardBody,
   Alert,
-  ToastContainer,
   useToast,
 } from '@edumind/user-ui';
 
@@ -84,7 +83,7 @@ export function TeacherApplicationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isChecking, setIsChecking] = useState(true);
-  const { toasts, success: showSuccess, error: showError, info: showInfo, closeToast } = useToast();
+  const { success: showSuccess, error: showError, info: showInfo } = useToast();
   
   const [cvFiles, setCvFiles] = useState<UploadedFile[]>([]);
   const [certificateFiles, setCertificateFiles] = useState<UploadedFile[]>([]);
@@ -248,8 +247,6 @@ export function TeacherApplicationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-      
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
