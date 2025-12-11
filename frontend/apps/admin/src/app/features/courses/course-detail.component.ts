@@ -10,6 +10,7 @@ import {
 import { CourseService } from '../../core/services/course.service';
 import { CourseDetailResponse } from '@edumind/shared-types';
 import { CourseStatus, CourseLevel } from '@edumind/shared-constants';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
 
 type CourseStatusValue = (typeof CourseStatus)[keyof typeof CourseStatus];
 type CourseLevelValue = (typeof CourseLevel)[keyof typeof CourseLevel];
@@ -62,7 +63,7 @@ export class CourseDetailComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/courses']);
+    this.router.navigate([ADMIN_ROUTES.COURSES]);
   }
 
   getStatusVariant(status: CourseStatusValue): 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'default' {

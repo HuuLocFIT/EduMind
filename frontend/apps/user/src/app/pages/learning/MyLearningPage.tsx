@@ -179,7 +179,7 @@ export const MyLearningPage: React.FC = () => {
             </p>
             <Button
               variant="primary"
-              onClick={() => navigate('/courses')}
+              onClick={() => navigate(USER_ROUTES.COURSES)}  
             >
               Browse Courses
             </Button>

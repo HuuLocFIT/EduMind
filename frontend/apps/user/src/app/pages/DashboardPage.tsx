@@ -315,7 +315,7 @@ export const DashboardPage: React.FC = () => {
 
           <CourseGrid
             courses={recommendedCourses}
-            onCourseClick={(course: CourseResponse) => navigate(`/courses/${course.id}`)}
+            onCourseClick={(course: CourseResponse) => navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id }))}
             columns={4}
           />
         </div>

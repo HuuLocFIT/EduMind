@@ -4,7 +4,7 @@ import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@edumind/user-ui';
-import { USER_ROUTES } from '@edumind/shared-utils';
+import { TEACHER_ROUTES, USER_ROUTES } from '@edumind/shared-utils';
 import { DocumentInfo, StatusHistoryResponse } from '@edumind/shared-types';
 
 export function ApplicationStatusPage() {
@@ -313,7 +313,7 @@ const getStatusStyle = (status?: string | null) => {
           {application.status === 'APPROVED' && (
             <Button
               variant="primary"
-              onClick={() => navigate('/teacher/dashboard')}
+              onClick={() => navigate(TEACHER_ROUTES.DASHBOARD)}
             >
               Go to Teacher Dashboard
             </Button>
@@ -322,7 +322,7 @@ const getStatusStyle = (status?: string | null) => {
           {application.status === 'REJECTED' && (
             <Button
               variant="outline"
-              onClick={() => navigate('/')}
+              onClick={() => navigate(USER_ROUTES.ROOT)}
             >
               Back to Home
             </Button>

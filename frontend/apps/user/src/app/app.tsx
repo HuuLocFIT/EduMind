@@ -71,11 +71,11 @@ function AppContent() {
         <Route path="/" element={<MainLayout />}>
           <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
           <Route
-            path={USER_ROUTES.COURSES.replace("/", "")}
+            path={USER_ROUTES.COURSES}
             element={<BrowseCoursesPage />}
           />
           <Route
-            path={USER_ROUTES.COURSE_DETAIL.replace("/", "")}
+            path={USER_ROUTES.COURSE_DETAIL}
             element={<CourseDetailPage />}
           />
         </Route>
@@ -96,7 +96,7 @@ function AppContent() {
             <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
             <Route path={USER_ROUTES.LEARNING} element={<MyLearningPage />} />
             <Route
-              path={USER_ROUTES.LEARNING_COURSE.replace("/", "")}
+              path={USER_ROUTES.LEARNING_COURSE}
               element={<CoursePlayerPage />}
             />
 

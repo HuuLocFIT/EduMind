@@ -15,7 +15,7 @@ import {
   UserPlus,
   FileText,
 } from "lucide-react";
-import { USER_ROUTES } from "@edumind/shared-utils";
+import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
 import { ApplicationStatus } from "@edumind/shared-types";
 import teacherApplicationService from "@user/services/teacher-application.service";
@@ -245,7 +245,7 @@ export const MainLayout: React.FC = () => {
                           <>
                             <div className="border-t border-gray-100 my-2" />
                             <Link
-                              to="/teacher/dashboard"
+                              to={TEACHER_ROUTES.DASHBOARD}
                               className="flex items-center px-4 py-2 text-sm text-green-600 hover:bg-green-50 font-medium"
                               onClick={() => setUserMenuOpen(false)}
                             >
@@ -397,7 +397,7 @@ export const MainLayout: React.FC = () => {
                       <>
                         <div className="border-t border-gray-200 my-2" />
                         <Link
-                          to="/teacher/dashboard"
+                          to={TEACHER_ROUTES.DASHBOARD}
                           className="flex items-center gap-2 text-green-600 font-medium"
                           onClick={() => setMobileMenuOpen(false)}
                         >

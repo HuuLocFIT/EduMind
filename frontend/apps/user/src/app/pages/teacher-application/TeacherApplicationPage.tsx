@@ -443,7 +443,7 @@ export function TeacherApplicationPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate(USER_ROUTES.ROOT)}
                   disabled={isSubmitting}
                 >
                   Cancel
