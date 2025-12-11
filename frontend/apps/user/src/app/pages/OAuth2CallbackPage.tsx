@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "@user/stores/auth.store";
-import { ToastContainer, useToast } from "@edumind/user-ui";
+import { useToast } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
 /**
@@ -22,8 +22,6 @@ export const OAuth2CallbackPage = () => {
   const {
     success: showSuccess,
     error: showError,
-    toasts,
-    closeToast,
   } = useToast();
   const [isProcessing, setIsProcessing] = useState(true);
 
@@ -70,18 +68,14 @@ export const OAuth2CallbackPage = () => {
   }, [searchParams, navigate, loginWithOAuth2, showSuccess, showError]);
 
   return (
-    <>
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {isProcessing ? "Completing authentication..." : "Redirecting..."}
-          </p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">
+          {isProcessing ? "Completing authentication..." : "Redirecting..."}
+        </p>
       </div>
-    </>
+    </div>
   );
 };
 

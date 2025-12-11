@@ -1,4 +1,4 @@
-import { Alert, Button, Card, CardBody, CardHeader, ToastContainer } from '@edumind/user-ui';
+import { Alert, Button, Card, CardBody, CardHeader } from '@edumind/user-ui';
 import teacherApplicationService from '@user/services/teacher-application.service';
 import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ export function ApplicationStatusPage() {
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { toasts, error: showError, info: showInfo, closeToast } = useToast();
+  const { error: showError, info: showInfo } = useToast();
 
   useEffect(() => {
     loadApplication();
@@ -121,8 +121,6 @@ const getStatusStyle = (status?: string | null) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-      
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

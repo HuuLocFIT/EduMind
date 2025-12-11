@@ -7,7 +7,6 @@ import {
   RatingStars,
   PriceTag,
   useToast,
-  ToastContainer,
 } from '@edumind/user-ui';
 import {
   EnrollButton,
@@ -46,7 +45,7 @@ import { useAuthStore } from '@user/stores/auth.store';
 export const CourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { toasts, success: showSuccess, error: showError, closeToast } = useToast();
+  const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated } = useAuthStore();
 
   // State
@@ -204,10 +203,7 @@ export const CourseDetailPage: React.FC = () => {
   }
 
   return (
-    <>
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-      
-      <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
         <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">
           {/* Background Pattern */}
@@ -566,6 +562,5 @@ export const CourseDetailPage: React.FC = () => {
         </div>
       </div>
     </div>
-    </>
   );
 };

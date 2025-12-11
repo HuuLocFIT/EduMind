@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Card, Button, Input, useToast, ToastContainer } from "@edumind/user-ui";
+import { Card, Button, Input, useToast } from "@edumind/user-ui";
 import type { User } from "@edumind/shared-types";
 import AuthService from "@user/services/auth.service";
 
@@ -20,7 +20,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
     phoneNumber: user?.phoneNumber || "",
     profilePictureUrl: user?.profilePictureUrl || "",
   });
-  const { toasts, success: showSuccess, error: showError, closeToast } = useToast();
+  const { success: showSuccess, error: showError } = useToast();
 
   useEffect(() => {
     setFormData({
@@ -105,9 +105,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
   };
 
   return (
-    <>
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-      <Card className="p-6">
+    <Card className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Profile Information
         </h2>
@@ -229,6 +227,5 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
           </div>
         </form>
       </Card>
-    </>
   );
 };
