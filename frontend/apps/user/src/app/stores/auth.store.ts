@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, LoginRequest, SignupRequest, TwoFactorLoginRequest } from "@edumind/shared-types";
 import AuthService from "@user/services/auth.service.js";
+import { queryClient } from "../lib/query-client";
 
 interface AuthState {
   user: User | null;
@@ -133,6 +134,8 @@ export const useAuthStore = create<AuthState>()(
           // Clear all auth data
           localStorage.removeItem("accessToken");
           localStorage.removeItem('user');
+          // Clear React Query cache to avoid showing stale user data after logout
+          queryClient.clear();
 
           set({
             user: null,

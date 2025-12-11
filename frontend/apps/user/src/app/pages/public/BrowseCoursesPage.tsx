@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button, Loading } from "@edumind/user-ui";
 import {
   CourseGrid,
@@ -7,93 +8,102 @@ import {
   CourseSearchBar,
 } from "../../components/course-module";
 import { courseService, categoryService } from "../../services";
-import type {
-  CourseResponse,
-  CategoryResponse,
-} from "@edumind/shared-types";
+import type { CourseResponse, CategoryResponse } from "@edumind/shared-types";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
+
+type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 
 export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // State
-  const [courses, setCourses] = useState<CourseResponse[]>([]);
-  const [categories, setCategories] = useState<CategoryResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // Filters
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    searchParams.get('category') ? Number(searchParams.get('category')) : null
+    searchParams.get("category") ? Number(searchParams.get("category")) : null
   );
   const [searchKeyword, setSearchKeyword] = useState<string>(
-    searchParams.get('q') || ''
+    searchParams.get("q") || ""
+  );
+  const [debouncedKeyword, setDebouncedKeyword] = useState<string>(
+    searchParams.get("q") || ""
   );
   const [selectedLevel, setSelectedLevel] = useState<string | null>(
-    searchParams.get('level')
+    searchParams.get("level")
   );
   const [sortBy, setSortBy] = useState<string>(
-    searchParams.get('sort') || 'popular'
+    searchParams.get("sort") || "popular"
   );
 
   // Pagination
   const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const pageSize = 12;
 
-  // Fetch categories on mount
+  // Debounce search to avoid spamming requests
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    const handle = setTimeout(() => setDebouncedKeyword(searchKeyword), 300);
+    return () => clearTimeout(handle);
+  }, [searchKeyword]);
 
-  // Fetch courses when filters change
+  // Sync filters to URL
   useEffect(() => {
-    fetchCourses();
-    // Update URL params
-    const params: any = {};
-    if (selectedCategoryId) params.category = selectedCategoryId;
-    if (searchKeyword) params.q = searchKeyword;
-    if (selectedLevel) params.level = selectedLevel;
-    if (sortBy !== "popular") params.sort = sortBy;
+    const params = new URLSearchParams();
+    if (selectedCategoryId) params.set("category", String(selectedCategoryId));
+    if (debouncedKeyword) params.set("q", debouncedKeyword);
+    if (selectedLevel) params.set("level", selectedLevel);
+    if (sortBy !== "popular") params.set("sort", sortBy);
     setSearchParams(params);
-  }, [selectedCategoryId, searchKeyword, selectedLevel, sortBy, page]);
+  }, [
+    selectedCategoryId,
+    debouncedKeyword,
+    selectedLevel,
+    sortBy,
+    setSearchParams,
+  ]);
 
-  const fetchCategories = async () => {
-    try {
-      const data = await categoryService.getActiveCategories();
-      setCategories(data);
-    } catch (err: any) {
-      console.error('Failed to fetch categories:', err);
-    }
-  };
+  const { data: categories = [] } = useQuery<CategoryResponse[]>({
+    queryKey: ["categories", "active"],
+    queryFn: categoryService.getActiveCategories,
+    staleTime: 10 * 60 * 1000,
+  });
 
-  const fetchCourses = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await courseService.filterCourses({
+  const {
+    data: coursesResponse,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery<CoursesResponse>({
+    queryKey: [
+      "courses",
+      "browse",
+      {
+        page,
+        size: pageSize,
+        categoryId: selectedCategoryId,
+        level: selectedLevel,
+        keyword: debouncedKeyword,
+        sortBy,
+      },
+    ],
+    queryFn: async () =>
+      courseService.filterCourses({
         page,
         size: pageSize,
         categoryId: selectedCategoryId || undefined,
         level: selectedLevel || undefined,
-        keyword: searchKeyword || undefined,
+        keyword: debouncedKeyword || undefined,
         sortBy,
-      });
+      }),
+    placeholderData: (prev) => prev,
+  });
 
-      setCourses(response.data || []);
-      setTotalPages(response.pagination?.totalPages || 1);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to fetch courses');
-      console.error('Error fetching courses:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const courses = coursesResponse?.data || [];
+  const totalPages = coursesResponse?.pagination?.totalPages || 1;
 
   const handleCourseClick = (course: CourseResponse) => {
-    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id }));
+    navigate(
+      buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id })
+    );
   };
 
   const handleSearch = (keyword: string) => {
@@ -118,9 +128,9 @@ export const BrowseCoursesPage: React.FC = () => {
 
   const clearFilters = () => {
     setSelectedCategoryId(null);
-    setSearchKeyword('');
+    setSearchKeyword("");
     setSelectedLevel(null);
-    setSortBy('popular');
+    setSortBy("popular");
     setPage(0);
   };
 
@@ -156,14 +166,18 @@ export const BrowseCoursesPage: React.FC = () => {
               <div>
                 <h3 className="font-semibold text-gray-900 mb-3">Level</h3>
                 <div className="space-y-2">
-                  {['BEGINNER', 'INTERMEDIATE', 'ADVANCED'].map((level) => (
+                  {["BEGINNER", "INTERMEDIATE", "ADVANCED"].map((level) => (
                     <button
                       key={level}
-                      onClick={() => handleLevelChange(selectedLevel === level ? null : level)}
+                      onClick={() =>
+                        handleLevelChange(
+                          selectedLevel === level ? null : level
+                        )
+                      }
                       className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                         selectedLevel === level
-                          ? 'bg-blue-600 text-white'
-                          : 'hover:bg-gray-100 text-gray-700'
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-100 text-gray-700"
                       }`}
                     >
                       {level.charAt(0) + level.slice(1).toLowerCase()}
@@ -173,7 +187,10 @@ export const BrowseCoursesPage: React.FC = () => {
               </div>
 
               {/* Clear Filters */}
-              {(selectedCategoryId || searchKeyword || selectedLevel || sortBy !== 'popular') && (
+              {(selectedCategoryId ||
+                searchKeyword ||
+                selectedLevel ||
+                sortBy !== "popular") && (
                 <Button
                   variant="secondary"
                   onClick={clearFilters}
@@ -190,8 +207,8 @@ export const BrowseCoursesPage: React.FC = () => {
             {/* Sort & Results Count */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div className="text-gray-600">
-                {loading ? (
-                  'Loading...'
+                {isFetching ? (
+                  "Loading..."
                 ) : (
                   <>
                     {courses.length > 0 && (
@@ -221,10 +238,12 @@ export const BrowseCoursesPage: React.FC = () => {
             {/* Error State */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <p className="text-red-800">{error}</p>
+                <p className="text-red-800">
+                  {(error as any)?.message || "Failed to fetch courses"}
+                </p>
                 <Button
                   variant="secondary"
-                  onClick={fetchCourses}
+                  onClick={() => refetch()}
                   className="mt-2"
                 >
                   Try Again
@@ -233,14 +252,14 @@ export const BrowseCoursesPage: React.FC = () => {
             )}
 
             {/* Loading State */}
-            {loading && (
+            {isLoading && (
               <div className="flex items-center justify-center py-12">
                 <Loading />
               </div>
             )}
 
             {/* Courses Grid */}
-            {!loading && !error && (
+            {!isLoading && !error && (
               <CourseGrid
                 courses={courses}
                 onCourseClick={handleCourseClick}
@@ -249,7 +268,7 @@ export const BrowseCoursesPage: React.FC = () => {
             )}
 
             {/* Empty State */}
-            {!loading && !error && courses.length === 0 && (
+            {!isLoading && !error && courses.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-600 text-lg mb-4">
                   No courses found matching your criteria
@@ -261,16 +280,16 @@ export const BrowseCoursesPage: React.FC = () => {
             )}
 
             {/* Pagination */}
-            {!loading && courses.length > 0 && totalPages > 1 && (
+            {!isLoading && courses.length > 0 && totalPages > 1 && (
               <div className="flex flex-wrap items-center justify-center gap-2 mt-8">
                 <Button
                   variant="secondary"
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
                 >
                   Previous
                 </Button>
-                
+
                 <div className="flex items-center gap-1">
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button
@@ -278,8 +297,8 @@ export const BrowseCoursesPage: React.FC = () => {
                       onClick={() => setPage(i)}
                       className={`w-10 h-10 rounded-lg transition-colors ${
                         page === i
-                          ? 'bg-blue-600 text-white'
-                          : 'hover:bg-gray-100 text-gray-700'
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-100 text-gray-700"
                       }`}
                     >
                       {i + 1}
@@ -289,7 +308,9 @@ export const BrowseCoursesPage: React.FC = () => {
 
                 <Button
                   variant="secondary"
-                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  onClick={() =>
+                    setPage((p) => Math.min(totalPages - 1, p + 1))
+                  }
                   disabled={page === totalPages - 1}
                 >
                   Next

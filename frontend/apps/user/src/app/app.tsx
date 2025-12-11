@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider, useToast, ToastContainer } from "@edumind/user-ui";
 import { USER_ROUTES, TEACHER_ROUTES } from "@edumind/shared-utils";
+import { queryClient } from "./lib/query-client";
 
 // Layouts
 import { MainLayout, AuthLayout, TeacherLayout } from "./layouts";
@@ -17,11 +19,7 @@ import {
 import { LoginPage, SignupPage, OAuth2CallbackPage } from "./pages/auth";
 
 // Public Pages
-import {
-  HomePage,
-  BrowseCoursesPage,
-  CourseDetailPage,
-} from "./pages/public";
+import { HomePage, BrowseCoursesPage, CourseDetailPage } from "./pages/public";
 
 // Profile Settings Page
 import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
@@ -70,10 +68,7 @@ function AppContent() {
         {/* Public Routes */}
         <Route path="/" element={<MainLayout />}>
           <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
-          <Route
-            path={USER_ROUTES.COURSES}
-            element={<BrowseCoursesPage />}
-          />
+          <Route path={USER_ROUTES.COURSES} element={<BrowseCoursesPage />} />
           <Route
             path={USER_ROUTES.COURSE_DETAIL}
             element={<CourseDetailPage />}
@@ -191,7 +186,9 @@ function AppContent() {
 function App() {
   return (
     <ToastProvider>
-      <AppContent />
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
     </ToastProvider>
   );
 }
