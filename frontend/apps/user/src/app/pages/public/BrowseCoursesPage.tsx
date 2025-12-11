@@ -5,8 +5,8 @@ import {
   CourseGrid,
   CategoryFilter,
   CourseSearchBar,
-} from "../components/course-module";
-import { courseService, categoryService } from "../services";
+} from "../../components/course-module";
+import { courseService, categoryService } from "../../services";
 import type {
   CourseResponse,
   CategoryResponse,

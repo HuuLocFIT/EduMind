@@ -3,7 +3,7 @@ import { Card, Button, Loading } from '@edumind/user-ui';
 import { enrollmentService } from '@user/services/index';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { Award } from 'lucide-react';
-import { CertificateCard } from '../components/course-module/CertificateCard';
+import { CertificateCard } from '../../components/course-module/CertificateCard';
 
 export const CertificatesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);

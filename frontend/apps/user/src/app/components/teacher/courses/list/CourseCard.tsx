@@ -236,7 +236,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             </div>
           )}
 
-          <div className="relative">
+          <div className="relative z-50">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="p-1.5 hover:bg-gray-100 rounded-lg"
@@ -247,17 +247,35 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             {menuOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-40"
                   onClick={() => setMenuOpen(false)}
                 />
-                <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-lg shadow-lg border py-1 z-20">
+                <div className="absolute right-0 bottom-full mb-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onView();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye className="w-4 h-4" /> View Details
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" /> Edit Course
+                  </button>
                   {canPublish && (
                     <button
                       onClick={() => {
                         setMenuOpen(false);
                         onPublish();
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50"
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors"
                     >
                       <Send className="w-4 h-4" /> Publish
                     </button>
@@ -268,7 +286,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                         setMenuOpen(false);
                         onDelete();
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" /> Delete
                     </button>

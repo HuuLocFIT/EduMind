@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, Card, CardBody, Loading } from '@edumind/user-ui';
-import { CourseGrid } from '../components/course-module';
-import { courseService } from '../services';
+import { CourseGrid } from '../../components/course-module';
+import { courseService } from '../../services';
 import type { CourseResponse } from '@edumind/shared-types';
 import {
   BookOpen,

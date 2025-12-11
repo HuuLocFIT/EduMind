@@ -9,7 +9,7 @@ import {
 } from '@edumind/user-ui';
 import { wishlistService, enrollmentService } from '@user/services/index';
 import type { WishlistItemResponse } from '@edumind/shared-types';
-import { WishlistCard } from '../components/course-module/WishlistCard';
+import { WishlistCard } from '../../components/course-module/WishlistCard';
 import { Heart, Trash2 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 
