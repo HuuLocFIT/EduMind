@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button, StatCard, Card, CardBody, Loading } from '@edumind/user-ui';
 import { CourseGrid } from '../../components/course-module';
 import { courseService } from '../../services';
 import type { CourseResponse } from '@edumind/shared-types';
+import { queryKeys } from '../../lib/query-keys';
+import { STALE_TIME_COURSES_PUBLIC } from '../../lib/query-config';
 import {
   BookOpen,
   Users,
@@ -20,45 +23,31 @@ import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const [featuredCourses, setFeaturedCourses] = useState<CourseResponse[]>([]);
-  const [popularCourses, setPopularCourses] = useState<CourseResponse[]>([]);
-  const [loadingFeatured, setLoadingFeatured] = useState(true);
-  const [loadingPopular, setLoadingPopular] = useState(true);
 
-  useEffect(() => {
-    fetchFeaturedCourses();
-    fetchPopularCourses();
-  }, []);
-
-  const fetchFeaturedCourses = async () => {
-    try {
-      setLoadingFeatured(true);
+  // Use React Query for caching and better performance
+  const { data: featuredCourses = [], isLoading: loadingFeatured } = useQuery<CourseResponse[]>({
+    queryKey: queryKeys.courses.topRated(0, 6),
+    queryFn: async () => {
       const response = await courseService.getTopRatedCourses({
         page: 0,
         size: 6,
       });
-      setFeaturedCourses(response.data || []);
-    } catch (err) {
-      console.error('Error fetching featured courses:', err);
-    } finally {
-      setLoadingFeatured(false);
-    }
-  };
+      return response.data || [];
+    },
+    staleTime: STALE_TIME_COURSES_PUBLIC,
+  });
 
-  const fetchPopularCourses = async () => {
-    try {
-      setLoadingPopular(true);
+  const { data: popularCourses = [], isLoading: loadingPopular } = useQuery<CourseResponse[]>({
+    queryKey: queryKeys.courses.popular(0, 6),
+    queryFn: async () => {
       const response = await courseService.getMostPopularCourses({
         page: 0,
         size: 6,
       });
-      setPopularCourses(response.data || []);
-    } catch (err) {
-      console.error('Error fetching popular courses:', err);
-    } finally {
-      setLoadingPopular(false);
-    }
-  };
+      return response.data || [];
+    },
+    staleTime: STALE_TIME_COURSES_PUBLIC,
+  });
 
   const features = [
     {

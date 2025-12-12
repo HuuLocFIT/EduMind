@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import org.springframework.data.domain.Page;
@@ -72,4 +73,9 @@ public interface EnrollmentService {
      * Get recently accessed courses
      */
     List<Enrollment> getRecentlyAccessedCourses(Long studentId, int limit);
+
+    /**
+     * Get enrollment statistics for student
+     */
+    EnrollmentStatsResponse getEnrollmentStats(Long studentId);
 }

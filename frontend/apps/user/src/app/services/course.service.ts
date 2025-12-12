@@ -33,6 +33,8 @@ export interface CourseFilterParams extends CoursePaginationParams {
   minPrice?: number;
   maxPrice?: number;
   keyword?: string;
+  sortBy?: string;
+  sortDir?: "ASC" | "DESC" | "asc" | "desc";
 }
 
 const parseCourseDetail = (payload: unknown): CourseDetailResponse =>

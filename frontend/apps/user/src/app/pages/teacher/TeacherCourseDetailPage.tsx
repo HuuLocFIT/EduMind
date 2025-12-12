@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { teacherCourseService } from "../../services/teacher-course.service";
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import { CourseStatus } from "@edumind/shared-constants";
@@ -18,42 +19,50 @@ import {
   type TabId,
 } from "../../components/teacher/courses/detail";
 import { ArrowLeft, Edit, Send } from "lucide-react";
+import { queryKeys } from "../../lib/query-keys";
+import { STALE_TIME_TEACHER_COURSES } from "../../lib/query-config";
 
 export const TeacherCourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { success: showSuccess, error: showError } = useToast();
 
-  const [course, setCourse] = useState<CourseDetailResponse | null>(null);
-  const [sections, setSections] = useState<SectionDetailResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
 
   const activeTab = (searchParams.get("tab") as TabId) || "overview";
 
-  useEffect(() => {
-    const fetchCourse = async () => {
-      if (!courseId) return;
+  // Use React Query for caching and better performance
+  const {
+    data: course,
+    isLoading: courseLoading,
+    error: courseError,
+  } = useQuery<CourseDetailResponse>({
+    queryKey: queryKeys.teacherCourses.detail(courseId!),
+    queryFn: async () => {
+      if (!courseId) throw new Error("Course ID is required");
+      return teacherCourseService.getCourseDetail(Number(courseId));
+    },
+    staleTime: STALE_TIME_TEACHER_COURSES,
+    enabled: Boolean(courseId),
+  });
 
-      try {
-        setLoading(true);
-        const [courseData, sectionsData] = await Promise.all([
-          teacherCourseService.getCourseDetail(Number(courseId)),
-          teacherCourseService.getCourseSectionsWithLessons(Number(courseId)),
-        ]);
-        setCourse(courseData);
-        setSections(sectionsData);
-      } catch (err: any) {
-        setError(err.message || "Failed to load course");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const {
+    data: sections = [],
+    isLoading: sectionsLoading,
+  } = useQuery<SectionDetailResponse[]>({
+    queryKey: queryKeys.teacherCourses.sections(courseId!),
+    queryFn: async () => {
+      if (!courseId) throw new Error("Course ID is required");
+      return teacherCourseService.getCourseSectionsWithLessons(Number(courseId));
+    },
+    staleTime: STALE_TIME_TEACHER_COURSES,
+    enabled: Boolean(courseId),
+  });
 
-    fetchCourse();
-  }, [courseId]);
+  const loading = courseLoading || sectionsLoading;
+  const error = courseError;
 
   const handlePublish = async () => {
     if (!course) return;
@@ -61,9 +70,15 @@ export const TeacherCourseDetailPage: React.FC = () => {
     try {
       setPublishing(true);
       await teacherCourseService.publishCourse(course.id);
-      setCourse((prev) =>
-        prev ? { ...prev, status: CourseStatus.PUBLISHED } : prev
-      );
+      // Invalidate and refetch course data (using prefix matching)
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teacherCourses.all,
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.all,
+        exact: false,
+      })
       showSuccess("Course published successfully!");
     } catch (err: any) {
       showError(err.message || "Failed to publish course");
@@ -87,7 +102,7 @@ export const TeacherCourseDetailPage: React.FC = () => {
       <Alert
         variant="error"
         title="Error"
-        message={error || "Course not found"}
+        message={(error as any)?.message || "Course not found"}
       />
     );
   }

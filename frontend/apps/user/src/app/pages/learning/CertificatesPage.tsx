@@ -1,36 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, Button, Loading } from '@edumind/user-ui';
 import { enrollmentService } from '@user/services/index';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { Award } from 'lucide-react';
 import { CertificateCard } from '../../components/course-module/CertificateCard';
+import { useAuthStore } from '../../stores/auth.store';
+import { queryKeys } from '../../lib/query-keys';
+import { STALE_TIME_ENROLLMENTS } from '../../lib/query-config';
 
 export const CertificatesPage: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [certificates, setCertificates] = useState<EnrollmentResponse[]>([]);
+  const { user } = useAuthStore();
+  const userId = user?.id;
 
-  useEffect(() => {
-    fetchCertificates();
-  }, []);
-
-  const fetchCertificates = async () => {
-    setLoading(true);
-
-    try {
+  // Use React Query for caching and better performance
+  const { data: enrollments = [], isLoading: loading } = useQuery<EnrollmentResponse[]>({
+    queryKey: queryKeys.enrollments.me(userId),
+    queryFn: async () => {
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      const enrollments = response.data || [];
-      
-      // Filter only completed courses
-      const completed = enrollments.filter(
-        (e: EnrollmentResponse) => e.status === 'COMPLETED'
-      );
-      setCertificates(completed);
-    } catch (err) {
-      console.error('Error fetching certificates:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data || [];
+    },
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId),
+  });
+
+  // Filter only completed courses
+  const certificates = useMemo(() => {
+    return enrollments.filter((e: EnrollmentResponse) => e.status === 'COMPLETED');
+  }, [enrollments]);
 
   const handleDownload = (enrollment: EnrollmentResponse) => {
     // Lucas: Implement certificate download

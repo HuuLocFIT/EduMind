@@ -463,8 +463,16 @@ export const EnrollmentResponseSchema = z.object({
   expiresAt: z.string().nullable().optional(),
 });
 
+export const EnrollmentStatsResponseSchema = z.object({
+  total: z.number().int().nonnegative(),
+  active: z.number().int().nonnegative(),
+  completed: z.number().int().nonnegative(),
+  started: z.number().int().nonnegative(),
+});
+
 export type EnrollRequest = z.infer<typeof EnrollRequestSchema>;
 export type EnrollmentResponse = z.infer<typeof EnrollmentResponseSchema>;
+export type EnrollmentStatsResponse = z.infer<typeof EnrollmentStatsResponseSchema>;
 
 // ============================================================================
 // LESSON PROGRESS SCHEMAS

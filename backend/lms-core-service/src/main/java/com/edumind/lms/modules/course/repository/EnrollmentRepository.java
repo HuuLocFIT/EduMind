@@ -84,13 +84,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findExpiringEnrollments(LocalDateTime now, LocalDateTime threshold);
 
     /**
-     * Get student's course statistics
+     * Get student's course statistics using interface projection for type safety.
+     * Maps results by field names instead of array indices.
      */
-    @Query("SELECT COUNT(e), " +
-            "SUM(CASE WHEN e.status = 'COMPLETED' THEN 1 ELSE 0 END), " +
-            "AVG(e.progressPercentage) " +
+    @Query("SELECT COUNT(e) as total, " +
+            "COALESCE(SUM(CASE WHEN e.status = 'ACTIVE' THEN 1 ELSE 0 END), 0) as active, " +
+            "COALESCE(SUM(CASE WHEN e.status = 'COMPLETED' THEN 1 ELSE 0 END), 0) as completed, " +
+            "COALESCE(SUM(CASE WHEN e.progressPercentage > 0 THEN 1 ELSE 0 END), 0) as started " +
             "FROM Enrollment e WHERE e.studentId = :studentId")
-    Object[] getStudentStatistics(Long studentId);
+    EnrollmentStatisticsProjection getStudentStatistics(Long studentId);
 
     /**
      * Find recently accessed courses (with course fetched)

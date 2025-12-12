@@ -3,8 +3,10 @@ import { z } from "zod";
 import {
   EnrollRequestSchema,
   EnrollmentResponseSchema,
+  EnrollmentStatsResponseSchema,
   type EnrollRequest,
   type EnrollmentResponse,
+  type EnrollmentStatsResponse,
   type PagedResponse,
   createPagedResponseSchema,
 } from "@edumind/shared-types";
@@ -98,6 +100,13 @@ export const enrollmentService = {
       ENROLLMENT_ENDPOINTS.CHECK(courseId)
     );
     return z.boolean().parse(response.data);
+  },
+
+  async getMyEnrollmentStats(): Promise<EnrollmentStatsResponse> {
+    const response = await apiClient.get<EnrollmentStatsResponse>(
+      ENROLLMENT_ENDPOINTS.MY_STATS
+    );
+    return EnrollmentStatsResponseSchema.parse(response.data);
   },
 };
 

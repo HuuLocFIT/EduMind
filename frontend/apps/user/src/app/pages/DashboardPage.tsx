@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  Button,
-  Loading,
-} from '@edumind/user-ui';
-import { useAuthStore } from '../stores/auth.store';
+import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Card, Button, Loading } from "@edumind/user-ui";
+import { useAuthStore } from "../stores/auth.store";
 import {
   enrollmentService,
   courseService,
   wishlistService,
-} from '@user/services/index';
-import { CourseGrid } from '../components/course-module';
-import { EnrollmentCard } from '../components/course-module/EnrollmentCard';
-import type {
-  EnrollmentResponse,
-  CourseResponse,
-} from '@edumind/shared-types';
+} from "@user/services/index";
+import { CourseGrid } from "../components/course-module";
+import { EnrollmentCard } from "../components/course-module/EnrollmentCard";
+import type { EnrollmentResponse, CourseResponse } from "@edumind/shared-types";
+import { queryKeys } from "../lib/query-keys";
+import {
+  STALE_TIME_ENROLLMENTS,
+  STALE_TIME_COURSES_PUBLIC,
+  STALE_TIME_WISHLIST,
+} from "../lib/query-config";
 import {
   BookOpen,
   Clock,
@@ -27,30 +27,37 @@ import {
   Target,
   Zap,
   LucideIcon,
-} from 'lucide-react';
-import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
-import TeacherApplicationBanner from '@user/components/TeacherApplicationBanner';
+} from "lucide-react";
+import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
+import TeacherApplicationBanner from "@user/components/TeacherApplicationBanner";
 
 // StatCard Component
 interface StatCardProps {
   icon: LucideIcon;
   label: string;
   value: string | number;
-  color: 'blue' | 'green' | 'purple' | 'orange';
+  color: "blue" | "green" | "purple" | "orange";
 }
 
-const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, color }) => {
+const StatCard: React.FC<StatCardProps> = ({
+  icon: Icon,
+  label,
+  value,
+  color,
+}) => {
   const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600',
-    orange: 'bg-orange-100 text-orange-600',
+    blue: "bg-blue-100 text-blue-600",
+    green: "bg-green-100 text-green-600",
+    purple: "bg-purple-100 text-purple-600",
+    orange: "bg-orange-100 text-orange-600",
   };
 
   return (
     <Card className="p-6">
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[color]}`}>
+        <div
+          className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[color]}`}
+        >
           <Icon className="w-6 h-6" />
         </div>
         <div>
@@ -65,64 +72,68 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, color }) 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const userId = user?.id;
 
-  // State
-  const [loading, setLoading] = useState(true);
-  const [recentEnrollments, setRecentEnrollments] = useState<EnrollmentResponse[]>([]);
-  const [recommendedCourses, setRecommendedCourses] = useState<CourseResponse[]>([]);
-  const [wishlistCount, setWishlistCount] = useState(0);
-  const [stats, setStats] = useState({
-    totalCourses: 0,
-    activeCourses: 0,
-    completedCourses: 0,
-    totalHoursLearned: 0,
-    currentStreak: 0,
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<
+    EnrollmentResponse[]
+  >({
+    queryKey: queryKeys.enrollments.me(userId),
+    queryFn: async () => {
+      const response = await enrollmentService.getMyEnrollments({
+        page: 0,
+        size: 100,
+      });
+      return response.data || [];
+    },
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId),
   });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const { data: recommendedCourses = [], isLoading: recommendedLoading } =
+    useQuery<CourseResponse[]>({
+      queryKey: queryKeys.courses.popular(0, 4),
+      queryFn: async () => {
+        const response = await courseService.getMostPopularCourses({
+          page: 0,
+          size: 4,
+        });
+        return response.data || [];
+      },
+      staleTime: STALE_TIME_COURSES_PUBLIC,
+    });
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const { data: wishlistCount = 0, isLoading: wishlistLoading } =
+    useQuery<number>({
+      queryKey: queryKeys.wishlist.count(userId),
+      queryFn: () => wishlistService.getCount(),
+      staleTime: STALE_TIME_WISHLIST,
+      enabled: Boolean(userId),
+    });
 
-    try {
-      // Fetch enrollments
-      const enrollmentsData = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      const enrollments = enrollmentsData.data || [];
-      
-      // Get recent 3 enrollments
-      setRecentEnrollments(enrollments.slice(0, 3));
+  const recentEnrollments = useMemo(
+    () => enrollments.slice(0, 3),
+    [enrollments]
+  );
 
-      // Calculate stats
-      setStats({
-        totalCourses: enrollments.length,
-        activeCourses: enrollments.filter((e: EnrollmentResponse) => e.status === 'ACTIVE').length,
-        completedCourses: enrollments.filter((e: EnrollmentResponse) => e.status === 'COMPLETED').length,
-        totalHoursLearned: 0, // TODO: Calculate from course duration and progress
-        currentStreak: 7, // TODO: Implement streak calculation
-      });
+  const stats = useMemo(
+    () => ({
+      totalCourses: enrollments.length,
+      activeCourses: enrollments.filter((e) => e.status === "ACTIVE").length,
+      completedCourses: enrollments.filter((e) => e.status === "COMPLETED")
+        .length,
+      totalHoursLearned: 0, // TODO: Calculate from course duration and progress
+      currentStreak: 7, // TODO: Implement streak calculation
+    }),
+    [enrollments]
+  );
 
-      // Fetch recommended courses
-      const recommendedData = await courseService.getMostPopularCourses({ page: 0, size: 4 });
-      setRecommendedCourses(recommendedData.data || []);
-
-      // Fetch wishlist count
-      const count = await wishlistService.getCount();
-      setWishlistCount(count);
-
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = enrollmentsLoading || recommendedLoading || wishlistLoading;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
   };
 
   if (loading) {
@@ -141,9 +152,7 @@ export const DashboardPage: React.FC = () => {
           <h1 className="text-3xl font-bold mb-2">
             {getGreeting()}, {user?.firstName || user?.username}! 👋
           </h1>
-          <p className="text-blue-100">
-            Welcome back to your learning journey
-          </p>
+          <p className="text-blue-100">Welcome back to your learning journey</p>
         </div>
       </div>
 
@@ -184,7 +193,9 @@ export const DashboardPage: React.FC = () => {
           {/* Continue Learning */}
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Continue Learning</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Continue Learning
+              </h2>
               <Button
                 variant="secondary"
                 onClick={() => navigate(USER_ROUTES.LEARNING)}
@@ -199,7 +210,13 @@ export const DashboardPage: React.FC = () => {
                   <EnrollmentCard
                     key={enrollment.id}
                     enrollment={enrollment}
-                    onClick={() => navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId: enrollment.courseId }))}
+                    onClick={() =>
+                      navigate(
+                        buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, {
+                          courseId: enrollment.courseId,
+                        })
+                      )
+                    }
                   />
                 ))}
               </div>
@@ -244,26 +261,33 @@ export const DashboardPage: React.FC = () => {
 
             {/* Quick Actions */}
             <Card className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">
+                Quick Actions
+              </h3>
               <div className="space-y-2">
                 <button
                   onClick={() => navigate(USER_ROUTES.COURSES)}
                   className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
                 >
                   <BookOpen className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-gray-900">Browse Courses</span>
+                  <span className="font-medium text-gray-900">
+                    Browse Courses
+                  </span>
                 </button>
-                
+
                 <button
                   onClick={() => navigate(USER_ROUTES.WISHLIST)}
                   className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
                 >
                   <Heart className="w-5 h-5 text-red-500" />
                   <div className="flex-1 flex items-center justify-between">
-                    <span className="font-medium text-gray-900">My Wishlist</span>
+                    <span className="font-medium text-gray-900">
+                      My Wishlist
+                    </span>
                     {wishlistCount > 0 && (
                       <span className="text-sm text-gray-500">
-                        {wishlistCount} {wishlistCount === 1 ? 'course' : 'courses'}
+                        {wishlistCount}{" "}
+                        {wishlistCount === 1 ? "course" : "courses"}
                       </span>
                     )}
                   </div>
@@ -274,7 +298,9 @@ export const DashboardPage: React.FC = () => {
                   className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
                 >
                   <Target className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium text-gray-900">Learning Goals</span>
+                  <span className="font-medium text-gray-900">
+                    Learning Goals
+                  </span>
                 </button>
 
                 <button
@@ -282,7 +308,9 @@ export const DashboardPage: React.FC = () => {
                   className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
                 >
                   <Award className="w-5 h-5 text-green-600" />
-                  <span className="font-medium text-gray-900">Certificates</span>
+                  <span className="font-medium text-gray-900">
+                    Certificates
+                  </span>
                 </button>
               </div>
             </Card>
@@ -302,8 +330,12 @@ export const DashboardPage: React.FC = () => {
         <div>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Recommended for You</h2>
-              <p className="text-gray-600 mt-1">Based on your learning history</p>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Recommended for You
+              </h2>
+              <p className="text-gray-600 mt-1">
+                Based on your learning history
+              </p>
             </div>
             <Button
               variant="secondary"
@@ -315,7 +347,13 @@ export const DashboardPage: React.FC = () => {
 
           <CourseGrid
             courses={recommendedCourses}
-            onCourseClick={(course: CourseResponse) => navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id }))}
+            onCourseClick={(course: CourseResponse) =>
+              navigate(
+                buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+                  courseId: course.id,
+                })
+              )
+            }
             columns={4}
           />
         </div>

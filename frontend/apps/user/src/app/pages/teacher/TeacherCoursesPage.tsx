@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/auth.store";
 import { teacherCourseService } from "../../services/teacher-course.service";
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
-import { CourseStatus } from "@edumind/shared-constants";
 import type { CourseResponse } from "@edumind/shared-types";
 import { Button, Alert, useModal, useToast } from "@edumind/user-ui";
 import {
@@ -18,30 +18,27 @@ import {
   type FilterState,
 } from "../../components/teacher/courses/list";
 import { Plus } from "lucide-react";
+import { queryKeys } from "../../lib/query-keys";
+import { STALE_TIME_TEACHER_COURSES } from "../../lib/query-config";
 
 export const TeacherCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { success: showSuccess, error: showError } = useToast();
   const deleteModal = useModal();
 
   // State
-  const [courses, setCourses] = useState<CourseResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [courseToDelete, setCourseToDelete] = useState<CourseResponse | null>(
     null
   );
-  const [deleting, setDeleting] = useState(false);
 
   // Pagination
   const [pagination, setPagination] = useState({
     page: 0,
     size: 12,
-    totalElements: 0,
-    totalPages: 0,
   });
 
   // Filters from URL
@@ -50,38 +47,37 @@ export const TeacherCoursesPage: React.FC = () => {
     search: searchParams.get("search") || "",
   };
 
-  // Fetch courses
-  useEffect(() => {
-    const fetchCourses = async () => {
-      if (!user?.id) return;
+  // Use React Query for caching and better performance
+  const {
+    data: coursesResponse,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.teacherCourses.list(
+      user?.id,
+      pagination.page,
+      pagination.size
+    ),
+    queryFn: async () => {
+      if (!user?.id) throw new Error("User not found");
+      return teacherCourseService.getMyCourses(user.id, {
+        page: pagination.page,
+        size: pagination.size,
+      });
+    },
+    staleTime: STALE_TIME_TEACHER_COURSES,
+    enabled: Boolean(user?.id),
+    // Keep previous data while fetching new page to prevent flash loading
+    placeholderData: (previousData) => previousData,
+  });
 
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await teacherCourseService.getMyCourses(user.id, {
-          page: pagination.page,
-          size: pagination.size,
-        });
-
-        setCourses(response.data || []);
-        if (response.pagination) {
-          setPagination((prev) => ({
-            ...prev,
-            totalElements: response.pagination!.totalElements,
-            totalPages: response.pagination!.totalPages,
-          }));
-        }
-      } catch (err: any) {
-        console.error("Failed to fetch courses:", err);
-        setError(err.message || "Failed to load courses");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, [user?.id, pagination.page, pagination.size]);
+  const courses = coursesResponse?.data || [];
+  const paginationData = {
+    page: pagination.page,
+    size: pagination.size,
+    totalElements: coursesResponse?.pagination?.totalElements || 0,
+    totalPages: coursesResponse?.pagination?.totalPages || 0,
+  };
 
   // Filter courses locally (since API doesn't have filter endpoint for instructor courses)
   const filteredCourses = useMemo(() => {
@@ -116,35 +112,100 @@ export const TeacherCoursesPage: React.FC = () => {
     setSearchParams(newParams);
   };
 
-  const handleDelete = async () => {
-    if (!courseToDelete) return;
-
-    try {
-      setDeleting(true);
-      await teacherCourseService.deleteCourse(courseToDelete.id);
-      setCourses((prev) => prev.filter((c) => c.id !== courseToDelete.id));
+  const deleteMutation = useMutation({
+    mutationFn: async (courseId: number) => {
+      await teacherCourseService.deleteCourse(courseId);
+      return courseId;
+    },
+    onMutate: async (courseId) => {
+      const listKey = queryKeys.teacherCourses.list(user?.id, pagination.page, pagination.size);
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData<any>(listKey);
+      queryClient.setQueryData(listKey, (old: any) => {
+        if (!old) return old;
+        const next = { ...old, data: (old.data || []).filter((c: CourseResponse) => c.id !== courseId) };
+        return next;
+      });
+      return { previous, listKey };
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teacherCourses.all,
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.all,
+        exact: false,
+      });
       showSuccess("Course deleted successfully");
       deleteModal.close();
       setCourseToDelete(null);
-    } catch (err: any) {
+    },
+    onError: (err: any, _courseId, context) => {
+      if (context?.previous && context.listKey) {
+        queryClient.setQueryData(context.listKey, context.previous);
+      }
       showError(err.message || "Failed to delete course");
-    } finally {
-      setDeleting(false);
-    }
+    },
+    onSettled: (_data, _error, _vars, context) => {
+      if (context?.listKey) {
+        queryClient.invalidateQueries({ queryKey: context.listKey });
+      }
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async (courseId: number) => {
+      await teacherCourseService.publishCourse(courseId);
+      return courseId;
+    },
+    onMutate: async (courseId) => {
+      const listKey = queryKeys.teacherCourses.list(user?.id, pagination.page, pagination.size);
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData<any>(listKey);
+      queryClient.setQueryData(listKey, (old: any) => {
+        if (!old) return old;
+        const next = {
+          ...old,
+          data: (old.data || []).map((c: CourseResponse) =>
+            c.id === courseId ? { ...c, status: "PUBLISHED" } : c
+          ),
+        };
+        return next;
+      });
+      return { previous, listKey };
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teacherCourses.all,
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.all,
+        exact: false,
+      });
+      showSuccess("Course published successfully");
+    },
+    onError: (err: any, _courseId, context) => {
+      if (context?.previous && context.listKey) {
+        queryClient.setQueryData(context.listKey, context.previous);
+      }
+      showError(err.message || "Failed to publish course");
+    },
+    onSettled: (_data, _error, _vars, context) => {
+      if (context?.listKey) {
+        queryClient.invalidateQueries({ queryKey: context.listKey });
+      }
+    },
+  });
+
+  const handleDelete = () => {
+    if (!courseToDelete) return;
+    deleteMutation.mutate(courseToDelete.id);
   };
 
-  const handlePublish = async (course: CourseResponse) => {
-    try {
-      await teacherCourseService.publishCourse(course.id);
-      setCourses((prev) =>
-        prev.map((c) =>
-          c.id === course.id ? { ...c, status: CourseStatus.PUBLISHED } : c
-        )
-      );
-      showSuccess("Course published successfully");
-    } catch (err: any) {
-      showError(err.message || "Failed to publish course");
-    }
+  const handlePublish = (course: CourseResponse) => {
+    publishMutation.mutate(course.id);
   };
 
   const openDeleteModal = (course: CourseResponse) => {
@@ -183,8 +244,8 @@ export const TeacherCoursesPage: React.FC = () => {
         <Alert
           variant="error"
           title="Error"
-          message={error}
-          onClose={() => setError(null)}
+          message={(error as any)?.message || "Failed to load courses"}
+          onClose={() => {}}
         />
       )}
 
@@ -237,10 +298,10 @@ export const TeacherCoursesPage: React.FC = () => {
       {/* Pagination */}
       {!loading && (
         <Pagination
-          page={pagination.page}
-          size={pagination.size}
-          totalElements={pagination.totalElements}
-          totalPages={pagination.totalPages}
+          page={paginationData.page}
+          size={paginationData.size}
+          totalElements={paginationData.totalElements}
+          totalPages={paginationData.totalPages}
           onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
         />
       )}
@@ -251,7 +312,7 @@ export const TeacherCoursesPage: React.FC = () => {
         onClose={deleteModal.close}
         course={courseToDelete}
         onConfirm={handleDelete}
-        deleting={deleting}
+        deleting={deleteMutation.isPending}
       />
     </div>
   );
