@@ -56,6 +56,7 @@ import {
   WishlistPage,
   MyLearningPage,
 } from "./pages/learning";
+import { QueryErrorBoundary } from "./components/QueryErrorBoundary";
 
 function AppContent() {
   const { toasts, closeToast } = useToast();
@@ -64,7 +65,8 @@ function AppContent() {
     <BrowserRouter>
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      <Routes>
+      <QueryErrorBoundary>
+        <Routes>
         {/* Public Routes */}
         <Route path="/" element={<MainLayout />}>
           <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
@@ -178,7 +180,8 @@ function AppContent() {
         {/* 404 fallback */}
         <Route path={USER_ROUTES.NOT_FOUND} element={<NotFoundPage />} />
         <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+        </Routes>
+      </QueryErrorBoundary>
     </BrowserRouter>
   );
 }
