@@ -203,13 +203,13 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Course getCourseById(Long courseId) {
-        return courseRepository.findByIdWithCategory(courseId)
+        return courseRepository.findByIdWithStructure(courseId)
                 .orElseThrow(() -> new CourseNotFoundException(courseId));
     }
 
     @Override
     public Course getCourseBySlug(String slug) {
-        return courseRepository.findBySlug(slug)
+        return courseRepository.findBySlugWithStructure(slug)
                 .orElseThrow(() -> new CourseNotFoundException(slug));
     }
 

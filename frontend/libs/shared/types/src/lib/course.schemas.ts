@@ -73,6 +73,8 @@ export const SectionDetailResponseSchema = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
   orderIndex: z.number(),
+  lessonCount: z.number().optional().nullable(),
+  totalDurationMinutes: z.number().optional().nullable(),
   lessons: z.array(z.lazy(() => LessonResponseSchema)).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -409,7 +411,7 @@ export const CourseDetailResponseSchema = z.object({
   totalStudents: z.number().nullable().optional(),
   averageRating: z.number().nullable().optional(),
   totalReviews: z.number().nullable().optional(),
-  sections: z.array(z.lazy(() => SectionResponseSchema)).optional(),
+  sections: z.array(z.lazy(() => SectionDetailResponseSchema)).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -124,6 +125,7 @@ public class CourseController {
         }
 
         @GetMapping("/{id}")
+        @Transactional(readOnly = true)
         public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseById(@PathVariable Long id) {
                 log.info("Getting course: {}", id);
 
@@ -134,6 +136,7 @@ public class CourseController {
         }
 
         @GetMapping("/slug/{slug}")
+        @Transactional(readOnly = true)
         public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseBySlug(@PathVariable String slug) {
                 log.info("Getting course by slug: {}", slug);
 
