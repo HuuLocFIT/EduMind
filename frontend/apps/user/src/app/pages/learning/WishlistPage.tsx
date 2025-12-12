@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   Card,
   Button,
@@ -27,7 +27,6 @@ export const WishlistPage: React.FC = () => {
   const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
   const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
-  const [isClearingAll, setIsClearingAll] = useState(false);
   const { success: showSuccess, error: showError } = useToast();
 
   // Use React Query for caching and better performance
@@ -41,62 +40,98 @@ export const WishlistPage: React.FC = () => {
     enabled: Boolean(userId),
   });
 
-  const handleRemoveFromWishlist = async (courseId: number) => {
-    setRemovingIds(prev => new Set(prev).add(courseId));
-
-    try {
+  const removeMutation = useMutation({
+    mutationFn: async (courseId: number) => {
       await wishlistService.remove(courseId);
-      // Invalidate and refetch wishlist (using prefix matching)
+      return courseId;
+    },
+    onMutate: async (courseId) => {
+      setRemovingIds((prev) => new Set(prev).add(courseId));
+      await queryClient.cancelQueries({ queryKey: queryKeys.wishlist.user(userId) });
+      const previousWishlist = queryClient.getQueryData<WishlistItemResponse[]>(queryKeys.wishlist.user(userId)) || [];
+      queryClient.setQueryData<WishlistItemResponse[]>(queryKeys.wishlist.user(userId), (old = []) =>
+        old.filter((item) => item.courseId !== courseId)
+      );
+      return { previousWishlist, courseId };
+    },
+    onSuccess: async (courseId) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
       showSuccess('Removed from wishlist');
-    } catch (err: any) {
+    },
+    onError: (err: any, _courseId, context) => {
+      if (context?.previousWishlist) {
+        queryClient.setQueryData(queryKeys.wishlist.user(userId), context.previousWishlist);
+      }
       showError(err?.message || 'Failed to remove from wishlist');
-    } finally {
-      setRemovingIds(prev => {
+    },
+    onSettled: (courseId, _err, _variables, context) => {
+      if (context?.previousWishlist) {
+        // ensure cache stays fresh after optimistic update
+        queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.user(userId) });
+      }
+      if (courseId === undefined) return;
+      setRemovingIds((prev) => {
         const updated = new Set(prev);
         updated.delete(courseId);
         return updated;
       });
-    }
-  };
+    },
+  });
 
-  const handleEnroll = async (courseId: number) => {
-    setEnrollingIds(prev => new Set(prev).add(courseId));
-
-    try {
+  const enrollMutation = useMutation({
+    mutationFn: async (courseId: number) => {
       await enrollmentService.enrollInCourse(courseId);
+      return courseId;
+    },
+    onMutate: (courseId) => {
+      setEnrollingIds((prev) => new Set(prev).add(courseId));
+    },
+    onSuccess: async (courseId) => {
       showSuccess('Successfully enrolled!');
-
-      // Invalidate queries to refresh data (using prefix matching)
       await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
       await queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all, exact: false });
       await queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId), exact: false });
-      
       navigate(USER_ROUTES.LEARNING);
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       showError(err?.message || 'Failed to enroll in course');
-    } finally {
-      setEnrollingIds(prev => {
+    },
+    onSettled: (courseId) => {
+      if (courseId === undefined) return;
+      setEnrollingIds((prev) => {
         const updated = new Set(prev);
         updated.delete(courseId);
         return updated;
       });
-    }
-  };
+    },
+  });
 
-  const handleClearAll = async () => {
-    setIsClearingAll(true);
-    try {
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
       await wishlistService.clear();
-      // Invalidate and refetch wishlist (using prefix matching)
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
       showSuccess('Wishlist cleared');
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       showError(err?.message || 'Failed to clear wishlist');
-    } finally {
-      setIsClearingAll(false);
+    },
+    onSettled: () => {
       setIsClearDialogOpen(false);
-    }
+    },
+  });
+
+  const handleRemoveFromWishlist = (courseId: number) => {
+    removeMutation.mutate(courseId);
+  };
+
+  const handleEnroll = (courseId: number) => {
+    enrollMutation.mutate(courseId);
+  };
+
+  const handleClearAll = () => {
+    clearAllMutation.mutate();
   };
 
   const calculateTotalPrice = (): number => {
@@ -249,7 +284,7 @@ export const WishlistPage: React.FC = () => {
         confirmText="Clear all"
         cancelText="Cancel"
         variant="danger"
-        isLoading={isClearingAll}
+        isLoading={clearAllMutation.isPending}
       />
     </>
   );

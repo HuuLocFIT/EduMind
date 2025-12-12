@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/auth.store";
 import { teacherCourseService } from "../../services/teacher-course.service";
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
@@ -34,7 +34,6 @@ export const TeacherCoursesPage: React.FC = () => {
   const [courseToDelete, setCourseToDelete] = useState<CourseResponse | null>(
     null
   );
-  const [deleting, setDeleting] = useState(false);
 
   // Pagination
   const [pagination, setPagination] = useState({
@@ -113,13 +112,23 @@ export const TeacherCoursesPage: React.FC = () => {
     setSearchParams(newParams);
   };
 
-  const handleDelete = async () => {
-    if (!courseToDelete) return;
-
-    try {
-      setDeleting(true);
-      await teacherCourseService.deleteCourse(courseToDelete.id);
-      // Invalidate and refetch courses (using prefix matching)
+  const deleteMutation = useMutation({
+    mutationFn: async (courseId: number) => {
+      await teacherCourseService.deleteCourse(courseId);
+      return courseId;
+    },
+    onMutate: async (courseId) => {
+      const listKey = queryKeys.teacherCourses.list(user?.id, pagination.page, pagination.size);
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData<any>(listKey);
+      queryClient.setQueryData(listKey, (old: any) => {
+        if (!old) return old;
+        const next = { ...old, data: (old.data || []).filter((c: CourseResponse) => c.id !== courseId) };
+        return next;
+      });
+      return { previous, listKey };
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.teacherCourses.all,
         exact: false,
@@ -128,21 +137,45 @@ export const TeacherCoursesPage: React.FC = () => {
         queryKey: queryKeys.courses.all,
         exact: false,
       });
-
       showSuccess("Course deleted successfully");
       deleteModal.close();
       setCourseToDelete(null);
-    } catch (err: any) {
+    },
+    onError: (err: any, _courseId, context) => {
+      if (context?.previous && context.listKey) {
+        queryClient.setQueryData(context.listKey, context.previous);
+      }
       showError(err.message || "Failed to delete course");
-    } finally {
-      setDeleting(false);
-    }
-  };
+    },
+    onSettled: (_data, _error, _vars, context) => {
+      if (context?.listKey) {
+        queryClient.invalidateQueries({ queryKey: context.listKey });
+      }
+    },
+  });
 
-  const handlePublish = async (course: CourseResponse) => {
-    try {
-      await teacherCourseService.publishCourse(course.id);
-      // Invalidate and refetch courses (using prefix matching)
+  const publishMutation = useMutation({
+    mutationFn: async (courseId: number) => {
+      await teacherCourseService.publishCourse(courseId);
+      return courseId;
+    },
+    onMutate: async (courseId) => {
+      const listKey = queryKeys.teacherCourses.list(user?.id, pagination.page, pagination.size);
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData<any>(listKey);
+      queryClient.setQueryData(listKey, (old: any) => {
+        if (!old) return old;
+        const next = {
+          ...old,
+          data: (old.data || []).map((c: CourseResponse) =>
+            c.id === courseId ? { ...c, status: "PUBLISHED" } : c
+          ),
+        };
+        return next;
+      });
+      return { previous, listKey };
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.teacherCourses.all,
         exact: false,
@@ -152,9 +185,27 @@ export const TeacherCoursesPage: React.FC = () => {
         exact: false,
       });
       showSuccess("Course published successfully");
-    } catch (err: any) {
+    },
+    onError: (err: any, _courseId, context) => {
+      if (context?.previous && context.listKey) {
+        queryClient.setQueryData(context.listKey, context.previous);
+      }
       showError(err.message || "Failed to publish course");
-    }
+    },
+    onSettled: (_data, _error, _vars, context) => {
+      if (context?.listKey) {
+        queryClient.invalidateQueries({ queryKey: context.listKey });
+      }
+    },
+  });
+
+  const handleDelete = () => {
+    if (!courseToDelete) return;
+    deleteMutation.mutate(courseToDelete.id);
+  };
+
+  const handlePublish = (course: CourseResponse) => {
+    publishMutation.mutate(course.id);
   };
 
   const openDeleteModal = (course: CourseResponse) => {
@@ -261,7 +312,7 @@ export const TeacherCoursesPage: React.FC = () => {
         onClose={deleteModal.close}
         course={courseToDelete}
         onConfirm={handleDelete}
-        deleting={deleting}
+        deleting={deleteMutation.isPending}
       />
     </div>
   );

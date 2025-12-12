@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Button,
   Card,
@@ -114,60 +114,67 @@ export const CourseDetailPage: React.FC = () => {
     staleTime: STALE_TIME_WISHLIST,
   });
 
-  const handleEnroll = async () => {
-    try {
-      await enrollmentService.enrollInCourse(Number(courseId));
-      // Invalidate enrollment queries (using prefix matching)
+  const enrollMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await enrollmentService.enrollInCourse(id);
+      return id;
+    },
+    onSuccess: async (id) => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.enrollments.all,
         exact: false,
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId!), exact: false });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
-      
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.detail(id),
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.all,
+        exact: false,
+      });
       showSuccess("Successfully enrolled in course!");
       navigate(USER_ROUTES.LEARNING);
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       showError(err?.message || "Failed to enroll in course");
-    }
-  };
+    },
+  });
 
-  const handleToggleWishlist = async (courseId: number) => {
-    try {
-      if (isInWishlist) {
-        await wishlistService.remove(courseId);
-        // Invalidate wishlist queries (using prefix matching)
-        await queryClient.invalidateQueries({
-          queryKey: queryKeys.wishlist.all,
-          exact: false,
-        });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.course(courseId!, userId), exact: false });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.count(userId), exact: false });
-        showSuccess("Removed from wishlist");
+  const wishlistMutation = useMutation({
+    mutationFn: async (payload: { courseId: number; currentlyInWishlist: boolean }) => {
+      if (payload.currentlyInWishlist) {
+        await wishlistService.remove(payload.courseId);
       } else {
-        await wishlistService.add(courseId);
-        // Invalidate wishlist queries (using prefix matching)
-        await queryClient.invalidateQueries({
-          queryKey: queryKeys.wishlist.all,
-          exact: false,
-        });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.course(courseId!, userId), exact: false });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.count(userId), exact: false });
-        showSuccess("Added to wishlist");
+        await wishlistService.add(payload.courseId);
       }
-    } catch (err: any) {
-      showError(err?.message || "Failed to update wishlist");
-    }
-  };
-
-  const handleSubmitReview = async (rating: number, comment: string) => {
-    try {
-      await courseReviewService.createReview(Number(courseId), {
-        rating,
-        comment,
+      return payload;
+    },
+    onSuccess: async ({ courseId, currentlyInWishlist }) => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.all,
+        exact: false,
       });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.course(courseId, userId),
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.count(userId),
+        exact: false,
+      });
+      showSuccess(currentlyInWishlist ? "Removed from wishlist" : "Added to wishlist");
+    },
+    onError: (err: any) => {
+      showError(err?.message || "Failed to update wishlist");
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async (payload: { rating: number; comment: string }) => {
+      await courseReviewService.createReview(Number(courseId), payload);
+    },
+    onSuccess: async () => {
       setShowReviewForm(false);
-      // Invalidate reviews and course detail
       await queryClient.invalidateQueries({
         queryKey: queryKeys.courses.reviews(courseId!),
       });
@@ -175,9 +182,30 @@ export const CourseDetailPage: React.FC = () => {
         queryKey: queryKeys.courses.detail(courseId!),
       });
       showSuccess("Review submitted successfully!");
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       showError(err?.message || "Failed to submit review");
+    },
+  });
+
+  const handleEnroll = async () => {
+    if (!courseId) {
+      showError("Course not found");
+      return;
     }
+    await enrollMutation.mutateAsync(Number(courseId));
+  };
+
+  const handleToggleWishlist = async (courseId: number) => {
+    if (!isAuthenticated || !userId) {
+      showError("Please login to manage wishlist");
+      return;
+    }
+    await wishlistMutation.mutateAsync({ courseId, currentlyInWishlist: Boolean(isInWishlist) });
+  };
+
+  const handleSubmitReview = async (rating: number, comment: string) => {
+    await reviewMutation.mutateAsync({ rating, comment });
   };
 
   if (courseLoading) {
