@@ -63,16 +63,17 @@ export const WishlistPage: React.FC = () => {
     try {
       await enrollmentService.enrollInCourse(courseId);
       showSuccess('Successfully enrolled!');
-      
-      // Remove from wishlist after enrollment
-      await wishlistService.remove(courseId);
-      
+
       // Invalidate queries to refresh data (using prefix matching)
       await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
       await queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all, exact: false });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId), exact: false });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.enrollments.status(courseId, userId),
+        exact: false,
+      });
       
-      // Navigate to course or my learning
-      navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
+      navigate(USER_ROUTES.LEARNING);
     } catch (err: any) {
       showError(err?.message || 'Failed to enroll in course');
     } finally {

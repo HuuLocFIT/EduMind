@@ -33,6 +33,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final CourseRepository courseRepository;
     private final LessonProgressRepository lessonProgressRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final WishlistService wishlistService;
 
     @Override
     @Transactional
@@ -77,6 +78,12 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 courseId,
                 studentId
         ));
+
+        // Remove course from wishlist if it exists
+        if (wishlistService.isInWishlist(studentId, courseId)) {
+            log.info("Removing course {} from wishlist for student {} after enrollment", courseId, studentId);
+            wishlistService.removeFromWishlist(studentId, courseId);
+        }
 
         log.info("Student enrolled successfully: enrollment ID {}", savedEnrollment.getId());
         return savedEnrollment;
