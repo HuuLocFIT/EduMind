@@ -16,6 +16,7 @@ import {
   CourseStats,
   ReviewCard,
   ReviewForm,
+  CurriculumAccordion,
 } from "../../components/course-module";
 import {
   courseService,
@@ -252,9 +253,9 @@ export const CourseDetailPage: React.FC = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
           {/* Back Button */}
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => navigate(USER_ROUTES.COURSES)}
-            className="mb-6 !text-white hover:!bg-white/10"
+            className="mb-6 border-white text-white hover:bg-white/10 hover:text-white"
             leftIcon={<ArrowLeft className="w-4 h-4" />}
           >
             Back to Courses
@@ -459,64 +460,20 @@ export const CourseDetailPage: React.FC = () => {
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">
                   Course Curriculum
                 </h2>
-                <div className="space-y-3">
-                  {course.sections && course.sections.length > 0 ? (
-                    course.sections.map((section, sectionIndex) => (
-                      <Card
-                        key={section.id}
-                        variant="bordered"
-                        className="p-5 hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <span className="text-blue-600 font-bold">
-                                {sectionIndex + 1}
-                              </span>
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 mb-1">
-                                {section.title}
-                              </h4>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                <span className="flex items-center gap-1">
-                                  <BookOpen className="w-4 h-4" />
-                                  {section.lessonCount}{" "}
-                                  {section.lessonCount === 1
-                                    ? "lesson"
-                                    : "lessons"}
-                                </span>
-                                {section.totalDurationMinutes > 0 && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-4 h-4" />
-                                    {Math.round(
-                                      section.totalDurationMinutes / 60
-                                    )}
-                                    h
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            {isEnrolled ? (
-                              <CheckCircle className="w-6 h-6 text-green-600" />
-                            ) : (
-                              <Lock className="w-6 h-6 text-gray-400" />
-                            )}
-                          </div>
-                        </div>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 text-lg">
-                        Curriculum coming soon...
-                      </p>
-                    </div>
-                  )}
-                </div>
+
+                {course.sections && course.sections.length > 0 ? (
+                  <CurriculumAccordion
+                    sections={course.sections}
+                    isEnrolled={isEnrolled}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 text-lg">
+                      Curriculum coming soon...
+                    </p>
+                  </div>
+                )}
               </Card>
             )}
 

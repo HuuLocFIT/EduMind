@@ -4,9 +4,18 @@ import com.edumind.lms.modules.course.dto.request.CreateCourseRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateCourseRequest;
 import com.edumind.lms.modules.course.dto.response.CourseDetailResponse;
 import com.edumind.lms.modules.course.dto.response.CourseResponse;
+import com.edumind.lms.modules.course.dto.response.LessonResponse;
+import com.edumind.lms.modules.course.dto.response.SectionDetailResponse;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.entity.Lesson;
+import com.edumind.lms.modules.course.entity.Section;
 import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Component
 public class CourseMapper {
@@ -129,8 +138,82 @@ public class CourseMapper {
                 .totalStudents(course.getTotalStudents())
                 .averageRating(course.getAverageRating())
                 .totalReviews(course.getTotalReviews())
+                .sections(mapSections(course.getSections()))
                 .createdAt(course.getCreatedAt())
                 .updatedAt(course.getUpdatedAt())
+                .build();
+    }
+
+    private List<SectionDetailResponse> mapSections(List<Section> sections) {
+        if (sections == null) {
+            return Collections.emptyList();
+        }
+
+        return sections.stream()
+                .filter(Objects::nonNull)
+                .map(this::mapSection)
+                .collect(Collectors.toList());
+    }
+
+    private SectionDetailResponse mapSection(Section section) {
+        List<Lesson> lessons = section.getLessons() != null ? section.getLessons() : Collections.emptyList();
+        List<LessonResponse> lessonResponses = mapLessons(lessons);
+
+        Integer totalDurationMinutes = lessons.stream()
+                .filter(Objects::nonNull)
+                .map(Lesson::getVideoDuration)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        // convert seconds to minutes (rounded up to nearest minute)
+        if (totalDurationMinutes != null && totalDurationMinutes > 0) {
+            totalDurationMinutes = (int) Math.ceil(totalDurationMinutes / 60.0);
+        }
+
+        return SectionDetailResponse.builder()
+                .id(section.getId())
+                .courseId(section.getCourse() != null ? section.getCourse().getId() : null)
+                .title(section.getTitle())
+                .description(section.getDescription())
+                .orderIndex(section.getOrderIndex())
+                .lessonCount(lessons.size())
+                .totalDurationMinutes(totalDurationMinutes)
+                .lessons(lessonResponses)
+                .createdAt(section.getCreatedAt())
+                .updatedAt(section.getUpdatedAt())
+                .build();
+    }
+
+    private List<LessonResponse> mapLessons(List<Lesson> lessons) {
+        if (lessons == null) {
+            return Collections.emptyList();
+        }
+
+        return lessons.stream()
+                .filter(Objects::nonNull)
+                .map(this::mapLesson)
+                .collect(Collectors.toList());
+    }
+
+    private LessonResponse mapLesson(Lesson lesson) {
+        return LessonResponse.builder()
+                .id(lesson.getId())
+                .sectionId(lesson.getSection() != null ? lesson.getSection().getId() : null)
+                .courseId(lesson.getCourse() != null ? lesson.getCourse().getId() : null)
+                .title(lesson.getTitle())
+                .description(lesson.getDescription())
+                .contentType(lesson.getContentType())
+                // Do not expose heavy media URLs in course detail metadata
+                .videoUrl(null)
+                .videoDuration(lesson.getVideoDuration())
+                // Metadata-only: omit article content and resources
+                .articleContent(null)
+                .resources(null)
+                .orderIndex(lesson.getOrderIndex())
+                .isPreview(lesson.getIsPreview())
+                .isMandatory(lesson.getIsMandatory())
+                .createdAt(lesson.getCreatedAt())
+                .updatedAt(lesson.getUpdatedAt())
                 .build();
     }
 }

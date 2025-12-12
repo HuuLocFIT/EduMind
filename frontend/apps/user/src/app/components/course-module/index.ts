@@ -10,6 +10,7 @@ export * from "./CategoryFilter";
 export * from "./CourseSearchBar";
 export * from "./InstructorInfo";
 export * from "./CourseStats";
+export * from "./CurriculumAccordion";
 export * from "./ProfileTab";
 export * from "./PasswordTab";
 export * from "./NotificationsTab";

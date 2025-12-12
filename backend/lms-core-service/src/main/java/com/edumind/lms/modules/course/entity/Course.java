@@ -1,10 +1,11 @@
 package com.edumind.lms.modules.course.entity;
 
-import com.edumind.lms.shared.entity.BaseEntity;
 import com.edumind.lms.modules.course.enums.CourseLevel;
 import com.edumind.lms.modules.course.enums.CourseStatus;
+import com.edumind.lms.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Fetch;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -99,6 +100,7 @@ public class Course extends BaseEntity {
 
     // Relationships
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(org.hibernate.annotations.FetchMode.SUBSELECT)
     @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<Section> sections = new ArrayList<>();

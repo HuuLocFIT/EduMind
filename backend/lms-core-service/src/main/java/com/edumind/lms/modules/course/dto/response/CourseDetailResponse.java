@@ -66,7 +66,7 @@ public class CourseDetailResponse {
     private Integer totalReviews;
 
     // Course structure (sections with lessons)
-    private List<SectionResponse> sections;
+    private List<SectionDetailResponse> sections;
 
     // Timestamps
     private LocalDateTime createdAt;

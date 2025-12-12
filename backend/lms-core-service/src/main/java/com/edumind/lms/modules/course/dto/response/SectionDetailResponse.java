@@ -18,6 +18,8 @@ public class SectionDetailResponse {
     private String title;
     private String description;
     private Integer orderIndex;
+    private Integer lessonCount;
+    private Integer totalDurationMinutes;
     private List<LessonResponse> lessons;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

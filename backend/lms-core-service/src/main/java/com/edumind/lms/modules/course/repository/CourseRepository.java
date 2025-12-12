@@ -23,10 +23,32 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Optional<Course> findByIdWithCategory(@Param("id") Long id);
 
     /**
+     * Find course by ID with category, sections and lessons fetched
+     */
+    @Query("""
+        SELECT DISTINCT c FROM Course c
+        LEFT JOIN FETCH c.category
+        LEFT JOIN FETCH c.sections s
+        WHERE c.id = :id
+        """)
+    Optional<Course> findByIdWithStructure(@Param("id") Long id);
+
+    /**
      * Find course by slug (for SEO-friendly URLs) - no pagination, use JOIN FETCH
      */
     @Query("SELECT DISTINCT c FROM Course c JOIN FETCH c.category WHERE c.slug = :slug")
     Optional<Course> findBySlug(@Param("slug") String slug);
+
+    /**
+     * Find course by slug with category, sections and lessons fetched
+     */
+    @Query("""
+        SELECT DISTINCT c FROM Course c
+        LEFT JOIN FETCH c.category
+        LEFT JOIN FETCH c.sections s
+        WHERE c.slug = :slug
+        """)
+    Optional<Course> findBySlugWithStructure(@Param("slug") String slug);
 
     /**
      * Check if slug exists (for validation)

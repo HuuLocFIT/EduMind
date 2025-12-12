@@ -3,6 +3,7 @@ package com.edumind.lms.modules.course.entity;
 import com.edumind.lms.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Fetch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ public class Section extends BaseEntity {
     private Integer orderIndex;
 
     @OneToMany(mappedBy = "section", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Fetch(org.hibernate.annotations.FetchMode.SUBSELECT)
     @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<Lesson> lessons = new ArrayList<>();
