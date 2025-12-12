@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Card,
   Button,
@@ -12,43 +13,39 @@ import type { WishlistItemResponse } from '@edumind/shared-types';
 import { WishlistCard } from '../../components/course-module/WishlistCard';
 import { Heart, Trash2 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
+import { useAuthStore } from '../../stores/auth.store';
+import { queryKeys } from '../../lib/query-keys';
+import { STALE_TIME_WISHLIST } from '../../lib/query-config';
 
 export const WishlistPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const userId = user?.id;
 
-  // State
-  const [wishlistItems, setWishlistItems] = useState<WishlistItemResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
   const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
   const { success: showSuccess, error: showError } = useToast();
 
-  useEffect(() => {
-    fetchWishlist();
-  }, []);
-
-  const fetchWishlist = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
+  // Use React Query for caching and better performance
+  const { data: wishlistItems = [], isLoading: loading, error } = useQuery<WishlistItemResponse[]>({
+    queryKey: queryKeys.wishlist.user(userId),
+    queryFn: async () => {
       const response = await wishlistService.getWishlist();
-      setWishlistItems(response.data || []);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to fetch wishlist');
-      console.error('Error fetching wishlist:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data || [];
+    },
+    staleTime: STALE_TIME_WISHLIST,
+    enabled: Boolean(userId),
+  });
 
   const handleRemoveFromWishlist = async (courseId: number) => {
     setRemovingIds(prev => new Set(prev).add(courseId));
 
     try {
       await wishlistService.remove(courseId);
-      setWishlistItems(prev => prev.filter(item => item.courseId !== courseId));
+      // Invalidate and refetch wishlist (using prefix matching)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
+      showSuccess('Removed from wishlist');
     } catch (err: any) {
       showError(err?.message || 'Failed to remove from wishlist');
     } finally {
@@ -69,7 +66,10 @@ export const WishlistPage: React.FC = () => {
       
       // Remove from wishlist after enrollment
       await wishlistService.remove(courseId);
-      setWishlistItems(prev => prev.filter(item => item.courseId !== courseId));
+      
+      // Invalidate queries to refresh data (using prefix matching)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all, exact: false });
       
       // Navigate to course or my learning
       navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
@@ -91,7 +91,9 @@ export const WishlistPage: React.FC = () => {
 
     try {
       await wishlistService.clear();
-      setWishlistItems([]);
+      // Invalidate and refetch wishlist (using prefix matching)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
+      showSuccess('Wishlist cleared');
     } catch (err: any) {
       showError(err?.message || 'Failed to clear wishlist');
     }
@@ -146,14 +148,7 @@ export const WishlistPage: React.FC = () => {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
-            <Button
-              variant="secondary"
-              onClick={fetchWishlist}
-              className="mt-2"
-            >
-              Try Again
-            </Button>
+            <p className="text-red-800">{(error as any)?.message || 'Failed to fetch wishlist'}</p>
           </div>
         )}
 

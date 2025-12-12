@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/auth.store";
 import { teacherCourseService } from "../../services/teacher-course.service";
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
-import { CourseStatus } from "@edumind/shared-constants";
 import type { CourseResponse } from "@edumind/shared-types";
 import { Button, Alert, useModal, useToast } from "@edumind/user-ui";
 import {
@@ -18,18 +18,18 @@ import {
   type FilterState,
 } from "../../components/teacher/courses/list";
 import { Plus } from "lucide-react";
+import { queryKeys } from "../../lib/query-keys";
+import { STALE_TIME_TEACHER_COURSES } from "../../lib/query-config";
 
 export const TeacherCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { success: showSuccess, error: showError } = useToast();
   const deleteModal = useModal();
 
   // State
-  const [courses, setCourses] = useState<CourseResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [courseToDelete, setCourseToDelete] = useState<CourseResponse | null>(
     null
@@ -40,8 +40,6 @@ export const TeacherCoursesPage: React.FC = () => {
   const [pagination, setPagination] = useState({
     page: 0,
     size: 12,
-    totalElements: 0,
-    totalPages: 0,
   });
 
   // Filters from URL
@@ -50,38 +48,37 @@ export const TeacherCoursesPage: React.FC = () => {
     search: searchParams.get("search") || "",
   };
 
-  // Fetch courses
-  useEffect(() => {
-    const fetchCourses = async () => {
-      if (!user?.id) return;
+  // Use React Query for caching and better performance
+  const {
+    data: coursesResponse,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.teacherCourses.list(
+      user?.id,
+      pagination.page,
+      pagination.size
+    ),
+    queryFn: async () => {
+      if (!user?.id) throw new Error("User not found");
+      return teacherCourseService.getMyCourses(user.id, {
+        page: pagination.page,
+        size: pagination.size,
+      });
+    },
+    staleTime: STALE_TIME_TEACHER_COURSES,
+    enabled: Boolean(user?.id),
+    // Keep previous data while fetching new page to prevent flash loading
+    placeholderData: (previousData) => previousData,
+  });
 
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await teacherCourseService.getMyCourses(user.id, {
-          page: pagination.page,
-          size: pagination.size,
-        });
-
-        setCourses(response.data || []);
-        if (response.pagination) {
-          setPagination((prev) => ({
-            ...prev,
-            totalElements: response.pagination!.totalElements,
-            totalPages: response.pagination!.totalPages,
-          }));
-        }
-      } catch (err: any) {
-        console.error("Failed to fetch courses:", err);
-        setError(err.message || "Failed to load courses");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, [user?.id, pagination.page, pagination.size]);
+  const courses = coursesResponse?.data || [];
+  const paginationData = {
+    page: pagination.page,
+    size: pagination.size,
+    totalElements: coursesResponse?.pagination?.totalElements || 0,
+    totalPages: coursesResponse?.pagination?.totalPages || 0,
+  };
 
   // Filter courses locally (since API doesn't have filter endpoint for instructor courses)
   const filteredCourses = useMemo(() => {
@@ -122,7 +119,11 @@ export const TeacherCoursesPage: React.FC = () => {
     try {
       setDeleting(true);
       await teacherCourseService.deleteCourse(courseToDelete.id);
-      setCourses((prev) => prev.filter((c) => c.id !== courseToDelete.id));
+      // Invalidate and refetch courses (using prefix matching)
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teacherCourses.all,
+        exact: false,
+      });
       showSuccess("Course deleted successfully");
       deleteModal.close();
       setCourseToDelete(null);
@@ -136,11 +137,11 @@ export const TeacherCoursesPage: React.FC = () => {
   const handlePublish = async (course: CourseResponse) => {
     try {
       await teacherCourseService.publishCourse(course.id);
-      setCourses((prev) =>
-        prev.map((c) =>
-          c.id === course.id ? { ...c, status: CourseStatus.PUBLISHED } : c
-        )
-      );
+      // Invalidate and refetch courses (using prefix matching)
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teacherCourses.all,
+        exact: false,
+      });
       showSuccess("Course published successfully");
     } catch (err: any) {
       showError(err.message || "Failed to publish course");
@@ -183,8 +184,8 @@ export const TeacherCoursesPage: React.FC = () => {
         <Alert
           variant="error"
           title="Error"
-          message={error}
-          onClose={() => setError(null)}
+          message={(error as any)?.message || "Failed to load courses"}
+          onClose={() => {}}
         />
       )}
 
@@ -237,10 +238,10 @@ export const TeacherCoursesPage: React.FC = () => {
       {/* Pagination */}
       {!loading && (
         <Pagination
-          page={pagination.page}
-          size={pagination.size}
-          totalElements={pagination.totalElements}
-          totalPages={pagination.totalPages}
+          page={paginationData.page}
+          size={paginationData.size}
+          totalElements={paginationData.totalElements}
+          totalPages={paginationData.totalPages}
           onPageChange={(page) => setPagination((p) => ({ ...p, page }))}
         />
       )}

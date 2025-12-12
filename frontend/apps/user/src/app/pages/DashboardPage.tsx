@@ -11,6 +11,12 @@ import {
 import { CourseGrid } from "../components/course-module";
 import { EnrollmentCard } from "../components/course-module/EnrollmentCard";
 import type { EnrollmentResponse, CourseResponse } from "@edumind/shared-types";
+import { queryKeys } from "../lib/query-keys";
+import {
+  STALE_TIME_ENROLLMENTS,
+  STALE_TIME_COURSES_PUBLIC,
+  STALE_TIME_WISHLIST,
+} from "../lib/query-config";
 import {
   BookOpen,
   Clock,
@@ -71,7 +77,7 @@ export const DashboardPage: React.FC = () => {
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<
     EnrollmentResponse[]
   >({
-    queryKey: ["enrollments", "me", userId],
+    queryKey: queryKeys.enrollments.me(userId),
     queryFn: async () => {
       const response = await enrollmentService.getMyEnrollments({
         page: 0,
@@ -79,13 +85,13 @@ export const DashboardPage: React.FC = () => {
       });
       return response.data || [];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_TIME_ENROLLMENTS,
     enabled: Boolean(userId),
   });
 
   const { data: recommendedCourses = [], isLoading: recommendedLoading } =
     useQuery<CourseResponse[]>({
-      queryKey: ["courses", "popular", { page: 0, size: 4 }],
+      queryKey: queryKeys.courses.popular(0, 4),
       queryFn: async () => {
         const response = await courseService.getMostPopularCourses({
           page: 0,
@@ -93,14 +99,14 @@ export const DashboardPage: React.FC = () => {
         });
         return response.data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: STALE_TIME_COURSES_PUBLIC,
     });
 
   const { data: wishlistCount = 0, isLoading: wishlistLoading } =
     useQuery<number>({
-      queryKey: ["wishlist", "count", userId],
+      queryKey: queryKeys.wishlist.count(userId),
       queryFn: () => wishlistService.getCount(),
-      staleTime: 2 * 60 * 1000,
+      staleTime: STALE_TIME_WISHLIST,
       enabled: Boolean(userId),
     });
 

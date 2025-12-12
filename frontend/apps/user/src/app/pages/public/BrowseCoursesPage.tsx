@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { queryKeys } from "../../lib/query-keys";
+import { STALE_TIME_CATEGORIES } from "../../lib/query-config";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
@@ -26,7 +28,7 @@ export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Filter type (all, free, newest, top-rated, most-popular)
+  // Filter type (all, free)
   const [filterType, setFilterType] = useState<FilterType>(
     (searchParams.get("filter") as FilterType) || "all"
   );
@@ -75,6 +77,7 @@ export const BrowseCoursesPage: React.FC = () => {
     if (maxPrice) params.set("maxPrice", maxPrice);
     if (sortBy !== "latest") params.set("sort", sortBy);
     setSearchParams(params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filterType,
     selectedCategoryId,
@@ -83,13 +86,13 @@ export const BrowseCoursesPage: React.FC = () => {
     minPrice,
     maxPrice,
     sortBy,
-    setSearchParams,
+    // setSearchParams is stable and doesn't need to be in dependencies
   ]);
 
   const { data: categories = [] } = useQuery<CategoryResponse[]>({
-    queryKey: ["categories", "active"],
+    queryKey: queryKeys.categories.active,
     queryFn: categoryService.getActiveCategories,
-    staleTime: 10 * 60 * 1000,
+    staleTime: STALE_TIME_CATEGORIES,
   });
 
   // Determine which API to call based on filterType
@@ -100,20 +103,17 @@ export const BrowseCoursesPage: React.FC = () => {
     error,
     refetch,
   } = useQuery<CoursesResponse>({
-    queryKey: [
-      "courses",
+    queryKey: queryKeys.courses.filtered({
       filterType,
-      {
-        page,
-        size: pageSize,
-        categoryId: selectedCategoryId,
-        level: selectedLevel,
-        keyword: debouncedKeyword,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        sortBy,
-      },
-    ],
+      page,
+      size: pageSize,
+      categoryId: selectedCategoryId,
+      level: selectedLevel,
+      keyword: debouncedKeyword,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      sortBy,
+    }),
     queryFn: async () => {
       const baseParams = {
         page,
@@ -247,30 +247,35 @@ export const BrowseCoursesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+          <div className="mb-6">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">
               Browse Courses
             </h1>
+            <p className="text-blue-100">
+              Discover thousands of courses to advance your skills
+            </p>
           </div>
-          <CourseSearchBar
-            onSearch={handleSearch}
-            value={searchKeyword}
-            placeholder="Search for courses..."
-            className="max-w-2xl"
-          />
+          <div className="w-full">
+            <CourseSearchBar
+              onSearch={handleSearch}
+              value={searchKeyword}
+              placeholder="Search for courses..."
+              className="w-full max-w-none"
+            />
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Quick Filter Buttons - Only for special filters (not sorting) */}
-        <div className="flex flex-wrap gap-2 md:gap-3 mb-6">
+        {/* Quick Filter Buttons */}
+        <div className="flex flex-wrap gap-3 mb-6">
           <button
             onClick={() => handleFilterTypeChange("all")}
-            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
               filterType === "all"
-                ? "bg-blue-600 text-white shadow-md scale-105"
+                ? "bg-blue-600 text-white shadow-md"
                 : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 hover:border-gray-400 hover:shadow-sm"
             }`}
           >
@@ -280,9 +285,9 @@ export const BrowseCoursesPage: React.FC = () => {
           </button>
           <button
             onClick={() => handleFilterTypeChange("free")}
-            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
               filterType === "free"
-                ? "bg-blue-600 text-white shadow-md scale-105"
+                ? "bg-blue-600 text-white shadow-md"
                 : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 hover:border-gray-400 hover:shadow-sm"
             }`}
           >

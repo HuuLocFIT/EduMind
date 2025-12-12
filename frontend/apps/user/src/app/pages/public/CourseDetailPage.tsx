@@ -26,7 +26,6 @@ import {
 import type {
   CourseDetailResponse,
   ReviewResponse,
-  EnrollmentResponse,
   InstructorStatsResponse,
 } from "@edumind/shared-types";
 import {
@@ -42,6 +41,14 @@ import {
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from "@user/stores/auth.store";
+import { queryKeys } from "../../lib/query-keys";
+import {
+  STALE_TIME_COURSE_DETAIL,
+  STALE_TIME_INSTRUCTOR_STATS,
+  STALE_TIME_REVIEWS,
+  STALE_TIME_WISHLIST,
+  STALE_TIME_ENROLLMENTS,
+} from "../../lib/query-config";
 
 export const CourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -61,23 +68,23 @@ export const CourseDetailPage: React.FC = () => {
     isLoading: courseLoading,
     error: courseError,
   } = useQuery<CourseDetailResponse | null>({
-    queryKey: ["course", courseId],
+    queryKey: queryKeys.courses.detail(courseId!),
     enabled: Boolean(courseId),
     queryFn: async () => courseService.getCourseById(Number(courseId)),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_TIME_COURSE_DETAIL,
   });
 
   const instructorId = course?.instructorId;
   const { data: instructorStats } = useQuery<InstructorStatsResponse | null>({
-    queryKey: ["instructor", instructorId, "stats"],
+    queryKey: queryKeys.instructors.stats(instructorId!),
     enabled: Boolean(instructorId),
     queryFn: async () =>
       courseService.getInstructorStats(instructorId as number),
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_TIME_INSTRUCTOR_STATS,
   });
 
   const { data: reviews = [] } = useQuery<ReviewResponse[]>({
-    queryKey: ["course", courseId, "reviews"],
+    queryKey: queryKeys.courses.reviews(courseId!),
     enabled: Boolean(courseId),
     queryFn: async () => {
       const response = await courseReviewService.getCourseReviews(
@@ -89,40 +96,32 @@ export const CourseDetailPage: React.FC = () => {
       );
       return response.data || [];
     },
+    staleTime: STALE_TIME_REVIEWS,
   });
 
-  const { data: enrollment } = useQuery<EnrollmentResponse | null>({
-    queryKey: ["enrollment", "course", courseId, userId],
+  // Check enrollment status (lightweight check - only returns boolean)
+  const { data: isEnrolled = false } = useQuery<boolean>({
+    queryKey: queryKeys.enrollments.status(Number(courseId!), userId),
     enabled: Boolean(courseId) && isAuthenticated && Boolean(userId),
-    queryFn: async () => {
-      const isEnrolled = await enrollmentService.checkEnrollmentStatus(
-        Number(courseId)
-      );
-      if (!isEnrolled) return null;
-      const response = await enrollmentService.getMyEnrollments({
-        page: 0,
-        size: 100,
-      });
-      return (
-        response.data?.find((e) => e.courseId === Number(courseId)) || null
-      );
-    },
+    queryFn: () => enrollmentService.checkEnrollmentStatus(Number(courseId)),
+    staleTime: STALE_TIME_ENROLLMENTS,
   });
 
   const { data: isInWishlist = false } = useQuery<boolean>({
-    queryKey: ["wishlist", courseId, userId],
+    queryKey: queryKeys.wishlist.course(courseId!, userId),
     enabled: Boolean(courseId) && isAuthenticated && Boolean(userId),
     queryFn: () => wishlistService.isInWishlist(Number(courseId)),
-    staleTime: 2 * 60 * 1000,
+    staleTime: STALE_TIME_WISHLIST,
   });
 
   const handleEnroll = async () => {
     try {
       await enrollmentService.enrollInCourse(Number(courseId));
+      // Invalidate enrollment queries (using prefix matching)
       await queryClient.invalidateQueries({
-        queryKey: ["enrollment", "course", courseId],
+        queryKey: queryKeys.enrollments.all,
+        exact: false,
       });
-      await queryClient.invalidateQueries({ queryKey: ["enrollments", "me"] });
       showSuccess("Successfully enrolled in course!");
       // Show success message or redirect
       navigate(USER_ROUTES.LEARNING);
@@ -135,14 +134,18 @@ export const CourseDetailPage: React.FC = () => {
     try {
       if (isInWishlist) {
         await wishlistService.remove(courseId);
+        // Invalidate wishlist queries (using prefix matching)
         await queryClient.invalidateQueries({
-          queryKey: ["wishlist", courseId],
+          queryKey: queryKeys.wishlist.all,
+          exact: false,
         });
         showSuccess("Removed from wishlist");
       } else {
         await wishlistService.add(courseId);
+        // Invalidate wishlist queries (using prefix matching)
         await queryClient.invalidateQueries({
-          queryKey: ["wishlist", courseId],
+          queryKey: queryKeys.wishlist.all,
+          exact: false,
         });
         showSuccess("Added to wishlist");
       }
@@ -158,10 +161,13 @@ export const CourseDetailPage: React.FC = () => {
         comment,
       });
       setShowReviewForm(false);
+      // Invalidate reviews and course detail
       await queryClient.invalidateQueries({
-        queryKey: ["course", courseId, "reviews"],
+        queryKey: queryKeys.courses.reviews(courseId!),
       });
-      await queryClient.invalidateQueries({ queryKey: ["course", courseId] });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.detail(courseId!),
+      });
       showSuccess("Review submitted successfully!");
     } catch (err: any) {
       showError(err?.message || "Failed to submit review");
@@ -306,7 +312,7 @@ export const CourseDetailPage: React.FC = () => {
                 {/* Enroll Button */}
                 <EnrollButton
                   courseId={Number(courseId)}
-                  isEnrolled={!!enrollment}
+                  isEnrolled={isEnrolled}
                   isFree={course.price === 0}
                   onEnroll={handleEnroll}
                   className="mb-4"
@@ -457,7 +463,7 @@ export const CourseDetailPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="ml-4">
-                            {enrollment ? (
+                            {isEnrolled ? (
                               <CheckCircle className="w-6 h-6 text-green-600" />
                             ) : (
                               <Lock className="w-6 h-6 text-gray-400" />
@@ -506,7 +512,7 @@ export const CourseDetailPage: React.FC = () => {
                 </Card>
 
                 {/* Write Review Button (only if enrolled) */}
-                {enrollment && (
+                {isEnrolled && (
                   <Card variant="elevated" className="p-6">
                     {!showReviewForm ? (
                       <Button

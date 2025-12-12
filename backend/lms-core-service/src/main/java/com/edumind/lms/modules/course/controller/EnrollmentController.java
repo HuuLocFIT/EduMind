@@ -4,6 +4,7 @@ import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.dto.request.EnrollRequest;
 import com.edumind.lms.modules.course.dto.response.EnrollmentResponse;
+import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.service.EnrollmentService;
@@ -195,5 +196,18 @@ public class EnrollmentController {
         boolean isEnrolled = enrollmentService.isStudentEnrolled(courseId, studentId);
 
         return ResponseEntity.ok(ApiResponse.success(isEnrolled));
+    }
+
+    @GetMapping("/my-stats")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<EnrollmentStatsResponse>> getMyEnrollmentStats(
+            Authentication authentication) {
+
+        Long studentId = Long.valueOf(authentication.getPrincipal().toString());
+        log.info("Getting enrollment statistics for student: {}", studentId);
+
+        EnrollmentStatsResponse stats = enrollmentService.getEnrollmentStats(studentId);
+
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 }

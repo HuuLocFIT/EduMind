@@ -1,11 +1,13 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.exception.*;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.repository.EnrollmentStatisticsProjection;
 import com.edumind.lms.modules.course.repository.LessonProgressRepository;
 import com.edumind.lms.modules.course.event.CourseCompletedEvent;
 import com.edumind.lms.modules.course.event.StudentEnrolledEvent;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -197,5 +200,59 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         log.debug("Getting recently accessed courses for student: {} (limit: {})", studentId, limit);
         Pageable pageable = PageRequest.of(0, limit);
         return enrollmentRepository.findRecentlyAccessedCourses(studentId, pageable);
+    }
+
+    @Override
+    public EnrollmentStatsResponse getEnrollmentStats(Long studentId) {
+        log.debug("Getting enrollment statistics for student: {}", studentId);
+
+        // Get statistics from repository using interface projection for type safety
+        // This eliminates magic numbers (array indices) and maps by field names
+        EnrollmentStatisticsProjection stats = enrollmentRepository.getStudentStatistics(studentId);
+
+        // Handle null case (no enrollments found)
+        if (stats == null) {
+            log.debug("No statistics found for student: {}, returning zeros", studentId);
+            return EnrollmentStatsResponse.builder()
+                    .total(0L)
+                    .active(0L)
+                    .completed(0L)
+                    .started(0L)
+                    .build();
+        }
+
+        // Map projection to response - using getter methods instead of array indices
+        // This is type-safe and won't break if query column order changes
+        return EnrollmentStatsResponse.builder()
+                .total(parseToLong(stats.getTotal()))
+                .active(parseToLong(stats.getActive()))
+                .completed(parseToLong(stats.getCompleted()))
+                .started(parseToLong(stats.getStarted()))
+                .build();
+    }
+
+    /**
+     * Safely parse Object to Long, handling Long, BigInteger, and null cases
+     */
+    private Long parseToLong(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+        if (value instanceof Long) {
+            return (Long) value;
+        }
+        if (value instanceof BigInteger) {
+            return ((BigInteger) value).longValue();
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        // Fallback: try to parse as string
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse value to Long: {}", value, e);
+            return 0L;
+        }
     }
 }

@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Card,
   Button,
@@ -8,37 +9,79 @@ import {
   ProgressBar,
 } from '@edumind/user-ui';
 import { enrollmentService } from '../../services';
-import type { EnrollmentResponse } from '@edumind/shared-types';
-import { BookOpen, Clock, Award, PlayCircle, TrendingUp } from 'lucide-react';
+import type { EnrollmentResponse, EnrollmentStatsResponse } from '@edumind/shared-types';
+import { BookOpen, Clock, Award, PlayCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
+import { useAuthStore } from '../../stores/auth.store';
+import { queryKeys } from '../../lib/query-keys';
+import { STALE_TIME_ENROLLMENTS } from '../../lib/query-config';
 
 export const MyLearningPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const userId = user?.id;
 
-  // State
-  const [enrollments, setEnrollments] = useState<EnrollmentResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'completed'>('all');
+  const [page, setPage] = useState(0);
+  const pageSize = 12;
 
+  // Reset page when filter changes
   useEffect(() => {
-    fetchEnrollments();
-  }, []);
+    setPage(0);
+  }, [filterStatus]);
 
-  const fetchEnrollments = async () => {
-    setLoading(true);
-    setError(null);
+  // Fetch enrollment statistics (accurate counts from backend - single query)
+  const { data: stats, isLoading: statsLoading } = useQuery<EnrollmentStatsResponse>({
+    queryKey: queryKeys.enrollments.stats(userId),
+    queryFn: () => enrollmentService.getMyEnrollmentStats(),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId),
+  });
 
-    try {
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      setEnrollments(response.data || []);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to fetch enrollments');
-      console.error('Error fetching enrollments:', err);
-    } finally {
-      setLoading(false);
+  // Fetch all enrollments (for 'all' filter only, with proper pagination)
+  const { data: allEnrollmentsResponse, isLoading: allLoading } = useQuery({
+    queryKey: queryKeys.enrollments.me(userId, page, pageSize),
+    queryFn: async () => {
+      return enrollmentService.getMyEnrollments({ page, size: pageSize });
+    },
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId) && filterStatus === 'all',
+    placeholderData: (previousData) => previousData,
+  });
+
+  // Fetch in-progress courses (for 'active' filter)
+  const { data: inProgressEnrollments = [], isLoading: inProgressLoading } = useQuery<EnrollmentResponse[]>({
+    queryKey: queryKeys.enrollments.inProgress(userId),
+    queryFn: () => enrollmentService.getMyInProgressCourses(),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId) && filterStatus === 'active',
+  });
+
+  // Fetch completed courses (for 'completed' filter)
+  const { data: completedEnrollments = [], isLoading: completedLoading } = useQuery<EnrollmentResponse[]>({
+    queryKey: queryKeys.enrollments.completed(userId),
+    queryFn: () => enrollmentService.getMyCompletedCourses(),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId) && filterStatus === 'completed',
+  });
+
+  // Determine which data to use based on filter
+  const enrollments = useMemo(() => {
+    switch (filterStatus) {
+      case 'active':
+        return inProgressEnrollments;
+      case 'completed':
+        return completedEnrollments;
+      default:
+        return allEnrollmentsResponse?.data || [];
     }
-  };
+  }, [filterStatus, allEnrollmentsResponse, inProgressEnrollments, completedEnrollments]);
+
+  // Loading state
+  const loading = statsLoading || 
+    (filterStatus === 'all' && allLoading) ||
+    (filterStatus === 'active' && inProgressLoading) ||
+    (filterStatus === 'completed' && completedLoading);
 
   const handleContinueLearning = (enrollment: EnrollmentResponse) => {
     // Navigate to course player or detail page
@@ -47,19 +90,6 @@ export const MyLearningPage: React.FC = () => {
 
   const handleViewCourse = (courseId: number) => {
     navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
-  };
-
-  const filteredEnrollments = enrollments.filter((enrollment) => {
-    if (filterStatus === 'all') return true;
-    if (filterStatus === 'active') return enrollment.status === 'ACTIVE';
-    if (filterStatus === 'completed') return enrollment.status === 'COMPLETED';
-    return true;
-  });
-
-  const stats = {
-    total: enrollments.length,
-    active: enrollments.filter(e => e.status === 'ACTIVE').length,
-    completed: enrollments.filter(e => e.status === 'COMPLETED').length,
   };
 
   if (loading) {
@@ -85,7 +115,7 @@ export const MyLearningPage: React.FC = () => {
                   <BookOpen className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.total ?? 0}</p>
                   <p className="text-sm text-gray-600">Total Courses</p>
                 </div>
               </div>
@@ -97,7 +127,7 @@ export const MyLearningPage: React.FC = () => {
                   <PlayCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.active ?? 0}</p>
                   <p className="text-sm text-gray-600">In Progress</p>
                 </div>
               </div>
@@ -109,7 +139,7 @@ export const MyLearningPage: React.FC = () => {
                   <Award className="w-6 h-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.completed ?? 0}</p>
                   <p className="text-sm text-gray-600">Completed</p>
                 </div>
               </div>
@@ -121,9 +151,7 @@ export const MyLearningPage: React.FC = () => {
                   <Clock className="w-6 h-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {enrollments.filter(e => e.progressPercentage && e.progressPercentage > 0).length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.started ?? 0}</p>
                   <p className="text-sm text-gray-600">Started</p>
                 </div>
               </div>
@@ -151,22 +179,9 @@ export const MyLearningPage: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">{error}</p>
-            <Button
-              variant="secondary"
-              onClick={fetchEnrollments}
-              className="mt-2"
-            >
-              Try Again
-            </Button>
-          </div>
-        )}
 
         {/* Empty State */}
-        {!loading && filteredEnrollments.length === 0 && (
+        {!loading && enrollments.length === 0 && (
           <Card className="p-12 text-center">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -187,17 +202,75 @@ export const MyLearningPage: React.FC = () => {
         )}
 
         {/* Enrollments Grid */}
-        {filteredEnrollments.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEnrollments.map((enrollment) => (
-              <EnrollmentCard
-                key={enrollment.id}
-                enrollment={enrollment}
-                onContinue={() => handleContinueLearning(enrollment)}
-                onViewCourse={() => handleViewCourse(enrollment.courseId)}
-              />
-            ))}
-          </div>
+        {enrollments.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {enrollments.map((enrollment) => (
+                <EnrollmentCard
+                  key={enrollment.id}
+                  enrollment={enrollment}
+                  onContinue={() => handleContinueLearning(enrollment)}
+                  onViewCourse={() => handleViewCourse(enrollment.courseId)}
+                />
+              ))}
+            </div>
+
+            {/* Pagination - Only show for 'all' filter */}
+            {filterStatus === 'all' && 
+             allEnrollmentsResponse?.pagination && 
+             (allEnrollmentsResponse.pagination.totalPages ?? 0) > 1 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-12">
+                <Button
+                  variant="secondary"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: allEnrollmentsResponse.pagination?.totalPages ?? 0 }, (_, i) => {
+                    // Show first, last, current, and adjacent pages
+                    if (
+                      i === page ||
+                      i === page - 1 ||
+                      i === page + 1 ||
+                      (page === 0 && i === 2) ||
+                      (page === (allEnrollmentsResponse.pagination?.totalPages ?? 0) - 1 && 
+                       i === (allEnrollmentsResponse.pagination?.totalPages ?? 0) - 3)
+                    ) {
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setPage(i)}
+                          className={`w-10 h-10 rounded-lg transition-all font-medium ${
+                            page === i
+                              ? "bg-blue-600 text-white shadow-md scale-105"
+                              : "hover:bg-gray-100 text-gray-700 hover:scale-105"
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <Button
+                  variant="secondary"
+                  onClick={() => setPage((p) => Math.min((allEnrollmentsResponse?.pagination?.totalPages || 1) - 1, p + 1))}
+                  disabled={page >= ((allEnrollmentsResponse?.pagination?.totalPages ?? 1) - 1)}
+                  className="flex items-center gap-1"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
