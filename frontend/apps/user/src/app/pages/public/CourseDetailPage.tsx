@@ -353,17 +353,19 @@ export const CourseDetailPage: React.FC = () => {
                 />
 
                 {/* Wishlist Button */}
-                <div className="flex items-center justify-center gap-2 mb-6">
-                  <WishlistButton
-                    courseId={Number(courseId)}
-                    isInWishlist={isInWishlist}
-                    onToggle={handleToggleWishlist}
-                  />
-                  <span className="text-sm text-gray-600">
-                    {isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-                  </span>
-                </div>
-
+                { !isEnrolled && 
+                  <div className="flex items-center justify-center gap-2 mb-6">
+                    <WishlistButton
+                      courseId={Number(courseId)}
+                      isInWishlist={isInWishlist}
+                      onToggle={handleToggleWishlist}
+                    />
+                    <span className="text-sm text-gray-600">
+                      {isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                    </span>
+                  </div>
+                }
+                
                 {/* Course Includes */}
                 <div className="pt-6 border-t">
                   <h4 className="font-semibold text-gray-900 mb-4">

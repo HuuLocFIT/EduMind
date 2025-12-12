@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Card,
   Button,
@@ -8,15 +8,15 @@ import {
   PriceTag,
   ConfirmDialog,
   useToast,
-} from '@edumind/user-ui';
-import { wishlistService, enrollmentService } from '@user/services/index';
-import type { WishlistItemResponse } from '@edumind/shared-types';
-import { WishlistCard } from '../../components/course-module/WishlistCard';
-import { Heart, Trash2 } from 'lucide-react';
-import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
-import { useAuthStore } from '../../stores/auth.store';
-import { queryKeys } from '../../lib/query-keys';
-import { STALE_TIME_WISHLIST } from '../../lib/query-config';
+} from "@edumind/user-ui";
+import { wishlistService, enrollmentService } from "@user/services/index";
+import type { WishlistItemResponse } from "@edumind/shared-types";
+import { WishlistCard } from "../../components/course-module/WishlistCard";
+import { Heart, Trash2 } from "lucide-react";
+import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
+import { useAuthStore } from "../../stores/auth.store";
+import { queryKeys } from "../../lib/query-keys";
+import { STALE_TIME_WISHLIST } from "../../lib/query-config";
 
 export const WishlistPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,7 +30,11 @@ export const WishlistPage: React.FC = () => {
   const { success: showSuccess, error: showError } = useToast();
 
   // Use React Query for caching and better performance
-  const { data: wishlistItems = [], isLoading: loading, error } = useQuery<WishlistItemResponse[]>({
+  const {
+    data: wishlistItems = [],
+    isLoading: loading,
+    error,
+  } = useQuery<WishlistItemResponse[]>({
     queryKey: queryKeys.wishlist.user(userId),
     queryFn: async () => {
       const response = await wishlistService.getWishlist();
@@ -47,27 +51,41 @@ export const WishlistPage: React.FC = () => {
     },
     onMutate: async (courseId) => {
       setRemovingIds((prev) => new Set(prev).add(courseId));
-      await queryClient.cancelQueries({ queryKey: queryKeys.wishlist.user(userId) });
-      const previousWishlist = queryClient.getQueryData<WishlistItemResponse[]>(queryKeys.wishlist.user(userId)) || [];
-      queryClient.setQueryData<WishlistItemResponse[]>(queryKeys.wishlist.user(userId), (old = []) =>
-        old.filter((item) => item.courseId !== courseId)
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.wishlist.user(userId),
+      });
+      const previousWishlist =
+        queryClient.getQueryData<WishlistItemResponse[]>(
+          queryKeys.wishlist.user(userId)
+        ) || [];
+      queryClient.setQueryData<WishlistItemResponse[]>(
+        queryKeys.wishlist.user(userId),
+        (old = []) => old.filter((item) => item.courseId !== courseId)
       );
       return { previousWishlist, courseId };
     },
     onSuccess: async (courseId) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
-      showSuccess('Removed from wishlist');
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.all,
+        exact: false,
+      });
+      showSuccess("Removed from wishlist");
     },
     onError: (err: any, _courseId, context) => {
       if (context?.previousWishlist) {
-        queryClient.setQueryData(queryKeys.wishlist.user(userId), context.previousWishlist);
+        queryClient.setQueryData(
+          queryKeys.wishlist.user(userId),
+          context.previousWishlist
+        );
       }
-      showError(err?.message || 'Failed to remove from wishlist');
+      showError(err?.message || "Failed to remove from wishlist");
     },
     onSettled: (courseId, _err, _variables, context) => {
       if (context?.previousWishlist) {
         // ensure cache stays fresh after optimistic update
-        queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.user(userId) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.wishlist.user(userId),
+        });
       }
       if (courseId === undefined) return;
       setRemovingIds((prev) => {
@@ -87,16 +105,25 @@ export const WishlistPage: React.FC = () => {
       setEnrollingIds((prev) => new Set(prev).add(courseId));
     },
     onSuccess: async (courseId) => {
-      showSuccess('Successfully enrolled!');
-      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all, exact: false });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId), exact: false });
+      showSuccess("Successfully enrolled!");
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.all,
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.enrollments.all,
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.detail(courseId),
+        exact: false,
+      });
       navigate(USER_ROUTES.LEARNING);
     },
     onError: (err: any) => {
-      showError(err?.message || 'Failed to enroll in course');
+      showError(err?.message || "Failed to enroll in course");
     },
-    onSettled: (courseId) => {
+    onSettled: (_data, _err, courseId) => {
       if (courseId === undefined) return;
       setEnrollingIds((prev) => {
         const updated = new Set(prev);
@@ -111,11 +138,14 @@ export const WishlistPage: React.FC = () => {
       await wishlistService.clear();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
-      showSuccess('Wishlist cleared');
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.wishlist.all,
+        exact: false,
+      });
+      showSuccess("Wishlist cleared");
     },
     onError: (err: any) => {
-      showError(err?.message || 'Failed to clear wishlist');
+      showError(err?.message || "Failed to clear wishlist");
     },
     onSettled: () => {
       setIsClearDialogOpen(false);
@@ -158,9 +188,12 @@ export const WishlistPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Heart className="w-8 h-8 text-red-500" />
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">My Wishlist</h1>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    My Wishlist
+                  </h1>
                   <p className="text-gray-600 mt-1">
-                    {wishlistItems.length} {wishlistItems.length === 1 ? 'course' : 'courses'} saved
+                    {wishlistItems.length}{" "}
+                    {wishlistItems.length === 1 ? "course" : "courses"} saved
                   </p>
                 </div>
               </div>
@@ -169,7 +202,6 @@ export const WishlistPage: React.FC = () => {
                 <Button
                   variant="secondary"
                   onClick={() => setIsClearDialogOpen(true)}
-                  className="text-red-600 hover:bg-red-50"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Clear All
@@ -184,7 +216,9 @@ export const WishlistPage: React.FC = () => {
           {/* Error State */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-red-800">{(error as any)?.message || 'Failed to fetch wishlist'}</p>
+              <p className="text-red-800">
+                {(error as any)?.message || "Failed to fetch wishlist"}
+              </p>
             </div>
           )}
 
@@ -196,7 +230,8 @@ export const WishlistPage: React.FC = () => {
                 Your wishlist is empty
               </h3>
               <p className="text-gray-600 mb-6">
-                Explore courses and add them to your wishlist to access them later
+                Explore courses and add them to your wishlist to access them
+                later
               </p>
               <Button
                 variant="primary"
@@ -218,7 +253,13 @@ export const WishlistPage: React.FC = () => {
                     item={item}
                     onRemove={handleRemoveFromWishlist}
                     onEnroll={handleEnroll}
-                    onViewCourse={() => navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: item.courseId || '' }))}
+                    onViewCourse={() =>
+                      navigate(
+                        buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+                          courseId: item.courseId || "",
+                        })
+                      )
+                    }
                     isRemoving={removingIds.has(item.courseId)}
                     isEnrolling={enrollingIds.has(item.courseId)}
                   />
@@ -239,17 +280,22 @@ export const WishlistPage: React.FC = () => {
                         {wishlistItems.length}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Free Courses:</span>
                       <span className="font-medium text-gray-900">
-                        {wishlistItems.filter(item => item.price === 0).length}
+                        {
+                          wishlistItems.filter((item) => item.price === 0)
+                            .length
+                        }
                       </span>
                     </div>
 
                     <div className="pt-3 border-t">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-gray-900">Total Value:</span>
+                        <span className="font-semibold text-gray-900">
+                          Total Value:
+                        </span>
                         <PriceTag price={calculateTotalPrice()} size="md" />
                       </div>
                     </div>
@@ -257,9 +303,10 @@ export const WishlistPage: React.FC = () => {
 
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 mb-3">
-                      💡 Tip: Courses on your wishlist may go on sale. Check back regularly!
+                      💡 Tip: Courses on your wishlist may go on sale. Check
+                      back regularly!
                     </p>
-                    
+
                     <Button
                       variant="primary"
                       onClick={() => navigate(USER_ROUTES.COURSES)}
@@ -274,7 +321,7 @@ export const WishlistPage: React.FC = () => {
           )}
         </div>
       </div>
-      
+
       <ConfirmDialog
         isOpen={isClearDialogOpen}
         onClose={() => setIsClearDialogOpen(false)}
