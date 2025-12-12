@@ -1,6 +1,6 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env['NODE_ENV'] !== "production";
 
 const shouldRetry = (failureCount: number, error: unknown) => {
   const status = (error as any)?.response?.status as number | undefined;
