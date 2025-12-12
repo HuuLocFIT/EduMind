@@ -123,10 +123,9 @@ export const CourseDetailPage: React.FC = () => {
         exact: false,
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId!), exact: false });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.status(Number(courseId!), userId), exact: false });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.course(courseId!, userId), exact: false });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.all, exact: false });
+      
       showSuccess("Successfully enrolled in course!");
-      // Show success message or redirect
       navigate(USER_ROUTES.LEARNING);
     } catch (err: any) {
       showError(err?.message || "Failed to enroll in course");
@@ -142,6 +141,8 @@ export const CourseDetailPage: React.FC = () => {
           queryKey: queryKeys.wishlist.all,
           exact: false,
         });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.course(courseId!, userId), exact: false });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.count(userId), exact: false });
         showSuccess("Removed from wishlist");
       } else {
         await wishlistService.add(courseId);
@@ -150,6 +151,8 @@ export const CourseDetailPage: React.FC = () => {
           queryKey: queryKeys.wishlist.all,
           exact: false,
         });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.course(courseId!, userId), exact: false });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.count(userId), exact: false });
         showSuccess("Added to wishlist");
       }
     } catch (err: any) {

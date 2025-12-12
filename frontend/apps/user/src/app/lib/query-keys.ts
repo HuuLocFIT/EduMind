@@ -16,9 +16,9 @@ export const enrollmentsKeys = {
   inProgress: (userId?: number, minProgress?: number) => 
     ['enrollments', 'in-progress', userId, minProgress] as const,
   course: (courseId: number, userId?: number) => 
-    ['enrollment', 'course', courseId, userId] as const,
+    ['enrollments', 'courses', courseId, userId] as const,
   status: (courseId: number | string, userId?: number) =>
-    ['enrollment', 'status', courseId, userId] as const,
+    ['enrollments', 'status', courseId, userId] as const,
   stats: (userId?: number) => ['enrollments', 'stats', userId] as const,
 } as const;
 
@@ -27,7 +27,7 @@ export const enrollmentsKeys = {
 // ============================================
 export const coursesKeys = {
   all: ['courses'] as const,
-  detail: (courseId: string | number) => ['course', courseId] as const,
+  detail: (courseId: string | number) => ['courses', courseId] as const,
   popular: (page: number, size: number) => 
     ['courses', 'popular', page, size] as const,
   topRated: (page: number, size: number) => 
@@ -55,7 +55,7 @@ export const coursesKeys = {
     params.sortBy,
   ] as const,
   reviews: (courseId: string | number) => 
-    ['course', courseId, 'reviews'] as const,
+    ['courses', courseId, 'reviews'] as const,
 } as const;
 
 // ============================================
@@ -94,9 +94,9 @@ export const teacherCoursesKeys = {
   list: (userId?: number, page?: number, size?: number) => 
     ['teacher-courses', userId, page, size] as const,
   detail: (courseId: string | number) => 
-    ['teacher-course', courseId] as const,
+    ['teacher-courses', courseId] as const,
   sections: (courseId: string | number) => 
-    ['teacher-course', courseId, 'sections'] as const,
+    ['teacher-courses', courseId, 'sections'] as const,
 } as const;
 
 // ============================================

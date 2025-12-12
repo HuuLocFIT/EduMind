@@ -75,6 +75,10 @@ export const TeacherCourseDetailPage: React.FC = () => {
         queryKey: queryKeys.teacherCourses.all,
         exact: false,
       });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.all,
+        exact: false,
+      })
       showSuccess("Course published successfully!");
     } catch (err: any) {
       showError(err.message || "Failed to publish course");

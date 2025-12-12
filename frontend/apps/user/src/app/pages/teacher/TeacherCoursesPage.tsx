@@ -124,6 +124,11 @@ export const TeacherCoursesPage: React.FC = () => {
         queryKey: queryKeys.teacherCourses.all,
         exact: false,
       });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.all,
+        exact: false,
+      });
+
       showSuccess("Course deleted successfully");
       deleteModal.close();
       setCourseToDelete(null);
@@ -140,6 +145,10 @@ export const TeacherCoursesPage: React.FC = () => {
       // Invalidate and refetch courses (using prefix matching)
       await queryClient.invalidateQueries({
         queryKey: queryKeys.teacherCourses.all,
+        exact: false,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.courses.all,
         exact: false,
       });
       showSuccess("Course published successfully");
