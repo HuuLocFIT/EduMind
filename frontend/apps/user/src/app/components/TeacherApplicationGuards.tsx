@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
-import teacherApplicationService from "../services/teacher-application.service";
+import { teacherApplicationService } from "@user/services/index";
 import { useAuthStore } from "../stores/auth.store";
 
 type CheckState = "checking" | "has-application" | "no-application";

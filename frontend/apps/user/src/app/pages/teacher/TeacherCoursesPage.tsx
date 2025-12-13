@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/auth.store";
-import { teacherCourseService } from "../../services/teacher-course.service";
+import { teacherCourseService } from '@user/services/index';
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import type { CourseResponse } from "@edumind/shared-types";
 import { Button, Alert, useModal, useToast } from "@edumind/user-ui";

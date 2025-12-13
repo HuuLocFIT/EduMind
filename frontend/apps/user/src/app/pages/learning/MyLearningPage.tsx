@@ -8,7 +8,7 @@ import {
   Loading,
   ProgressBar,
 } from '@edumind/user-ui';
-import { enrollmentService } from '../../services';
+import { enrollmentService } from '@user/services/index';
 import type { EnrollmentResponse, EnrollmentStatsResponse } from '@edumind/shared-types';
 import { BookOpen, Clock, Award, PlayCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';

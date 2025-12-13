@@ -7,7 +7,7 @@ import {
   CategoryFilter,
   CourseSearchBar,
 } from "../../components/course-module";
-import { courseService, categoryService } from "../../services";
+import { courseService, categoryService } from '@user/services/index';
 import type { CourseResponse, CategoryResponse } from "@edumind/shared-types";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import {

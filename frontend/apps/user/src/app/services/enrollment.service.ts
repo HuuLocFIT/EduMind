@@ -4,21 +4,15 @@ import {
   EnrollRequestSchema,
   EnrollmentResponseSchema,
   EnrollmentStatsResponseSchema,
+  EnrollmentListSchema,
+  EnrollmentPagedResponseSchema,
   type EnrollRequest,
   type EnrollmentResponse,
   type EnrollmentStatsResponse,
   type PagedResponse,
-  createPagedResponseSchema,
+  type EnrollmentPagedResponse,
 } from "@edumind/shared-types";
 import { ENROLLMENT_ENDPOINTS } from "@edumind/shared-utils";
-
-const EnrollmentListSchema = z.array(EnrollmentResponseSchema);
-const EnrollmentPagedResponseSchema = createPagedResponseSchema(
-  EnrollmentResponseSchema
-);
-
-type EnrollmentPagedResponse = z.infer<typeof EnrollmentPagedResponseSchema> &
-  PagedResponse<EnrollmentResponse>;
 
 export interface EnrollmentQueryParams {
   status?: string;

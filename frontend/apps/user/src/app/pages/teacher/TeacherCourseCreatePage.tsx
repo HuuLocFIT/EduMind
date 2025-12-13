@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { teacherCourseService } from "../../services/teacher-course.service";
-import { categoryService } from "../../services/category.service";
+import { teacherCourseService, categoryService } from '@user/services/index';
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import type { CreateCourseRequest, CategoryResponse } from "@edumind/shared-types";
 import { Button, useToast } from "@edumind/user-ui";

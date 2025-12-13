@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, Button, Input, useToast } from "@edumind/user-ui";
 import type { User } from "@edumind/shared-types";
-import AuthService from "@user/services/auth.service";
+import { authService, fileUploadService } from "@user/services/index";
 
 interface ProfileTabProps {
   user: User | null;
@@ -51,7 +51,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
 
     setAvatarUploading(true);
     try {
-      const uploadResult = await AuthService.uploadProfileImage(file);
+      const uploadResult = await fileUploadService.uploadImage(file);
       setFormData((prev) => ({
         ...prev,
         profilePictureUrl: uploadResult.url,
@@ -94,7 +94,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
     setLoading(true);
 
     try {
-      const updatedUser = await AuthService.updateProfile(payload);
+      const updatedUser = await authService.updateProfile(payload);
       updateUser(updatedUser);
       showSuccess("Profile updated successfully!");
     } catch (err: any) {

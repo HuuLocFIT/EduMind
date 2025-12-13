@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { teacherCourseService } from "../../services/teacher-course.service";
+import { teacherCourseService } from '@user/services/index';
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import { CourseStatus } from "@edumind/shared-constants";
 import type {

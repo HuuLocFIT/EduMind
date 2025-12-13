@@ -1,26 +1,25 @@
 import { apiClient } from "./api-client.service.js";
-import { z } from "zod";
 import {
   CategoryResponseSchema,
   type CategoryResponse,
+  CategoryListResponseSchema,
+  type CategoryListResponse,
 } from "@edumind/shared-types";
 import { CATEGORY_ENDPOINTS } from "@edumind/shared-utils";
 
-const CategoryListSchema = z.array(CategoryResponseSchema);
-
 export const categoryService = {
-  async getActiveCategories(): Promise<CategoryResponse[]> {
-    const response = await apiClient.get<CategoryResponse[]>(
+  async getActiveCategories(): Promise<CategoryListResponse> {
+    const response = await apiClient.get<CategoryListResponse>(
       CATEGORY_ENDPOINTS.ACTIVE
     );
-    return CategoryListSchema.parse(response.data);
+    return CategoryListResponseSchema.parse(response.data);
   },
 
-  async getCategoriesWithCourses(): Promise<CategoryResponse[]> {
-    const response = await apiClient.get<CategoryResponse[]>(
+  async getCategoriesWithCourses(): Promise<CategoryListResponse> {
+    const response = await apiClient.get<CategoryListResponse>(
       CATEGORY_ENDPOINTS.WITH_COURSES
     );
-    return CategoryListSchema.parse(response.data);
+    return CategoryListResponseSchema.parse(response.data);
   },
 
   async getCategoryById(categoryId: number | string): Promise<CategoryResponse> {

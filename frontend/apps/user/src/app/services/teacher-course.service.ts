@@ -1,20 +1,20 @@
-import { z } from "zod";
 import { apiClient } from "./api-client.service";
 import {
   CourseResponseSchema,
   CourseDetailResponseSchema,
   InstructorStatsResponseSchema,
   SectionResponseSchema,
-  SectionDetailResponseSchema,
   LessonResponseSchema,
-  EnrollmentResponseSchema,
-  ReviewResponseSchema,
-  createPagedResponseSchema,
+  CoursePagedResponseSchema,
+  ReviewPagedResponseSchema,
+  EnrollmentPagedResponseSchema,
+  SectionDetailListResponseSchema,
+  SectionListResponseSchema,
+  LessonListResponseSchema,
   type CourseResponse,
   type CourseDetailResponse,
   type InstructorStatsResponse,
   type SectionResponse,
-  type SectionDetailResponse,
   type LessonResponse,
   type EnrollmentResponse,
   type ReviewResponse,
@@ -27,27 +27,14 @@ import {
   type UpdateLessonRequest,
   type ReorderSectionsRequest,
   type ReorderLessonsRequest,
+  type CoursePagedResponse,
+  type ReviewPagedResponse,
+  type EnrollmentPagedResponse,
+  type SectionListResponse,
+  type SectionDetailListResponse,
+  type LessonListResponse,
 } from "@edumind/shared-types";
 import { TEACHER_PORTAL_ENDPOINTS } from "@edumind/shared-utils";
-
-// ============================================================================
-// SCHEMA DEFINITIONS
-// ============================================================================
-
-const CoursePagedResponseSchema = createPagedResponseSchema(CourseResponseSchema);
-const SectionListResponseSchema = z.array(SectionResponseSchema);
-const SectionDetailListResponseSchema = z.array(SectionDetailResponseSchema);
-const LessonListResponseSchema = z.array(LessonResponseSchema);
-const EnrollmentPagedResponseSchema = createPagedResponseSchema(EnrollmentResponseSchema);
-const ReviewPagedResponseSchema = createPagedResponseSchema(ReviewResponseSchema);
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-type CoursePagedResponse = z.infer<typeof CoursePagedResponseSchema> & PagedResponse<CourseResponse>;
-type EnrollmentPagedResponse = z.infer<typeof EnrollmentPagedResponseSchema> & PagedResponse<EnrollmentResponse>;
-type ReviewPagedResponse = z.infer<typeof ReviewPagedResponseSchema> & PagedResponse<ReviewResponse>;
 
 export interface TeacherCoursePaginationParams {
   page?: number;
@@ -56,15 +43,10 @@ export interface TeacherCoursePaginationParams {
   sortDir?: "ASC" | "DESC" | "asc" | "desc";
 }
 
-// ============================================================================
-// SERVICE
-// ============================================================================
-
 export const teacherCourseService = {
   // ==========================================================================
   // STATS
   // ==========================================================================
-  
   async getMyStats(instructorId: number): Promise<InstructorStatsResponse> {
     const response = await apiClient.get<InstructorStatsResponse>(
       TEACHER_PORTAL_ENDPOINTS.MY_STATS(instructorId)
@@ -75,7 +57,6 @@ export const teacherCourseService = {
   // ==========================================================================
   // COURSES
   // ==========================================================================
-
   async getMyCourses(
     instructorId: number,
     params: TeacherCoursePaginationParams = {}
@@ -84,7 +65,9 @@ export const teacherCourseService = {
       TEACHER_PORTAL_ENDPOINTS.MY_COURSES(instructorId),
       { params }
     );
-    return CoursePagedResponseSchema.parse(response.data) as CoursePagedResponse;
+    return CoursePagedResponseSchema.parse(
+      response.data
+    ) as CoursePagedResponse;
   },
 
   async getCourseDetail(courseId: number): Promise<CourseDetailResponse> {
@@ -127,16 +110,17 @@ export const teacherCourseService = {
   // ==========================================================================
   // SECTIONS
   // ==========================================================================
-
-  async getCourseSections(courseId: number): Promise<SectionResponse[]> {
-    const response = await apiClient.get<SectionResponse[]>(
+  async getCourseSections(courseId: number): Promise<SectionListResponse> {
+    const response = await apiClient.get<SectionListResponse>(
       TEACHER_PORTAL_ENDPOINTS.SECTIONS(courseId)
     );
     return SectionListResponseSchema.parse(response.data);
   },
 
-  async getCourseSectionsWithLessons(courseId: number): Promise<SectionDetailResponse[]> {
-    const response = await apiClient.get<SectionDetailResponse[]>(
+  async getCourseSectionsWithLessons(
+    courseId: number
+  ): Promise<SectionDetailListResponse> {
+    const response = await apiClient.get<SectionDetailListResponse>(
       TEACHER_PORTAL_ENDPOINTS.SECTIONS_DETAIL(courseId)
     );
     return SectionDetailListResponseSchema.parse(response.data);
@@ -181,9 +165,8 @@ export const teacherCourseService = {
   // ==========================================================================
   // LESSONS
   // ==========================================================================
-
-  async getSectionLessons(sectionId: number): Promise<LessonResponse[]> {
-    const response = await apiClient.get<LessonResponse[]>(
+  async getSectionLessons(sectionId: number): Promise<LessonListResponse> {
+    const response = await apiClient.get<LessonListResponse>(
       TEACHER_PORTAL_ENDPOINTS.LESSONS(sectionId)
     );
     return LessonListResponseSchema.parse(response.data);
@@ -228,7 +211,6 @@ export const teacherCourseService = {
   // ==========================================================================
   // STUDENTS (Enrollments)
   // ==========================================================================
-
   async getCourseStudents(
     courseId: number,
     params: TeacherCoursePaginationParams = {}
@@ -237,13 +219,14 @@ export const teacherCourseService = {
       TEACHER_PORTAL_ENDPOINTS.COURSE_STUDENTS(courseId),
       { params }
     );
-    return EnrollmentPagedResponseSchema.parse(response.data) as EnrollmentPagedResponse;
+    return EnrollmentPagedResponseSchema.parse(
+      response.data
+    ) as EnrollmentPagedResponse;
   },
 
   // ==========================================================================
   // REVIEWS
   // ==========================================================================
-
   async getCourseReviews(
     courseId: number,
     params: TeacherCoursePaginationParams = {}
@@ -252,9 +235,10 @@ export const teacherCourseService = {
       TEACHER_PORTAL_ENDPOINTS.COURSE_REVIEWS(courseId),
       { params }
     );
-    return ReviewPagedResponseSchema.parse(response.data) as ReviewPagedResponse;
+    return ReviewPagedResponseSchema.parse(
+      response.data
+    ) as ReviewPagedResponse;
   },
 };
 
 export type TeacherCourseService = typeof teacherCourseService;
-export default teacherCourseService;

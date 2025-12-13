@@ -7,7 +7,7 @@ import {
   type LoginRequest,
   type TwoFactorLoginRequest,
 } from "@edumind/shared-types";
-import AuthService from "@user/services/auth.service.js";
+import { authService } from "@user/services/index";
 import { useAuthStore } from "@user/stores/auth.store";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import {
@@ -108,8 +108,8 @@ export const LoginPage = () => {
   const handleOAuth2Login = (provider: "google" | "facebook") => {
     const url =
       provider === "google"
-        ? AuthService.getGoogleOAuthUrl()
-        : AuthService.getFacebookOAuthUrl();
+        ? authService.getGoogleOAuthUrl()
+        : authService.getFacebookOAuthUrl();
     window.location.href = url;
   };
 

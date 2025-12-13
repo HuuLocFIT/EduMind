@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { teacherCourseService } from "../../../../services/teacher-course.service";
+import { teacherCourseService } from "@user/services/index";
 import type { EnrollmentResponse } from "@edumind/shared-types";
 import { Skeleton, ProgressBar } from "@edumind/user-ui";
 import { Users } from "lucide-react";

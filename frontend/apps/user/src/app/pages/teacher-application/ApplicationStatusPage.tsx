@@ -1,5 +1,5 @@
 import { Alert, Button, Card, CardBody, CardHeader } from '@edumind/user-ui';
-import teacherApplicationService from '@user/services/teacher-application.service';
+import { teacherApplicationService } from '@user/services/index';
 import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { teacherCourseService } from "../../services/teacher-course.service";
-import { categoryService } from "../../services/category.service";
+import { categoryService, teacherCourseService } from '@user/services/index';
 import { TeacherRouteHelpers } from "@edumind/shared-utils";
 import type {
   CourseDetailResponse,

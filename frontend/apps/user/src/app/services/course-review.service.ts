@@ -5,18 +5,15 @@ import {
   ReviewResponseSchema,
   UpdateReviewRequestSchema,
   RatingDistributionResponseSchema,
+  ReviewPagedResponseSchema,
   type CreateReviewRequest,
   type ReviewResponse,
   type UpdateReviewRequest,
   type RatingDistributionResponse,
-  PagedResponse,
-  createPagedResponseSchema,
+  type PagedResponse,
+  type ReviewPagedResponse,
 } from "@edumind/shared-types";
 import { REVIEW_ENDPOINTS } from "@edumind/shared-utils";
-
-const ReviewPagedResponseSchema = createPagedResponseSchema(ReviewResponseSchema);
-
-type ReviewPagedResponse = z.infer<typeof ReviewPagedResponseSchema> & PagedResponse<ReviewResponse>;
 
 const parseReview = (payload: unknown): ReviewResponse =>
   ReviewResponseSchema.parse(payload);
