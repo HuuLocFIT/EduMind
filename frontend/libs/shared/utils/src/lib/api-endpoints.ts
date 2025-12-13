@@ -5,7 +5,7 @@
  * This ensures consistency, type safety, and easier maintenance.
  */
 
-import { getApiUrl } from './env.config.js';
+import { API_URL } from './env.config.js';
 
 /**
  * Base API path prefix
@@ -341,7 +341,7 @@ export const buildApiUrl = (
   endpoint: string,
   baseUrl?: string
 ): string => {
-  const apiBase = baseUrl || getApiUrl();
+  const apiBase = baseUrl || API_URL;
   
   // Remove leading slash from endpoint if baseUrl already has trailing slash
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;

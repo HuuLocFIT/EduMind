@@ -22,13 +22,10 @@ import {
   USER_ENDPOINTS,
   UPLOAD_ENDPOINTS,
   getOAuth2Url,
-  getApiUrl,
+  API_URL,
 } from "@edumind/shared-utils";
 
-const API_URL = getApiUrl();  
-
 class AuthService {
-
   // ========== BASIC AUTH ==========
 
   static async signup(data: SignupRequest): Promise<MessageResponse> {

@@ -11,10 +11,8 @@ import {
 import { 
   unwrapApiResponse, 
   AUTH_ENDPOINTS, 
-  getApiUrl,
+  API_URL,
 } from '@edumind/shared-utils';
-
-const API_URL = getApiUrl();
 
 export const apiClient = axios.create({
   baseURL: API_URL,

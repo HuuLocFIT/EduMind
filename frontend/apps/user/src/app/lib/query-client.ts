@@ -1,6 +1,5 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
-
-const isDev = import.meta.env.DEV;
+import { isDev } from "@edumind/shared-utils";
 
 const shouldRetry = (failureCount: number, error: unknown) => {
   const status = (error as any)?.response?.status as number | undefined;
