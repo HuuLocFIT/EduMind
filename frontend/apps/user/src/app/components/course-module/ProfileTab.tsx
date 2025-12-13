@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, Button, Input, useToast } from "@edumind/user-ui";
-import type { User } from "@edumind/shared-types";
+import {
+  type User,
+  UpdateProfileRequestSchema,
+  type UpdateProfileRequest,
+} from "@edumind/shared-types";
 import { authService, fileUploadService } from "@user/services/index";
 
 interface ProfileTabProps {
@@ -12,32 +18,35 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
   const [loading, setLoading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [formData, setFormData] = useState({
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    email: user?.email || "",
-    username: user?.username || "",
-    phoneNumber: user?.phoneNumber || "",
-    profilePictureUrl: user?.profilePictureUrl || "",
-  });
   const { success: showSuccess, error: showError } = useToast();
 
-  useEffect(() => {
-    setFormData({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm<UpdateProfileRequest>({
+    resolver: zodResolver(UpdateProfileRequestSchema),
+    defaultValues: {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
-      email: user?.email || "",
-      username: user?.username || "",
+      phoneNumber: user?.phoneNumber || "",
+      profilePictureUrl: user?.profilePictureUrl || "",
+    },
+  });
+
+  const profilePictureUrl = watch("profilePictureUrl");
+
+  useEffect(() => {
+    reset({
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
       phoneNumber: user?.phoneNumber || "",
       profilePictureUrl: user?.profilePictureUrl || "",
     });
-  }, [user]);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  }, [user, reset]);
 
   const handleAvatarSelect = () => {
     fileInputRef.current?.click();
@@ -52,10 +61,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
     setAvatarUploading(true);
     try {
       const uploadResult = await fileUploadService.uploadImage(file);
-      setFormData((prev) => ({
-        ...prev,
-        profilePictureUrl: uploadResult.url,
-      }));
+      setValue("profilePictureUrl", uploadResult.url);
       showSuccess("Avatar uploaded successfully!");
     } catch (err: any) {
       showError(err?.message || "Failed to upload avatar");
@@ -65,25 +71,24 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: UpdateProfileRequest) => {
+    // Build payload with only non-empty values
+    const payload: UpdateProfileRequest = {};
 
-    const payload: Record<string, string> = {};
-
-    if (formData.firstName.trim()) {
-      payload['firstName'] = formData.firstName.trim();
+    if (data.firstName?.trim()) {
+      payload.firstName = data.firstName.trim();
     }
 
-    if (formData.lastName.trim()) {
-      payload['lastName'] = formData.lastName.trim();
+    if (data.lastName?.trim()) {
+      payload.lastName = data.lastName.trim();
     }
 
-    if (formData.phoneNumber.trim()) {
-      payload['phoneNumber'] = formData.phoneNumber.trim();
+    if (data.phoneNumber?.trim()) {
+      payload.phoneNumber = data.phoneNumber.trim();
     }
 
-    if (formData.profilePictureUrl) {
-      payload['profilePictureUrl'] = formData.profilePictureUrl; 
+    if (data.profilePictureUrl) {
+      payload.profilePictureUrl = data.profilePictureUrl;
     }
 
     if (Object.keys(payload).length === 0) {
@@ -110,7 +115,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
           Profile Information
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <input
             ref={fileInputRef}
             type="file"
@@ -120,9 +125,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
           />
 
           <div className="flex items-center gap-6">
-            {formData.profilePictureUrl ? (
+            {profilePictureUrl ? (
               <img
-                src={formData.profilePictureUrl}
+                src={profilePictureUrl}
                 alt="Profile"
                 className="w-24 h-24 rounded-full object-cover border border-gray-200"
               />
@@ -138,7 +143,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
                 onClick={handleAvatarSelect}
                 isLoading={avatarUploading}
               >
-                {formData.profilePictureUrl ? "Change Avatar" : "Upload Avatar"}
+                {profilePictureUrl ? "Change Avatar" : "Upload Avatar"}
               </Button>
               <p className="text-sm text-gray-500 mt-2">
                 JPG, PNG or GIF. Max size 2MB
@@ -149,27 +154,23 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
         {/* Name Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              First Name *
-            </label>
             <Input
               type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
+              label="First Name"
+              placeholder="Lucas"
+              error={errors.firstName?.message}
+              {...register("firstName")}
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Last Name *
-            </label>
             <Input
               type="text"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
+              label="Last Name"
+              placeholder="Nguyen"
+              error={errors.lastName?.message}
+              {...register("lastName")}
               required
             />
           </div>
@@ -180,27 +181,33 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Username
             </label>
-            <Input type="text" name="username" value={formData.username} disabled />
+            <Input
+              type="text"
+              value={user?.username || ""}
+              disabled
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
             </label>
-            <Input type="email" name="email" value={formData.email} disabled />
+            <Input
+              type="email"
+              value={user?.email || ""}
+              disabled
+            />
           </div>
         </div>
 
         {/* Phone Number */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phone Number
-          </label>
           <Input
             type="tel"
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleChange}
+            label="Phone Number"
+            placeholder="0912 345 678"
+            error={errors.phoneNumber?.message}
+            {...register("phoneNumber")}
           />
         </div>
 
@@ -212,11 +219,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
               type="button"
               variant="secondary"
               onClick={() =>
-                setFormData({
+                reset({
                   firstName: user?.firstName || "",
                   lastName: user?.lastName || "",
-                  email: user?.email || "",
-                  username: user?.username || "",
                   phoneNumber: user?.phoneNumber || "",
                   profilePictureUrl: user?.profilePictureUrl || "",
                 })

@@ -281,37 +281,40 @@ export function TeacherApplicationPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="First Name *"
-                    placeholder="John"
+                    label="First Name"
+                    placeholder="Lucas"
                     leftIcon={<User className="w-5 h-5" />}
                     error={errors.firstName?.message}
                     fullWidth
+                    required
                     {...register('firstName')}
                   />
 
                   <Input
-                    label="Last Name *"
-                    placeholder="Doe"
+                    label="Last Name"
+                    placeholder="Nguyen"
                     leftIcon={<User className="w-5 h-5" />}
                     error={errors.lastName?.message}
                     fullWidth
+                    required
                     {...register('lastName')}
                   />
                 </div>
 
                 <Input
-                  label="Email *"
+                  label="Email"
                   type="email"
-                  placeholder="john.doe@example.com"
+                  placeholder="lucas.nguyen@example.com"
                   leftIcon={<Mail className="w-5 h-5" />}
                   error={errors.email?.message}
                   fullWidth
+                  required
                   {...register('email')}
                 />
 
                 <Input
                   label="Phone Number"
-                  placeholder="+84 123 456 789"
+                  placeholder="0912 345 678"
                   leftIcon={<Phone className="w-5 h-5" />}
                   error={errors.phone?.message}
                   fullWidth
@@ -327,13 +330,14 @@ export function TeacherApplicationPage() {
                 </h3>
 
                 <Input
-                  label="Subject You Can Teach *"
+                  label="Subject You Can Teach"
                   placeholder="Web Development, JavaScript, React..."
                   leftIcon={<BookOpen className="w-5 h-5" />}
                   error={errors.subject?.message}
                   helperText="List the main subject or subjects you can teach"
                   fullWidth
                   {...register('subject')}
+                  required
                 />
 
                 <Input
@@ -348,13 +352,14 @@ export function TeacherApplicationPage() {
                 />
 
                 <Textarea
-                  label="Qualifications *"
+                  label="Qualifications"
                   placeholder="Bachelor's in Computer Science from XYZ University, Teaching Certificate..."
                   rows={4}
                   error={errors.qualifications?.message}
                   helperText="Include degrees, certifications, and relevant qualifications"
                   fullWidth
-                  {...register('qualifications')}
+                  {...register('qualifications')} 
+                  required
                 />
 
                 <Textarea
@@ -376,13 +381,14 @@ export function TeacherApplicationPage() {
                 </h3>
 
                 <Textarea
-                  label="Why Do You Want to Teach? *"
+                  label="Why Do You Want to Teach?"
                   placeholder="I'm passionate about helping students learn..."
                   rows={4}
                   error={errors.motivation?.message}
                   helperText="Share your passion and goals as an educator (max 1000 characters)"
                   fullWidth
                   {...register('motivation')}
+                  required
                 />
               </div>
 
@@ -397,13 +403,14 @@ export function TeacherApplicationPage() {
                 </p>
 
                 <FileUpload
-                  label="CV / Resume *"
+                  label="CV / Resume"
                   accept=".pdf,.doc,.docx"
                   multiple={false}
                   maxSize={5}
                   maxFiles={1}
                   onFilesChange={setCvFiles}
                   helperText="Upload your CV or Resume (PDF, DOC, DOCX - Max 5MB)"
+                  required
                 />
 
                 <FileUpload

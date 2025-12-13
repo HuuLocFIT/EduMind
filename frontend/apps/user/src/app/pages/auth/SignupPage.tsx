@@ -173,6 +173,7 @@ export const SignupPage = () => {
             {/* Username */}
             <Input
               label="Username"
+              placeholder="e.g. lucas"
               leftIcon={<User className="w-5 h-5" />}
               error={errors.username?.message}
               fullWidth
@@ -184,6 +185,7 @@ export const SignupPage = () => {
             <Input
               label="Email"
               type="email"
+              placeholder="your.email@example.com"
               leftIcon={<Mail className="w-5 h-5" />}
               error={errors.email?.message}
               fullWidth
@@ -195,6 +197,7 @@ export const SignupPage = () => {
             <div>
               <PasswordInput
                 label="Password"
+                placeholder="Create a strong password"
                 error={errors.password?.message}
                 fullWidth
                 required
@@ -239,12 +242,14 @@ export const SignupPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="First Name"
+                placeholder="Lucas"
                 error={errors.firstName?.message}
                 {...register("firstName")}
               />
 
               <Input
                 label="Last Name"
+                placeholder="Nguyen"
                 error={errors.lastName?.message}
                 {...register("lastName")}
               />
@@ -254,6 +259,7 @@ export const SignupPage = () => {
             <Input
               label="Phone Number"
               type="tel"
+              placeholder="0912 345 678"
               leftIcon={<Phone className="w-5 h-5" />}
               error={errors.phoneNumber?.message}
               fullWidth

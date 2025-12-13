@@ -17,6 +17,7 @@ interface FileUploadProps {
   maxFiles?: number;
   onFilesChange: (files: UploadedFile[]) => void;
   helperText?: string;
+  required?: boolean;
 }
 
 export const FileUpload = ({
@@ -27,6 +28,7 @@ export const FileUpload = ({
   maxFiles = 1,
   onFilesChange,
   helperText,
+  required = false,
 }: FileUploadProps) => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -94,6 +96,7 @@ export const FileUpload = ({
       {label && (
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
 
