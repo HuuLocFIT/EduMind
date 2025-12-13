@@ -3,6 +3,7 @@ package com.edumind.auth.entity;
 import com.edumind.auth.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -89,6 +90,7 @@ public class TeacherApplication {
 
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt DESC")
+    @BatchSize(size = 20) // Batch fetch to avoid N+1, but safe with Pageable
     @Builder.Default
     private List<ApplicationStatusHistory> statusHistory = new ArrayList<>();
 

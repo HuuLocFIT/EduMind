@@ -56,8 +56,9 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     boolean existsBySlug(String slug);
 
     /**
-     * Find all published courses
+     * Find all published courses - with pagination, use @EntityGraph
      */
+    @EntityGraph("Course.withCategory")
     Page<Course> findByStatus(CourseStatus status, Pageable pageable);
 
     /**
@@ -72,8 +73,9 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Page<Course> findByInstructorIdAndStatus(Long instructorId, CourseStatus status, Pageable pageable);
 
     /**
-     * Find courses by category
+     * Find courses by category - with pagination, use @EntityGraph
      */
+    @EntityGraph("Course.withCategory")
     Page<Course> findByCategoryId(Long categoryId, Pageable pageable);
 
     /**
@@ -84,8 +86,9 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Page<Course> findPublishedCoursesByCategory(@Param("categoryId") Long categoryId, Pageable pageable);
 
     /**
-     * Search courses by title or description
+     * Search courses by title or description - with pagination, use @EntityGraph
      */
+    @EntityGraph("Course.withCategory")
     @Query("SELECT c FROM Course c WHERE " +
             "LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(c.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
@@ -101,13 +104,15 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Page<Course> searchPublishedCourses(@Param("keyword") String keyword, Pageable pageable);
 
     /**
-     * Find courses by level
+     * Find courses by level - with pagination, use @EntityGraph
      */
+    @EntityGraph("Course.withCategory")
     Page<Course> findByLevelAndStatus(CourseLevel level, CourseStatus status, Pageable pageable);
 
     /**
-     * Find courses by price range
+     * Find courses by price range - with pagination, use @EntityGraph
      */
+    @EntityGraph("Course.withCategory")
     @Query("SELECT c FROM Course c WHERE c.status = 'PUBLISHED' AND " +
             "c.price BETWEEN :minPrice AND :maxPrice")
     Page<Course> findByPriceRange(
