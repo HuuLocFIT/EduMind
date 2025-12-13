@@ -7,7 +7,7 @@ import {
   type SignupRequest,
 } from "@edumind/shared-types";
 import { getPasswordStrength, USER_ROUTES } from "@edumind/shared-utils";
-import AuthService from "@user/services/auth.service.js";
+import { authService } from "@user/services/index";
 import { useAuthStore } from "@user/stores/auth.store";
 import {
   Button,
@@ -65,8 +65,8 @@ export const SignupPage = () => {
   const handleOAuth2Login = (provider: "google" | "facebook") => {
     const url =
       provider === "google"
-        ? AuthService.getGoogleOAuthUrl()
-        : AuthService.getFacebookOAuthUrl();
+        ? authService.getGoogleOAuthUrl()
+        : authService.getFacebookOAuthUrl();
     window.location.href = url;
   };
 

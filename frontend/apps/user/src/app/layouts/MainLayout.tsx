@@ -18,7 +18,7 @@ import {
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
 import { ApplicationStatus } from "@edumind/shared-types";
-import teacherApplicationService from "@user/services/teacher-application.service";
+import { teacherApplicationService } from "@user/services/index";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();

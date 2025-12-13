@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
-import teacherApplicationService from "@user/services/teacher-application.service";
+import { teacherApplicationService } from "@user/services/index";
 import {
   GraduationCap,
   ArrowRight,

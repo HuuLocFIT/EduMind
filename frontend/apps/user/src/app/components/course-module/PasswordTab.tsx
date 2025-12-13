@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Button, Input, useToast } from '@edumind/user-ui';
-import AuthService from '@user/services/auth.service';
+import { authService } from '@user/services/index';
 
 export const PasswordTab: React.FC = () => {
     const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export const PasswordTab: React.FC = () => {
       setLoading(true);
   
       try {
-        await AuthService.changePassword({
+        await authService.changePassword({
           currentPassword: formData.currentPassword,
           newPassword: formData.newPassword,
           confirmPassword: formData.confirmPassword,

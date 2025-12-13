@@ -3,19 +3,19 @@ import { z } from "zod";
 import {
   LessonProgressResponseSchema,
   UpdateProgressRequestSchema,
+  LessonProgressListSchema,
   type LessonProgressResponse,
   type UpdateProgressRequest,
+  type LessonProgressListResponse,
 } from "@edumind/shared-types";
 import { LESSON_PROGRESS_ENDPOINTS } from "@edumind/shared-utils";
-
-const LessonProgressListSchema = z.array(LessonProgressResponseSchema);
 
 const parseLessonProgress = (payload: unknown): LessonProgressResponse =>
   LessonProgressResponseSchema.parse(payload);
 
 const parseLessonProgressList = (
   payload: unknown
-): LessonProgressResponse[] => LessonProgressListSchema.parse(payload);
+): LessonProgressListResponse => LessonProgressListSchema.parse(payload);
 
 export const lessonProgressService = {
   async startLesson(
@@ -64,8 +64,8 @@ export const lessonProgressService = {
 
   async getEnrollmentProgress(
     enrollmentId: number | string
-  ): Promise<LessonProgressResponse[]> {
-    const response = await apiClient.get<LessonProgressResponse[]>(
+  ): Promise<LessonProgressListResponse> {
+    const response = await apiClient.get<LessonProgressListResponse>(
       LESSON_PROGRESS_ENDPOINTS.ENROLLMENT(enrollmentId)
     );
 
@@ -74,8 +74,8 @@ export const lessonProgressService = {
 
   async getCompletedLessons(
     enrollmentId: number | string
-  ): Promise<LessonProgressResponse[]> {
-    const response = await apiClient.get<LessonProgressResponse[]>(
+  ): Promise<LessonProgressListResponse> {
+    const response = await apiClient.get<LessonProgressListResponse>(
       LESSON_PROGRESS_ENDPOINTS.ENROLLMENT_COMPLETED(enrollmentId)
     );
 

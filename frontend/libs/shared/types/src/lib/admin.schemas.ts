@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   createApiResponseSchema,
   createPagedResponseSchema,
-} from "./auth.schemas.js";
+} from "./base-response.schemas.js";
 
 export const AdminCreateUserRequestSchema = z.object({
   username: z

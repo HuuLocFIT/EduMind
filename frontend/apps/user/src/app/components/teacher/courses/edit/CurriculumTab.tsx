@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { ContentType } from "@edumind/shared-constants";
-import { teacherCourseService } from "../../../../services/teacher-course.service";
+import { teacherCourseService } from "@user/services/index";
 import type {
   SectionDetailResponse,
   CreateLessonRequest,

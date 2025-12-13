@@ -1,15 +1,15 @@
 import { apiClient } from "./api-client.service.js";
-import type {
-  FileUploadResponse,
+import {
+  type FileUploadResponse,
 } from "@edumind/shared-types";
 import { UPLOAD_ENDPOINTS } from "@edumind/shared-utils";
 
-class FileUploadService {
+export const fileUploadService = {
   /**
    * Upload a single file
    * POST /upload/document
    */
-  static async uploadFile(file: File): Promise<FileUploadResponse> {
+  async uploadFile(file: File): Promise<FileUploadResponse> {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -22,20 +22,35 @@ class FileUploadService {
     );
 
     return response.data;
-  }
+  },
 
   /**
    * Upload multiple files
    * @param files Array of File objects
    * @returns Array of FileUploadResponse
    */
-  static async uploadMultipleFiles(
+  async uploadMultipleFiles(
     files: File[]
   ): Promise<FileUploadResponse[]> {
     const uploadPromises = files.map((file) => this.uploadFile(file));
     return Promise.all(uploadPromises);
-  }
+  },
+
+  async uploadImage(file: File): Promise<FileUploadResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.post<FileUploadResponse>(
+      UPLOAD_ENDPOINTS.IMAGE,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+
+    return response.data;
+  },
 }
 
-export default FileUploadService;
+export type FileUploadService = typeof fileUploadService;
 

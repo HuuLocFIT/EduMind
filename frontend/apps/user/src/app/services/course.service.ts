@@ -1,20 +1,15 @@
 import { apiClient } from "./api-client.service.js";
-import { z } from "zod";
 import {
   CourseDetailResponseSchema,
-  CourseResponseSchema,
   InstructorStatsResponseSchema,
+  CoursePagedResponseSchema,
   type CourseDetailResponse,
   type CourseResponse,
   type InstructorStatsResponse,
   type PagedResponse,
-  createPagedResponseSchema,
+  type CoursePagedResponse,
 } from "@edumind/shared-types";
 import { COURSE_ENDPOINTS } from "@edumind/shared-utils";
-
-const CoursePagedResponseSchema = createPagedResponseSchema(CourseResponseSchema);
-
-type CoursePagedResponse = z.infer<typeof CoursePagedResponseSchema> & PagedResponse<CourseResponse>;
 
 export interface CoursePaginationParams {
   page?: number;

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, LoginRequest, SignupRequest, TwoFactorLoginRequest } from "@edumind/shared-types";
-import AuthService from "@user/services/auth.service.js";
+import { authService } from "@user/services/index";
 import { queryClient } from "../lib/query-client";
 
 interface AuthState {
@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
       login: async (credentials) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await AuthService.login(credentials);
+          const response = await authService.login(credentials);
 
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
@@ -54,11 +54,11 @@ export const useAuthStore = create<AuthState>()(
       loginWith2FA: async (credentials) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await AuthService.loginWith2FA(credentials);
+          const response = await authService.loginWith2FA(credentials);
 
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
-          const user = await AuthService.fetchCurrentUser();
+          const user = await authService.fetchCurrentUser();
           localStorage.setItem('user', JSON.stringify(user.data));
 
           set({
@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem("accessToken", token);
 
           // Fetch user info using the token
-          const userResponse = await AuthService.fetchCurrentUser();
+          const userResponse = await authService.fetchCurrentUser();
           const user = userResponse;
 
           // Save user to localStorage
@@ -114,7 +114,7 @@ export const useAuthStore = create<AuthState>()(
       signup: async (data) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await AuthService.signup(data);
+          const response = await authService.signup(data);
 
           set({ isLoading: false });
         } catch (error: any) {
@@ -127,7 +127,7 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         set({ isLoading: true });
         try {
-          await AuthService.logout();
+          await authService.logout();
         } catch (error) {
           console.error("Logout error:", error);
         } finally {

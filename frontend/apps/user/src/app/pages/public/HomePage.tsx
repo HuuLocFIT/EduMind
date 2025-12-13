@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, StatCard, Card, CardBody, Loading } from '@edumind/user-ui';
 import { CourseGrid } from '../../components/course-module';
-import { courseService } from '../../services';
+import { courseService } from '@user/services/index';
 import type { CourseResponse } from '@edumind/shared-types';
 import { queryKeys } from '../../lib/query-keys';
 import { STALE_TIME_COURSES_PUBLIC } from '../../lib/query-config';

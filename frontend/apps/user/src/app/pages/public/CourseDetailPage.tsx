@@ -23,7 +23,7 @@ import {
   enrollmentService,
   courseReviewService,
   wishlistService,
-} from "../../services";
+} from "@user/services/index";  
 import type {
   CourseDetailResponse,
   ReviewResponse,

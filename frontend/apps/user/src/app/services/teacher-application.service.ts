@@ -9,13 +9,13 @@ import {
 } from "@edumind/shared-types";
 import { TEACHER_APPLICATION_ENDPOINTS } from "@edumind/shared-utils";
 
-class TeacherApplicationService {
+export const teacherApplicationService = {
   /**
    * Submit teacher application
    * POST /teacher-application/submit
    * Access: STUDENT or GUEST
    */
-  static async submitApplication(
+  async submitApplication(
     data: TeacherApplicationRequest
   ): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
@@ -23,14 +23,14 @@ class TeacherApplicationService {
       data
     );
     return response.data;
-  }
+  },
 
   /**
    * Get my application status
    * GET /teacher-application/my-application
    * Access: Authenticated user
    */
-  static async getMyApplication(): Promise<TeacherApplicationResponse | null> {
+  async getMyApplication(): Promise<TeacherApplicationResponse | null> {
     try {
       const response = await apiClient.get<TeacherApplicationResponse>(
         TEACHER_APPLICATION_ENDPOINTS.MY_APPLICATION
@@ -43,14 +43,14 @@ class TeacherApplicationService {
       }
       throw error;
     }
-  }
+  },
 
   /**
    * Check if trial expired
    * GET /teacher-application/trial-status
    * Access: TEACHER_TRIAL
    */
-  static async getTrialStatus(): Promise<TrialStatusResponse> {
+  async getTrialStatus(): Promise<TrialStatusResponse> {
     const response = await apiClient.get<TrialStatusResponse>(
       TEACHER_APPLICATION_ENDPOINTS.TRIAL_STATUS
     );
@@ -58,5 +58,5 @@ class TeacherApplicationService {
   }
 }
 
-export default TeacherApplicationService;
+export type TeacherApplicationService = typeof teacherApplicationService;
 

@@ -2,25 +2,19 @@ import { apiClient } from "./api-client.service.js";
 import { z } from "zod";
 import {
   WishlistItemResponseSchema,
+  WishlistPagedResponseSchema,
+  WishlistListSchema,
   type WishlistItemResponse,
   type PagedResponse,
-  createPagedResponseSchema,
+  type WishlistPagedResponse,
+  type WishlistListResponse,
 } from "@edumind/shared-types";
 import { WISHLIST_ENDPOINTS } from "@edumind/shared-utils";
-
-const WishlistPagedResponseSchema = createPagedResponseSchema(
-  WishlistItemResponseSchema
-);
-
-type WishlistPagedResponse = z.infer<typeof WishlistPagedResponseSchema> &
-  PagedResponse<WishlistItemResponse>;
-
-const WishlistListSchema = z.array(WishlistItemResponseSchema);
 
 const parseWishlistItem = (payload: unknown): WishlistItemResponse =>
   WishlistItemResponseSchema.parse(payload);
 
-const parseWishlistList = (payload: unknown): WishlistItemResponse[] =>
+const parseWishlistList = (payload: unknown): WishlistListResponse =>
   WishlistListSchema.parse(payload);
 
 const parseWishlistPagedResponse = (
@@ -55,8 +49,8 @@ export const wishlistService = {
     return parseWishlistPagedResponse(response.data);
   },
 
-  async getWishlistPreview(): Promise<WishlistItemResponse[]> {
-    const response = await apiClient.get<WishlistItemResponse[]>(
+  async getWishlistPreview(): Promise<WishlistListResponse> {
+    const response = await apiClient.get<WishlistListResponse>(
       WISHLIST_ENDPOINTS.BASE,
       { params: { size: 5 } }
     );

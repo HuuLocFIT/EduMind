@@ -1,22 +1,19 @@
 import { apiClient } from './api-client.service';
-import { z } from 'zod';
 import {
-  SectionResponseSchema,
-  type SectionResponse,
+  SectionListResponseSchema,
+  type SectionListResponse,
 } from '@edumind/shared-types';
 import { SECTION_ENDPOINTS } from '@edumind/shared-utils';
 
-const SectionListSchema = z.array(SectionResponseSchema);
-
-const parseSectionList = (payload: unknown): SectionResponse[] =>
-  SectionListSchema.parse(payload);
+const parseSectionList = (payload: unknown): SectionListResponse =>
+  SectionListResponseSchema.parse(payload);
 
 export const sectionService = {
   /**
    * Get all sections for a course, ordered by orderIndex
    */
-  async getCourseSections(courseId: number | string): Promise<SectionResponse[]> {
-    const response = await apiClient.get<SectionResponse[]>(
+  async getCourseSections(courseId: number | string): Promise<SectionListResponse> {
+    const response = await apiClient.get<SectionListResponse>(
       SECTION_ENDPOINTS.COURSE(courseId)
     );
     return parseSectionList(response.data);
