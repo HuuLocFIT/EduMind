@@ -6,7 +6,9 @@ import com.edumind.auth.dto.response.PublicUserProfileResponse;
 import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.service.UserService;
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.MessageResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,129 +21,164 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/users")
 public class UserController {
-    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+        private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
-    @Autowired
-    private UserService userService;
+        @Autowired
+        private UserService userService;
 
-    /**
-     * Get current authenticated user details
-     * GET /users/me
-     */
-    @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(HttpServletRequest request) {
-        logger.info("📥 GET /users/me - Get current user");
+        /**
+         * Get current authenticated user details
+         * GET /users/me
+         */
+        @GetMapping("/me")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(HttpServletRequest request) {
+                logger.info("📥 GET /users/me - Get current user");
 
-        UserResponse userResponse = userService.getCurrentUser();
+                UserResponse userResponse = userService.getCurrentUser();
 
-        ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
-                .status(HttpStatus.OK.value())
-                .success(true)
-                .message("User details retrieved successfully")
-                .data(userResponse)
-                .path(request.getRequestURI())
-                .build();
+                ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
+                                .status(HttpStatus.OK.value())
+                                .success(true)
+                                .message("User details retrieved successfully")
+                                .data(userResponse)
+                                .path(request.getRequestURI())
+                                .build();
 
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Get user by ID (Admin/Teacher only)
-     * GET /users/{id}
-     */
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(
-            @PathVariable Long id,
-            HttpServletRequest request) {
-
-        logger.info("📥 GET /users/{} - Get user by id", id);
-
-        UserResponse userResponse = userService.getUserById(id);
-
-        ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
-                .status(HttpStatus.OK.value())
-                .success(true)
-                .message("User details retrieved successfully")
-                .data(userResponse)
-                .path(request.getRequestURI())
-                .build();
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Get user public profile by ID (Public endpoint for displaying user info)
-     * GET /users/{id}/public-profile
-     */
-    @GetMapping("/{id}/public-profile")
-    public ResponseEntity<ApiResponse<PublicUserProfileResponse>> getUserPublicProfile(
-            @PathVariable Long id,
-            HttpServletRequest request) {
-
-        logger.info("📥 GET /users/{}/public-profile - Get user public profile", id);
-
-        UserResponse user = userService.getUserById(id);
-
-        // Build safe public profile
-        String displayName = null;
-        if (user.getFirstName() != null || user.getLastName() != null) {
-            displayName = String.format("%s %s",
-                    user.getFirstName() != null ? user.getFirstName() : "",
-                    user.getLastName() != null ? user.getLastName() : "").trim();
-            if (displayName.isBlank()) {
-                displayName = null;
-            }
+                return ResponseEntity.ok(response);
         }
 
-        PublicUserProfileResponse publicProfile = PublicUserProfileResponse.builder()
-                .id(user.getId())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .displayName(displayName)
-                .avatarUrl(user.getAvatarUrl())
-                .profilePictureUrl(user.getProfilePictureUrl())
-                .bio(user.getBio())
-                .build();
+        /**
+         * Get user by ID (Admin/Teacher only)
+         * GET /users/{id}
+         */
+        @GetMapping("/{id}")
+        @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+        public ResponseEntity<ApiResponse<UserResponse>> getUserById(
+                        @PathVariable Long id,
+                        HttpServletRequest request) {
 
-        ApiResponse<PublicUserProfileResponse> response = ApiResponse
-                .<PublicUserProfileResponse>builder()
-                .status(HttpStatus.OK.value())
-                .success(true)
-                .message("User profile retrieved successfully")
-                .data(publicProfile)
-                .path(request.getRequestURI())
-                .build();
+                logger.info("📥 GET /users/{} - Get user by id", id);
 
-        return ResponseEntity.ok(response);
-    }
+                UserResponse userResponse = userService.getUserById(id);
 
-    @PutMapping("/me")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
-            @Valid @RequestBody UpdateProfileRequest request) {
+                ApiResponse<UserResponse> response = ApiResponse.<UserResponse>builder()
+                                .status(HttpStatus.OK.value())
+                                .success(true)
+                                .message("User details retrieved successfully")
+                                .data(userResponse)
+                                .path(request.getRequestURI())
+                                .build();
 
-        logger.info("📥 PUT /users/me - Update profile");
+                return ResponseEntity.ok(response);
+        }
 
-        UserResponse userResponse = userService.updateProfile(request);
+        /**
+         * Get user public profile by ID (Public endpoint for displaying user info)
+         * GET /users/{id}/public-profile
+         */
+        @GetMapping("/{id}/public-profile")
+        public ResponseEntity<ApiResponse<PublicUserProfileResponse>> getUserPublicProfile(
+                        @PathVariable Long id,
+                        HttpServletRequest request) {
 
-        return ResponseEntity.ok(
-                ApiResponse.success("Profile updated successfully", userResponse)
-        );
-    }
+                logger.info("📥 GET /users/{}/public-profile - Get user public profile", id);
 
-    @PostMapping("/me/change-password")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<String>> changePassword(
-            @Valid @RequestBody ChangePasswordRequest request) {
+                UserResponse user = userService.getUserById(id);
 
-        logger.info("📥 POST /users/me/change-password - Change password");
+                // Build safe public profile
+                String displayName = null;
+                if (user.getFirstName() != null || user.getLastName() != null) {
+                        displayName = String.format("%s %s",
+                                        user.getFirstName() != null ? user.getFirstName() : "",
+                                        user.getLastName() != null ? user.getLastName() : "").trim();
+                        if (displayName.isBlank()) {
+                                displayName = null;
+                        }
+                }
 
-        userService.changePassword(request);
+                PublicUserProfileResponse publicProfile = PublicUserProfileResponse.builder()
+                                .id(user.getId())
+                                .firstName(user.getFirstName())
+                                .lastName(user.getLastName())
+                                .displayName(displayName)
+                                .avatarUrl(user.getAvatarUrl())
+                                .profilePictureUrl(user.getProfilePictureUrl())
+                                .bio(user.getBio())
+                                .build();
 
-        return ResponseEntity.ok(
-                ApiResponse.success("Password changed successfully", null)
-        );
-    }
+                ApiResponse<PublicUserProfileResponse> response = ApiResponse
+                                .<PublicUserProfileResponse>builder()
+                                .status(HttpStatus.OK.value())
+                                .success(true)
+                                .message("User profile retrieved successfully")
+                                .data(publicProfile)
+                                .path(request.getRequestURI())
+                                .build();
+
+                return ResponseEntity.ok(response);
+        }
+
+        @PutMapping("/me")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+                        @Valid @RequestBody UpdateProfileRequest request) {
+
+                logger.info("📥 PUT /users/me - Update profile");
+
+                UserResponse userResponse = userService.updateProfile(request);
+
+                return ResponseEntity.ok(
+                                ApiResponse.success("Profile updated successfully", userResponse));
+        }
+
+        @PostMapping("/me/change-password")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<ApiResponse<String>> changePassword(
+                        @Valid @RequestBody ChangePasswordRequest request) {
+
+                logger.info("📥 POST /users/me/change-password - Change password");
+
+                userService.changePassword(request);
+
+                return ResponseEntity.ok(
+                                ApiResponse.success("Password changed successfully", null));
+        }
+
+        /**
+         * Delete current user's account
+         * DELETE /users/me
+         * 
+         * This will permanently delete the user account and all associated data.
+         * This action cannot be undone.
+         */
+        @DeleteMapping("/me")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<ApiResponse<MessageResponse>> deleteAccount(
+                        HttpServletRequest request,
+                        HttpServletResponse httpResponse) {
+
+                logger.info("📥 DELETE /users/me - Delete account");
+
+                MessageResponse messageResponse = userService.deleteAccount();
+
+                // Clear refresh token cookie
+                // Note: Access token will be invalidated on client side
+                jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refreshToken", "");
+                cookie.setHttpOnly(true);
+                cookie.setSecure(true);
+                cookie.setPath("/");
+                cookie.setMaxAge(0);
+                httpResponse.addCookie(cookie);
+
+                ApiResponse<MessageResponse> response = ApiResponse.<MessageResponse>builder()
+                                .status(HttpStatus.OK.value())
+                                .success(true)
+                                .message("Account deleted successfully")
+                                .data(messageResponse)
+                                .path(request.getRequestURI())
+                                .build();
+
+                return ResponseEntity.ok(response);
+        }
 }

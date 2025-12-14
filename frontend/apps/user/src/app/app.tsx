@@ -16,7 +16,16 @@ import {
 } from "./components/TeacherApplicationGuards";
 
 // Auth Pages
-import { LoginPage, SignupPage, OAuth2CallbackPage } from "./pages/auth";
+import {
+  LoginPage,
+  SignupPage,
+  OAuth2CallbackPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+  EmailVerificationPage,
+  TwoFactorSetupPage,
+  TwoFactorRecoveryPage,
+} from "./pages/auth";
 
 // Public Pages
 import { HomePage, BrowseCoursesPage, CourseDetailPage } from "./pages/public";
@@ -67,119 +76,139 @@ function AppContent() {
 
       <QueryErrorBoundary>
         <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<MainLayout />}>
-          <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
-          <Route path={USER_ROUTES.COURSES} element={<BrowseCoursesPage />} />
-          <Route
-            path={USER_ROUTES.COURSE_DETAIL}
-            element={<CourseDetailPage />}
-          />
-        </Route>
-
-        {/* Auth Routes */}
-        <Route element={<AuthLayout />}>
-          <Route path={USER_ROUTES.LOGIN} element={<LoginPage />} />
-          <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
-          <Route
-            path={USER_ROUTES.OAUTH2_REDIRECT}
-            element={<OAuth2CallbackPage />}
-          />
-        </Route>
-
-        {/* Protected Routes - Main Site */}
-        <Route element={<ProtectedRoute />}>
+          {/* Public Routes */}
           <Route path="/" element={<MainLayout />}>
-            <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
-            <Route path={USER_ROUTES.LEARNING} element={<MyLearningPage />} />
+            <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
+            <Route path={USER_ROUTES.COURSES} element={<BrowseCoursesPage />} />
             <Route
-              path={USER_ROUTES.LEARNING_COURSE}
-              element={<CoursePlayerPage />}
+              path={USER_ROUTES.COURSE_DETAIL}
+              element={<CourseDetailPage />}
             />
+          </Route>
 
+          {/* Auth Routes */}
+          <Route element={<AuthLayout />}>
+            <Route path={USER_ROUTES.LOGIN} element={<LoginPage />} />
+            <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
             <Route
-              path={USER_ROUTES.CERTIFICATES}
-              element={<CertificatesPage />}
+              path={USER_ROUTES.OAUTH2_REDIRECT}
+              element={<OAuth2CallbackPage />}
             />
             <Route
-              path={USER_ROUTES.PROFILE_SETTINGS}
-              element={<ProfileSettingsPage />}
+              path={USER_ROUTES.FORGOT_PASSWORD}
+              element={<ForgotPasswordPage />}
             />
-            <Route path={USER_ROUTES.WISHLIST} element={<WishlistPage />} />
+            <Route
+              path={USER_ROUTES.RESET_PASSWORD}
+              element={<ResetPasswordPage />}
+            />
+            <Route
+              path={USER_ROUTES.VERIFY_EMAIL}
+              element={<EmailVerificationPage />}
+            />
+            <Route
+              path={USER_ROUTES.TWO_FA_RECOVERY}
+              element={<TwoFactorRecoveryPage />}
+            />
+          </Route>
 
-            <Route element={<TeacherApplicationStatusRoute />}>
+          {/* Protected Routes - Main Site */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<MainLayout />}>
+              <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
+              <Route path={USER_ROUTES.LEARNING} element={<MyLearningPage />} />
               <Route
-                path={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-                element={<ApplicationStatusPage />}
+                path={USER_ROUTES.LEARNING_COURSE}
+                element={<CoursePlayerPage />}
               />
-            </Route>
-            <Route element={<TeacherApplicationRoute />}>
+
               <Route
-                path={USER_ROUTES.TEACHER_APPLICATION}
-                element={<TeacherApplicationPage />}
+                path={USER_ROUTES.CERTIFICATES}
+                element={<CertificatesPage />}
+              />
+              <Route
+                path={USER_ROUTES.PROFILE_SETTINGS}
+                element={<ProfileSettingsPage />}
+              />
+              <Route
+                path={USER_ROUTES.TWO_FA_SETUP}
+                element={<TwoFactorSetupPage />}
+              />
+              <Route path={USER_ROUTES.WISHLIST} element={<WishlistPage />} />
+
+              <Route element={<TeacherApplicationStatusRoute />}>
+                <Route
+                  path={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+                  element={<ApplicationStatusPage />}
+                />
+              </Route>
+              <Route element={<TeacherApplicationRoute />}>
+                <Route
+                  path={USER_ROUTES.TEACHER_APPLICATION}
+                  element={<TeacherApplicationPage />}
+                />
+              </Route>
+            </Route>
+          </Route>
+
+          {/* ================================================================ */}
+          {/* Teacher Portal Routes - Protected with TeacherGuard             */}
+          {/* ================================================================ */}
+          <Route element={<TeacherGuard />}>
+            <Route element={<TeacherLayout />}>
+              {/* Dashboard */}
+              <Route
+                path={TEACHER_ROUTES.DASHBOARD}
+                element={<TeacherDashboardPage />}
+              />
+
+              {/* Courses */}
+              <Route
+                path={TEACHER_ROUTES.COURSES}
+                element={<TeacherCoursesPage />}
+              />
+              <Route
+                path={TEACHER_ROUTES.COURSE_CREATE}
+                element={<TeacherCourseCreatePage />}
+              />
+              <Route
+                path={TEACHER_ROUTES.COURSE_EDIT}
+                element={<TeacherCourseEditPage />}
+              />
+              <Route
+                path={TEACHER_ROUTES.COURSE_DETAIL}
+                element={<TeacherCourseDetailPage />}
+              />
+
+              {/* Students */}
+              <Route
+                path={TEACHER_ROUTES.STUDENTS}
+                element={<TeacherStudentsPage />}
+              />
+
+              {/* Reviews */}
+              <Route
+                path={TEACHER_ROUTES.REVIEWS}
+                element={<TeacherReviewsPage />}
+              />
+
+              {/* Analytics */}
+              <Route
+                path={TEACHER_ROUTES.ANALYTICS}
+                element={<TeacherAnalyticsPage />}
+              />
+
+              {/* Settings */}
+              <Route
+                path={TEACHER_ROUTES.SETTINGS}
+                element={<TeacherSettingsPage />}
               />
             </Route>
           </Route>
-        </Route>
 
-        {/* ================================================================ */}
-        {/* Teacher Portal Routes - Protected with TeacherGuard             */}
-        {/* ================================================================ */}
-        <Route element={<TeacherGuard />}>
-          <Route element={<TeacherLayout />}>
-            {/* Dashboard */}
-            <Route
-              path={TEACHER_ROUTES.DASHBOARD}
-              element={<TeacherDashboardPage />}
-            />
-
-            {/* Courses */}
-            <Route
-              path={TEACHER_ROUTES.COURSES}
-              element={<TeacherCoursesPage />}
-            />
-            <Route
-              path={TEACHER_ROUTES.COURSE_CREATE}
-              element={<TeacherCourseCreatePage />}
-            />
-            <Route
-              path={TEACHER_ROUTES.COURSE_EDIT}
-              element={<TeacherCourseEditPage />}
-            />
-            <Route
-              path={TEACHER_ROUTES.COURSE_DETAIL}
-              element={<TeacherCourseDetailPage />}
-            />
-
-            {/* Students */}
-            <Route
-              path={TEACHER_ROUTES.STUDENTS}
-              element={<TeacherStudentsPage />}
-            />
-
-            {/* Reviews */}
-            <Route
-              path={TEACHER_ROUTES.REVIEWS}
-              element={<TeacherReviewsPage />}
-            />
-
-            {/* Analytics */}
-            <Route
-              path={TEACHER_ROUTES.ANALYTICS}
-              element={<TeacherAnalyticsPage />}
-            />
-
-            {/* Settings */}
-            <Route
-              path={TEACHER_ROUTES.SETTINGS}
-              element={<TeacherSettingsPage />}
-            />
-          </Route>
-        </Route>
-
-        {/* 404 fallback */}
-        <Route path={USER_ROUTES.NOT_FOUND} element={<NotFoundPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+          {/* 404 fallback */}
+          <Route path={USER_ROUTES.NOT_FOUND} element={<NotFoundPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </QueryErrorBoundary>
     </BrowserRouter>

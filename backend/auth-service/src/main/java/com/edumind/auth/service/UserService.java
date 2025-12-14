@@ -4,18 +4,23 @@ import com.edumind.auth.dto.request.ChangePasswordRequest;
 import com.edumind.auth.dto.request.UpdateProfileRequest;
 import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.repository.RefreshTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.UserDetailsImpl;
 import com.edumind.auth.util.UserMapper;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.ResourceNotFoundException;
+import com.edumind.common.response.MessageResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 public class UserService {
@@ -29,6 +34,9 @@ public class UserService {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
@@ -91,8 +99,8 @@ public class UserService {
         }
 
         // if (request.getBio() != null) {
-        //     user.setBio(request.getBio().trim());
-        //     updated = true;
+        // user.setBio(request.getBio().trim());
+        // updated = true;
         // }
 
         // Update profilePictureUrl if provided
@@ -158,13 +166,79 @@ public class UserService {
         }
     }
 
+    /**
+     * Soft delete current user's account
+     * This will:
+     * 1. Revoke all refresh tokens associated with the user
+     * 2. Set deletedAt timestamp and isActive = false (soft delete)
+     * 3. Account will be permanently deleted after grace period (30 days) via
+     * scheduled job
+     * 
+     * Note: User can potentially recover account within grace period
+     */
+    @Transactional
+    public MessageResponse deleteAccount() {
+        logger.info("🗑️ Soft deleting current user account");
+
+        User user = getCurrentUserEntity();
+
+        // Check if already deleted
+        if (user.isDeleted()) {
+            logger.warn("⚠️ User account already deleted: {}", user.getUsername());
+            throw new BadRequestException("Account is already deleted");
+        }
+
+        Long userId = user.getId();
+        String username = user.getUsername();
+        // String email = user.getEmail(); // Reserved for future email notification
+
+        // Revoke all refresh tokens for this user
+        refreshTokenRepository.revokeAllUserTokens(user);
+        logger.info("✅ Revoked all refresh tokens for user: {}", username);
+
+        // Soft delete: set deletedAt and deactivate account
+        user.setDeletedAt(LocalDateTime.now());
+        user.setIsActive(false);
+        user = userRepository.save(user);
+
+        logger.info(
+                "✅ User account soft deleted successfully: {} (ID: {}). Will be permanently deleted after grace period.",
+                username, userId);
+
+        // TODO: Send account deletion confirmation email
+        // Note: EmailService.sendAccountDeletionConfirmation() method needs to be
+        // implemented
+        // try {
+        // emailService.sendAccountDeletionConfirmation(email, username);
+        // logger.info("📧 Account deletion confirmation email sent to: {}", email);
+        // } catch (Exception e) {
+        // // Don't throw - account was deleted successfully
+        // logger.error("❌ Failed to send account deletion confirmation email: {}",
+        // e.getMessage());
+        // }
+
+        return MessageResponse.builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message("Account deleted successfully. You have 30 days to recover your account.")
+                .build();
+    }
+
     private User getCurrentUserEntity() {
         UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getPrincipal();
 
-        return userRepository.findById(userDetails.getId())
+        User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Check if user is deleted (should not happen for authenticated users, but
+        // safety check)
+        if (user.isDeleted()) {
+            throw new ResourceNotFoundException("User account has been deleted");
+        }
+
+        return user;
     }
 }

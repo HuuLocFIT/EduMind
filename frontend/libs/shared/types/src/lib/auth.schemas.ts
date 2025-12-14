@@ -74,6 +74,7 @@ export const ForgotPasswordRequestSchema = z.object({
 export const ResetPasswordRequestSchema = z.object({
   token: createRequiredStringSchema("Token"),
   newPassword: createPasswordSchema(),
+  confirmPassword: createPasswordSchema(),
 });
 
 export const ChangePasswordRequestSchema = z.object({

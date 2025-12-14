@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card } from '@edumind/user-ui';
 import { useAuthStore } from '../stores/auth.store';
+import { authService } from '@user/services/index';
 import { ProfileTab } from '../components/course-module/ProfileTab';
 import { PasswordTab } from '../components/course-module/PasswordTab';
 import { NotificationsTab } from '../components/course-module/NotificationsTab';
@@ -8,8 +10,34 @@ import { SecurityTab } from '../components/course-module/SecurityTab';
 import { User as UserIcon, Lock, Bell, Shield } from 'lucide-react';
 
 export const ProfileSettingsPage: React.FC = () => {
+  const location = useLocation();
   const { user, setUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'notifications' | 'security'>('profile');
+
+  // Handle navigation state to set active tab
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
+
+  // Refresh user data when coming back from 2FA setup (only once)
+  useEffect(() => {
+    const refreshUser = async () => {
+      // Only refresh if we have location state (coming from another page)
+      if (location.state?.refreshUser) {
+        try {
+          const updatedUser = await authService.fetchCurrentUser();
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        } catch (error) {
+          console.error('Failed to refresh user data:', error);
+        }
+      }
+    };
+    refreshUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]); // Use location.key to detect navigation changes
 
   return (
     <div className="min-h-screen bg-gray-50">

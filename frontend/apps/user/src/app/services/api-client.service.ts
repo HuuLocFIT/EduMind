@@ -56,13 +56,29 @@ async function refreshAccessToken(): Promise<string> {
   return refreshTokenPromise;
 }
 
-// Request interceptor - Add access token to requests
+// Request interceptor - Add access token to requests (except auth endpoints)
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const endpoint = config.url || '';
+    
+    // Don't add token to auth endpoints (login, signup, 2FA login, etc.)
+    const isAuthEndpoint = 
+      endpoint.includes(AUTH_ENDPOINTS.LOGIN) ||
+      endpoint.includes(AUTH_ENDPOINTS.SIGNUP) ||
+      endpoint.includes(AUTH_ENDPOINTS.LOGIN_2FA) ||
+      endpoint.includes(AUTH_ENDPOINTS.FORGOT_PASSWORD) ||
+      endpoint.includes(AUTH_ENDPOINTS.RESET_PASSWORD) ||
+      endpoint.includes(AUTH_ENDPOINTS.VERIFY_EMAIL) ||
+      endpoint.includes(AUTH_ENDPOINTS.RESEND_VERIFICATION) ||
+      endpoint.includes('/auth/oauth2');
+    
+    if (!isAuthEndpoint) {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    
     return config;
   },
   (error) => Promise.reject(error)
@@ -81,6 +97,14 @@ apiClient.interceptors.response.use(
       endpoint?.includes('/auth/oauth2') ||
       endpoint?.includes(AUTH_ENDPOINTS.LOGIN_2FA)
     ) {
+      // Check if response is 2FA required (has requires2FA field)
+      if (response.data && typeof response.data === 'object' && 'requires2FA' in response.data && response.data.requires2FA === true) {
+        // This is a TwoFactorRequiredResponse, don't validate as JwtResponse
+        // Just return it as is
+        return response;
+      }
+      
+      // Otherwise, validate as JwtResponse
       const result = JwtResponseSchema.safeParse(response.data);
       if (result.success) {
         // Store access token and user info
