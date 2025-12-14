@@ -1,14 +1,24 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
 export const AuthLayout: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
+  // Use selector to only subscribe to isAuthenticated changes
+  // This prevents unnecessary re-renders when other store properties change
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Memoize the redirect to prevent re-render loops
+  const redirect = useMemo(() => {
+    if (isAuthenticated) {
+      return <Navigate to={USER_ROUTES.DASHBOARD} replace />;
+    }
+    return null;
+  }, [isAuthenticated]);
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to={USER_ROUTES.DASHBOARD} replace />;
+  if (redirect) {
+    return redirect;
   }
 
   return (

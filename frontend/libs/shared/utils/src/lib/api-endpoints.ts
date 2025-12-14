@@ -35,7 +35,7 @@ export const AUTH_ENDPOINTS = {
   // Two-Factor Authentication
   SETUP_2FA: `${API_BASE_PATH}/auth/2fa/setup`,
   VERIFY_2FA: `${API_BASE_PATH}/auth/2fa/verify`,
-  LOGIN_2FA: `${API_BASE_PATH}/auth/2fa/login`,
+  LOGIN_2FA: `${API_BASE_PATH}/auth/login/2fa`,
   DISABLE_2FA: `${API_BASE_PATH}/auth/2fa/disable`,
   BACKUP_CODES: `${API_BASE_PATH}/auth/2fa/backup-codes`,
   
@@ -57,6 +57,7 @@ export const USER_ENDPOINTS = {
   UPDATE_PROFILE: (userId?: string | number) => 
     userId ? `${API_BASE_PATH}/users/${userId}` : `${API_BASE_PATH}/users/me`,
   CHANGE_PASSWORD: `${API_BASE_PATH}/users/me/change-password`,
+  DELETE_ACCOUNT: `${API_BASE_PATH}/users/me`,
   AVATAR: (userId?: string | number) => 
     userId ? `${API_BASE_PATH}/users/${userId}/avatar` : `${API_BASE_PATH}/users/me/avatar`,
 } as const;

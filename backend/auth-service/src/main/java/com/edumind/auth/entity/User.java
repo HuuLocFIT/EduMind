@@ -88,6 +88,10 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    // SOFT DELETE FIELD
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     // 2FA FIELDS
     @Column(name = "is_2fa_enabled", nullable = false)
     private Boolean is2faEnabled = false;
@@ -147,5 +151,12 @@ public class User {
      */
     public boolean has2FA() {
         return Boolean.TRUE.equals(this.is2faEnabled);
+    }
+
+    /**
+     * Check if user account is deleted (soft delete)
+     */
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

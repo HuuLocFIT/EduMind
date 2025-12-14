@@ -14,28 +14,39 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+    // Find methods - exclude deleted users
+    @Query("SELECT u FROM User u WHERE u.username = :username AND u.deletedAt IS NULL")
     Optional<User> findByUsername(String username);
 
+    @Query("SELECT u FROM User u WHERE u.email = :email AND u.deletedAt IS NULL")
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByUsernameOrEmail(String username, String email);
+    @Query("SELECT u FROM User u WHERE (u.username = :usernameOrEmail OR u.email = :usernameOrEmail) AND u.deletedAt IS NULL")
+    Optional<User> findByUsernameOrEmail(@Param("usernameOrEmail") String usernameOrEmail);
 
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.username = :username AND u.deletedAt IS NULL")
     Boolean existsByUsername(String username);
 
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = :email AND u.deletedAt IS NULL")
     Boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.username = :username")
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.username = :username AND u.deletedAt IS NULL")
     Optional<User> findByUsernameWithRoles(String username);
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email = :email")
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email = :email AND u.deletedAt IS NULL")
     Optional<User> findByEmailWithRoles(String email);
 
     Page<User> findByRolesContaining(Role role, Pageable pageable);
 
     List<User> findByRolesContaining(Role role);
 
-    @Query("SELECT COUNT(u) FROM User u JOIN u.roles r WHERE r.name = :roleName")
+    @Query("SELECT COUNT(u) FROM User u JOIN u.roles r WHERE r.name = :roleName AND u.deletedAt IS NULL")
     Long countByRolesName(@Param("roleName") RoleName roleName);
 
-    Optional<User> findByProviderAndProviderUserId(AuthProvider provider, String providerUserId);
+    @Query("SELECT u FROM User u WHERE u.provider = :provider AND u.providerUserId = :providerUserId AND u.deletedAt IS NULL")
+    Optional<User> findByProviderAndProviderUserId(@Param("provider") AuthProvider provider, @Param("providerUserId") String providerUserId);
+    
+    // Admin methods - include deleted users if needed
+    @Query("SELECT u FROM User u WHERE u.id = :id")
+    Optional<User> findByIdIncludingDeleted(@Param("id") Long id);
 }

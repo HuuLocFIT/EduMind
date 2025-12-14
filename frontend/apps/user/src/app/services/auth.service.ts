@@ -5,7 +5,6 @@ import type {
   TwoFactorLoginRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  VerifyEmailRequest,
   ResendVerificationRequest,
   Verify2FACodeRequest,
   RefreshTokenResponse,
@@ -35,8 +34,8 @@ export const authService = {
     return response.data;
   },
 
-  async login(data: LoginRequest): Promise<JwtResponse> {
-    const response = await apiClient.post<JwtResponse>(
+  async login(data: LoginRequest): Promise<JwtResponse | { requires2FA: boolean; email: string; message: string }> {
+    const response = await apiClient.post<JwtResponse | { requires2FA: boolean; email: string; message: string }>(
       AUTH_ENDPOINTS.LOGIN,
       data
     );
@@ -51,7 +50,7 @@ export const authService = {
     localStorage.removeItem("user");
     localStorage.removeItem("auth-storage");
     return response.data;
-  },  
+  },
 
   async refreshToken(): Promise<RefreshTokenResponse> {
     const response = await apiClient.post<RefreshTokenResponse>(
@@ -63,9 +62,7 @@ export const authService = {
 
   // ========== PASSWORD RESET ==========
 
-  async forgotPassword(
-    data: ForgotPasswordRequest
-  ): Promise<MessageResponse> {
+  async forgotPassword(data: ForgotPasswordRequest): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
       AUTH_ENDPOINTS.FORGOT_PASSWORD,
       data
@@ -73,9 +70,7 @@ export const authService = {
     return response.data;
   },
 
-  async resetPassword(
-    data: ResetPasswordRequest
-  ): Promise<MessageResponse> {
+  async resetPassword(data: ResetPasswordRequest): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
       AUTH_ENDPOINTS.RESET_PASSWORD,
       data
@@ -85,10 +80,10 @@ export const authService = {
 
   // ========== EMAIL VERIFICATION ==========
 
-  async verifyEmail(data: VerifyEmailRequest): Promise<MessageResponse> {
-    const response = await apiClient.post<MessageResponse>(
+  async verifyEmail(token: string): Promise<MessageResponse> {
+    const response = await apiClient.get<MessageResponse>(
       AUTH_ENDPOINTS.VERIFY_EMAIL,
-      data
+      { params: { token } }
     );
     return response.data;
   },
@@ -112,9 +107,7 @@ export const authService = {
     return response.data;
   },
 
-  async verify2FASetup(
-    data: Verify2FACodeRequest
-  ): Promise<MessageResponse> {
+  async verify2FASetup(data: Verify2FACodeRequest & { secret?: string }): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
       AUTH_ENDPOINTS.VERIFY_2FA,
       data
@@ -122,19 +115,18 @@ export const authService = {
     return response.data;
   },
 
-  async loginWith2FA(
-    data: TwoFactorLoginRequest
-  ): Promise<JwtResponse> {
+  async loginWith2FA(data: TwoFactorLoginRequest): Promise<JwtResponse> {
     const response = await apiClient.post<JwtResponse>(
       AUTH_ENDPOINTS.LOGIN_2FA,
       data
     );
     return response.data;
-  },  
+  },
 
-  async disable2FA(): Promise<MessageResponse> {
+  async disable2FA(data: { password: string; code: string }): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
-      AUTH_ENDPOINTS.DISABLE_2FA
+      AUTH_ENDPOINTS.DISABLE_2FA,
+      data
     );
     return response.data;
   },
@@ -149,11 +141,11 @@ export const authService = {
   // ========== OAUTH2 ==========
 
   getGoogleOAuthUrl(): string {
-    return getOAuth2Url('google', API_URL);
+    return getOAuth2Url("google", API_URL);
   },
 
   getFacebookOAuthUrl(): string {
-    return getOAuth2Url('facebook', API_URL);
+    return getOAuth2Url("facebook", API_URL);
   },
 
   // Handle OAuth2 callback (called from OAuth2CallbackPage)
@@ -166,7 +158,7 @@ export const authService = {
       { params: { code } }
     );
     return response.data;
-  },  
+  },
 
   // ========== USER INFO ==========
 
@@ -191,6 +183,15 @@ export const authService = {
     );
     return response.data;
   },
+
+  async deleteAccount(): Promise<MessageResponse> {
+    const response = await apiClient.delete<MessageResponse>(
+      USER_ENDPOINTS.DELETE_ACCOUNT
+    );
+    // Clear all auth data after account deletion
+    this.clearAuth();
+    return response.data;
+  },
   // ========== HELPERS ==========
 
   getCurrentUser() {
@@ -210,7 +211,7 @@ export const authService = {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
     localStorage.removeItem("auth-storage");
-  }
-}
+  },
+};
 
 export type AuthService = typeof authService;

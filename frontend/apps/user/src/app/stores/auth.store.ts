@@ -19,6 +19,7 @@ interface AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
   setUser: (user: User) => void;
+  clearAuthState: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,6 +36,17 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authService.login(credentials);
 
+          // Check if 2FA is required
+          if (response && typeof response === 'object' && 'requires2FA' in response && response.requires2FA === true) {
+            // This is a TwoFactorRequiredResponse, throw a special error
+            const error = new Error(response.message || "Two-factor authentication required");
+            (error as any).requires2FA = true;
+            (error as any).email = response.email;
+            set({ isLoading: false });
+            throw error;
+          }
+
+          // Normal login response
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
 
@@ -45,6 +57,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error: any) {
+          // If it's a 2FA required error, re-throw it
+          if (error.requires2FA) {
+            throw error;
+          }
           const errorMessage = error.response?.data?.message || error.message || "Login failed";
           set({ error: errorMessage, isLoading: false });
           throw error;
@@ -59,10 +75,11 @@ export const useAuthStore = create<AuthState>()(
           // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
           const user = await authService.fetchCurrentUser();
-          localStorage.setItem('user', JSON.stringify(user.data));
+          // unwrapApiResponse already unwraps the data, so user is the user object directly
+          localStorage.setItem('user', JSON.stringify(user));
 
           set({
-            user: user.data,
+            user: user,
             accessToken: response.accessToken,
             isAuthenticated: true,
             isLoading: false,
@@ -150,6 +167,20 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
 
       setUser: (user) => set({ user }),
+
+      // Clear auth state without calling API (useful for account deletion)
+      clearAuthState: () => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("user");
+        queryClient.clear();
+        set({
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
+      },
     }),
     {
       name: "auth-storage",
