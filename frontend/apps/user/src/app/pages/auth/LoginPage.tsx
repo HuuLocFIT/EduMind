@@ -176,6 +176,7 @@ export const LoginPage = () => {
                     </label>
                     <input
                       type="text"
+                      placeholder="000000"
                       {...register2FA("code", {
                         required: "2FA code is required",
                         pattern: {
@@ -298,6 +299,7 @@ export const LoginPage = () => {
                   <Input
                     label="Username or Email"
                     type="text"
+                    placeholder="e.g. lucas or lucas@email.com"
                     leftIcon={<User className="w-5 h-5" />}
                     error={loginErrors.usernameOrEmail?.message}
                     fullWidth
@@ -318,6 +320,7 @@ export const LoginPage = () => {
                       </Link>
                     </div>
                     <PasswordInput
+                      placeholder="••••••••"
                       error={loginErrors.password?.message}
                       fullWidth
                       {...registerLogin("password")}
