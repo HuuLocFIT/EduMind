@@ -11,13 +11,10 @@ import java.util.List;
 
 @Entity
 @Table(name = "enrollments", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"course_id", "student_id"})
+        @UniqueConstraint(columnNames = { "course_id", "student_id" })
 }, schema = "course")
 @NamedEntityGraphs({
-    @NamedEntityGraph(
-        name = "Enrollment.withCourse",
-        attributeNodes = @NamedAttributeNode("course")
-    )
+        @NamedEntityGraph(name = "Enrollment.withCourse", attributeNodes = @NamedAttributeNode("course"))
 })
 @Getter
 @Setter
@@ -58,6 +55,10 @@ public class Enrollment extends BaseEntity {
 
     private LocalDateTime lastAccessedAt = LocalDateTime.now();
     private LocalDateTime expiresAt;
+
+    // Suspension reason (for audit/logging purposes)
+    @Column(length = 500)
+    private String suspensionReason;
 
     @OneToMany(mappedBy = "enrollment", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -12,6 +12,8 @@ public class EnrollmentMapper {
                 .courseId(enrollment.getCourse().getId())
                 .courseTitle(enrollment.getCourse().getTitle())
                 .courseThumbnail(enrollment.getCourse().getThumbnailUrl())
+                .coursePrice(enrollment.getCourse().getPrice())
+                .courseIsPaid(enrollment.getCourse().isPaid())
                 .studentId(enrollment.getStudentId())
                 .progressPercentage(enrollment.getProgressPercentage())
                 .completedLessons(enrollment.getCompletedLessons())
@@ -22,6 +24,7 @@ public class EnrollmentMapper {
                 .enrolledAt(enrollment.getEnrolledAt())
                 .lastAccessedAt(enrollment.getLastAccessedAt())
                 .expiresAt(enrollment.getExpiresAt())
+                .suspensionReason(enrollment.getSuspensionReason())
                 .build();
     }
 }

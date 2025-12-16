@@ -11,6 +11,8 @@ import {
   SectionDetailListResponseSchema,
   SectionListResponseSchema,
   LessonListResponseSchema,
+  SuspendEnrollmentRequestSchema,
+  ReportToAdminRequestSchema,
   type CourseResponse,
   type CourseDetailResponse,
   type InstructorStatsResponse,
@@ -33,8 +35,13 @@ import {
   type SectionListResponse,
   type SectionDetailListResponse,
   type LessonListResponse,
+  type SuspendEnrollmentRequest,
+  type ReportToAdminRequest,
 } from "@edumind/shared-types";
-import { TEACHER_PORTAL_ENDPOINTS } from "@edumind/shared-utils";
+import {
+  ENROLLMENT_ENDPOINTS,
+  TEACHER_PORTAL_ENDPOINTS,
+} from "@edumind/shared-utils";
 
 export interface TeacherCoursePaginationParams {
   page?: number;
@@ -222,6 +229,39 @@ export const teacherCourseService = {
     return EnrollmentPagedResponseSchema.parse(
       response.data
     ) as EnrollmentPagedResponse;
+  },
+
+  async suspendEnrollment(
+    enrollmentId: number,
+    reason: string
+  ): Promise<void> {
+    const request = SuspendEnrollmentRequestSchema.parse({ reason });
+    await apiClient.post(
+      ENROLLMENT_ENDPOINTS.SUSPEND(enrollmentId),
+      request
+    );
+  },
+
+  async activateEnrollment(enrollmentId: number): Promise<void> {
+    await apiClient.post(
+      ENROLLMENT_ENDPOINTS.ACTIVATE(enrollmentId),
+      undefined
+    );
+  },
+
+  async unenrollStudent(enrollmentId: number): Promise<void> {
+    await apiClient.delete(ENROLLMENT_ENDPOINTS.DETAIL(enrollmentId));
+  },
+
+  async reportToAdmin(
+    enrollmentId: number,
+    reason: string
+  ): Promise<void> {
+    const request = ReportToAdminRequestSchema.parse({ reason });
+    await apiClient.post(
+      ENROLLMENT_ENDPOINTS.REPORT_TO_ADMIN(enrollmentId),
+      request
+    );
   },
 
   // ==========================================================================

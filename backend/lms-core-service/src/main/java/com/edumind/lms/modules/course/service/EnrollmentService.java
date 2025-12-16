@@ -78,4 +78,32 @@ public interface EnrollmentService {
      * Get enrollment statistics for student
      */
     EnrollmentStatsResponse getEnrollmentStats(Long studentId);
+
+    /**
+     * Suspend an enrollment (e.g. teacher/admin temporarily disables access)
+     * 
+     * @param enrollmentId The enrollment ID
+     * @param reason       The reason for suspension (required for audit/logging)
+     */
+    void suspendEnrollment(Long enrollmentId, String reason);
+
+    /**
+     * Reactivate a previously suspended enrollment
+     */
+    void activateEnrollment(Long enrollmentId);
+
+    /**
+     * Unenroll a student from a course (teacher/admin only)
+     */
+    void unenrollStudent(Long enrollmentId);
+
+    /**
+     * Report enrollment to admin for unenrollment (for paid courses)
+     * Teacher cannot directly unenroll students from paid courses, must request admin
+     * 
+     * @param enrollmentId The enrollment ID
+     * @param teacherId The teacher ID making the request
+     * @param reason The reason for requesting unenrollment
+     */
+    void reportToAdmin(Long enrollmentId, Long teacherId, String reason);
 }

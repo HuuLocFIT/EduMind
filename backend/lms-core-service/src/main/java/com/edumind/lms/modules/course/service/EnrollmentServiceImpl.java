@@ -7,8 +7,11 @@ import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.exception.*;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.repository.EnrollmentReportRequestRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentStatisticsProjection;
 import com.edumind.lms.modules.course.repository.LessonProgressRepository;
+import com.edumind.lms.modules.course.entity.EnrollmentReportRequest;
+import com.edumind.lms.modules.course.enums.ReportRequestStatus;
 import com.edumind.lms.modules.course.event.CourseCompletedEvent;
 import com.edumind.lms.modules.course.event.StudentEnrolledEvent;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final LessonProgressRepository lessonProgressRepository;
+    private final EnrollmentReportRequestRepository reportRequestRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final WishlistService wishlistService;
 
@@ -236,6 +240,102 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .completed(parseToLong(stats.getCompleted()))
                 .started(parseToLong(stats.getStarted()))
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void suspendEnrollment(Long enrollmentId, String reason) {
+        log.info("Suspending enrollment: {} with reason: {}", enrollmentId, reason);
+        Enrollment enrollment = getEnrollmentById(enrollmentId);
+
+        if (enrollment.getStatus() == EnrollmentStatus.SUSPENDED) {
+            log.debug("Enrollment {} is already suspended", enrollmentId);
+            return;
+        }
+
+        enrollment.setStatus(EnrollmentStatus.SUSPENDED);
+        enrollment.setSuspensionReason(reason);
+        enrollmentRepository.save(enrollment);
+        log.info("Enrollment {} suspended successfully with reason: {}", enrollmentId, reason);
+    }
+
+    @Override
+    @Transactional
+    public void activateEnrollment(Long enrollmentId) {
+        log.info("Re-activating enrollment: {}", enrollmentId);
+        Enrollment enrollment = getEnrollmentById(enrollmentId);
+
+        if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
+            log.debug("Enrollment {} is already active", enrollmentId);
+            return;
+        }
+
+        // Do not auto-activate expired/completed enrollments to avoid breaking business rules
+        if (enrollment.getStatus() == EnrollmentStatus.EXPIRED || enrollment.getStatus() == EnrollmentStatus.COMPLETED) {
+            log.warn("Cannot activate enrollment {} because status is {}", enrollmentId, enrollment.getStatus());
+            return;
+        }
+
+        enrollment.setStatus(EnrollmentStatus.ACTIVE);
+        enrollmentRepository.save(enrollment);
+        log.info("Enrollment {} activated successfully", enrollmentId);
+    }
+
+    @Override
+    @Transactional
+    public void unenrollStudent(Long enrollmentId) {
+        log.info("Unenrolling student from enrollment: {}", enrollmentId);
+        Enrollment enrollment = getEnrollmentById(enrollmentId);
+
+        Course course = enrollment.getCourse();
+        
+        // Check if course is paid - teachers cannot unenroll students from paid courses
+        // This should be enforced at controller level, but adding check here as well for safety
+        if (course != null && course.isPaid()) {
+            log.warn("Attempt to unenroll student from paid course {} - this should be handled by admin only", course.getId());
+            throw new IllegalStateException("Cannot unenroll students from paid courses. Please contact admin.");
+        }
+
+        if (course != null && course.getTotalStudents() != null && course.getTotalStudents() > 0) {
+            course.setTotalStudents(course.getTotalStudents() - 1);
+            courseRepository.save(course);
+        }
+
+        enrollmentRepository.delete(enrollment);
+        log.info("Enrollment {} deleted successfully", enrollmentId);
+    }
+
+    @Override
+    @Transactional
+    public void reportToAdmin(Long enrollmentId, Long teacherId, String reason) {
+        log.info("Teacher {} reporting enrollment {} to admin with reason: {}", teacherId, enrollmentId, reason);
+        
+        Enrollment enrollment = getEnrollmentById(enrollmentId);
+        
+        // Verify this is a paid course
+        if (!enrollment.getCourse().isPaid()) {
+            log.warn("Teacher {} attempted to report non-paid course enrollment {} - this should not happen", teacherId, enrollmentId);
+            throw new IllegalStateException("Report to admin is only available for paid courses. You can unenroll students from free courses directly.");
+        }
+        
+        // Check if there's already a pending request for this enrollment
+        reportRequestRepository.findByEnrollmentIdAndStatus(enrollmentId, ReportRequestStatus.PENDING)
+            .ifPresent(existing -> {
+                log.warn("Pending report request already exists for enrollment {}", enrollmentId);
+                throw new IllegalStateException("A pending report request already exists for this enrollment. Please wait for admin review.");
+            });
+        
+        // Create new report request
+        EnrollmentReportRequest reportRequest = EnrollmentReportRequest.builder()
+                .enrollment(enrollment)
+                .teacherId(teacherId)
+                .reason(reason)
+                .status(ReportRequestStatus.PENDING)
+                .requestedAt(LocalDateTime.now())
+                .build();
+        
+        reportRequestRepository.save(reportRequest);
+        log.info("Report request {} created successfully for enrollment {}", reportRequest.getId(), enrollmentId);
     }
 
     /**

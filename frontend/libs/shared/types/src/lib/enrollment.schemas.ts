@@ -8,21 +8,52 @@ export const EnrollRequestSchema = z.object({
   courseId: z.number().int().positive("Course ID is required"),
 });
 
+export const SuspendEnrollmentRequestSchema = z.object({
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must not exceed 500 characters"),
+});
+
+export const ReportToAdminRequestSchema = z.object({
+  reason: z.string().min(1, "Reason is required").max(500, "Reason must not exceed 500 characters"),
+});
+
 export const EnrollmentResponseSchema = z.object({
   id: z.number(),
   courseId: z.number(),
   courseTitle: z.string(),
   courseThumbnail: z.string().optional().nullable(),
+  coursePrice: z.number().optional().nullable(),
+  courseIsPaid: z.boolean().optional().nullable(),
+
+  // Core student identification
   studentId: z.number(),
+
+  // Optional denormalized student profile info for instructor views.
+  // These fields may be populated by the API gateway or LMS service by
+  // joining with the auth-service. They are optional to remain backwards
+  // compatible with existing responses.
+  studentName: z.string().optional().nullable(),
+  studentEmail: z.string().optional().nullable(),
+  studentAvatarUrl: z.string().optional().nullable(),
+
+  // Progress
   progressPercentage: z.number().nullable().optional(),
   completedLessons: z.number().nullable().optional(),
   totalLessons: z.number().nullable().optional(),
+
+  // Status
   status: EnrollmentStatusSchema,
+
+  // Completion
   enrolledAt: z.string(),
   completedAt: z.string().nullable().optional(),
   certificateUrl: z.string().optional().nullable(),
+
+  // Timestamps
   lastAccessedAt: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
+  
+  // Suspension reason (for audit/logging)
+  suspensionReason: z.string().optional().nullable(),
 });
 
 export const EnrollmentStatsResponseSchema = z.object({
@@ -39,6 +70,8 @@ export const EnrollmentPagedResponseSchema = createPagedResponseSchema(
 );
 
 export type EnrollRequest = z.infer<typeof EnrollRequestSchema>;
+export type SuspendEnrollmentRequest = z.infer<typeof SuspendEnrollmentRequestSchema>;
+export type ReportToAdminRequest = z.infer<typeof ReportToAdminRequestSchema>;
 export type EnrollmentResponse = z.infer<typeof EnrollmentResponseSchema>;
 export type EnrollmentStatsResponse = z.infer<
   typeof EnrollmentStatsResponseSchema

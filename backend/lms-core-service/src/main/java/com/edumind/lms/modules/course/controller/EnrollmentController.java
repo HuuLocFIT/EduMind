@@ -3,6 +3,8 @@ package com.edumind.lms.modules.course.controller;
 import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.dto.request.EnrollRequest;
+import com.edumind.lms.modules.course.dto.request.SuspendEnrollmentRequest;
+import com.edumind.lms.modules.course.dto.request.ReportToAdminRequest;
 import com.edumind.lms.modules.course.dto.response.EnrollmentResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
@@ -88,8 +90,7 @@ public class EnrollmentController {
                 responsePage.getNumber(),
                 responsePage.getSize(),
                 responsePage.getTotalElements(),
-                responsePage.getTotalPages()
-        ));
+                responsePage.getTotalPages()));
     }
 
     @GetMapping("/student/{studentId}")
@@ -110,8 +111,7 @@ public class EnrollmentController {
                 responsePage.getNumber(),
                 responsePage.getSize(),
                 responsePage.getTotalElements(),
-                responsePage.getTotalPages()
-        ));
+                responsePage.getTotalPages()));
     }
 
     @GetMapping("/courses/{courseId}")
@@ -132,8 +132,7 @@ public class EnrollmentController {
                 responsePage.getNumber(),
                 responsePage.getSize(),
                 responsePage.getTotalElements(),
-                responsePage.getTotalPages()
-        ));
+                responsePage.getTotalPages()));
     }
 
     @GetMapping("/my-completed")
@@ -209,5 +208,64 @@ public class EnrollmentController {
         EnrollmentStatsResponse stats = enrollmentService.getEnrollmentStats(studentId);
 
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    // =========================================================================
+    // Instructor / Admin management actions
+    // =========================================================================
+
+    @PostMapping("/{id}/suspend")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> suspendEnrollment(
+            @PathVariable Long id,
+            @Valid @RequestBody SuspendEnrollmentRequest request) {
+        log.info("Suspending enrollment {} with reason: {}", id, request.getReason());
+        enrollmentService.suspendEnrollment(id, request.getReason());
+        return ResponseEntity.ok(ApiResponse.success("Enrollment suspended successfully", null));
+    }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> activateEnrollment(@PathVariable Long id) {
+        log.info("Activating enrollment {}", id);
+        enrollmentService.activateEnrollment(id);
+        return ResponseEntity.ok(ApiResponse.success("Enrollment activated successfully", null));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> unenrollStudent(@PathVariable Long id) {
+        log.info("Unenrolling student for enrollment {}", id);
+
+        // Check if course is paid - teachers cannot unenroll from paid courses
+        Enrollment enrollment = enrollmentService.getEnrollmentById(id);
+        if (enrollment.getCourse().isPaid()) {
+            log.warn("Teacher attempted to unenroll student from paid course {}", enrollment.getCourse().getId());
+            ApiResponse<Void> errorResponse = ApiResponse.<Void>builder()
+                    .status(HttpStatus.FORBIDDEN.value())
+                    .success(false)
+                    .message("Cannot unenroll students from paid courses. Please contact admin.")
+                    .data(null)
+                    .timestamp(java.time.LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+
+        enrollmentService.unenrollStudent(id);
+        return ResponseEntity.ok(ApiResponse.success("Student unenrolled successfully", null));
+    }
+
+    @PostMapping("/{id}/report-to-admin")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> reportToAdmin(
+            @PathVariable Long id,
+            @Valid @RequestBody ReportToAdminRequest request,
+            Authentication authentication) {
+        log.info("Reporting enrollment {} to admin with reason: {}", id, request.getReason());
+        
+        Long teacherId = Long.valueOf(authentication.getPrincipal().toString());
+        enrollmentService.reportToAdmin(id, teacherId, request.getReason());
+        
+        return ResponseEntity.ok(ApiResponse.success("Report submitted successfully. Admin will review your request.", null));
     }
 }
