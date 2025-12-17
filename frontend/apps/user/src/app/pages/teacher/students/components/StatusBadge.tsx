@@ -16,6 +16,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     COMPLETED: { bg: "bg-blue-100", text: "text-blue-700" },
     SUSPENDED: { bg: "bg-amber-100", text: "text-amber-700" },
     EXPIRED: { bg: "bg-gray-100", text: "text-gray-700" },
+    DROPPED: { bg: "bg-red-100", text: "text-red-700" },
   };
 
   const colors = config[status] ?? config.ACTIVE;
@@ -28,4 +29,3 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     </span>
   );
 };
-

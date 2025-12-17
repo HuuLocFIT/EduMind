@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -52,26 +53,82 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new CourseNotPublishedException(courseId);
         }
 
-        // Check if already enrolled
-        if (enrollmentRepository.existsByCourseIdAndStudentId(courseId, studentId)) {
-            throw new AlreadyEnrolledException(courseId, studentId);
+        // Check if already enrolled (excluding DROPPED - allow re-enrollment after drop)
+        Optional<Enrollment> existingEnrollmentOpt = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId);
+        Enrollment savedEnrollment;
+        
+        if (existingEnrollmentOpt.isPresent()) {
+            Enrollment existing = existingEnrollmentOpt.get();
+            // If enrollment exists and is NOT DROPPED, throw exception
+            if (existing.getStatus() != EnrollmentStatus.DROPPED) {
+                throw new AlreadyEnrolledException(courseId, studentId);
+            }
+            // If DROPPED, reactivate and restore with Sync & Update (Recalculate on Re-entry)
+            log.info("Re-enrolling student {} in course {} (previous enrollment was DROPPED) - Restoring with Sync & Update", studentId, courseId);
+            
+            // Step 1: Sync - Get current total lessons from course (New Total)
+            int newTotalLessons = course.getTotalLessons();
+            existing.setTotalLessons(newTotalLessons);
+            
+            // Step 2: Update - Count actual completed lessons from LessonProgress (Actual Completed)
+            long actualCompletedLessons = lessonProgressRepository.countByEnrollmentIdAndIsCompletedTrue(existing.getId());
+            existing.setCompletedLessons((int) actualCompletedLessons);
+            
+            // Step 3: Recalculate progress percentage and status
+            int newProgressPercentage = 0;
+            if (newTotalLessons > 0) {
+                newProgressPercentage = (int) ((actualCompletedLessons * 100) / newTotalLessons);
+            }
+            existing.setProgressPercentage(newProgressPercentage);
+            
+            // Step 4: Update status based on recalculated progress
+            EnrollmentStatus newStatus;
+            if (newProgressPercentage >= 100) {
+                newStatus = EnrollmentStatus.COMPLETED;
+                // If completing now, set completedAt
+                if (existing.getCompletedAt() == null) {
+                    existing.setCompletedAt(LocalDateTime.now());
+                }
+            } else {
+                // If progress < 100%, set to ACTIVE (even if was COMPLETED before)
+                newStatus = EnrollmentStatus.ACTIVE;
+                // Clear completion date and certificate if status changes from COMPLETED to ACTIVE
+                if (existing.getStatus() == EnrollmentStatus.COMPLETED) {
+                    log.info("Enrollment {} was COMPLETED but recalculated progress is {}% - changing to ACTIVE", 
+                            existing.getId(), newProgressPercentage);
+                    existing.setCompletedAt(null);
+                    existing.setCertificateIssuedAt(null);
+                    existing.setCertificateUrl(null);
+                }
+            }
+            existing.setStatus(newStatus);
+            
+            // Step 5: Update other fields (restore, don't reset)
+            existing.setLastAccessedAt(LocalDateTime.now());
+            existing.setSuspensionReason(null); // Clear suspension reason if any
+            // Keep enrolledAt as original (don't reset enrollment date)
+            // Keep expiresAt if it was set
+            
+            savedEnrollment = enrollmentRepository.save(existing);
+            log.info("Enrollment {} reactivated and recalculated: totalLessons={} (synced), completedLessons={} (actual), progress={}%, status={}", 
+                    savedEnrollment.getId(), newTotalLessons, actualCompletedLessons, newProgressPercentage, newStatus);
+        } else {
+            // Create new enrollment
+            Enrollment enrollment = Enrollment.builder()
+                    .course(course)
+                    .studentId(studentId)
+                    .progressPercentage(0)
+                    .completedLessons(0)
+                    .totalLessons(course.getTotalLessons())
+                    .status(EnrollmentStatus.ACTIVE)
+                    .enrolledAt(LocalDateTime.now())
+                    .lastAccessedAt(LocalDateTime.now())
+                    .build();
+
+            savedEnrollment = enrollmentRepository.save(enrollment);
         }
 
-        // Create enrollment
-        Enrollment enrollment = Enrollment.builder()
-                .course(course)
-                .studentId(studentId)
-                .progressPercentage(0)
-                .completedLessons(0)
-                .totalLessons(course.getTotalLessons())
-                .status(EnrollmentStatus.ACTIVE)
-                .enrolledAt(LocalDateTime.now())
-                .lastAccessedAt(LocalDateTime.now())
-                .build();
-
-        Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
-
-        // Update course statistics
+        // Update course statistics (only increment if this is a new enrollment, not a reactivated DROPPED one)
         course.setTotalStudents(course.getTotalStudents() + 1);
         courseRepository.save(course);
 
@@ -107,8 +164,26 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     public Page<Enrollment> getStudentEnrollments(Long studentId, Pageable pageable) {
-        log.debug("Getting enrollments for student: {}", studentId);
-        return enrollmentRepository.findByStudentId(studentId, pageable);
+        log.debug("Getting enrollments for student: {} (excluding DROPPED)", studentId);
+        // Filter out DROPPED enrollments - students shouldn't see them in "My Learning"
+        // Note: For better performance with large datasets, consider adding a repository method
+        // that excludes DROPPED at query level (e.g., findByStudentIdAndStatusNot)
+        Page<Enrollment> allEnrollments = enrollmentRepository.findByStudentId(studentId, pageable);
+        // Filter DROPPED enrollments from the page content
+        List<Enrollment> filteredContent = allEnrollments.getContent().stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
+                .collect(java.util.stream.Collectors.toList());
+        // Count total non-DROPPED enrollments for accurate pagination
+        long totalNonDropped = enrollmentRepository.findByStudentId(studentId, PageRequest.of(0, Integer.MAX_VALUE))
+                .getContent().stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
+                .count();
+        // Return a new Page with filtered content
+        return new org.springframework.data.domain.PageImpl<>(
+                filteredContent,
+                pageable,
+                totalNonDropped
+        );
     }
 
     @Override
@@ -191,19 +266,27 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     public boolean isStudentEnrolled(Long courseId, Long studentId) {
-        return enrollmentRepository.existsByCourseIdAndStudentId(courseId, studentId);
+        // Check if student is enrolled, excluding DROPPED enrollments
+        Optional<Enrollment> enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId);
+        return enrollment.isPresent() && enrollment.get().getStatus() != EnrollmentStatus.DROPPED;
     }
 
     @Override
     public List<Enrollment> getInProgressCourses(Long studentId, Integer minProgress) {
-        log.debug("Getting in-progress courses for student: {} with min progress: {}", studentId, minProgress);
-        return enrollmentRepository.findInProgressCourses(studentId, minProgress);
+        log.debug("Getting in-progress courses for student: {} with min progress: {} (excluding DROPPED)", studentId, minProgress);
+        // Filter out DROPPED enrollments from in-progress courses
+        return enrollmentRepository.findInProgressCourses(studentId, minProgress).stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
     public List<Enrollment> getCompletedCourses(Long studentId) {
-        log.debug("Getting completed courses for student: {}", studentId);
-        return enrollmentRepository.findCompletedEnrollmentsByStudent(studentId);
+        log.debug("Getting completed courses for student: {} (excluding DROPPED)", studentId);
+        // Filter out DROPPED enrollments - even if they were completed before being dropped
+        return enrollmentRepository.findCompletedEnrollmentsByStudent(studentId).stream()
+                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
@@ -286,11 +369,21 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     public void unenrollStudent(Long enrollmentId) {
         log.info("Unenrolling student from enrollment: {}", enrollmentId);
         Enrollment enrollment = getEnrollmentById(enrollmentId);
+        
+        // Check if already DROPPED - don't process again
+        if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+            log.warn("Enrollment {} is already DROPPED - skipping unenroll operation", enrollmentId);
+            return;
+        }
+        
         Course course = enrollment.getCourse();
 
+        // Only decrement totalStudents if enrollment was not already DROPPED
+        // (to avoid double-counting if unenroll is called multiple times)
         if (course != null && course.getTotalStudents() != null && course.getTotalStudents() > 0) {
             course.setTotalStudents(course.getTotalStudents() - 1);
             courseRepository.save(course);
+            log.debug("Decremented totalStudents for course {} to {}", course.getId(), course.getTotalStudents());
         }
 
         // Mark enrollment as DROPPED instead of hard deleting to allow future re-enrollment

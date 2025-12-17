@@ -9,8 +9,21 @@ import {
   ProgressBar,
 } from '@edumind/user-ui';
 import { enrollmentService } from '@user/services/index';
-import type { EnrollmentResponse, EnrollmentStatsResponse } from '@edumind/shared-types';
-import { BookOpen, Clock, Award, PlayCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import type {
+  EnrollmentResponse,
+  EnrollmentStatsResponse,
+} from '@edumind/shared-types';
+import { EnrollmentStatus } from '@edumind/shared-constants';
+import {
+  BookOpen,
+  Clock,
+  Award,
+  PlayCircle,
+  TrendingUp,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+} from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import { useAuthStore } from '../../stores/auth.store';
 import { queryKeys } from '../../lib/query-keys';
@@ -77,8 +90,20 @@ export const MyLearningPage: React.FC = () => {
     }
   }, [filterStatus, allEnrollmentsResponse, inProgressEnrollments, completedEnrollments]);
 
+  // Business rule:
+  // - DROPPED enrollments should not appear in My Learning at all.
+  // - SUSPENDED enrollments are still visible but shown as locked.
+  const visibleEnrollments = useMemo(
+    () =>
+      (enrollments || []).filter(
+        (enrollment) => enrollment.status !== EnrollmentStatus.DROPPED
+      ),
+    [enrollments]
+  );
+
   // Loading state
-  const loading = statsLoading || 
+  const loading =
+    statsLoading ||
     (filterStatus === 'all' && allLoading) ||
     (filterStatus === 'active' && inProgressLoading) ||
     (filterStatus === 'completed' && completedLoading);
@@ -181,7 +206,7 @@ export const MyLearningPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Empty State */}
-        {!loading && enrollments.length === 0 && (
+        {!loading && visibleEnrollments.length === 0 && (
           <Card className="p-12 text-center">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -202,10 +227,10 @@ export const MyLearningPage: React.FC = () => {
         )}
 
         {/* Enrollments Grid */}
-        {enrollments.length > 0 && (
+        {visibleEnrollments.length > 0 && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {enrollments.map((enrollment) => (
+              {visibleEnrollments.map((enrollment) => (
                 <EnrollmentCard
                   key={enrollment.id}
                   enrollment={enrollment}
@@ -292,10 +317,15 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onViewCourse,
 }) => {
   const progressPercentage = enrollment.progressPercentage || 0;
-  const isCompleted = enrollment.status === 'COMPLETED';
+  const isCompleted = enrollment.status === EnrollmentStatus.COMPLETED;
+  const isSuspended = enrollment.status === EnrollmentStatus.SUSPENDED;
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card
+      className={`transition-shadow ${
+        isSuspended ? 'opacity-70 border border-amber-300 bg-amber-50' : 'hover:shadow-lg'
+      }`}
+    >
       {/* Course Thumbnail */}
       <div className="relative h-40 bg-gray-200 rounded-t-lg overflow-hidden">
         {enrollment.courseThumbnail ? (
@@ -312,7 +342,12 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
         {/* Status Badge */}
         <div className="absolute top-2 right-2">
-          {isCompleted ? (
+          {isSuspended ? (
+            <span className="bg-amber-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              <Lock className="w-3 h-3" />
+              Suspended
+            </span>
+          ) : isCompleted ? (
             <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
               <Award className="w-3 h-3" />
               Completed
@@ -342,7 +377,7 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
           </div>
           <ProgressBar
             progress={progressPercentage}
-            color={isCompleted ? 'green' : 'blue'}
+            color={isCompleted ? 'green' : isSuspended ? 'purple' : 'blue'}
             size="md"
           />
         </div>
@@ -357,19 +392,17 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
         {/* Actions */}
         <div className="flex gap-2">
-          {isCompleted ? (
+          {isSuspended ? (
             <>
               <Button
-                variant="primary"
-                onClick={onContinue}
-                className="flex-1"
-              >
-                Continue Learning
-              </Button>
-              <Button
                 variant="secondary"
-                onClick={onViewCourse}
+                className="flex-1 cursor-not-allowed"
+                disabled
               >
+                <Lock className="w-4 h-4 mr-1" />
+                Suspended
+              </Button>
+              <Button variant="secondary" onClick={onViewCourse}>
                 Details
               </Button>
             </>
@@ -382,10 +415,7 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               >
                 Continue Learning
               </Button>
-              <Button
-                variant="secondary"
-                onClick={onViewCourse}
-              >
+              <Button variant="secondary" onClick={onViewCourse}>
                 Details
               </Button>
             </>

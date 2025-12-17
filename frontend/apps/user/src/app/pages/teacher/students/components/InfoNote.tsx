@@ -14,16 +14,27 @@ export const InfoNote: React.FC<InfoNoteProps> = ({ show }) => {
         <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
         <div className="flex-1 space-y-2">
           <h4 className="text-sm font-semibold text-blue-900">
-            Important Information
+            Enrollment management rules
           </h4>
           <div className="text-sm text-blue-800 space-y-1">
             <p>
-              <strong>Suspend:</strong> Temporarily suspend student access to
-              the course. You can reactivate them later. Requires a reason.
+              <strong>⏸️ Suspend:</strong> Temporarily block the student's
+              access to this course. The course still appears in{" "}
+              <strong>My Learning</strong>, but it is shown as locked (dimmed /
+              with a lock icon). The student cannot access lessons or submit new
+              reviews, and any existing certificate is temporarily locked. When
+              you activate the enrollment again, access and the certificate are
+              immediately restored.
             </p>
             <p>
-              <strong>Unenroll:</strong> Permanently remove a student from the
-              course.
+              <strong>⛔ Dropped / Unenroll:</strong> Permanently end the
+              student's participation in this course. The course disappears from{" "}
+              <strong>My Learning</strong>, and the student cannot access
+              lessons or leave reviews. Any certificate associated with this
+              enrollment is <strong>permanently revoked</strong>. If the student
+              enrolls again in the future, it is treated as a new enrollment and
+              may earn a new certificate, but the previous certificate is never
+              restored.
             </p>
             <ul className="list-disc list-inside ml-2 space-y-1">
               <li>
@@ -42,4 +53,3 @@ export const InfoNote: React.FC<InfoNoteProps> = ({ show }) => {
     </div>
   );
 };
-

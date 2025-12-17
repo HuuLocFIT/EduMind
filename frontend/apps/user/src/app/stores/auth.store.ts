@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { User, LoginRequest, SignupRequest, TwoFactorLoginRequest } from "@edumind/shared-types";
+import type {
+  User,
+  LoginRequest,
+  SignupRequest,
+  TwoFactorLoginRequest,
+  JwtResponse,
+} from "@edumind/shared-types";
 import { authService } from "@user/services/index";
 import { queryClient } from "../lib/query-client";
 
@@ -37,22 +43,31 @@ export const useAuthStore = create<AuthState>()(
           const response = await authService.login(credentials);
 
           // Check if 2FA is required
-          if (response && typeof response === 'object' && 'requires2FA' in response && response.requires2FA === true) {
+          if (
+            response &&
+            typeof response === "object" &&
+            "requires2FA" in response &&
+            (response as any).requires2FA === true
+          ) {
             // This is a TwoFactorRequiredResponse, throw a special error
-            const error = new Error(response.message || "Two-factor authentication required");
+            const error = new Error(
+              (response as any).message || "Two-factor authentication required"
+            );
             (error as any).requires2FA = true;
-            (error as any).email = response.email;
+            (error as any).email = (response as any).email;
             set({ isLoading: false });
             throw error;
           }
 
           // Normal login response
+          const jwtResponse = response as JwtResponse;
+
           // Save tokens
-          localStorage.setItem("accessToken", response.accessToken);
+          localStorage.setItem("accessToken", jwtResponse.accessToken);
 
           set({
-            user: response.user,
-            accessToken: response.accessToken,
+            user: jwtResponse.user,
+            accessToken: jwtResponse.accessToken,
             isAuthenticated: true,
             isLoading: false,
           });
@@ -61,7 +76,8 @@ export const useAuthStore = create<AuthState>()(
           if (error.requires2FA) {
             throw error;
           }
-          const errorMessage = error.response?.data?.message || error.message || "Login failed";
+          const errorMessage =
+            error.response?.data?.message || error.message || "Login failed";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -76,7 +92,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem("accessToken", response.accessToken);
           const user = await authService.fetchCurrentUser();
           // unwrapApiResponse already unwraps the data, so user is the user object directly
-          localStorage.setItem('user', JSON.stringify(user));
+          localStorage.setItem("user", JSON.stringify(user));
 
           set({
             user: user,
@@ -85,7 +101,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error: any) {
-          const errorMessage = error.response?.data?.message || error.message || "2FA verification failed";
+          const errorMessage =
+            error.response?.data?.message ||
+            error.message ||
+            "2FA verification failed";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -111,18 +130,21 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error: any) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
 
           set({
             user: null,
             accessToken: null,
             isAuthenticated: false,
             isLoading: false,
-            error: error.message || 'OAuth2 login failed',
+            error: error.message || "OAuth2 login failed",
           });
 
-          const errorMessage = error.response?.data?.message || error.message || "OAuth2 login failed";
+          const errorMessage =
+            error.response?.data?.message ||
+            error.message ||
+            "OAuth2 login failed";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -135,7 +157,8 @@ export const useAuthStore = create<AuthState>()(
 
           set({ isLoading: false });
         } catch (error: any) {
-          const errorMessage = error.response?.data?.message || error.message || "Signup failed";
+          const errorMessage =
+            error.response?.data?.message || error.message || "Signup failed";
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
@@ -150,7 +173,7 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           // Clear all auth data
           localStorage.removeItem("accessToken");
-          localStorage.removeItem('user');
+          localStorage.removeItem("user");
           // Clear React Query cache to avoid showing stale user data after logout
           queryClient.clear();
 

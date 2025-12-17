@@ -2,12 +2,12 @@ import React from "react";
 import { Search } from "lucide-react";
 import { EnrollmentStatus } from "@edumind/shared-constants";
 import type { CourseResponse } from "@edumind/shared-types";
-import type { StudentsFilters } from "../types/students.types";
+import type { StudentsFilters as StudentsFiltersType } from "../types/students.types";
 
 interface StudentsFiltersProps {
   courses: CourseResponse[];
   coursesLoading: boolean;
-  filters: StudentsFilters;
+  filters: StudentsFiltersType;
   selectedCourse?: CourseResponse;
   onCourseChange: (courseId: string) => void;
   onStatusChange: (status: string) => void;
@@ -32,8 +32,7 @@ export const StudentsFilters: React.FC<StudentsFiltersProps> = ({
     onSearchSubmit(value);
   };
 
-  const hasActiveFilters =
-    filters.status || filters.search || filters.courseId;
+  const hasActiveFilters = filters.status || filters.search || filters.courseId;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
@@ -147,4 +146,3 @@ export const StudentsFilters: React.FC<StudentsFiltersProps> = ({
     </div>
   );
 };
-
