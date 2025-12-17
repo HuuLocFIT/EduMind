@@ -1,6 +1,6 @@
 import { EnrollmentStatus } from "@edumind/shared-constants";
 import { z } from "zod";
-import { createPagedResponseSchema } from "./base-response.schemas";
+import { createPagedResponseSchema } from "./base-response.schemas.js";
 
 export const EnrollmentStatusSchema = z.nativeEnum(EnrollmentStatus);
 

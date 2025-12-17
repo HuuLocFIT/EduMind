@@ -34,9 +34,7 @@ import {
   type EnrollmentPagedResponse,
   type SectionListResponse,
   type SectionDetailListResponse,
-  type LessonListResponse,
-  type SuspendEnrollmentRequest,
-  type ReportToAdminRequest,
+  type LessonListResponse
 } from "@edumind/shared-types";
 import {
   ENROLLMENT_ENDPOINTS,

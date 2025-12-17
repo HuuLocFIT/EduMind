@@ -226,21 +226,50 @@ public class EnrollmentController {
 
     @PostMapping("/{id}/activate")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> activateEnrollment(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> activateEnrollment(@PathVariable Long id, Authentication authentication) {
         log.info("Activating enrollment {}", id);
+
+        Enrollment enrollment = enrollmentService.getEnrollmentById(id);
+        boolean isPaidCourse = enrollment.getCourse() != null && enrollment.getCourse().isPaid();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+
+        // Business rules:
+        // - ADMIN can activate enrollments for any course (paid or free)
+        // - TEACHER can only (re)activate enrollments for free courses
+        if (isPaidCourse && !isAdmin) {
+            log.warn("Non-admin user attempted to activate enrollment {} for paid course {}", id, enrollment.getCourse().getId());
+            ApiResponse<Void> errorResponse = ApiResponse.<Void>builder()
+                    .status(HttpStatus.FORBIDDEN.value())
+                    .success(false)
+                    .message("Cannot (re)activate enrollments for paid courses. Please contact admin.")
+                    .data(null)
+                    .timestamp(java.time.LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+
         enrollmentService.activateEnrollment(id);
         return ResponseEntity.ok(ApiResponse.success("Enrollment activated successfully", null));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> unenrollStudent(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> unenrollStudent(@PathVariable Long id, Authentication authentication) {
         log.info("Unenrolling student for enrollment {}", id);
 
-        // Check if course is paid - teachers cannot unenroll from paid courses
         Enrollment enrollment = enrollmentService.getEnrollmentById(id);
-        if (enrollment.getCourse().isPaid()) {
-            log.warn("Teacher attempted to unenroll student from paid course {}", enrollment.getCourse().getId());
+        boolean isPaidCourse = enrollment.getCourse() != null && enrollment.getCourse().isPaid();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+
+        // Business rules:
+        // - ADMIN can unenroll students from any course (paid or free)
+        // - TEACHER can only unenroll students from free courses
+        if (isPaidCourse && !isAdmin) {
+            log.warn("Non-admin user attempted to unenroll student from paid course {}", enrollment.getCourse().getId());
             ApiResponse<Void> errorResponse = ApiResponse.<Void>builder()
                     .status(HttpStatus.FORBIDDEN.value())
                     .success(false)

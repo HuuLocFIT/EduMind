@@ -286,23 +286,18 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     public void unenrollStudent(Long enrollmentId) {
         log.info("Unenrolling student from enrollment: {}", enrollmentId);
         Enrollment enrollment = getEnrollmentById(enrollmentId);
-
         Course course = enrollment.getCourse();
-        
-        // Check if course is paid - teachers cannot unenroll students from paid courses
-        // This should be enforced at controller level, but adding check here as well for safety
-        if (course != null && course.isPaid()) {
-            log.warn("Attempt to unenroll student from paid course {} - this should be handled by admin only", course.getId());
-            throw new IllegalStateException("Cannot unenroll students from paid courses. Please contact admin.");
-        }
 
         if (course != null && course.getTotalStudents() != null && course.getTotalStudents() > 0) {
             course.setTotalStudents(course.getTotalStudents() - 1);
             courseRepository.save(course);
         }
 
-        enrollmentRepository.delete(enrollment);
-        log.info("Enrollment {} deleted successfully", enrollmentId);
+        // Mark enrollment as DROPPED instead of hard deleting to allow future re-enrollment
+        enrollment.setStatus(EnrollmentStatus.DROPPED);
+        enrollment.setLastAccessedAt(LocalDateTime.now());
+        enrollmentRepository.save(enrollment);
+        log.info("Enrollment {} marked as DROPPED successfully", enrollmentId);
     }
 
     @Override

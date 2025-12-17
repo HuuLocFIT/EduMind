@@ -202,6 +202,7 @@ export const ENROLLMENT_ENDPOINTS = {
   COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
   SUSPEND: (enrollmentId: string | number) => `${API_BASE_PATH}/enrollments/${enrollmentId}/suspend`,
   ACTIVATE: (enrollmentId: string | number) => `${API_BASE_PATH}/enrollments/${enrollmentId}/activate`,
+  REPORT_TO_ADMIN: (enrollmentId: string | number) => `${API_BASE_PATH}/enrollments/${enrollmentId}/report-to-admin`,
 } as const;
 
 // Section endpoints

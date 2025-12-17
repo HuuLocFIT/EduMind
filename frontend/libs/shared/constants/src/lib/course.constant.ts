@@ -24,5 +24,6 @@ export const EnrollmentStatus = {
   COMPLETED: "COMPLETED",
   SUSPENDED: "SUSPENDED",
   EXPIRED: "EXPIRED",
+  DROPPED: "DROPPED",
 } as const;
 

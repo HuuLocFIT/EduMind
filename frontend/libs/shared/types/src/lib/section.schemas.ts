@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LessonResponseSchema } from "./lesson.schemas";
+import { LessonResponseSchema } from "./lesson.schemas.js";
 
 export const CreateSectionRequestSchema = z.object({
   title: z

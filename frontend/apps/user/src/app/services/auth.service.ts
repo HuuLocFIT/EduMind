@@ -13,13 +13,11 @@ import type {
   JwtResponse,
   ChangePasswordRequest,
   UpdateProfileRequest,
-  FileUploadResponse,
   User,
 } from "@edumind/shared-types";
 import {
   AUTH_ENDPOINTS,
   USER_ENDPOINTS,
-  UPLOAD_ENDPOINTS,
   getOAuth2Url,
   API_URL,
 } from "@edumind/shared-utils";

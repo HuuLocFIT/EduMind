@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { CourseLevelSchema } from "./course.schemas";
-import { createPagedResponseSchema } from "./base-response.schemas";
+import { CourseLevelSchema } from "./course.schemas.js";
+import { createPagedResponseSchema } from "./base-response.schemas.js";
 
 export const WishlistItemResponseSchema = z.object({
   id: z.number(),

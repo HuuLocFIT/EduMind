@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth.store";
 import { TEACHER_ROUTES } from "@edumind/shared-utils";
 import { Alert, Button, Skeleton, useToast } from "@edumind/user-ui";
-import { ArrowLeft, BookOpen, Download, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Download } from "lucide-react";
 import { StudentsStats } from "./students/components/StudentsStats";
 import { StudentsFilters } from "./students/components/StudentsFilters";
 import { StudentsTable } from "./students/components/StudentsTable";
