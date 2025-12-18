@@ -35,7 +35,6 @@ import {
   BookOpen,
   Award,
   CheckCircle,
-  Lock,
   Users,
   Star,
   ArrowLeft,

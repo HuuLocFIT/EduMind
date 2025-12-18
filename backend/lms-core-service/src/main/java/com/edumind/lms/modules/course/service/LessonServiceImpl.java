@@ -6,6 +6,7 @@ import com.edumind.lms.modules.course.entity.Section;
 import com.edumind.lms.modules.course.event.LessonCreatedEvent;
 import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import com.edumind.lms.modules.course.event.LessonUpdatedEvent;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
@@ -192,9 +193,19 @@ public class LessonServiceImpl implements LessonService {
             return true;
         }
 
-        // Check if user is enrolled in the course
+        // Check if user is enrolled in the course with valid access status
         Long courseId = lesson.getSection().getCourse().getId();
-        return enrollmentRepository.findByCourseIdAndStudentId(courseId, userId).isPresent();
+        return enrollmentRepository.findByCourseIdAndStudentId(courseId, userId)
+                .map(enrollment -> {
+                    // Only ACTIVE, COMPLETED, or EXPIRED (with grace period) can access
+                    // SUSPENDED: temporarily blocked - no access
+                    // DROPPED: enrollment cancelled - no access (must re-enroll)
+                    EnrollmentStatus status = enrollment.getStatus();
+                    return status == EnrollmentStatus.ACTIVE
+                            || status == EnrollmentStatus.COMPLETED
+                            || status == EnrollmentStatus.EXPIRED;
+                })
+                .orElse(false);
     }
 
     @Override
