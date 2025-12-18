@@ -11,6 +11,7 @@ import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.course.util.EnrollmentMapper;
+import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -54,12 +56,29 @@ public class EnrollmentController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER', 'ADMIN')")
-    public ResponseEntity<ApiResponse<EnrollmentResponse>> getEnrollmentById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<EnrollmentResponse>> getEnrollmentById(
+            @PathVariable Long id,
+            Authentication authentication) {
         log.info("Getting enrollment: {}", id);
 
         Enrollment enrollment = enrollmentService.getEnrollmentById(id);
-        EnrollmentResponse response = enrollmentMapper.toResponse(enrollment);
 
+        Long userId = Long.valueOf(authentication.getPrincipal().toString());
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role -> "ROLE_ADMIN".equals(role));
+
+        boolean isOwner = enrollment.getStudentId() != null
+                && enrollment.getStudentId().equals(userId);
+        boolean isInstructor = enrollment.getCourse() != null
+                && enrollment.getCourse().getInstructorId() != null
+                && enrollment.getCourse().getInstructorId().equals(userId);
+
+        if (!isAdmin && !isOwner && !isInstructor) {
+            throw new UnauthorizedException("You are not allowed to view this enrollment");
+        }
+
+        EnrollmentResponse response = enrollmentMapper.toResponse(enrollment);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

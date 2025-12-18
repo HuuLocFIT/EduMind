@@ -7,6 +7,7 @@ import com.edumind.lms.modules.course.dto.request.UpdateLessonRequest;
 import com.edumind.lms.modules.course.dto.response.LessonResponse;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.service.LessonService;
+import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,7 +34,6 @@ public class LessonController {
 
         Long instructorId = extractUserId(authentication);
 
-        // FIXED: Map to entity with correct fields
         Lesson lesson = new Lesson();
         lesson.setTitle(request.getTitle());
         lesson.setDescription(request.getDescription());
@@ -63,7 +63,6 @@ public class LessonController {
 
         Long instructorId = extractUserId(authentication);
 
-        // FIXED: Map to entity with correct fields
         Lesson lessonUpdate = new Lesson();
         lessonUpdate.setTitle(request.getTitle());
         lessonUpdate.setDescription(request.getDescription());
@@ -96,15 +95,31 @@ public class LessonController {
     }
 
     @GetMapping("/{lessonId}")
-    public ResponseEntity<ApiResponse<LessonResponse>> getLessonById(@PathVariable Long lessonId) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<LessonResponse>> getLessonById(
+            @PathVariable Long lessonId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        if (!lessonService.canAccessLesson(lessonId, userId)) {
+            throw new UnauthorizedException("You are not allowed to access this lesson");
+        }
+
         Lesson lesson = lessonService.getLessonById(lessonId);
         return ResponseEntity.ok(ApiResponse.success(toResponse(lesson)));
     }
 
     @GetMapping("/sections/{sectionId}")
-    public ResponseEntity<ApiResponse<List<LessonResponse>>> getSectionLessons(@PathVariable Long sectionId) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<LessonResponse>>> getSectionLessons(
+            @PathVariable Long sectionId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
         List<Lesson> lessons = lessonService.getSectionLessons(sectionId);
+
         List<LessonResponse> response = lessons.stream()
+                .filter(lesson -> lessonService.canAccessLesson(lesson.getId(), userId))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
 
@@ -112,9 +127,16 @@ public class LessonController {
     }
 
     @GetMapping("/courses/{courseId}")
-    public ResponseEntity<ApiResponse<List<LessonResponse>>> getCourseLessons(@PathVariable Long courseId) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<LessonResponse>>> getCourseLessons(
+            @PathVariable Long courseId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
         List<Lesson> lessons = lessonService.getCourseLessons(courseId);
+
         List<LessonResponse> response = lessons.stream()
+                .filter(lesson -> lessonService.canAccessLesson(lesson.getId(), userId))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
 
@@ -160,8 +182,6 @@ public class LessonController {
     private Long extractUserId(Authentication authentication) {
         return Long.parseLong(authentication.getName());
     }
-
-    // FIXED: Map entity to response with correct fields
     private LessonResponse toResponse(Lesson lesson) {
         return LessonResponse.builder()
                 .id(lesson.getId())

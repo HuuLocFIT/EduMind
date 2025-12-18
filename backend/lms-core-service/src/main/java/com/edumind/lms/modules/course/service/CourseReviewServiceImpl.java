@@ -180,35 +180,30 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getApprovedReviewsByCourse(Long courseId, Pageable pageable) {
-        // FIXED: Using correct repository method with eager fetching
         return reviewRepository.findByCourseIdAndIsApprovedTrueWithAssociations(courseId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getAllReviewsByCourse(Long courseId, Pageable pageable) {
-        // FIXED: Using correct repository method with eager fetching
         return reviewRepository.findByCourseIdWithAssociations(courseId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public CourseReview getStudentReviewForCourse(Long courseId, Long studentId) {
-        // USING CORRECT METHOD WITH EAGER FETCHING
         return reviewRepository.findByCourseIdAndStudentIdWithAssociations(courseId, studentId).orElse(null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getReviewsByStudent(Long studentId, Pageable pageable) {
-        // USING REPOSITORY METHOD WITH EAGER FETCHING
         return reviewRepository.findByStudentIdWithAssociations(studentId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<CourseReview> getPendingReviews(Pageable pageable) {
-        // USING REPOSITORY METHOD WITH EAGER FETCHING
         return reviewRepository.findByIsApprovedFalseWithAssociations(pageable);
     }
 
@@ -262,7 +257,6 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     @Override
     @Transactional(readOnly = true)
     public Double getAverageRating(Long courseId) {
-        // USING CORRECT METHOD
         Double avgRating = reviewRepository.calculateAverageRating(courseId);
         return avgRating != null ? avgRating : 0.0;
     }
@@ -270,7 +264,6 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     @Override
     @Transactional(readOnly = true)
     public long getReviewCount(Long courseId) {
-        // USING CORRECT METHOD
         return reviewRepository.countByCourseIdAndIsApprovedTrue(courseId);
     }
 
@@ -284,7 +277,6 @@ public class CourseReviewServiceImpl implements CourseReviewService {
             distribution.put(i, 0L);
         }
 
-        // Get distribution from database - USING CORRECT METHOD
         Object[][] results = reviewRepository.getRatingDistribution(courseId);
         for (Object[] result : results) {
             Integer rating = (Integer) result[0];
@@ -298,7 +290,6 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasStudentReviewedCourse(Long courseId, Long studentId) {
-        // USING CORRECT METHOD
         return reviewRepository.existsByCourseIdAndStudentId(courseId, studentId);
     }
 

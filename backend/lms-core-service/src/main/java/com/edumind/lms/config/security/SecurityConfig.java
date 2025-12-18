@@ -28,17 +28,35 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(HttpMethod.GET,
-                                "/courses/**",
-                                "/categories/**",
-                                "/sections/**",
-                                "/lessons/**",
-                                "/progress/**",
-                                "/reviews/**",
-                                "/enrollments/**",
-                                "/wishlist/**"
-                            ).permitAll()
+                        // Actuator endpoints
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
+
+                        // Public course browsing
+                        .requestMatchers(HttpMethod.GET, "/courses/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/filter").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/category/{categoryId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/top-rated").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/most-popular").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/newest").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/free").permitAll()
+
+                        // Course detail
+                        .requestMatchers(HttpMethod.GET, "/courses/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/slug/{slug}").permitAll()
+
+                        // Categories - public
+                        .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+
+                        // Reviews
+                        .requestMatchers(HttpMethod.GET, "/reviews/courses/{courseId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/reviews/{reviewId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/reviews/courses/{courseId}/rating-distribution").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/reviews/config/auto-approve-enabled").permitAll()
+
+                        // Preview lessons only - public
+                        .requestMatchers(HttpMethod.GET, "/lessons/courses/{courseId}/preview").permitAll()
+
                         .anyRequest().authenticated()
                 );
 
