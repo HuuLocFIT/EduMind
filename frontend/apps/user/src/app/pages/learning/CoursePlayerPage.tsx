@@ -20,7 +20,7 @@ import type {
   EnrollmentResponse,
   SectionResponse,
 } from '@edumind/shared-types';
-import { ContentType } from '@edumind/shared-constants';
+import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
 import {
   Play,
   CheckCircle,
@@ -39,6 +39,8 @@ export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
 
+  const REDIRECT_DELAY_SECONDS = 10;
+
   // State
   const [course, setCourse] = useState<CourseDetailResponse | null>(null);
   const [lessons, setLessons] = useState<LessonResponse[]>([]);
@@ -52,6 +54,12 @@ export const CoursePlayerPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [accessError, setAccessError] = useState<{
+    title: string;
+    message: string;
+    redirectTo: string;
+  } | null>(null);
+  const [redirectCountdown, setRedirectCountdown] = useState(REDIRECT_DELAY_SECONDS);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -105,6 +113,26 @@ export const CoursePlayerPage: React.FC = () => {
     }
   }, [isDesktop]);
 
+  // Handle countdown and auto-redirect when accessError is shown
+  useEffect(() => {
+    if (!accessError) return;
+
+    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
+
+    const interval = setInterval(() => {
+      setRedirectCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          navigate(accessError.redirectTo);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [accessError, navigate]);
+
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -156,8 +184,14 @@ export const CoursePlayerPage: React.FC = () => {
     try {
       const isEnrolled = await enrollmentService.checkEnrollmentStatus(Number(courseId));
       if (!isEnrolled) {
-        alert('You must enroll in this course first');
-        navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
+        setAccessError({
+          title: 'Enrollment required',
+          message:
+            'You must enroll in this course before accessing the content. Please go back to the course page to enroll.',
+          redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+            courseId: courseId || '',
+          }),
+        });
         return;
       }
       
@@ -167,6 +201,31 @@ export const CoursePlayerPage: React.FC = () => {
         (e) => e.courseId === Number(courseId)
       );
       if (foundEnrollment) {
+        // Business rules:
+        // - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
+        // - SUSPENDED: student still "owns" the course but access is forbidden.
+        if (foundEnrollment.status === EnrollmentStatus.DROPPED) {
+          setAccessError({
+            title: 'Enrollment cancelled',
+            message:
+              'Your enrollment for this course has been cancelled. Please purchase/enroll again to access the content.',
+            redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+              courseId: courseId || '',
+            }),
+          });
+          return;
+        }
+
+        if (foundEnrollment.status === EnrollmentStatus.SUSPENDED) {
+          setAccessError({
+            title: 'Access suspended',
+            message:
+              'Your access to this course has been suspended. Please contact your instructor or support if you believe this is a mistake.',
+            redirectTo: USER_ROUTES.LEARNING,
+          });
+          return;
+        }
+
         setEnrollment(foundEnrollment);
         // Load all lesson progress for this enrollment once
         try {
@@ -181,7 +240,14 @@ export const CoursePlayerPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error checking enrollment:', err);
-      navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
+      setAccessError({
+        title: 'Unable to load course',
+        message:
+          'We were unable to verify your enrollment for this course. Please try again or go back to the course page.',
+        redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+          courseId: courseId || '',
+        }),
+      });
     }
   };
 
@@ -419,6 +485,38 @@ export const CoursePlayerPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loading />
+      </div>
+    );
+  }
+
+  // Access error modal – shown when user is DROPPED/SUSPENDED or not properly enrolled
+  if (accessError) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            {accessError.title}
+          </h2>
+          <p className="text-gray-700 mb-4">{accessError.message}</p>
+          <p className="text-xs text-gray-500 mb-6">
+            You will be redirected automatically in{' '}
+            <span className="font-semibold">{redirectCountdown}</span> seconds.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => navigate(-1)}
+            >
+              Go Back
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate(accessError.redirectTo)}
+            >
+              Go Now
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }

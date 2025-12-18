@@ -4,6 +4,7 @@ import com.edumind.lms.modules.course.config.ReviewConfigProperties;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.CourseReview;
 import com.edumind.lms.modules.course.entity.Enrollment;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.event.ReviewApprovedEvent;
 import com.edumind.lms.modules.course.event.ReviewCreatedEvent;
 import com.edumind.lms.modules.course.exception.DuplicateReviewException;
@@ -54,6 +55,17 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         // Check if student is enrolled
         Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId)
                 .orElseThrow(() -> new NotEnrolledException("Student must be enrolled to review this course"));
+
+        // Business rules:
+        // - DROPPED: enrollment has been cancelled; student should not be able to leave new reviews.
+        // - SUSPENDED: enrollment is temporarily blocked; student cannot leave or update reviews while suspended,
+        //   but existing published reviews remain visible.
+        if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+            throw new NotEnrolledException("Your enrollment for this course has been cancelled. You cannot review this course anymore.");
+        }
+        if (enrollment.getStatus() == EnrollmentStatus.SUSPENDED) {
+            throw new NotEnrolledException("Your access to this course is suspended. You cannot leave a review at this time.");
+        }
 
         // Check if student has already reviewed - USING CORRECT METHOD
         if (reviewRepository.existsByCourseIdAndStudentId(courseId, studentId)) {

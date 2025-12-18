@@ -1,11 +1,8 @@
 import { z } from "zod";
-import {
-  CourseLevel,
-  CourseStatus,
-} from "@edumind/shared-constants";
-import { CategoryInCourseSchema } from "./course-category.schemas";
-import { SectionDetailResponseSchema } from "./section.schemas";
-import { createPagedResponseSchema } from "./base-response.schemas";
+import { CourseLevel, CourseStatus } from "@edumind/shared-constants";
+import { SectionDetailResponseSchema } from "./section.schemas.js";
+import { CategoryInCourseSchema } from "./course-category.schemas.js";
+import { createPagedResponseSchema } from "./base-response.schemas.js";
 
 export const CourseLevelSchema = z.nativeEnum(CourseLevel);
 export const CourseStatusSchema = z.nativeEnum(CourseStatus);
@@ -175,16 +172,11 @@ export const CourseDetailResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const CoursePagedResponseSchema = createPagedResponseSchema(CourseResponseSchema);
+export const CoursePagedResponseSchema =
+  createPagedResponseSchema(CourseResponseSchema);
 
 export type CreateCourseRequest = z.infer<typeof CreateCourseRequestSchema>;
 export type UpdateCourseRequest = z.infer<typeof UpdateCourseRequestSchema>;
 export type CourseResponse = z.infer<typeof CourseResponseSchema>;
 export type CourseDetailResponse = z.infer<typeof CourseDetailResponseSchema>;
 export type CoursePagedResponse = z.infer<typeof CoursePagedResponseSchema>;
-
-
-
-
-
-

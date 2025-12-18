@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -19,6 +20,8 @@ public class EnrollmentResponse {
     private Long courseId;
     private String courseTitle;
     private String courseThumbnail;
+    private BigDecimal coursePrice;
+    private Boolean courseIsPaid;
     private Long studentId;
 
     // Progress
@@ -37,4 +40,7 @@ public class EnrollmentResponse {
     private LocalDateTime enrolledAt;
     private LocalDateTime lastAccessedAt;
     private LocalDateTime expiresAt;
+    
+    // Suspension reason (for audit/logging)
+    private String suspensionReason;
 }

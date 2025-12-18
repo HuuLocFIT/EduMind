@@ -3,6 +3,8 @@ package com.edumind.lms.modules.course.service;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.entity.LessonProgress;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.exception.EnrollmentAccessForbiddenException;
 import com.edumind.lms.modules.course.exception.EnrollmentNotFoundException;
 import com.edumind.lms.modules.course.exception.LessonNotFoundException;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
@@ -38,6 +40,20 @@ public class LessonProgressServiceImpl implements LessonProgressService {
         // Validate enrollment exists
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new EnrollmentNotFoundException(enrollmentId));
+
+        // Business rules:
+        // - DROPPED: enrollment is cancelled, student must re-enroll to access lessons.
+        // - SUSPENDED: enrollment is temporarily blocked, no access to lessons or progress updates.
+        if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+            log.warn("Student {} attempted to start lesson {} on DROPPED enrollment {}", studentId, lessonId, enrollmentId);
+            throw new EnrollmentAccessForbiddenException(
+                    "Your enrollment for this course has been cancelled. Please enroll again to access the content.");
+        }
+        if (enrollment.getStatus() == EnrollmentStatus.SUSPENDED) {
+            log.warn("Student {} attempted to start lesson {} on SUSPENDED enrollment {}", studentId, lessonId, enrollmentId);
+            throw new EnrollmentAccessForbiddenException(
+                    "Your access to this course has been suspended. Please contact your instructor or support.");
+        }
 
         // Validate lesson exists
         Lesson lesson = lessonRepository.findById(lessonId)
@@ -81,6 +97,19 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                     // Create if doesn't exist
                     Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                             .orElseThrow(() -> new EnrollmentNotFoundException(enrollmentId));
+
+                    // Apply the same access rules as startLesson
+                    if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+                        log.warn("Attempt to update watch progress on DROPPED enrollment {}", enrollmentId);
+                        throw new EnrollmentAccessForbiddenException(
+                                "Your enrollment for this course has been cancelled. Please enroll again to access the content.");
+                    }
+                    if (enrollment.getStatus() == EnrollmentStatus.SUSPENDED) {
+                        log.warn("Attempt to update watch progress on SUSPENDED enrollment {}", enrollmentId);
+                        throw new EnrollmentAccessForbiddenException(
+                                "Your access to this course has been suspended. Please contact your instructor or support.");
+                    }
+
                     Lesson lesson = lessonRepository.findById(lessonId)
                             .orElseThrow(() -> new LessonNotFoundException(lessonId));
 
@@ -91,7 +120,7 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                             .isCompleted(false)
                             .startedAt(LocalDateTime.now())
                             .build();
-                    
+
                     LessonProgress saved = lessonProgressRepository.save(newProgress);
                     // Reload with associations
                     return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
@@ -137,6 +166,20 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                 .findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "LessonProgress not found for enrollment " + enrollmentId + " and lesson " + lessonId));
+
+        Enrollment enrollment = progress.getEnrollment();
+        if (enrollment != null) {
+            if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+                log.warn("Attempt to complete lesson {} on DROPPED enrollment {}", lessonId, enrollmentId);
+                throw new EnrollmentAccessForbiddenException(
+                        "Your enrollment for this course has been cancelled. Please enroll again to access the content.");
+            }
+            if (enrollment.getStatus() == EnrollmentStatus.SUSPENDED) {
+                log.warn("Attempt to complete lesson {} on SUSPENDED enrollment {}", lessonId, enrollmentId);
+                throw new EnrollmentAccessForbiddenException(
+                        "Your access to this course has been suspended. Please contact your instructor or support.");
+            }
+        }
 
         if (!progress.getIsCompleted()) {
             progress.markAsCompleted();

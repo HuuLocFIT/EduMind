@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createPagedResponseSchema } from "./base-response.schemas";
+import { createPagedResponseSchema } from "./base-response.schemas.js";
 
 export const CreateReviewRequestSchema = z.object({
   rating: z
