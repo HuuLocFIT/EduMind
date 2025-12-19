@@ -81,7 +81,13 @@ public class LessonServiceImpl implements LessonService {
             throw new UnauthorizedException("You can only update lessons of your own courses");
         }
 
-        lesson.setTitle(lessonUpdate.getTitle());
+        // Validate title - cannot be null or empty
+        if (lessonUpdate.getTitle() != null) {
+            if (lessonUpdate.getTitle().isBlank()) {
+                throw new BadRequestException("Lesson title cannot be empty");
+            }
+            lesson.setTitle(lessonUpdate.getTitle());
+        }
 
         if (lessonUpdate.getDescription() != null) {
             lesson.setDescription(lessonUpdate.getDescription());
@@ -94,7 +100,11 @@ public class LessonServiceImpl implements LessonService {
             lesson.setVideoUrl(lessonUpdate.getVideoUrl());
         }
 
+        // Validate videoDuration - must be >= 0
         if (lessonUpdate.getVideoDuration() != null) {
+            if (lessonUpdate.getVideoDuration() < 0) {
+                throw new BadRequestException("Video duration cannot be negative");
+            }
             lesson.setVideoDuration(lessonUpdate.getVideoDuration());
         }
 
@@ -197,13 +207,22 @@ public class LessonServiceImpl implements LessonService {
         Long courseId = lesson.getSection().getCourse().getId();
         return enrollmentRepository.findByCourseIdAndStudentId(courseId, userId)
                 .map(enrollment -> {
-                    // Only ACTIVE, COMPLETED, or EXPIRED (with grace period) can access
+                    // Only ACTIVE, COMPLETED, or EXPIRED (within grace period) can access
                     // SUSPENDED: temporarily blocked - no access
                     // DROPPED: enrollment cancelled - no access (must re-enroll)
                     EnrollmentStatus status = enrollment.getStatus();
-                    return status == EnrollmentStatus.ACTIVE
-                            || status == EnrollmentStatus.COMPLETED
-                            || status == EnrollmentStatus.EXPIRED;
+                    
+                    if (status == EnrollmentStatus.ACTIVE || status == EnrollmentStatus.COMPLETED) {
+                        return true;
+                    }
+                    
+                    // EXPIRED: check if within grace period (7 days after expiration)
+                    if (status == EnrollmentStatus.EXPIRED && enrollment.getExpiresAt() != null) {
+                        java.time.LocalDateTime gracePeriodEnd = enrollment.getExpiresAt().plusDays(7);
+                        return java.time.LocalDateTime.now().isBefore(gracePeriodEnd);
+                    }
+                    
+                    return false;
                 })
                 .orElse(false);
     }

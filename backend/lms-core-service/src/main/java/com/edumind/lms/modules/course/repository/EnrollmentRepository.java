@@ -101,4 +101,17 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId " +
             "AND e.status = 'ACTIVE' ORDER BY e.lastAccessedAt DESC")
     List<Enrollment> findRecentlyAccessedCourses(Long studentId, Pageable pageable);
+
+    /**
+     * Find enrollments for student excluding a specific status (with course fetched)
+     * Used to efficiently filter out DROPPED enrollments at database level
+     */
+    @EntityGraph("Enrollment.withCourse")
+    Page<Enrollment> findByStudentIdAndStatusNot(Long studentId, EnrollmentStatus status, Pageable pageable);
+
+    /**
+     * Count enrollments for student excluding a specific status
+     * Used for efficient pagination without loading all data into memory
+     */
+    long countByStudentIdAndStatusNot(Long studentId, EnrollmentStatus status);
 }

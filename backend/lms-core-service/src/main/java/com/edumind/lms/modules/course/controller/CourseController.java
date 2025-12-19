@@ -114,13 +114,11 @@ public class CourseController {
                 log.info("Deleting course: {}", id);
 
                 Long userId = Long.valueOf(authentication.getPrincipal().toString());
-                String userRole = authentication.getAuthorities().stream()
+                boolean isAdmin = authentication.getAuthorities().stream()
                                 .map(GrantedAuthority::getAuthority)
-                                .filter(role -> role.equals("TEACHER") || role.equals("ADMIN"))
-                                .findFirst()
-                                .orElse("TEACHER");
+                                .anyMatch(role -> "ROLE_ADMIN".equals(role));
 
-                courseService.deleteCourse(id, userId, userRole);
+                courseService.deleteCourse(id, userId, isAdmin ? "ADMIN" : "TEACHER");
 
                 return ResponseEntity.ok(ApiResponse.success("Course deleted successfully", null));
         }

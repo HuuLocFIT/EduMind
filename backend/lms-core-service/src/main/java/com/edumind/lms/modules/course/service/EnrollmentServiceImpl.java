@@ -53,6 +53,12 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new CourseNotPublishedException(courseId);
         }
 
+        // Security: Prevent instructor from enrolling in their own course
+        if (course.getInstructorId().equals(studentId)) {
+            log.warn("Instructor {} attempted to enroll in their own course {}", studentId, courseId);
+            throw new AlreadyEnrolledException(courseId, studentId);
+        }
+
         // Check if already enrolled (excluding DROPPED - allow re-enrollment after drop)
         Optional<Enrollment> existingEnrollmentOpt = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId);
         Enrollment savedEnrollment;
@@ -129,8 +135,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         }
 
         // Update course statistics (only increment if this is a new enrollment, not a reactivated DROPPED one)
-        course.setTotalStudents(course.getTotalStudents() + 1);
-        courseRepository.save(course);
+        // Protection against integer overflow
+        int currentStudents = course.getTotalStudents() != null ? course.getTotalStudents() : 0;
+        if (currentStudents < Integer.MAX_VALUE) {
+            course.setTotalStudents(currentStudents + 1);
+            courseRepository.save(course);
+        } else {
+            log.warn("Course {} has reached maximum student count, cannot increment further", courseId);
+        }
 
         // Publish event
         eventPublisher.publishEvent(new StudentEnrolledEvent(
@@ -165,25 +177,9 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Override
     public Page<Enrollment> getStudentEnrollments(Long studentId, Pageable pageable) {
         log.debug("Getting enrollments for student: {} (excluding DROPPED)", studentId);
-        // Filter out DROPPED enrollments - students shouldn't see them in "My Learning"
-        // Note: For better performance with large datasets, consider adding a repository method
-        // that excludes DROPPED at query level (e.g., findByStudentIdAndStatusNot)
-        Page<Enrollment> allEnrollments = enrollmentRepository.findByStudentId(studentId, pageable);
-        // Filter DROPPED enrollments from the page content
-        List<Enrollment> filteredContent = allEnrollments.getContent().stream()
-                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
-                .collect(java.util.stream.Collectors.toList());
-        // Count total non-DROPPED enrollments for accurate pagination
-        long totalNonDropped = enrollmentRepository.findByStudentId(studentId, PageRequest.of(0, Integer.MAX_VALUE))
-                .getContent().stream()
-                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
-                .count();
-        // Return a new Page with filtered content
-        return new org.springframework.data.domain.PageImpl<>(
-                filteredContent,
-                pageable,
-                totalNonDropped
-        );
+        // Use database-level filtering for better performance
+        // Previously loaded all enrollments into memory which could cause OOM with large datasets
+        return enrollmentRepository.findByStudentIdAndStatusNot(studentId, EnrollmentStatus.DROPPED, pageable);
     }
 
     @Override

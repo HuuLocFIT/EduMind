@@ -255,6 +255,25 @@ public class CourseReviewServiceImpl implements CourseReviewService {
     }
 
     @Override
+    @Transactional
+    public void adminDeleteReview(Long reviewId) {
+        log.info("Admin deleting review {}", reviewId);
+
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
+
+        // If review was approved, refresh aggregates after removal
+        Course course = review.getCourse();
+        boolean wasApproved = Boolean.TRUE.equals(review.getIsApproved());
+
+        reviewRepository.delete(review);
+        if (wasApproved) {
+            refreshCourseAggregates(course);
+        }
+        log.info("Review deleted by admin successfully");
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Double getAverageRating(Long courseId) {
         Double avgRating = reviewRepository.calculateAverageRating(courseId);

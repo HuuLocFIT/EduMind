@@ -3,6 +3,7 @@ package com.edumind.lms.modules.course.repository;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.enums.ContentType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -49,7 +50,9 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
 
     /**
      * Get max order index for section
+     * Uses PESSIMISTIC_WRITE lock to prevent race condition when multiple lessons are created concurrently
      */
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT MAX(l.orderIndex) FROM Lesson l WHERE l.section.id = :sectionId")
     Integer findMaxOrderIndexBySectionId(Long sectionId);
 }

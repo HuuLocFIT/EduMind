@@ -8,10 +8,13 @@ import com.edumind.lms.modules.course.dto.request.ReportToAdminRequest;
 import com.edumind.lms.modules.course.dto.response.EnrollmentResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
+import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.course.util.EnrollmentMapper;
 import com.edumind.lms.shared.exception.UnauthorizedException;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 public class EnrollmentController {
     private final EnrollmentService enrollmentService;
     private final EnrollmentMapper enrollmentMapper;
+    private final CourseService courseService;
 
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
@@ -87,7 +91,7 @@ public class EnrollmentController {
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getMyEnrollments(
             @RequestParam(required = false) EnrollmentStatus status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "10") @Max(100) int size,
             Authentication authentication) {
 
         Long studentId = Long.valueOf(authentication.getPrincipal().toString());
@@ -117,7 +121,7 @@ public class EnrollmentController {
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getStudentEnrollments(
             @PathVariable Long studentId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") @Max(100) int size) {
 
         log.info("Getting enrollments for student: {}", studentId);
 
@@ -138,9 +142,22 @@ public class EnrollmentController {
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getCourseEnrollments(
             @PathVariable Long courseId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") @Max(100) int size,
+            Authentication authentication) {
 
         log.info("Getting enrollments for course: {}", courseId);
+
+        // Security: Verify course ownership for non-admin users
+        Long userId = Long.valueOf(authentication.getPrincipal().toString());
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        
+        if (!isAdmin) {
+            Course course = courseService.getCourseById(courseId);
+            if (!course.getInstructorId().equals(userId)) {
+                throw new UnauthorizedException("You can only view enrollments for your own courses");
+            }
+        }
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("enrolledAt").descending());
         Page<Enrollment> enrollmentPage = enrollmentService.getCourseEnrollments(courseId, pageable);
@@ -237,8 +254,14 @@ public class EnrollmentController {
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> suspendEnrollment(
             @PathVariable Long id,
-            @Valid @RequestBody SuspendEnrollmentRequest request) {
+            @Valid @RequestBody SuspendEnrollmentRequest request,
+            Authentication authentication) {
         log.info("Suspending enrollment {} with reason: {}", id, request.getReason());
+        
+        // Security: Verify course ownership for non-admin users
+        Enrollment enrollment = enrollmentService.getEnrollmentById(id);
+        validateCourseOwnership(enrollment, authentication);
+        
         enrollmentService.suspendEnrollment(id, request.getReason());
         return ResponseEntity.ok(ApiResponse.success("Enrollment suspended successfully", null));
     }
@@ -249,8 +272,11 @@ public class EnrollmentController {
         log.info("Activating enrollment {}", id);
 
         Enrollment enrollment = enrollmentService.getEnrollmentById(id);
+        
+        // Security: Verify course ownership for non-admin users
+        validateCourseOwnership(enrollment, authentication);
+        
         boolean isPaidCourse = enrollment.getCourse() != null && enrollment.getCourse().isPaid();
-
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
 
@@ -279,8 +305,11 @@ public class EnrollmentController {
         log.info("Unenrolling student for enrollment {}", id);
 
         Enrollment enrollment = enrollmentService.getEnrollmentById(id);
+        
+        // Security: Verify course ownership for non-admin users
+        validateCourseOwnership(enrollment, authentication);
+        
         boolean isPaidCourse = enrollment.getCourse() != null && enrollment.getCourse().isPaid();
-
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
 
@@ -311,9 +340,34 @@ public class EnrollmentController {
             Authentication authentication) {
         log.info("Reporting enrollment {} to admin with reason: {}", id, request.getReason());
         
+        // Security: Verify course ownership for non-admin users
+        Enrollment enrollment = enrollmentService.getEnrollmentById(id);
+        validateCourseOwnership(enrollment, authentication);
+        
         Long teacherId = Long.valueOf(authentication.getPrincipal().toString());
         enrollmentService.reportToAdmin(id, teacherId, request.getReason());
         
         return ResponseEntity.ok(ApiResponse.success("Report submitted successfully. Admin will review your request.", null));
+    }
+    
+    // =========================================================================
+    // Helper methods
+    // =========================================================================
+    
+    /**
+     * Validates that non-admin users can only manage enrollments for their own courses.
+     * @throws UnauthorizedException if a non-admin user tries to access another instructor's course enrollments
+     */
+    private void validateCourseOwnership(Enrollment enrollment, Authentication authentication) {
+        Long userId = Long.valueOf(authentication.getPrincipal().toString());
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        
+        if (!isAdmin) {
+            if (enrollment.getCourse() == null || 
+                !enrollment.getCourse().getInstructorId().equals(userId)) {
+                throw new UnauthorizedException("You can only manage enrollments for your own courses");
+            }
+        }
     }
 }

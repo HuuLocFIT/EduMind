@@ -59,6 +59,9 @@ public class CourseServiceImpl implements CourseService {
         course.setAverageRating(null); // Must be NULL when totalReviews = 0 (per check_rating_consistency constraint)
         course.setTotalReviews(0);
 
+        // Validate price constraints
+        validatePriceConstraints(course);
+
         Course savedCourse = courseRepository.save(course);
 
         // Publish event
@@ -198,7 +201,7 @@ public class CourseServiceImpl implements CourseService {
 
         course.setStatus(CourseStatus.ARCHIVED);
         courseRepository.save(course);
-        log.info("Course deleted successfully: {}", courseId);
+        log.info("Course archived (soft-delete): {}", courseId);
     }
 
     @Override
@@ -356,5 +359,24 @@ public class CourseServiceImpl implements CourseService {
                 .id(instructorId)
                 .displayName("Instructor #" + instructorId)
                 .build();
+    }
+
+    /**
+     * Validates course price constraints
+     * @param course Course to validate
+     * @throws BadRequestException if price constraints are violated
+     */
+    private void validatePriceConstraints(Course course) {
+        if (course.getPrice() != null && course.getPrice().doubleValue() < 0) {
+            throw new BadRequestException("Course price cannot be negative");
+        }
+        if (course.getDiscountPrice() != null && course.getDiscountPrice().doubleValue() < 0) {
+            throw new BadRequestException("Discount price cannot be negative");
+        }
+        if (course.getPrice() != null && course.getDiscountPrice() != null) {
+            if (course.getDiscountPrice().compareTo(course.getPrice()) > 0) {
+                throw new BadRequestException("Discount price cannot exceed the original price");
+            }
+        }
     }
 }
