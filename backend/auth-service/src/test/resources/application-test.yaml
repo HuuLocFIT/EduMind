@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: false
+  mail:
+    host: localhost
+    port: 25
+
+app:
+  auth:
+    jwt:
+      secret: test-secret-key-for-jwt-signing-minimum-32-characters-required
+      access-token-expiration: 3600000
+      refresh-token-expiration: 604800000
+    email-verification-expiration: 86400000
+    password-reset-expiration: 3600000
+  frontend-url: http://localhost:3000
+
+eureka:
+  client:
+    enabled: false
+
+cloudinary:
+  cloud-name: test-cloud
+  api-key: test-key
+  api-secret: test-secret
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    com.edumind: DEBUG
