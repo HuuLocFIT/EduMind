@@ -95,8 +95,8 @@ class AuthIntegrationTest {
 
             // When
             mockMvc.perform(post("/auth/signup")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true));
 
@@ -123,8 +123,8 @@ class AuthIntegrationTest {
 
             // When/Then
             mockMvc.perform(post("/auth/signup")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
 
@@ -141,8 +141,8 @@ class AuthIntegrationTest {
 
             // When/Then
             mockMvc.perform(post("/auth/signup")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
     }
@@ -165,8 +165,8 @@ class AuthIntegrationTest {
 
             // When/Then
             mockMvc.perform(post("/auth/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.accessToken").exists())
@@ -186,8 +186,8 @@ class AuthIntegrationTest {
 
             // When/Then
             mockMvc.perform(post("/auth/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.accessToken").exists());
         }
@@ -204,8 +204,8 @@ class AuthIntegrationTest {
 
             // When/Then
             mockMvc.perform(post("/auth/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
         }
 
@@ -216,8 +216,8 @@ class AuthIntegrationTest {
 
             // When/Then
             mockMvc.perform(post("/auth/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
         }
     }
@@ -236,8 +236,8 @@ class AuthIntegrationTest {
         signupRequest.setLastName("Flow");
 
         mockMvc.perform(post("/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signupRequest)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(signupRequest)))
                 .andExpect(status().isCreated());
 
         // 2. Verify user was created in database
@@ -253,8 +253,8 @@ class AuthIntegrationTest {
         LoginRequest loginRequest = new LoginRequest("fullflowuser", "Password123!");
 
         mockMvc.perform(post("/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.accessToken").exists())
                 .andExpect(jsonPath("$.data.user.email").value("fullflow@example.com"));
@@ -279,7 +279,7 @@ class AuthIntegrationTest {
                 .isEmailVerified(false)
                 .is2faEnabled(false)
                 .provider(AuthProvider.LOCAL)
-                .roles(Set.of(studentRole))
+                .roles(new java.util.HashSet<>(Set.of(studentRole)))
                 .build();
 
         return userRepository.save(user);
