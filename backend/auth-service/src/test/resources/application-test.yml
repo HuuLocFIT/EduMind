@@ -1,0 +1,86 @@
+# Test Profile Configuration
+# This profile uses H2 in-memory database for testing
+spring:
+  # Database Configuration - H2 in-memory database
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  # JPA Configuration for H2
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Create schema on startup, drop on shutdown
+      dialect: org.hibernate.dialect.H2Dialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+  # Disable Flyway for tests (use Hibernate DDL auto instead)
+  flyway:
+    enabled: false
+
+  # Disable Eureka for tests
+  cloud:
+    discovery:
+      enabled: false
+
+  # Disable mail sending in tests
+  mail:
+    host: localhost
+    port: 1025  # Use test mail server port
+    username: test
+    password: test
+
+# Disable Eureka client registration for tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# JWT Configuration (use test secret)
+jwt:
+  secret: test-secret-key-for-testing-only-minimum-32-characters-long
+  expiration: 900000
+  refresh-expiration: 604800000
+
+# Disable email sending in tests
+mail:
+  enabled: false
+
+# Disable Cloudinary in tests
+cloudinary:
+  cloud-name: test
+  api-key: test
+  api-secret: test
+
+# Logging Configuration for tests
+logging:
+  level:
+    root: WARN
+    com.edumind: DEBUG
+    org.springframework.security: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# App Configuration
+app:
+  frontend:
+    url: http://localhost:3000
+  gateway:
+    url: http://localhost:8080
+  auth:
+    email-verification-expiration: 86400000
+    password-reset-expiration: 3600000
+    token-expiration: 86400000
+    refresh-expiration: 604800000
+  cookie:
+    secure: false
+    same-site: Lax
+  encryption:
+    key: test-encryption-key-for-testing-only
+

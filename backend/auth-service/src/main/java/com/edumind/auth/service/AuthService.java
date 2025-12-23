@@ -101,9 +101,7 @@ public class AuthService {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsernameOrEmail(),
-                        loginRequest.getPassword()
-                )
-        );
+                        loginRequest.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -115,8 +113,7 @@ public class AuthService {
             logger.info("🔐 2FA required for user: {}", user.getEmail());
             return new TwoFactorRequiredResponse(
                     user.getEmail(),
-                    "Two-factor authentication required. Please provide your 2FA code."
-            );
+                    "Two-factor authentication required. Please provide your 2FA code.");
         }
 
         return generateAuthResponse(authentication, user, response);
@@ -159,10 +156,10 @@ public class AuthService {
     private JwtResponse generateAuthResponse(Authentication authentication, User user, HttpServletResponse response) {
         // Generate access token
         String accessToken = tokenProvider.generateAccessToken(authentication);
-        
+
         // Create refresh token and save to DB
         RefreshToken refreshTokenEntity = createRefreshToken(user.getId());
-        
+
         // Set refresh token in HTTP-Only cookie
         setRefreshTokenCookie(response, refreshTokenEntity.getToken());
 
@@ -250,7 +247,7 @@ public class AuthService {
 
         // Revoke all refresh tokens in DB
         refreshTokenRepository.revokeAllUserTokens(user);
-        
+
         // Clear the cookie
         clearRefreshTokenCookie(response);
 
@@ -276,17 +273,15 @@ public class AuthService {
         cookie.setMaxAge(REFRESH_TOKEN_COOKIE_MAX_AGE);
         // Note: SameSite requires using ResponseCookie or setting header manually
         response.addCookie(cookie);
-        
+
         // Set SameSite attribute via header (Cookie class doesn't support it directly)
-        response.setHeader("Set-Cookie", 
-            String.format("%s=%s; Path=/; Max-Age=%d; HttpOnly; %s; SameSite=%s",
-                REFRESH_TOKEN_COOKIE_NAME,
-                token,
-                REFRESH_TOKEN_COOKIE_MAX_AGE,
-                cookieSecure ? "Secure" : "",
-                cookieSameSite
-            )
-        );
+        response.setHeader("Set-Cookie",
+                String.format("%s=%s; Path=/; Max-Age=%d; HttpOnly; %s; SameSite=%s",
+                        REFRESH_TOKEN_COOKIE_NAME,
+                        token,
+                        REFRESH_TOKEN_COOKIE_MAX_AGE,
+                        cookieSecure ? "Secure" : "",
+                        cookieSameSite));
     }
 
     /**
@@ -365,7 +360,7 @@ public class AuthService {
         Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
                 .orElseThrow(() -> new ResourceNotFoundException("Role STUDENT not found"));
 
-        user.setRoles(Set.of(studentRole));
+        user.setRoles(new java.util.HashSet<>(Set.of(studentRole)));
 
         User savedUser = userRepository.save(user);
         logger.info("✅ User registered successfully: {} with role STUDENT", savedUser.getUsername());
@@ -394,8 +389,7 @@ public class AuthService {
 
         Optional<User> userOptional = userRepository.findByProviderAndProviderUserId(
                 authProvider,
-                oAuth2UserInfo.getId()
-        );
+                oAuth2UserInfo.getId());
 
         User user;
 
@@ -406,8 +400,7 @@ public class AuthService {
                 logger.warn("⚠️ Email changed for user {} from {} to {}",
                         user.getUsername(),
                         user.getEmail(),
-                        oAuth2UserInfo.getEmail()
-                );
+                        oAuth2UserInfo.getEmail());
 
                 Optional<User> existingWithNewEmail = userRepository
                         .findByEmail(oAuth2UserInfo.getEmail());
@@ -416,8 +409,7 @@ public class AuthService {
                         !existingWithNewEmail.get().getId().equals(user.getId())) {
                     throw new BadRequestException(
                             "Email " + oAuth2UserInfo.getEmail() +
-                                    " is already registered with another account"
-                    );
+                                    " is already registered with another account");
                 }
 
                 user.setEmail(oAuth2UserInfo.getEmail());
@@ -426,8 +418,7 @@ public class AuthService {
             if (user.getProvider() != authProvider) {
                 throw new BadRequestException(
                         "You're already signed up with " + user.getProvider() +
-                                " account. Please use " + user.getProvider() + " login."
-                );
+                                " account. Please use " + user.getProvider() + " login.");
             }
 
             return updateExistingUser(user, oAuth2UserInfo);
@@ -440,15 +431,13 @@ public class AuthService {
 
                 if (user.getProvider() == AuthProvider.LOCAL) {
                     throw new BadRequestException(
-                            "Email already registered. Please use email/password login."
-                    );
+                            "Email already registered. Please use email/password login.");
                 }
 
                 if (user.getProvider() != authProvider) {
                     throw new BadRequestException(
                             "You're already signed up with " + user.getProvider() +
-                                    " account. Please use " + user.getProvider() + " login."
-                    );
+                                    " account. Please use " + user.getProvider() + " login.");
                 }
 
                 if (user.getProviderUserId() == null) {
@@ -458,8 +447,7 @@ public class AuthService {
                 }
 
                 throw new BadRequestException(
-                        "Account configuration error. Please contact support."
-                );
+                        "Account configuration error. Please contact support.");
             }
 
             return registerNewUser(authProvider, oAuth2UserInfo);
@@ -480,8 +468,8 @@ public class AuthService {
         String firstName = oAuth2UserInfo.getFirstName();
         String lastName = oAuth2UserInfo.getLastName();
 
-        user.setFirstName(firstName != null && !firstName.isEmpty() ?
-                firstName : oAuth2UserInfo.getEmail().split("@")[0]);
+        user.setFirstName(
+                firstName != null && !firstName.isEmpty() ? firstName : oAuth2UserInfo.getEmail().split("@")[0]);
         user.setLastName(lastName != null ? lastName : "");
 
         String baseUsername = oAuth2UserInfo.getEmail().split("@")[0];
