@@ -4,9 +4,11 @@ import com.edumind.common.response.ApiResponse;
 import com.edumind.lms.modules.course.dto.request.CreateSectionRequest;
 import com.edumind.lms.modules.course.dto.request.ReorderSectionsRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateSectionRequest;
+import com.edumind.lms.modules.course.dto.response.LessonResponse;
 import com.edumind.lms.modules.course.dto.response.SectionDetailResponse;
 import com.edumind.lms.modules.course.dto.response.SectionResponse;
 import com.edumind.lms.modules.course.entity.Section;
+import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.service.LessonService;
 import com.edumind.lms.modules.course.service.SectionService;
 import jakarta.validation.Valid;
@@ -89,9 +91,13 @@ public class SectionController {
     }
 
     @GetMapping("/{sectionId}/detail")
-    public ResponseEntity<ApiResponse<SectionDetailResponse>> getSectionDetail(@PathVariable Long sectionId) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<SectionDetailResponse>> getSectionDetail(
+            @PathVariable Long sectionId,
+            Authentication authentication) {
+        Long userId = extractUserId(authentication);
         Section section = sectionService.getSectionById(sectionId);
-        return ResponseEntity.ok(ApiResponse.success(toDetailResponse(section)));
+        return ResponseEntity.ok(ApiResponse.success(toDetailResponse(section, userId)));
     }
 
     @GetMapping("/courses/{courseId}")
@@ -105,11 +111,14 @@ public class SectionController {
     }
 
     @GetMapping("/courses/{courseId}/detail")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<SectionDetailResponse>>> getCourseSectionsWithLessons(
-            @PathVariable Long courseId) {
+            @PathVariable Long courseId,
+            Authentication authentication) {
+        Long userId = extractUserId(authentication);
         List<Section> sections = sectionService.getCourseSections(courseId);
         List<SectionDetailResponse> response = sections.stream()
-                .map(this::toDetailResponse)
+                .map(section -> toDetailResponse(section, userId))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -133,13 +142,11 @@ public class SectionController {
         return Long.parseLong(authentication.getName());
     }
 
-    // FIXED: Calculate duration in seconds from videoDuration
     private SectionResponse toResponse(Section section) {
-        List<com.edumind.lms.modules.course.entity.Lesson> lessons =
-                lessonService.getSectionLessons(section.getId());
+        List<Lesson> lessons = lessonService.getSectionLessons(section.getId());
 
         int lessonCount = lessons.size();
-        // FIXED: videoDuration is in seconds
+        // videoDuration is in seconds
         int totalDurationSeconds = lessons.stream()
                 .mapToInt(l -> l.getVideoDuration() != null ? l.getVideoDuration() : 0)
                 .sum();
@@ -157,9 +164,13 @@ public class SectionController {
                 .build();
     }
 
-    private SectionDetailResponse toDetailResponse(Section section) {
-        List<com.edumind.lms.modules.course.entity.Lesson> lessons =
-                lessonService.getSectionLessons(section.getId());
+    private SectionDetailResponse toDetailResponse(Section section, Long userId) {
+        List<Lesson> lessons = lessonService.getSectionLessons(section.getId());
+
+        List<LessonResponse> accessibleLessons = lessons.stream()
+                .filter(lesson -> lessonService.canAccessLesson(lesson.getId(), userId))
+                .map(this::toLessonResponse)
+                .collect(Collectors.toList());
 
         return SectionDetailResponse.builder()
                 .id(section.getId())
@@ -167,18 +178,15 @@ public class SectionController {
                 .title(section.getTitle())
                 .description(section.getDescription())
                 .orderIndex(section.getOrderIndex())
-                .lessons(lessons.stream()
-                        .map(this::toLessonResponse)
-                        .collect(Collectors.toList()))
+                .lessons(accessibleLessons)
                 .createdAt(section.getCreatedAt())
                 .updatedAt(section.getUpdatedAt())
                 .build();
     }
 
-    // FIXED: Map lesson with correct entity fields
-    private com.edumind.lms.modules.course.dto.response.LessonResponse toLessonResponse(
-            com.edumind.lms.modules.course.entity.Lesson lesson) {
-        return com.edumind.lms.modules.course.dto.response.LessonResponse.builder()
+    // Map lesson with full fields; access is already checked via canAccessLesson
+    private LessonResponse toLessonResponse(Lesson lesson) {
+        return LessonResponse.builder()
                 .id(lesson.getId())
                 .sectionId(lesson.getSection().getId())
                 .courseId(lesson.getCourse().getId())

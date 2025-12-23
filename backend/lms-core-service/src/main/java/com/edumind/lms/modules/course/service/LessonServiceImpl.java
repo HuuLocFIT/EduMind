@@ -6,6 +6,7 @@ import com.edumind.lms.modules.course.entity.Section;
 import com.edumind.lms.modules.course.event.LessonCreatedEvent;
 import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import com.edumind.lms.modules.course.event.LessonUpdatedEvent;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
@@ -80,7 +81,13 @@ public class LessonServiceImpl implements LessonService {
             throw new UnauthorizedException("You can only update lessons of your own courses");
         }
 
-        lesson.setTitle(lessonUpdate.getTitle());
+        // Validate title - cannot be null or empty
+        if (lessonUpdate.getTitle() != null) {
+            if (lessonUpdate.getTitle().isBlank()) {
+                throw new BadRequestException("Lesson title cannot be empty");
+            }
+            lesson.setTitle(lessonUpdate.getTitle());
+        }
 
         if (lessonUpdate.getDescription() != null) {
             lesson.setDescription(lessonUpdate.getDescription());
@@ -93,7 +100,11 @@ public class LessonServiceImpl implements LessonService {
             lesson.setVideoUrl(lessonUpdate.getVideoUrl());
         }
 
+        // Validate videoDuration - must be >= 0
         if (lessonUpdate.getVideoDuration() != null) {
+            if (lessonUpdate.getVideoDuration() < 0) {
+                throw new BadRequestException("Video duration cannot be negative");
+            }
             lesson.setVideoDuration(lessonUpdate.getVideoDuration());
         }
 
@@ -192,9 +203,28 @@ public class LessonServiceImpl implements LessonService {
             return true;
         }
 
-        // Check if user is enrolled in the course
+        // Check if user is enrolled in the course with valid access status
         Long courseId = lesson.getSection().getCourse().getId();
-        return enrollmentRepository.findByCourseIdAndStudentId(courseId, userId).isPresent();
+        return enrollmentRepository.findByCourseIdAndStudentId(courseId, userId)
+                .map(enrollment -> {
+                    // Only ACTIVE, COMPLETED, or EXPIRED (within grace period) can access
+                    // SUSPENDED: temporarily blocked - no access
+                    // DROPPED: enrollment cancelled - no access (must re-enroll)
+                    EnrollmentStatus status = enrollment.getStatus();
+                    
+                    if (status == EnrollmentStatus.ACTIVE || status == EnrollmentStatus.COMPLETED) {
+                        return true;
+                    }
+                    
+                    // EXPIRED: check if within grace period (7 days after expiration)
+                    if (status == EnrollmentStatus.EXPIRED && enrollment.getExpiresAt() != null) {
+                        java.time.LocalDateTime gracePeriodEnd = enrollment.getExpiresAt().plusDays(7);
+                        return java.time.LocalDateTime.now().isBefore(gracePeriodEnd);
+                    }
+                    
+                    return false;
+                })
+                .orElse(false);
     }
 
     @Override

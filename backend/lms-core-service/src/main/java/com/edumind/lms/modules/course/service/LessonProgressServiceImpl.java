@@ -41,6 +41,14 @@ public class LessonProgressServiceImpl implements LessonProgressService {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new EnrollmentNotFoundException(enrollmentId));
 
+        // Security: Verify the studentId matches the enrollment's studentId
+        if (!enrollment.getStudentId().equals(studentId)) {
+            log.warn("Student {} attempted to access enrollment {} belonging to student {}", 
+                    studentId, enrollmentId, enrollment.getStudentId());
+            throw new EnrollmentAccessForbiddenException(
+                    "You can only track progress for your own enrollments");
+        }
+
         // Business rules:
         // - DROPPED: enrollment is cancelled, student must re-enroll to access lessons.
         // - SUSPENDED: enrollment is temporarily blocked, no access to lessons or progress updates.
@@ -58,6 +66,14 @@ public class LessonProgressServiceImpl implements LessonProgressService {
         // Validate lesson exists
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new LessonNotFoundException(lessonId));
+
+        // Security: Verify the lesson belongs to the enrolled course
+        if (!lesson.getCourse().getId().equals(enrollment.getCourse().getId())) {
+            log.warn("Student {} attempted to access lesson {} which doesn't belong to enrolled course {}",
+                    studentId, lessonId, enrollment.getCourse().getId());
+            throw new EnrollmentAccessForbiddenException(
+                    "This lesson does not belong to your enrolled course");
+        }
 
         // Check if progress already exists
         return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
@@ -112,6 +128,14 @@ public class LessonProgressServiceImpl implements LessonProgressService {
 
                     Lesson lesson = lessonRepository.findById(lessonId)
                             .orElseThrow(() -> new LessonNotFoundException(lessonId));
+
+                    // Security: Verify the lesson belongs to the enrolled course
+                    if (!lesson.getCourse().getId().equals(enrollment.getCourse().getId())) {
+                        log.warn("Attempt to update progress for lesson {} which doesn't belong to enrolled course {}",
+                                lessonId, enrollment.getCourse().getId());
+                        throw new EnrollmentAccessForbiddenException(
+                                "This lesson does not belong to your enrolled course");
+                    }
 
                     LessonProgress newProgress = LessonProgress.builder()
                             .enrollment(enrollment)

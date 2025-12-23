@@ -15,6 +15,7 @@ import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.util.CategoryMapper;
 import com.edumind.lms.modules.course.util.CourseMapper;
 import com.edumind.lms.modules.course.service.InstructorNameResolver;
+import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,20 +114,19 @@ public class CourseController {
                 log.info("Deleting course: {}", id);
 
                 Long userId = Long.valueOf(authentication.getPrincipal().toString());
-                String userRole = authentication.getAuthorities().stream()
+                boolean isAdmin = authentication.getAuthorities().stream()
                                 .map(GrantedAuthority::getAuthority)
-                                .filter(role -> role.equals("TEACHER") || role.equals("ADMIN"))
-                                .findFirst()
-                                .orElse("TEACHER");
+                                .anyMatch(role -> "ROLE_ADMIN".equals(role));
 
-                courseService.deleteCourse(id, userId, userRole);
+                courseService.deleteCourse(id, userId, isAdmin ? "ADMIN" : "TEACHER");
 
                 return ResponseEntity.ok(ApiResponse.success("Course deleted successfully", null));
         }
 
         @GetMapping("/{id}")
         @Transactional(readOnly = true)
-        public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseById(@PathVariable Long id) {
+        public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseById(
+                        @PathVariable Long id) {
                 log.info("Getting course: {}", id);
 
                 Course course = courseService.getCourseById(id);
@@ -243,12 +243,23 @@ public class CourseController {
         }
 
         @GetMapping("/instructor/{instructorId}")
+        @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
         public ResponseEntity<PagedResponse<CourseResponse>> getCoursesByInstructor(
                         @PathVariable Long instructorId,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") int size,
+                        Authentication authentication) {
 
                 log.info("Getting courses for instructor: {}", instructorId);
+
+                Long currentUserId = Long.valueOf(authentication.getPrincipal().toString());
+                boolean isAdmin = authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .anyMatch(role -> "ROLE_ADMIN".equals(role));
+
+                if (!isAdmin && !instructorId.equals(currentUserId)) {
+                        throw new UnauthorizedException("You are not allowed to view courses for this instructor");
+                }
 
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
                 Page<Course> coursePage = courseService.getCoursesByInstructor(instructorId, pageable);
@@ -339,10 +350,21 @@ public class CourseController {
         }
 
         @GetMapping("/instructors/{instructorId}/stats")
+        @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
         public ResponseEntity<ApiResponse<InstructorStatsResponse>> getInstructorStats(
-                        @PathVariable Long instructorId) {
+                        @PathVariable Long instructorId,
+                        Authentication authentication) {
 
                 log.info("Getting stats for instructor: {}", instructorId);
+
+                Long currentUserId = Long.valueOf(authentication.getPrincipal().toString());
+                boolean isAdmin = authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .anyMatch(role -> "ROLE_ADMIN".equals(role));
+
+                if (!isAdmin && !instructorId.equals(currentUserId)) {
+                        throw new UnauthorizedException("You are not allowed to view stats for this instructor");
+                }
 
                 InstructorStatsResponse stats = courseService.getInstructorStats(instructorId);
 

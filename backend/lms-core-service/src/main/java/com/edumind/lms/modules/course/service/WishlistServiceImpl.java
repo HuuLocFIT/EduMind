@@ -58,16 +58,12 @@ public class WishlistServiceImpl implements WishlistService {
     public void removeFromWishlist(Long studentId, Long courseId) {
         log.info("Removing course {} from wishlist for student {}", courseId, studentId);
 
-        // Check if exists in wishlist first - USING CORRECT METHOD
         if (!wishlistRepository.existsByStudentIdAndCourseId(studentId, courseId)) {
             throw new ResourceNotFoundException("Course not found in wishlist");
         }
-
-        // Get wishlist item for event before deletion - USING CORRECT METHOD
         Wishlist wishlist = wishlistRepository.findByStudentIdAndCourseId(studentId, courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found in wishlist"));
 
-        // FIXED: Use repository's deleteByStudentIdAndCourseId method instead of delete(entity)
         wishlistRepository.deleteByStudentIdAndCourseId(studentId, courseId);
         log.info("Course removed from wishlist successfully");
 
@@ -79,21 +75,18 @@ public class WishlistServiceImpl implements WishlistService {
     @Transactional(readOnly = true)
     public Page<Wishlist> getWishlist(Long studentId, Pageable pageable) {
         log.info("Fetching wishlist for student {}", studentId);
-        // USING CORRECT METHOD - with course details
         return wishlistRepository.findByStudentIdWithCourse(studentId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean isInWishlist(Long studentId, Long courseId) {
-        // USING CORRECT METHOD
         return wishlistRepository.existsByStudentIdAndCourseId(studentId, courseId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public long getWishlistCount(Long studentId) {
-        // USING CORRECT METHOD
         return wishlistRepository.countByStudentId(studentId);
     }
 
@@ -102,7 +95,6 @@ public class WishlistServiceImpl implements WishlistService {
     public void clearWishlist(Long studentId) {
         log.info("Clearing wishlist for student {}", studentId);
 
-        // USING CORRECT METHOD
         Page<Wishlist> wishlistItems = wishlistRepository.findByStudentId(studentId, Pageable.unpaged());
         wishlistRepository.deleteAll(wishlistItems);
 

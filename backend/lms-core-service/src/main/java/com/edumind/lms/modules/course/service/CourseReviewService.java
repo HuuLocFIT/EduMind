@@ -94,6 +94,12 @@ public interface CourseReviewService {
     void rejectReview(Long reviewId);
 
     /**
+     * Admin force-delete review (for moderation - spam/inappropriate content)
+     * @param reviewId Review ID
+     */
+    void adminDeleteReview(Long reviewId);
+
+    /**
      * Get average rating for course
      * @param courseId Course ID
      * @return Average rating (0.0 if no reviews)

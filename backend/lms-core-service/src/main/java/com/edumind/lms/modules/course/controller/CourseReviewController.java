@@ -83,15 +83,24 @@ public class CourseReviewController {
     }
 
     @DeleteMapping("/{reviewId}")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteReview(
             @PathVariable Long reviewId,
             Authentication authentication) {
 
-        Long studentId = extractUserId(authentication);
-        reviewService.deleteReview(reviewId, studentId);
-
-        return ResponseEntity.ok(ApiResponse.success("Review deleted successfully", null));
+        Long userId = extractUserId(authentication);
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+        
+        if (isAdmin) {
+            // Admin can delete any review (for moderation purposes)
+            reviewService.adminDeleteReview(reviewId);
+            return ResponseEntity.ok(ApiResponse.success("Review deleted by admin", null));
+        } else {
+            // Students can only delete their own reviews
+            reviewService.deleteReview(reviewId, userId);
+            return ResponseEntity.ok(ApiResponse.success("Review deleted successfully", null));
+        }
     }
 
     @GetMapping("/{reviewId}")
