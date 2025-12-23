@@ -58,4 +58,16 @@ export default defineConfig(() => ({
       transformMixedEsModules: true,
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    coverage: {
+      provider: 'v8' as const,
+      reporter: ['text', 'html'],
+      include: ['src/app/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
+    },
+  },
 }));

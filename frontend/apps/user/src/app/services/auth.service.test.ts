@@ -1,0 +1,322 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { authService } from './auth.service';
+
+// Mock apiClient
+vi.mock('./api-client.service.js', () => ({
+  apiClient: {
+    post: vi.fn(),
+    get: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
+// Mock shared-utils
+vi.mock('@edumind/shared-utils', () => ({
+  AUTH_ENDPOINTS: {
+    SIGNUP: '/auth/signup',
+    LOGIN: '/auth/login',
+    LOGOUT: '/auth/logout',
+    REFRESH: '/auth/refresh',
+    FORGOT_PASSWORD: '/auth/password/forgot',
+    RESET_PASSWORD: '/auth/password/reset',
+    VERIFY_EMAIL: '/auth/verify-email',
+    RESEND_VERIFICATION: '/auth/resend-verification',
+    SETUP_2FA: '/auth/2fa/setup',
+    VERIFY_2FA: '/auth/2fa/verify',
+    LOGIN_2FA: '/auth/login/2fa',
+    DISABLE_2FA: '/auth/2fa/disable',
+    BACKUP_CODES: '/auth/2fa/backup-codes',
+    OAUTH2_CALLBACK: (provider: string) => `/oauth2/callback/${provider}`,
+  },
+  USER_ENDPOINTS: {
+    ME: '/users/me',
+    UPDATE_PROFILE: () => '/users/profile',
+    CHANGE_PASSWORD: '/users/password',
+    DELETE_ACCOUNT: '/users/account',
+  },
+  getOAuth2Url: vi.fn((provider: string, apiUrl: string) => `${apiUrl}/oauth2/authorize/${provider}`),
+  API_URL: 'http://localhost:8080/api',
+}));
+
+import { apiClient } from './api-client.service.js';
+
+describe('authService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  describe('signup', () => {
+    it('should call signup endpoint with correct data', async () => {
+      const signupData = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'Password123!',
+        firstName: 'Test',
+        lastName: 'User',
+      };
+      const mockResponse = { data: { success: true, message: 'Registration successful' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.signup(signupData);
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/signup', signupData);
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('login', () => {
+    it('should call login endpoint with credentials', async () => {
+      const credentials = { usernameOrEmail: 'testuser', password: 'password' };
+      const mockResponse = {
+        data: {
+          accessToken: 'jwt-token',
+          user: { id: 1, username: 'testuser' },
+        },
+      };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.login(credentials);
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/login', credentials);
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('should return 2FA response when 2FA is required', async () => {
+      const credentials = { usernameOrEmail: 'testuser', password: 'password' };
+      const mockResponse = {
+        data: {
+          requires2FA: true,
+          email: 'test@example.com',
+          message: 'Two-factor authentication required',
+        },
+      };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.login(credentials);
+
+      expect(result).toHaveProperty('requires2FA', true);
+    });
+  });
+
+  describe('logout', () => {
+    it('should call logout endpoint and clear localStorage', async () => {
+      localStorage.setItem('accessToken', 'test-token');
+      localStorage.setItem('user', JSON.stringify({ id: 1 }));
+      localStorage.setItem('auth-storage', 'data');
+
+      const mockResponse = { data: { success: true, message: 'Logged out' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      await authService.logout();
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout');
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      expect(localStorage.getItem('auth-storage')).toBeNull();
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should call refresh endpoint', async () => {
+      const mockResponse = { data: { accessToken: 'new-token' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.refreshToken();
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/refresh', {});
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('should call forgot password endpoint', async () => {
+      const mockResponse = { data: { success: true, message: 'Email sent' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.forgotPassword({ email: 'test@example.com' });
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/password/forgot', { email: 'test@example.com' });
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should call reset password endpoint', async () => {
+      const resetData = { token: 'reset-token', newPassword: 'NewPass123!', confirmPassword: 'NewPass123!' };
+      const mockResponse = { data: { success: true, message: 'Password reset' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.resetPassword(resetData);
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/password/reset', resetData);
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('should call verify email endpoint with token', async () => {
+      const mockResponse = { data: { success: true, message: 'Email verified' } };
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse);
+
+      const result = await authService.verifyEmail('verification-token');
+
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/verify-email', { params: { token: 'verification-token' } });
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('should call resend verification endpoint', async () => {
+      const mockResponse = { data: { success: true, message: 'Verification email sent' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.resendVerification({ email: 'test@example.com' });
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/resend-verification', { email: 'test@example.com' });
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('2FA methods', () => {
+    it('setup2FA should call setup endpoint', async () => {
+      const mockResponse = { data: { secret: 'JBSWY3DPEHPK3PXP', qrCodeUrl: 'data:image/png...' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.setup2FA();
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/2fa/setup');
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('loginWith2FA should call 2FA login endpoint', async () => {
+      const mockResponse = { data: { accessToken: '2fa-jwt-token' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.loginWith2FA({ usernameOrEmail: 'test@example.com', code: '123456' });
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/login/2fa', { usernameOrEmail: 'test@example.com', code: '123456' });
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('disable2FA should call disable endpoint', async () => {
+      const mockResponse = { data: { success: true, message: '2FA disabled' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.disable2FA({ password: 'password', code: '123456' });
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/2fa/disable', { password: 'password', code: '123456' });
+      expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('Helper methods', () => {
+    it('getCurrentUser should return user from localStorage', () => {
+      const user = { id: 1, username: 'testuser' };
+      localStorage.setItem('user', JSON.stringify(user));
+
+      expect(authService.getCurrentUser()).toEqual(user);
+    });
+
+    it('getCurrentUser should return null if no user', () => {
+      expect(authService.getCurrentUser()).toBeNull();
+    });
+
+    it('getAccessToken should return token from localStorage', () => {
+      localStorage.setItem('accessToken', 'test-token');
+
+      expect(authService.getAccessToken()).toBe('test-token');
+    });
+
+    it('getAccessToken should return null if no token', () => {
+      expect(authService.getAccessToken()).toBeNull();
+    });
+
+    it('isAuthenticated should return true when token exists', () => {
+      localStorage.setItem('accessToken', 'test-token');
+
+      expect(authService.isAuthenticated()).toBe(true);
+    });
+
+    it('isAuthenticated should return false when no token', () => {
+      expect(authService.isAuthenticated()).toBe(false);
+    });
+
+    it('clearAuth should remove all auth items from localStorage', () => {
+      localStorage.setItem('accessToken', 'test-token');
+      localStorage.setItem('user', JSON.stringify({ id: 1 }));
+      localStorage.setItem('auth-storage', 'data');
+
+      authService.clearAuth();
+
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      expect(localStorage.getItem('auth-storage')).toBeNull();
+    });
+  });
+
+  describe('OAuth2 methods', () => {
+    it('getGoogleOAuthUrl should return correct URL', () => {
+      const url = authService.getGoogleOAuthUrl();
+
+      expect(url).toBe('http://localhost:8080/api/oauth2/authorize/google');
+    });
+
+    it('getFacebookOAuthUrl should return correct URL', () => {
+      const url = authService.getFacebookOAuthUrl();
+
+      expect(url).toBe('http://localhost:8080/api/oauth2/authorize/facebook');
+    });
+  });
+
+  describe('User profile methods', () => {
+    it('fetchCurrentUser should call /users/me endpoint', async () => {
+      const mockUser = { id: 1, username: 'testuser', email: 'test@example.com' };
+      vi.mocked(apiClient.get).mockResolvedValue({ data: mockUser });
+
+      const result = await authService.fetchCurrentUser();
+
+      expect(apiClient.get).toHaveBeenCalledWith('/users/me');
+      expect(result).toEqual(mockUser);
+    });
+
+    it('updateProfile should call update endpoint and update localStorage', async () => {
+      const updateData = { firstName: 'Updated', lastName: 'User' };
+      const mockUpdatedUser = { id: 1, username: 'testuser', firstName: 'Updated', lastName: 'User' };
+      vi.mocked(apiClient.put).mockResolvedValue({ data: mockUpdatedUser });
+
+      const result = await authService.updateProfile(updateData);
+
+      expect(apiClient.put).toHaveBeenCalledWith('/users/profile', updateData);
+      expect(result).toEqual(mockUpdatedUser);
+      expect(JSON.parse(localStorage.getItem('user') || '{}')).toEqual(mockUpdatedUser);
+    });
+
+    it('changePassword should call change password endpoint', async () => {
+      const passwordData = { currentPassword: 'old', newPassword: 'new', confirmPassword: 'new' };
+      const mockResponse = { data: { success: true, message: 'Password changed' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.changePassword(passwordData);
+
+      expect(apiClient.post).toHaveBeenCalledWith('/users/password', passwordData);
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('deleteAccount should call delete endpoint and clear auth', async () => {
+      localStorage.setItem('accessToken', 'token');
+      const mockResponse = { data: { success: true, message: 'Account deleted' } };
+      vi.mocked(apiClient.delete).mockResolvedValue(mockResponse);
+
+      await authService.deleteAccount();
+
+      expect(apiClient.delete).toHaveBeenCalledWith('/users/account');
+      expect(localStorage.getItem('accessToken')).toBeNull();
+    });
+  });
+});
