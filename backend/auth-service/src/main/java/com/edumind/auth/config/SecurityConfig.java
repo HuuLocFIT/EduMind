@@ -1,5 +1,6 @@
 package com.edumind.auth.config;
 
+import com.edumind.auth.security.JwtAccessDeniedHandler;
 import com.edumind.auth.security.JwtAuthenticationEntryPoint;
 import com.edumind.auth.security.JwtAuthenticationFilter;
 import com.edumind.auth.security.OAuth2AuthenticationFailureHandler;
@@ -38,6 +39,7 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 public class SecurityConfig {
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationEntryPoint unauthorizedHandler;
+    private final JwtAccessDeniedHandler accessDeniedHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
@@ -54,11 +56,13 @@ public class SecurityConfig {
     public SecurityConfig(
             UserDetailsServiceImpl userDetailsService,
             JwtAuthenticationEntryPoint unauthorizedHandler,
+            JwtAccessDeniedHandler accessDeniedHandler,
             @Lazy CustomOAuth2UserService customOAuth2UserService,
             OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
             OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler) {
         this.userDetailsService = userDetailsService;
         this.unauthorizedHandler = unauthorizedHandler;
+        this.accessDeniedHandler = accessDeniedHandler;
         this.customOAuth2UserService = customOAuth2UserService;
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
         this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
@@ -110,7 +114,9 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 // CORS is handled by API Gateway, no need to configure here
                 // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(unauthorizedHandler)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
                         auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh", "/auth/login/2fa").permitAll()
