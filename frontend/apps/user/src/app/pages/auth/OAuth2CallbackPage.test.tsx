@@ -30,10 +30,13 @@ vi.mock('@edumind/shared-utils', () => ({
 }));
 
 // Mock UI components
+const mockToastSuccess = vi.fn();
+const mockToastError = vi.fn();
+
 vi.mock('@edumind/user-ui', () => ({
   useToast: () => ({ 
-    success: vi.fn(), 
-    error: vi.fn() 
+    success: mockToastSuccess, 
+    error: mockToastError 
   }),
 }));
 
@@ -80,19 +83,23 @@ describe('OAuth2CallbackPage', () => {
   });
 
   describe('Error Handling', () => {
-    it('should navigate to login when no token', async () => {
+    it('should navigate to login and show error when no token', async () => {
       renderOAuth2CallbackPage('');
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/login');
+        // Verify specific error message
+        expect(mockToastError).toHaveBeenCalledWith('No token received from OAuth2 provider');
       });
     });
 
-    it('should navigate to login on error param', async () => {
+    it('should navigate to login and show error on error param', async () => {
       renderOAuth2CallbackPage('?error=access_denied');
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/login');
+        // Verify specific error message from param
+        expect(mockToastError).toHaveBeenCalledWith('OAuth2 authentication failed: access_denied');
       });
     });
 

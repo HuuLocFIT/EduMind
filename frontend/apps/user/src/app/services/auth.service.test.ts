@@ -194,6 +194,17 @@ describe('authService', () => {
       expect(result).toEqual(mockResponse.data);
     });
 
+    it('verify2FASetup should call verify endpoint with code and secret', async () => {
+      const verifyData = { code: '123456', secret: 'SECRET123' };
+      const mockResponse = { data: { success: true, message: '2FA verified' } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.verify2FASetup(verifyData);
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/2fa/verify', verifyData);
+      expect(result).toEqual(mockResponse.data);
+    });
+
     it('loginWith2FA should call 2FA login endpoint', async () => {
       const mockResponse = { data: { accessToken: '2fa-jwt-token' } };
       vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
@@ -211,6 +222,16 @@ describe('authService', () => {
       const result = await authService.disable2FA({ password: 'password', code: '123456' });
 
       expect(apiClient.post).toHaveBeenCalledWith('/auth/2fa/disable', { password: 'password', code: '123456' });
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('getBackupCodes should call backup codes endpoint', async () => {
+      const mockResponse = { data: { backupCodes: ['CODE1', 'CODE2'] } };
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await authService.getBackupCodes();
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/2fa/backup-codes');
       expect(result).toEqual(mockResponse.data);
     });
   });
@@ -272,6 +293,22 @@ describe('authService', () => {
 
       expect(url).toBe('http://localhost:8080/api/oauth2/authorize/facebook');
     });
+
+    it('handleOAuth2Callback should call callback endpoint with code', async () => {
+      const provider = 'google';
+      const code = 'auth-code-123';
+      const mockResponse = { data: { accessToken: 'oauth-token', user: { id: 1 } } };
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse);
+
+      const result = await authService.handleOAuth2Callback(provider, code);
+
+      // Verify strict parameter usage (code vs token)
+      expect(apiClient.get).toHaveBeenCalledWith(
+        expect.stringContaining(`/oauth2/callback/${provider}`),
+        { params: { code } }
+      );
+      expect(result).toEqual(mockResponse.data);
+    });
   });
 
   describe('User profile methods', () => {
@@ -317,6 +354,23 @@ describe('authService', () => {
 
       expect(apiClient.delete).toHaveBeenCalledWith('/users/account');
       expect(localStorage.getItem('accessToken')).toBeNull();
+    });
+  });
+  describe('Error Handling', () => {
+    it('should propagate API errors', async () => {
+      const error = new Error('API Error');
+      vi.mocked(apiClient.post).mockRejectedValue(error);
+
+      await expect(authService.login({ usernameOrEmail: 'test', password: 'bad' }))
+        .rejects.toThrow('API Error');
+    });
+
+    it('should handle network errors gracefully', async () => {
+      const networkError = new Error('Network Error');
+      vi.mocked(apiClient.get).mockRejectedValue(networkError);
+
+      await expect(authService.fetchCurrentUser())
+        .rejects.toThrow('Network Error');
     });
   });
 });

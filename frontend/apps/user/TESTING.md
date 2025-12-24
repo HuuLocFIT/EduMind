@@ -18,21 +18,21 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     TEST FLOW                                │
+│                     TEST FLOW                               │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  1. npm run test:user                                        │
-│         ↓                                                    │
+│                                                             │
+│  1. npm run test:user                                       │
+│         ↓                                                   │
 │  2. Vitest reads vite.config.ts                             │
-│         ↓                                                    │
+│         ↓                                                   │
 │  3. Runs setup.ts (mocks browser APIs)                      │
-│         ↓                                                    │
+│         ↓                                                   │
 │  4. Finds all *.test.ts files                               │
-│         ↓                                                    │
+│         ↓                                                   │
 │  5. Runs each test in jsdom (fake browser)                  │
-│         ↓                                                    │
-│  6. Reports pass/fail                                        │
-│                                                              │
+│         ↓                                                   │
+│  6. Reports pass/fail                                       │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -183,22 +183,22 @@ expect(authService.login).toHaveBeenCalledWith({ username: 'test' });
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  YOUR TEST FILE                                                   │
+│  YOUR TEST FILE                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│                                                                   │
+│                                                                  │
 │  vi.mock('@user/services/index', () => ({                        │
 │    authService: { login: vi.fn() }   ← Creates FAKE              │
-│  }));                                                             │
-│                                                                   │
-│  // When your code does:                                          │
+│  }));                                                            │
+│                                                                  │
+│  // When your code does:                                         │
 │  authService.login({ user: 'test' })                             │
-│      ↓                                                            │
+│      ↓                                                           │
 │  // It calls the FAKE, not real API                              │
 │  // FAKE records: "login was called with { user: 'test' }"       │
-│      ↓                                                            │
-│  // You can verify:                                               │
+│      ↓                                                           │
+│  // You can verify:                                              │
 │  expect(authService.login).toHaveBeenCalledWith({ user: 'test'}) │
-│                                                                   │
+│                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 

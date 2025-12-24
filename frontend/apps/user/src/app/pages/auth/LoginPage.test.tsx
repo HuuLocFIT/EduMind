@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { LoginPage } from './LoginPage';
 
+import { useAuthStore } from '@user/stores/auth.store';
+
 // Mock the auth store
 const mockLogin = vi.fn();
 const mockLoginWith2FA = vi.fn();
@@ -16,6 +18,7 @@ vi.mock('@user/stores/auth.store', () => ({
     clearError: mockClearError,
     isLoading: false,
     error: null,
+    isAuthenticated: false,
   }),
 }));
 
@@ -34,7 +37,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ state: null }),
+    useLocation: () => ({ state: { message: 'Verification successful!' } }),
   };
 });
 
@@ -113,6 +116,22 @@ describe('LoginPage', () => {
       expect(screen.getByPlaceholderText('e.g. lucas or lucas@email.com')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /sign in/i })).not.toBeDisabled();
+    });
+
+    it('should disable submit button when loading', () => {
+      // Mock loading state
+      vi.mocked(useAuthStore).mockReturnValue({
+        login: mockLogin,
+        loginWith2FA: mockLoginWith2FA,
+        clearError: mockClearError,
+        isLoading: true,
+        error: null,
+        isAuthenticated: false,
+      } as any);
+
+      renderLoginPage();
+      expect(screen.getByRole('button', { name: /loading/i })).toBeDisabled();
     });
 
     it('should render OAuth2 buttons', () => {
@@ -133,6 +152,13 @@ describe('LoginPage', () => {
       renderLoginPage();
 
       expect(screen.getByRole('link', { name: /resend verification email/i })).toBeInTheDocument();
+    });
+      expect(screen.getByRole('link', { name: /resend verification email/i })).toBeInTheDocument();
+    });
+
+    it('should show success toast if location state has message', () => {
+      renderLoginPage();
+      expect(vi.mocked(useToast().success)).toHaveBeenCalledWith('Verification successful!');
     });
   });
 
@@ -192,6 +218,23 @@ describe('LoginPage', () => {
           usernameOrEmail: 'testuser@example.com',
           password: 'Password123!',
         });
+        expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+        expect(vi.mocked(useToast().success)).toHaveBeenCalledWith('Login successful!');
+      });
+    });
+
+    it('should show error toast on login failure', async () => {
+      const user = userEvent.setup();
+      const error = new Error('Invalid credentials');
+      mockLogin.mockRejectedValue(error);
+      renderLoginPage();
+
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'wrong');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'wrong');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(vi.mocked(useToast().error)).toHaveBeenCalledWith('Login failed. Please check your credentials.');
       });
     });
 

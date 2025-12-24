@@ -22,6 +22,8 @@ vi.mock('../lib/query-client', () => ({
 
 // Import the mocked service
 import { authService } from '@user/services/index';
+// Import the query client
+import { queryClient } from '../lib/query-client';
 
 describe('useAuthStore', () => {
   beforeEach(() => {
@@ -100,6 +102,59 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(false);
       expect(state.error).toBe('Invalid credentials');
       expect(state.isLoading).toBe(false);
+    });
+    it('should set isLoading state correctly', async () => {
+      vi.mocked(authService.login).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)) as any);
+      
+      const loginPromise = useAuthStore.getState().login({ 
+        usernameOrEmail: 'test', 
+        password: 'password'
+      });
+      
+      expect(useAuthStore.getState().isLoading).toBe(true);
+      
+      await act(async () => {
+        try {
+          await loginPromise;
+        } catch (e) {
+          // ignore
+        }
+      });
+      
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+  });
+
+  describe('loginWithOAuth2', () => {
+    it('should login with oauth2 token successfully', async () => {
+      const mockUser = { id: 1, username: 'oauth-user', email: 'oauth@example.com' };
+      vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser);
+
+      await act(async () => {
+        await useAuthStore.getState().loginWithOAuth2('oauth-token-123');
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.accessToken).toBe('oauth-token-123');
+      expect(state.user).toEqual(mockUser);
+      expect(localStorage.getItem('accessToken')).toBe('oauth-token-123');
+    });
+
+    it('should handle oauth2 login failure', async () => {
+      const error = new Error('Failed to fetch user');
+      vi.mocked(authService.fetchCurrentUser).mockRejectedValue(error);
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().loginWithOAuth2('invalid-token');
+        })
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.accessToken).toBeNull();
+      expect(state.error).toBe('Failed to fetch user');
     });
   });
 
@@ -197,6 +252,7 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBeNull();
       expect(state.isAuthenticated).toBe(false);
       expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(queryClient.clear).toHaveBeenCalled();
     });
 
     it('should clear state even if logout API fails', async () => {
