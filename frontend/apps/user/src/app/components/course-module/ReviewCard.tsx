@@ -2,7 +2,7 @@ import React from "react";
 import { Card } from "@edumind/user-ui";
 import { RatingStars } from "@edumind/user-ui";
 import type { ReviewResponse } from "@edumind/shared-types";
-import { useAuthStore } from "@user/stores/auth.store";
+import { useAuthStore } from '../../stores/auth.store';
 
 interface ReviewCardProps {
   review: ReviewResponse;

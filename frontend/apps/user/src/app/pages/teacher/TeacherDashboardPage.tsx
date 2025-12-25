@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../stores/auth.store";
 import { useTeacherStatus } from "../../components/teacher/TeacherGuard";
-import { teacherCourseService } from '@user/services/index';
+import { teacherCourseService } from '../../services/teacher-course.service';
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import { CourseStatus } from "@edumind/shared-constants";
 import type {

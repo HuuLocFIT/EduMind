@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Shield, Copy, Check, Download, ArrowLeft, QrCode } from "lucide-react";
-import { authService } from "@user/services/index";
-import { useAuthStore } from "@user/stores/auth.store";
+import { authService } from '../../services/auth.service';
+import { useAuthStore } from '../../stores/auth.store';
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { Button, Card, CardBody, Alert, useToast } from "@edumind/user-ui";
 import {

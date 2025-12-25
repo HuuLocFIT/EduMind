@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuthStore } from "@user/stores/auth.store";
+import { useAuthStore } from '../../stores/auth.store';
 import { useToast } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useRef } from "react";

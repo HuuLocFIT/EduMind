@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { authService } from "@user/services/index";
+import { authService } from '../../services/auth.service';
 import { Lock, CheckCircle, GraduationCap } from "lucide-react";
 
 import {

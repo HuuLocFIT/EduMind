@@ -8,7 +8,7 @@ import {
   Loading,
   ProgressBar,
 } from '@edumind/user-ui';
-import { enrollmentService } from '@user/services/index';
+import { enrollmentService } from '../../services/enrollment.service';
 import type {
   EnrollmentResponse,
   EnrollmentStatsResponse,

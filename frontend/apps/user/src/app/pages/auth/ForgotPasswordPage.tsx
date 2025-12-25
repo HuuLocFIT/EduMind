@@ -12,7 +12,7 @@ import {
   Card,
   useToast,
 } from "@edumind/user-ui";
-import { authService } from "@user/services/index";
+import { authService } from '../../services/auth.service';
 import { USER_ROUTES } from "@edumind/shared-utils";
 
 const forgotPasswordSchema = z.object({

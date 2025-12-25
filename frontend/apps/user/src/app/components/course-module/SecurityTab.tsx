@@ -11,8 +11,8 @@ import {
 } from "@edumind/user-ui";
 import type { User } from "@edumind/shared-types";
 import { Shield, Trash2, Settings } from "lucide-react";
-import { authService } from "@user/services/index";
-import { useAuthStore } from "@user/stores/auth.store";
+import { authService } from '../../services/auth.service';
+import { useAuthStore } from '../../stores/auth.store';
 import { USER_ROUTES } from "@edumind/shared-utils";
 
 interface SecurityTabProps {

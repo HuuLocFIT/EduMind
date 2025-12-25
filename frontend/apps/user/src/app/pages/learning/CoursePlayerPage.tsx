@@ -6,13 +6,11 @@ import {
   Loading,
   ProgressBar,
 } from '@edumind/user-ui';
-import {
-  courseService,
-  enrollmentService,
-  lessonProgressService,
-  lessonService,
-  sectionService,
-} from '@user/services/index';
+import { courseService } from '../../services/course.service';
+import { enrollmentService } from '../../services/enrollment.service';
+import { lessonProgressService } from '../../services/lesson-progress.service';
+import { lessonService } from '../../services/lesson.service';
+import { sectionService } from '../../services/section.service';
 import type {
   CourseDetailResponse,
   LessonResponse,

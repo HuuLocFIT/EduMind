@@ -7,7 +7,8 @@ import {
   CategoryFilter,
   CourseSearchBar,
 } from "../../components/course-module";
-import { courseService, categoryService } from '@user/services/index';
+import { courseService } from '../../services/course.service';
+import { categoryService } from '../../services/category.service';
 import type { CourseResponse, CategoryResponse } from "@edumind/shared-types";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import {
@@ -145,8 +146,8 @@ export const BrowseCoursesPage: React.FC = () => {
 
       // Map filterType to sort/filter params instead of using separate endpoints
       // This allows combining filterType with other filters (category, level, keyword, etc.)
-      let finalSortBy = sortByParam;
-      let finalSortDir: "ASC" | "DESC" = sortDir;
+      const finalSortBy = sortByParam;
+      const finalSortDir: "ASC" | "DESC" = sortDir;
       let finalMinPrice = baseParams.minPrice;
       let finalMaxPrice = baseParams.maxPrice;
 

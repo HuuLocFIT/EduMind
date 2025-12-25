@@ -21,7 +21,7 @@ vi.mock('../lib/query-client', () => ({
 }));
 
 // Import the mocked service
-import { authService } from '@user/services/index';
+import { authService } from '../services/auth.service';
 // Import the query client
 import { queryClient } from '../lib/query-client';
 

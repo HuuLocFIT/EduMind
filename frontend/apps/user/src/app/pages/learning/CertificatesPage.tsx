@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Button, Loading } from '@edumind/user-ui';
-import { enrollmentService } from '@user/services/index';
+import { enrollmentService } from '../../services/enrollment.service';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { Award } from 'lucide-react';
 import { CertificateCard } from '../../components/course-module/CertificateCard';

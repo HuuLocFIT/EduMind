@@ -4,14 +4,26 @@
   "license": "MIT",
   "scripts": {
     "nx": "nx",
-    "start:admin": "nx serve admin",
+
+    "start": "nx run-many -t serve",
     "start:user": "nx serve user",
+    "start:admin": "nx serve admin",
+
     "build": "nx run-many -t build",
-    "lint": "nx run-many -t lint",
+    "build:user": "nx build user",
+    "build:admin": "nx build admin",
+
     "test": "nx run-many -t test",
-    "test:user": "vitest run --config apps/user/vite.config.ts",
-    "test:user:watch": "vitest --config apps/user/vite.config.ts",
-    "test:user:coverage": "vitest run --config apps/user/vite.config.ts --coverage"
+    "test:user": "nx test user",
+    "test:user:watch": "nx test user --watch",
+    "test:user:coverage": "nx test user --coverage",
+    "test:admin": "nx test admin",
+    "test:admin:watch": "nx test admin --watch",
+    "test:admin:coverage": "nx test admin --coverage",
+    
+    "lint": "nx run-many -t lint",
+    "graph": "nx graph",
+    "reset": "nx reset"
   },
   "private": true,
   "devDependencies": {
@@ -75,6 +87,7 @@
     "@angular/core": "~20.3.0",
     "@angular/forms": "~20.3.0",
     "@angular/platform-browser": "~20.3.0",
+    "@angular/platform-browser-dynamic": "^20.3.13",
     "@angular/router": "~20.3.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

@@ -7,7 +7,7 @@ import type {
   TwoFactorLoginRequest,
   JwtResponse,
 } from "@edumind/shared-types";
-import { authService } from "@user/services/index";
+import { authService } from '../services/auth.service';
 import { queryClient } from "../lib/query-client";
 
 interface AuthState {

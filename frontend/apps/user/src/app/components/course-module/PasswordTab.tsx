@@ -6,7 +6,7 @@ import { Card, Button, PasswordInput, useToast } from '@edumind/user-ui';
 import {
   ChangePasswordRequestSchema,
 } from '@edumind/shared-types';
-import { authService } from '@user/services/index';
+import { authService } from '../../services/auth.service';
 
 // Extended schema with password match validation
 const ChangePasswordFormSchema = ChangePasswordRequestSchema.refine(

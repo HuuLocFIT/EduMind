@@ -9,7 +9,8 @@ import {
   ConfirmDialog,
   useToast,
 } from "@edumind/user-ui";
-import { wishlistService, enrollmentService } from "@user/services/index";
+import { wishlistService } from '../../services/wishlist.service';
+import { enrollmentService } from '../../services/enrollment.service';
 import type { WishlistItemResponse } from "@edumind/shared-types";
 import { WishlistCard } from "../../components/course-module/WishlistCard";
 import { Heart, Trash2 } from "lucide-react";
