@@ -929,6 +929,31 @@ describe('AuthService', () => {
       
       await expect(loginPromise).rejects.toThrow('Admin privileges required');
     });
+
+    it('should accept user with ADMIN as secondary role', async () => {
+      const credentials: LoginRequest = {
+        usernameOrEmail: 'multirole',
+        password: 'password123',
+      };
+
+      const multiRoleUser: User = {
+        id: 5,
+        username: 'multirole',
+        email: 'multirole@example.com',
+        roles: [UserRole.TEACHER, UserRole.ADMIN], // ADMIN is secondary role
+      };
+
+      const multiRoleResponse: JwtResponse = {
+        accessToken: createValidToken(),
+        user: multiRoleUser,
+      };
+
+      const loginPromise = service.login(credentials).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(multiRoleResponse);
+      
+      await loginPromise;
+      expect(service.getCurrentUser()?.roles).toContain(UserRole.ADMIN);
+    });
   });
 
   describe('localStorage Edge Cases', () => {
