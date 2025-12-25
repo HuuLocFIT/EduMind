@@ -88,7 +88,7 @@ describe('EmailVerificationPage', () => {
 
   describe('With Token', () => {
     it('should show verifying state initially', () => {
-      mockVerifyEmail.mockReturnValue(new Promise(() => {})); // Never resolves
+      mockVerifyEmail.mockReturnValue(new Promise(() => { /* never resolves */ }));
       renderEmailVerificationPage('valid-token');
 
       expect(screen.getByText('Verifying Email...')).toBeInTheDocument();

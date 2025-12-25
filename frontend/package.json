@@ -4,15 +4,12 @@
   "license": "MIT",
   "scripts": {
     "nx": "nx",
-
     "start": "nx run-many -t serve",
     "start:user": "nx serve user",
     "start:admin": "nx serve admin",
-
     "build": "nx run-many -t build",
     "build:user": "nx build user",
     "build:admin": "nx build admin",
-
     "test": "nx run-many -t test",
     "test:user": "nx test user",
     "test:user:watch": "nx test user --watch",
@@ -20,7 +17,6 @@
     "test:admin": "nx test admin",
     "test:admin:watch": "nx test admin --watch",
     "test:admin:coverage": "nx test admin --coverage",
-    
     "lint": "nx run-many -t lint",
     "graph": "nx graph",
     "reset": "nx reset"
@@ -62,6 +58,7 @@
     "autoprefixer": "^10.4.22",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "jiti": "2.4.2",
     "jsdom": "^27.3.0",
     "nx": "22.1.0",

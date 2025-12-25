@@ -55,7 +55,7 @@ describe('OAuth2CallbackPage', () => {
 
   describe('Rendering', () => {
     it('should show processing state', () => {
-      mockLoginWithOAuth2.mockReturnValue(new Promise(() => {})); // Never resolves
+      mockLoginWithOAuth2.mockReturnValue(new Promise(() => { /* never resolves */ }));
       renderOAuth2CallbackPage('?token=valid-token');
 
       expect(screen.getByText('Completing authentication...')).toBeInTheDocument();

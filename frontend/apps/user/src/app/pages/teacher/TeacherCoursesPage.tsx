@@ -245,7 +245,7 @@ export const TeacherCoursesPage: React.FC = () => {
           variant="error"
           title="Error"
           message={(error as any)?.message || "Failed to load courses"}
-          onClose={() => {}}
+          onClose={undefined}
         />
       )}
 

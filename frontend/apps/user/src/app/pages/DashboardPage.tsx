@@ -27,7 +27,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
-import TeacherApplicationBanner from "@user/components/TeacherApplicationBanner";
+import TeacherApplicationBanner from "../components/TeacherApplicationBanner";
 
 // StatCard Component
 interface StatCardProps {

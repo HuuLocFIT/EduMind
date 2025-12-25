@@ -93,7 +93,7 @@ describe('TwoFactorSetupPage', () => {
 
   describe('Loading State', () => {
     it('should show loading state initially', () => {
-      mockSetup2FA.mockReturnValue(new Promise(() => {})); // Never resolves
+      mockSetup2FA.mockReturnValue(new Promise(() => { /* never resolves */ }));
       renderTwoFactorSetupPage();
 
       expect(screen.getByText('Setting up 2FA...')).toBeInTheDocument();
