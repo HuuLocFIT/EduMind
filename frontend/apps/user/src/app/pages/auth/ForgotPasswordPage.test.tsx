@@ -8,8 +8,8 @@ const { mockForgotPassword } = vi.hoisted(() => ({
   mockForgotPassword: vi.fn(),
 }));
 
-// Mock auth service
-vi.mock('@user/services/index', () => ({
+// Mock auth service - use relative path to match component import
+vi.mock('../../services/auth.service', () => ({
   authService: {
     forgotPassword: mockForgotPassword,
   },
@@ -18,13 +18,17 @@ vi.mock('@user/services/index', () => ({
 // Import component after mocks
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 
-// Mock shared-utils
-vi.mock('@edumind/shared-utils', () => ({
-  USER_ROUTES: {
-    LOGIN: '/login',
-    FORGOT_PASSWORD: '/forgot-password',
-  },
-}));
+// Mock shared-utils (must include all exports used by dependencies)
+vi.mock('@edumind/shared-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    USER_ROUTES: {
+      LOGIN: '/login',
+      FORGOT_PASSWORD: '/forgot-password',
+    },
+  };
+});
 
 // Mock UI components
 vi.mock('@edumind/user-ui', () => ({
@@ -86,7 +90,7 @@ describe('ForgotPasswordPage', () => {
   describe('Form Submission', () => {
     it('should call forgotPassword with email', async () => {
       const user = userEvent.setup();
-      mockForgotPassword.mockResolvedValue({ success: true });
+      mockForgotPassword.mockResolvedValue({ success: true, message: 'Reset link sent' });
       renderForgotPasswordPage();
 
       await user.type(screen.getByPlaceholderText('your@email.com'), 'test@example.com');
@@ -94,12 +98,12 @@ describe('ForgotPasswordPage', () => {
 
       await waitFor(() => {
         expect(mockForgotPassword).toHaveBeenCalledWith({ email: 'test@example.com' });
-      });
+      }, { timeout: 3000 });
     });
 
     it('should show success state after email sent', async () => {
       const user = userEvent.setup();
-      mockForgotPassword.mockResolvedValue({ success: true });
+      mockForgotPassword.mockResolvedValue({ success: true, message: 'Reset link sent' });
       renderForgotPasswordPage();
 
       await user.type(screen.getByPlaceholderText('your@email.com'), 'test@example.com');
@@ -107,7 +111,7 @@ describe('ForgotPasswordPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Check Your Email')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should show error on failed request', async () => {

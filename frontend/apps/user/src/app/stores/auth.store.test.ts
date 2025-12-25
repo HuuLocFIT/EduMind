@@ -2,25 +2,35 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
 import { useAuthStore } from './auth.store';
 
-// Mock the auth service
-vi.mock('@user/services/index', () => ({
+// Use vi.hoisted to hoist mock function declarations before vi.mock
+const { mockLogin, mockLoginWith2FA, mockSignup, mockLogout, mockFetchCurrentUser, mockQueryClientClear } = vi.hoisted(() => ({
+  mockLogin: vi.fn(),
+  mockLoginWith2FA: vi.fn(),
+  mockSignup: vi.fn(),
+  mockLogout: vi.fn(),
+  mockFetchCurrentUser: vi.fn(),
+  mockQueryClientClear: vi.fn(),
+}));
+
+// Mock the auth service - must match the import path in auth.store.ts
+vi.mock('../services/auth.service', () => ({
   authService: {
-    login: vi.fn(),
-    loginWith2FA: vi.fn(),
-    signup: vi.fn(),
-    logout: vi.fn(),
-    fetchCurrentUser: vi.fn(),
+    login: mockLogin,
+    loginWith2FA: mockLoginWith2FA,
+    signup: mockSignup,
+    logout: mockLogout,
+    fetchCurrentUser: mockFetchCurrentUser,
   },
 }));
 
 // Mock the query client
 vi.mock('../lib/query-client', () => ({
   queryClient: {
-    clear: vi.fn(),
+    clear: mockQueryClientClear,
   },
 }));
 
-// Import the mocked service
+// Import the mocked service (for type compatibility, but we use the hoisted mocks directly)
 import { authService } from '../services/auth.service';
 // Import the query client
 import { queryClient } from '../lib/query-client';
@@ -54,7 +64,7 @@ describe('useAuthStore', () => {
         accessToken: 'test-token',
         user: { id: 1, username: 'testuser', email: 'test@example.com' },
       };
-      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+      mockLogin.mockResolvedValue(mockResponse);
 
       await act(async () => {
         await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
@@ -74,7 +84,7 @@ describe('useAuthStore', () => {
         email: 'test@example.com',
         message: 'Two-factor authentication required',
       };
-      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+      mockLogin.mockResolvedValue(mockResponse);
 
       await expect(
         act(async () => {
@@ -90,7 +100,7 @@ describe('useAuthStore', () => {
     it('should set error on failed login', async () => {
       const error = new Error('Invalid credentials');
       (error as any).response = { data: { message: 'Invalid credentials' } };
-      vi.mocked(authService.login).mockRejectedValue(error);
+      mockLogin.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -104,7 +114,7 @@ describe('useAuthStore', () => {
       expect(state.isLoading).toBe(false);
     });
     it('should set isLoading state correctly', async () => {
-      vi.mocked(authService.login).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)) as any);
+      mockLogin.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)) as any);
       
       const loginPromise = useAuthStore.getState().login({ 
         usernameOrEmail: 'test', 
@@ -128,7 +138,7 @@ describe('useAuthStore', () => {
   describe('loginWithOAuth2', () => {
     it('should login with oauth2 token successfully', async () => {
       const mockUser = { id: 1, username: 'oauth-user', email: 'oauth@example.com' };
-      vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser);
+      mockFetchCurrentUser.mockResolvedValue(mockUser);
 
       await act(async () => {
         await useAuthStore.getState().loginWithOAuth2('oauth-token-123');
@@ -143,7 +153,7 @@ describe('useAuthStore', () => {
 
     it('should handle oauth2 login failure', async () => {
       const error = new Error('Failed to fetch user');
-      vi.mocked(authService.fetchCurrentUser).mockRejectedValue(error);
+      mockFetchCurrentUser.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -165,8 +175,8 @@ describe('useAuthStore', () => {
       };
       const mockUser = { id: 1, username: 'testuser', email: 'test@example.com' };
       
-      vi.mocked(authService.loginWith2FA).mockResolvedValue(mockJwtResponse);
-      vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser);
+      mockLoginWith2FA.mockResolvedValue(mockJwtResponse);
+      mockFetchCurrentUser.mockResolvedValue(mockUser);
 
       await act(async () => {
         await useAuthStore.getState().loginWith2FA({ 
@@ -184,7 +194,7 @@ describe('useAuthStore', () => {
 
   describe('signup', () => {
     it('should complete signup successfully', async () => {
-      vi.mocked(authService.signup).mockResolvedValue({ 
+      mockSignup.mockResolvedValue({ 
         success: true, 
         message: 'Registration successful',
         status: 201
@@ -209,7 +219,7 @@ describe('useAuthStore', () => {
     it('should set error on failed signup', async () => {
       const error = new Error('Username taken');
       (error as any).response = { data: { message: 'Username is already taken!' } };
-      vi.mocked(authService.signup).mockRejectedValue(error);
+      mockSignup.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -235,8 +245,8 @@ describe('useAuthStore', () => {
         accessToken: 'test-token',
         user: { id: 1, username: 'testuser', email: 'test@example.com' },
       };
-      vi.mocked(authService.login).mockResolvedValue(mockResponse);
-      vi.mocked(authService.logout).mockResolvedValue({ success: true, message: 'Logged out', status: 200 });
+      mockLogin.mockResolvedValue(mockResponse);
+      mockLogout.mockResolvedValue({ success: true, message: 'Logged out', status: 200 });
 
       await act(async () => {
         await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
@@ -252,14 +262,14 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBeNull();
       expect(state.isAuthenticated).toBe(false);
       expect(localStorage.getItem('accessToken')).toBeNull();
-      expect(queryClient.clear).toHaveBeenCalled();
+      expect(mockQueryClientClear).toHaveBeenCalled();
     });
 
     it('should clear state even if logout API fails', async () => {
       // Setup authenticated state
       localStorage.setItem('accessToken', 'test-token');
       
-      vi.mocked(authService.logout).mockRejectedValue(new Error('Network error'));
+      mockLogout.mockRejectedValue(new Error('Network error'));
 
       await act(async () => {
         await useAuthStore.getState().logout();
@@ -276,7 +286,7 @@ describe('useAuthStore', () => {
       // First create an error
       const error = new Error('Test error');
       (error as any).response = { data: { message: 'Test error' } };
-      vi.mocked(authService.login).mockRejectedValue(error);
+      mockLogin.mockRejectedValue(error);
 
       try {
         await act(async () => {
@@ -320,7 +330,7 @@ describe('useAuthStore', () => {
         accessToken: 'test-token',
         user: { id: 1, username: 'testuser', email: 'test@example.com' },
       };
-      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+      mockLogin.mockResolvedValue(mockResponse);
 
       await act(async () => {
         await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
@@ -339,12 +349,12 @@ describe('useAuthStore', () => {
       expect(localStorage.getItem('user')).toBeNull();
     });
 
-    it('should call queryClient.clear()', () => {
+    it('should call mockQueryClientClear()', () => {
       act(() => {
         useAuthStore.getState().clearAuthState();
       });
 
-      expect(queryClient.clear).toHaveBeenCalled();
+      expect(mockQueryClientClear).toHaveBeenCalled();
     });
   });
 
@@ -353,7 +363,7 @@ describe('useAuthStore', () => {
       it('should handle network errors (no response)', async () => {
         const networkError = new Error('Network Error');
         networkError.message = 'Network Error';
-        vi.mocked(authService.login).mockRejectedValue(networkError);
+        mockLogin.mockRejectedValue(networkError);
 
         await expect(
           act(async () => {
@@ -369,7 +379,7 @@ describe('useAuthStore', () => {
 
       it('should handle network errors during OAuth2 login', async () => {
         const networkError = new Error('Network Error');
-        vi.mocked(authService.fetchCurrentUser).mockRejectedValue(networkError);
+        mockFetchCurrentUser.mockRejectedValue(networkError);
 
         await expect(
           act(async () => {
@@ -387,7 +397,7 @@ describe('useAuthStore', () => {
       it('should handle 401 Unauthorized errors', async () => {
         const error = new Error('Unauthorized');
         (error as any).response = { status: 401, data: { message: 'Invalid credentials' } };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -403,7 +413,7 @@ describe('useAuthStore', () => {
       it('should handle 403 Forbidden errors', async () => {
         const error = new Error('Forbidden');
         (error as any).response = { status: 403, data: { message: 'Access forbidden' } };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -418,7 +428,7 @@ describe('useAuthStore', () => {
       it('should handle 500 Server errors', async () => {
         const error = new Error('Internal Server Error');
         (error as any).response = { status: 500, data: { message: 'Server error occurred' } };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -433,7 +443,7 @@ describe('useAuthStore', () => {
       it('should handle 400 Bad Request errors', async () => {
         const error = new Error('Bad Request');
         (error as any).response = { status: 400, data: { message: 'Invalid request data' } };
-        vi.mocked(authService.signup).mockRejectedValue(error);
+        mockSignup.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -456,7 +466,7 @@ describe('useAuthStore', () => {
       it('should handle errors with no message', async () => {
         const error = new Error('Unknown error');
         (error as any).response = { data: {} };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -470,7 +480,7 @@ describe('useAuthStore', () => {
 
       it('should handle errors with no response object', async () => {
         const error = new Error('Direct error message');
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -485,7 +495,7 @@ describe('useAuthStore', () => {
       it('should handle errors with malformed response.data', async () => {
         const error = new Error('Error');
         (error as any).response = { data: null };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -500,7 +510,7 @@ describe('useAuthStore', () => {
       it('should fallback to default error message when no message available', async () => {
         const error = new Error('');
         error.message = '';
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -517,7 +527,7 @@ describe('useAuthStore', () => {
       it('should extract error message from response.data.message', async () => {
         const error = new Error('Error');
         (error as any).response = { data: { message: 'Custom error message' } };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -532,7 +542,7 @@ describe('useAuthStore', () => {
       it('should fallback to error.message when response.data.message is missing', async () => {
         const error = new Error('Fallback message');
         (error as any).response = { data: {} };
-        vi.mocked(authService.login).mockRejectedValue(error);
+        mockLogin.mockRejectedValue(error);
 
         await expect(
           act(async () => {
@@ -552,7 +562,7 @@ describe('useAuthStore', () => {
       const signupPromise = new Promise((resolve) => {
         resolveSignup = resolve;
       });
-      vi.mocked(authService.signup).mockReturnValue(signupPromise as any);
+      mockSignup.mockReturnValue(signupPromise as any);
 
       const signupOperation = useAuthStore.getState().signup({
         username: 'test',
@@ -578,7 +588,7 @@ describe('useAuthStore', () => {
       const logoutPromise = new Promise((resolve) => {
         resolveLogout = resolve;
       });
-      vi.mocked(authService.logout).mockReturnValue(logoutPromise as any);
+      mockLogout.mockReturnValue(logoutPromise as any);
 
       const logoutOperation = useAuthStore.getState().logout();
 
@@ -598,8 +608,8 @@ describe('useAuthStore', () => {
       const twoFAPromise = new Promise((resolve) => {
         resolve2FA = resolve;
       });
-      vi.mocked(authService.loginWith2FA).mockReturnValue(twoFAPromise as any);
-      vi.mocked(authService.fetchCurrentUser).mockResolvedValue({ id: 1, username: 'test' } as any);
+      mockLoginWith2FA.mockReturnValue(twoFAPromise as any);
+      mockFetchCurrentUser.mockResolvedValue({ id: 1, username: 'test' } as any);
 
       const twoFAOperation = useAuthStore.getState().loginWith2FA({
         usernameOrEmail: 'test@example.com',
@@ -626,7 +636,7 @@ describe('useAuthStore', () => {
       const fetchPromise = new Promise((resolve) => {
         resolveFetch = resolve;
       });
-      vi.mocked(authService.fetchCurrentUser).mockReturnValue(fetchPromise as any);
+      mockFetchCurrentUser.mockReturnValue(fetchPromise as any);
 
       const oauthOperation = useAuthStore.getState().loginWithOAuth2('token');
 
@@ -647,7 +657,7 @@ describe('useAuthStore', () => {
 
     it('should set isLoading to false after login failure', async () => {
       const error = new Error('Login failed');
-      vi.mocked(authService.login).mockRejectedValue(error);
+      mockLogin.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -660,7 +670,7 @@ describe('useAuthStore', () => {
 
     it('should set isLoading to false after signup failure', async () => {
       const error = new Error('Signup failed');
-      vi.mocked(authService.signup).mockRejectedValue(error);
+      mockSignup.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -679,7 +689,7 @@ describe('useAuthStore', () => {
 
     it('should set isLoading to false after 2FA login failure', async () => {
       const error = new Error('2FA failed');
-      vi.mocked(authService.loginWith2FA).mockRejectedValue(error);
+      mockLoginWith2FA.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -703,7 +713,7 @@ describe('useAuthStore', () => {
           resolve({ accessToken: 'token', user: { id: 1 } });
         }, 100);
       });
-      vi.mocked(authService.login).mockReturnValue(loginPromise as any);
+      mockLogin.mockReturnValue(loginPromise as any);
 
       const login1 = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
       const login2 = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
@@ -722,7 +732,7 @@ describe('useAuthStore', () => {
       const loginPromise = new Promise((resolve) => {
         resolveLogin = resolve;
       });
-      vi.mocked(authService.login).mockReturnValue(loginPromise as any);
+      mockLogin.mockReturnValue(loginPromise as any);
 
       const loginOperation = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
 
@@ -760,7 +770,7 @@ describe('useAuthStore', () => {
         accessToken: 'test-token',
         user: { id: 1, username: 'testuser', email: 'test@example.com' },
       };
-      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+      mockLogin.mockResolvedValue(mockResponse);
 
       act(async () => {
         try {
@@ -787,7 +797,7 @@ describe('useAuthStore', () => {
         accessToken: 'test-token',
         user: { id: 1, username: 'testuser', email: 'test@example.com' },
       };
-      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+      mockLogin.mockResolvedValue(mockResponse);
 
       act(async () => {
         try {

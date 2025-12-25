@@ -22,8 +22,8 @@ vi.mock('@user/stores/auth.store', () => ({
   useAuthStore: () => mockUseAuthStore(),
 }));
 
-// Mock the auth service
-vi.mock('@user/services/index', () => ({
+// Mock the auth service - use relative path to match component import
+vi.mock('../../services/auth.service', () => ({
   authService: {
     getGoogleOAuthUrl: () => 'https://accounts.google.com/oauth2/auth',
     getFacebookOAuthUrl: () => 'https://www.facebook.com/v12.0/dialog/oauth',
@@ -41,16 +41,20 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock shared-utils
-vi.mock('@edumind/shared-utils', () => ({
-  USER_ROUTES: {
-    DASHBOARD: '/dashboard',
-    SIGNUP: '/signup',
-    FORGOT_PASSWORD: '/forgot-password',
-    TWO_FA_RECOVERY: '/2fa-recovery',
-    RESEND_VERIFICATION: '/resend-verification',
-  },
-}));
+// Mock shared-utils (must include all exports used by dependencies)
+vi.mock('@edumind/shared-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    USER_ROUTES: {
+      DASHBOARD: '/dashboard',
+      SIGNUP: '/signup',
+      FORGOT_PASSWORD: '/forgot-password',
+      TWO_FA_RECOVERY: '/2fa-recovery',
+      RESEND_VERIFICATION: '/resend-verification',
+    },
+  };
+});
 
 // Mock toast functions
 const mockToastSuccess = vi.fn();
@@ -489,41 +493,55 @@ describe('LoginPage', () => {
     it('should redirect to Google OAuth on button click', async () => {
       const user = userEvent.setup();
       const originalLocation = window.location;
-      
-      // Mock window.location.href
-      Object.defineProperty(window, 'location', {
-        value: { ...originalLocation, href: '' },
-        writable: true,
-      });
+      let hrefValue = '';
+      delete (window as any).location;
+      (window as any).location = {
+        ...originalLocation,
+        get href() {
+          return hrefValue;
+        },
+        set href(value: string) {
+          hrefValue = value;
+        },
+      };
 
       renderLoginPage();
 
       const googleButton = screen.getByRole('button', { name: /continue with google/i });
       await user.click(googleButton);
 
-      expect(window.location.href).toBe('https://accounts.google.com/oauth2/auth');
-
-      // Restore
-      Object.defineProperty(window, 'location', { value: originalLocation });
+      await waitFor(() => {
+        expect(hrefValue).toBe('https://accounts.google.com/oauth2/auth');
+      });
+      
+      window.location = originalLocation;
     });
 
     it('should redirect to Facebook OAuth on button click', async () => {
       const user = userEvent.setup();
       const originalLocation = window.location;
-      
-      Object.defineProperty(window, 'location', {
-        value: { ...originalLocation, href: '' },
-        writable: true,
-      });
+      let hrefValue = '';
+      delete (window as any).location;
+      (window as any).location = {
+        ...originalLocation,
+        get href() {
+          return hrefValue;
+        },
+        set href(value: string) {
+          hrefValue = value;
+        },
+      };
 
       renderLoginPage();
 
       const facebookButton = screen.getByRole('button', { name: /continue with facebook/i });
       await user.click(facebookButton);
 
-      expect(window.location.href).toBe('https://www.facebook.com/v12.0/dialog/oauth');
-
-      Object.defineProperty(window, 'location', { value: originalLocation });
+      await waitFor(() => {
+        expect(hrefValue).toBe('https://www.facebook.com/v12.0/dialog/oauth');
+      });
+      
+      window.location = originalLocation;
     });
   });
 

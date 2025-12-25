@@ -19,8 +19,8 @@ vi.mock('@user/stores/auth.store', () => ({
   useAuthStore: () => mockUseAuthStore(),
 }));
 
-// Mock auth service
-vi.mock('@user/services/index', () => ({
+// Mock auth service - use relative path to match component import
+vi.mock('../../services/auth.service', () => ({
   authService: {
     getGoogleOAuthUrl: () => 'https://accounts.google.com/oauth2/auth',
     getFacebookOAuthUrl: () => 'https://www.facebook.com/oauth',
@@ -37,19 +37,23 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock shared-utils
-vi.mock('@edumind/shared-utils', () => ({
-  USER_ROUTES: {
-    LOGIN: '/login',
-    SIGNUP: '/signup',
-  },
-  getPasswordStrength: (password: string) => {
-    if (!password) return null;
-    if (password.length < 6) return { score: 2, label: 'Weak', color: 'red' };
-    if (password.length < 10) return { score: 4, label: 'Fair', color: 'yellow' };
-    return { score: 6, label: 'Strong', color: 'green' };
-  },
-}));
+// Mock shared-utils (must include all exports used by dependencies)
+vi.mock('@edumind/shared-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    USER_ROUTES: {
+      LOGIN: '/login',
+      SIGNUP: '/signup',
+    },
+    getPasswordStrength: (password: string) => {
+      if (!password) return null;
+      if (password.length < 6) return { score: 2, label: 'Weak', color: 'red' };
+      if (password.length < 10) return { score: 4, label: 'Fair', color: 'yellow' };
+      return { score: 6, label: 'Strong', color: 'green' };
+    },
+  };
+});
 
 // Mock UI components
 vi.mock('@edumind/user-ui', () => ({
@@ -170,16 +174,26 @@ describe('SignupPage', () => {
     it('should redirect to Google OAuth', async () => {
       const user = userEvent.setup();
       const originalLocation = window.location;
-      Object.defineProperty(window, 'location', {
-        value: { ...originalLocation, href: '' },
-        writable: true,
-      });
+      let hrefValue = '';
+      delete (window as any).location;
+      (window as any).location = {
+        ...originalLocation,
+        get href() {
+          return hrefValue;
+        },
+        set href(value: string) {
+          hrefValue = value;
+        },
+      };
 
       renderSignupPage();
       await user.click(screen.getByRole('button', { name: /continue with google/i }));
 
-      expect(window.location.href).toBe('https://accounts.google.com/oauth2/auth');
-      Object.defineProperty(window, 'location', { value: originalLocation });
+      await waitFor(() => {
+        expect(hrefValue).toBe('https://accounts.google.com/oauth2/auth');
+      });
+      
+      window.location = originalLocation;
     });
   });
 

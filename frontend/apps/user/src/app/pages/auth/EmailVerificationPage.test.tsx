@@ -10,8 +10,8 @@ const { mockVerifyEmail, mockResendVerification, mockNavigate } = vi.hoisted(() 
   mockNavigate: vi.fn(),
 }));
 
-// Mock auth service
-vi.mock('@user/services/index', () => ({
+// Mock auth service - use relative path to match component import
+vi.mock('../../services/auth.service', () => ({
   authService: {
     verifyEmail: mockVerifyEmail,
     resendVerification: mockResendVerification,
@@ -30,12 +30,16 @@ vi.mock('react-router-dom', async () => {
 // Import component after mocks
 import { EmailVerificationPage } from './EmailVerificationPage';
 
-// Mock shared-utils
-vi.mock('@edumind/shared-utils', () => ({
-  USER_ROUTES: {
-    LOGIN: '/login',
-  },
-}));
+// Mock shared-utils (must include all exports used by dependencies)
+vi.mock('@edumind/shared-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    USER_ROUTES: {
+      LOGIN: '/login',
+    },
+  };
+});
 
 // Mock UI components
 vi.mock('@edumind/user-ui', () => ({
@@ -95,12 +99,12 @@ describe('EmailVerificationPage', () => {
     });
 
     it('should show success state on successful verification', async () => {
-      mockVerifyEmail.mockResolvedValue({ success: true });
+      mockVerifyEmail.mockResolvedValue({ success: true, message: 'Email verified successfully' });
       renderEmailVerificationPage('valid-token');
 
       await waitFor(() => {
         expect(screen.getByText('Email Verified!')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should show error state on failed verification', async () => {

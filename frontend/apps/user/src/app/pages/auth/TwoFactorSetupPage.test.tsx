@@ -12,8 +12,8 @@ const { mockSetup2FA, mockVerify2FASetup, mockFetchCurrentUser, mockSetUser, moc
   mockNavigate: vi.fn(),
 }));
 
-// Mock auth service
-vi.mock('@user/services/index', () => ({
+// Mock auth service - use relative path to match component import
+vi.mock('../../services/auth.service', () => ({
   authService: {
     setup2FA: mockSetup2FA,
     verify2FASetup: mockVerify2FASetup,
@@ -41,12 +41,16 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock shared-utils
-vi.mock('@edumind/shared-utils', () => ({
-  USER_ROUTES: {
-    PROFILE_SETTINGS: '/settings',
-  },
-}));
+// Mock shared-utils (must include all exports used by dependencies)
+vi.mock('@edumind/shared-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    USER_ROUTES: {
+      PROFILE_SETTINGS: '/settings',
+    },
+  };
+});
 
 // Mock UI components
 vi.mock('@edumind/user-ui', () => ({
@@ -106,7 +110,7 @@ describe('TwoFactorSetupPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /scan qr code/i })).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       expect(screen.getByAltText('2FA QR Code')).toBeInTheDocument();
     });
@@ -116,7 +120,7 @@ describe('TwoFactorSetupPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(mockSetupData.secret)).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should navigate to verify step when Continue clicked', async () => {
@@ -125,11 +129,13 @@ describe('TwoFactorSetupPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       await user.click(screen.getByRole('button', { name: /continue/i }));
 
-      expect(screen.getByText('Verify Setup')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Verify Setup')).toBeInTheDocument();
+      });
     });
   });
 
@@ -142,10 +148,15 @@ describe('TwoFactorSetupPage', () => {
       // Wait for setup data to load
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Go to verify step
       await user.click(screen.getByRole('button', { name: /continue/i }));
+
+      // Wait for verify step to render
+      await waitFor(() => {
+        expect(screen.getByText('Verify Setup')).toBeInTheDocument();
+      });
 
       // Enter code
       await user.type(screen.getByPlaceholderText('000000'), '123456');
@@ -156,7 +167,7 @@ describe('TwoFactorSetupPage', () => {
           code: '123456',
           secret: mockSetupData.secret,
         });
-      });
+      }, { timeout: 3000 });
     });
   });
 });

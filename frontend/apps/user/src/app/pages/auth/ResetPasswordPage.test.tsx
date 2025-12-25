@@ -9,8 +9,8 @@ const { mockResetPassword, mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
 }));
 
-// Mock auth service
-vi.mock('@user/services/index', () => ({
+// Mock auth service - use relative path to match component import
+vi.mock('../../services/auth.service', () => ({
   authService: {
     resetPassword: mockResetPassword,
   },
@@ -28,13 +28,17 @@ vi.mock('react-router-dom', async () => {
 // Import component after mocks
 import { ResetPasswordPage } from './ResetPasswordPage';
 
-// Mock shared-utils
-vi.mock('@edumind/shared-utils', () => ({
-  USER_ROUTES: {
-    LOGIN: '/login',
-    FORGOT_PASSWORD: '/forgot-password',
-  },
-}));
+// Mock shared-utils (must include all exports used by dependencies)
+vi.mock('@edumind/shared-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    USER_ROUTES: {
+      LOGIN: '/login',
+      FORGOT_PASSWORD: '/forgot-password',
+    },
+  };
+});
 
 // Mock UI components
 vi.mock('@edumind/user-ui', () => ({
@@ -96,12 +100,19 @@ describe('ResetPasswordPage', () => {
   describe('Form Submission', () => {
     it('should call resetPassword with token and passwords', async () => {
       const user = userEvent.setup();
-      mockResetPassword.mockResolvedValue({ success: true });
+      mockResetPassword.mockResolvedValue({ success: true, message: 'Password reset successfully' });
       renderResetPasswordPage('valid-token');
 
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
+      
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /reset password/i });
+        expect(button).not.toBeDisabled();
+      });
+      
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
@@ -110,22 +121,29 @@ describe('ResetPasswordPage', () => {
           newPassword: 'NewPassword123!',
           confirmPassword: 'NewPassword123!',
         });
-      });
+      }, { timeout: 3000 });
     });
 
     it('should show success state after reset', async () => {
       const user = userEvent.setup();
-      mockResetPassword.mockResolvedValue({ success: true });
+      mockResetPassword.mockResolvedValue({ success: true, message: 'Password reset successfully' });
       renderResetPasswordPage('valid-token');
 
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
+      
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /reset password/i });
+        expect(button).not.toBeDisabled();
+      });
+      
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Password Reset!')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
   });
 
@@ -173,17 +191,24 @@ describe('ResetPasswordPage', () => {
 
     it('should allow submission when passwords match and are strong', async () => {
       const user = userEvent.setup();
-      mockResetPassword.mockResolvedValue({ success: true });
+      mockResetPassword.mockResolvedValue({ success: true, message: 'Password reset successfully' });
       renderResetPasswordPage('valid-token');
 
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'StrongPassword123!');
       await user.type(passwordInputs[1], 'StrongPassword123!');
+      
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /reset password/i });
+        expect(button).not.toBeDisabled();
+      });
+      
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
         expect(mockResetPassword).toHaveBeenCalled();
-      });
+      }, { timeout: 3000 });
     });
   });
 
@@ -201,14 +226,21 @@ describe('ResetPasswordPage', () => {
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
+      
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /reset password/i });
+        expect(button).not.toBeDisabled();
+      });
+      
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
         const button = screen.getByRole('button', { name: /reset password|loading/i });
         expect(button).toBeDisabled();
-      });
+      }, { timeout: 3000 });
 
-      resolveReset!({ success: true });
+      resolveReset!({ success: true, message: 'Password reset successfully' });
       await resetPromise;
     });
   });
