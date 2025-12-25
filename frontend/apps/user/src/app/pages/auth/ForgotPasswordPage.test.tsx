@@ -137,5 +137,78 @@ describe('ForgotPasswordPage', () => {
         expect(mockForgotPassword).not.toHaveBeenCalled();
       });
     });
+
+    it('should show error for empty email', async () => {
+      const user = userEvent.setup();
+      renderForgotPasswordPage();
+
+      await user.click(screen.getByRole('button', { name: /send reset link/i }));
+
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should show error for email without @ symbol', async () => {
+      const user = userEvent.setup();
+      renderForgotPasswordPage();
+
+      await user.type(screen.getByPlaceholderText('your@email.com'), 'notanemail');
+      await user.click(screen.getByRole('button', { name: /send reset link/i }));
+
+      await waitFor(() => {
+        expect(mockForgotPassword).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should show error for email without domain', async () => {
+      const user = userEvent.setup();
+      renderForgotPasswordPage();
+
+      await user.type(screen.getByPlaceholderText('your@email.com'), 'test@');
+      await user.click(screen.getByRole('button', { name: /send reset link/i }));
+
+      await waitFor(() => {
+        expect(mockForgotPassword).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should allow submission when email is valid', async () => {
+      const user = userEvent.setup();
+      mockForgotPassword.mockResolvedValue({ success: true });
+      renderForgotPasswordPage();
+
+      await user.type(screen.getByPlaceholderText('your@email.com'), 'valid@example.com');
+      await user.click(screen.getByRole('button', { name: /send reset link/i }));
+
+      await waitFor(() => {
+        expect(mockForgotPassword).toHaveBeenCalledWith({ email: 'valid@example.com' });
+      });
+    });
+  });
+
+  describe('Loading States', () => {
+    it('should disable submit button when loading', async () => {
+      const user = userEvent.setup();
+      let resolveForgot: (value: any) => void;
+      const forgotPromise = new Promise((resolve) => {
+        resolveForgot = resolve;
+      });
+      mockForgotPassword.mockReturnValue(forgotPromise);
+
+      renderForgotPasswordPage();
+
+      await user.type(screen.getByPlaceholderText('your@email.com'), 'test@example.com');
+      await user.click(screen.getByRole('button', { name: /send reset link/i }));
+
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /send reset link|loading/i });
+        expect(button).toBeDisabled();
+      });
+
+      resolveForgot!({ success: true });
+      await forgotPromise;
+    });
   });
 });

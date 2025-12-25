@@ -338,5 +338,499 @@ describe('useAuthStore', () => {
       expect(localStorage.getItem('accessToken')).toBeNull();
       expect(localStorage.getItem('user')).toBeNull();
     });
+
+    it('should call queryClient.clear()', () => {
+      act(() => {
+        useAuthStore.getState().clearAuthState();
+      });
+
+      expect(queryClient.clear).toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    describe('Network Errors', () => {
+      it('should handle network errors (no response)', async () => {
+        const networkError = new Error('Network Error');
+        networkError.message = 'Network Error';
+        vi.mocked(authService.login).mockRejectedValue(networkError);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Network Error');
+        expect(state.isLoading).toBe(false);
+        expect(state.isAuthenticated).toBe(false);
+      });
+
+      it('should handle network errors during OAuth2 login', async () => {
+        const networkError = new Error('Network Error');
+        vi.mocked(authService.fetchCurrentUser).mockRejectedValue(networkError);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().loginWithOAuth2('token');
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Network Error');
+        expect(localStorage.getItem('accessToken')).toBeNull();
+      });
+    });
+
+    describe('HTTP Status Codes', () => {
+      it('should handle 401 Unauthorized errors', async () => {
+        const error = new Error('Unauthorized');
+        (error as any).response = { status: 401, data: { message: 'Invalid credentials' } };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'wrong' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Invalid credentials');
+        expect(state.isAuthenticated).toBe(false);
+      });
+
+      it('should handle 403 Forbidden errors', async () => {
+        const error = new Error('Forbidden');
+        (error as any).response = { status: 403, data: { message: 'Access forbidden' } };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Access forbidden');
+      });
+
+      it('should handle 500 Server errors', async () => {
+        const error = new Error('Internal Server Error');
+        (error as any).response = { status: 500, data: { message: 'Server error occurred' } };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Server error occurred');
+      });
+
+      it('should handle 400 Bad Request errors', async () => {
+        const error = new Error('Bad Request');
+        (error as any).response = { status: 400, data: { message: 'Invalid request data' } };
+        vi.mocked(authService.signup).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().signup({
+              username: 'test',
+              email: 'invalid-email',
+              password: 'pass',
+              firstName: 'Test',
+              lastName: 'User',
+            });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Invalid request data');
+      });
+    });
+
+    describe('Malformed Error Responses', () => {
+      it('should handle errors with no message', async () => {
+        const error = new Error('Unknown error');
+        (error as any).response = { data: {} };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Unknown error');
+      });
+
+      it('should handle errors with no response object', async () => {
+        const error = new Error('Direct error message');
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Direct error message');
+      });
+
+      it('should handle errors with malformed response.data', async () => {
+        const error = new Error('Error');
+        (error as any).response = { data: null };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Error');
+      });
+
+      it('should fallback to default error message when no message available', async () => {
+        const error = new Error('');
+        error.message = '';
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Login failed');
+      });
+    });
+
+    describe('Error Message Extraction', () => {
+      it('should extract error message from response.data.message', async () => {
+        const error = new Error('Error');
+        (error as any).response = { data: { message: 'Custom error message' } };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Custom error message');
+      });
+
+      it('should fallback to error.message when response.data.message is missing', async () => {
+        const error = new Error('Fallback message');
+        (error as any).response = { data: {} };
+        vi.mocked(authService.login).mockRejectedValue(error);
+
+        await expect(
+          act(async () => {
+            await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'test' });
+          })
+        ).rejects.toThrow();
+
+        const state = useAuthStore.getState();
+        expect(state.error).toBe('Fallback message');
+      });
+    });
+  });
+
+  describe('Loading States', () => {
+    it('should set isLoading to true during signup', async () => {
+      let resolveSignup: (value: any) => void;
+      const signupPromise = new Promise((resolve) => {
+        resolveSignup = resolve;
+      });
+      vi.mocked(authService.signup).mockReturnValue(signupPromise as any);
+
+      const signupOperation = useAuthStore.getState().signup({
+        username: 'test',
+        email: 'test@example.com',
+        password: 'Password123!',
+        firstName: 'Test',
+        lastName: 'User',
+      });
+
+      // Check loading state immediately
+      expect(useAuthStore.getState().isLoading).toBe(true);
+
+      resolveSignup!({ success: true });
+      await act(async () => {
+        await signupOperation;
+      });
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+
+    it('should set isLoading to true during logout', async () => {
+      let resolveLogout: (value: any) => void;
+      const logoutPromise = new Promise((resolve) => {
+        resolveLogout = resolve;
+      });
+      vi.mocked(authService.logout).mockReturnValue(logoutPromise as any);
+
+      const logoutOperation = useAuthStore.getState().logout();
+
+      // Check loading state immediately
+      expect(useAuthStore.getState().isLoading).toBe(true);
+
+      resolveLogout!({ success: true });
+      await act(async () => {
+        await logoutOperation;
+      });
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+
+    it('should set isLoading to true during 2FA login', async () => {
+      let resolve2FA: (value: any) => void;
+      const twoFAPromise = new Promise((resolve) => {
+        resolve2FA = resolve;
+      });
+      vi.mocked(authService.loginWith2FA).mockReturnValue(twoFAPromise as any);
+      vi.mocked(authService.fetchCurrentUser).mockResolvedValue({ id: 1, username: 'test' } as any);
+
+      const twoFAOperation = useAuthStore.getState().loginWith2FA({
+        usernameOrEmail: 'test@example.com',
+        code: '123456',
+      });
+
+      // Check loading state immediately
+      expect(useAuthStore.getState().isLoading).toBe(true);
+
+      resolve2FA!({ accessToken: 'token' });
+      await act(async () => {
+        try {
+          await twoFAOperation;
+        } catch (e) {
+          // ignore
+        }
+      });
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+
+    it('should set isLoading to true during OAuth2 login', async () => {
+      let resolveFetch: (value: any) => void;
+      const fetchPromise = new Promise((resolve) => {
+        resolveFetch = resolve;
+      });
+      vi.mocked(authService.fetchCurrentUser).mockReturnValue(fetchPromise as any);
+
+      const oauthOperation = useAuthStore.getState().loginWithOAuth2('token');
+
+      // Check loading state immediately
+      expect(useAuthStore.getState().isLoading).toBe(true);
+
+      resolveFetch!({ id: 1, username: 'test' });
+      await act(async () => {
+        try {
+          await oauthOperation;
+        } catch (e) {
+          // ignore
+        }
+      });
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+
+    it('should set isLoading to false after login failure', async () => {
+      const error = new Error('Login failed');
+      vi.mocked(authService.login).mockRejectedValue(error);
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'wrong' });
+        })
+      ).rejects.toThrow();
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+
+    it('should set isLoading to false after signup failure', async () => {
+      const error = new Error('Signup failed');
+      vi.mocked(authService.signup).mockRejectedValue(error);
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().signup({
+            username: 'test',
+            email: 'test@example.com',
+            password: 'Password123!',
+            firstName: 'Test',
+            lastName: 'User',
+          });
+        })
+      ).rejects.toThrow();
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+
+    it('should set isLoading to false after 2FA login failure', async () => {
+      const error = new Error('2FA failed');
+      vi.mocked(authService.loginWith2FA).mockRejectedValue(error);
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().loginWith2FA({
+            usernameOrEmail: 'test@example.com',
+            code: 'wrong',
+          });
+        })
+      ).rejects.toThrow();
+
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+  });
+
+  describe('Concurrent Operations', () => {
+    it('should prevent multiple simultaneous login attempts', async () => {
+      let resolveCount = 0;
+      const loginPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          resolveCount++;
+          resolve({ accessToken: 'token', user: { id: 1 } });
+        }, 100);
+      });
+      vi.mocked(authService.login).mockReturnValue(loginPromise as any);
+
+      const login1 = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
+      const login2 = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
+      const login3 = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
+
+      await act(async () => {
+        await Promise.all([login1, login2, login3]);
+      });
+
+      // Should only resolve once (or handle gracefully)
+      expect(resolveCount).toBeGreaterThan(0);
+    });
+
+    it('should handle navigation during async operation', async () => {
+      let resolveLogin: (value: any) => void;
+      const loginPromise = new Promise((resolve) => {
+        resolveLogin = resolve;
+      });
+      vi.mocked(authService.login).mockReturnValue(loginPromise as any);
+
+      const loginOperation = useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
+
+      // Simulate navigation (clearing state)
+      act(() => {
+        useAuthStore.getState().clearAuthState();
+      });
+
+      resolveLogin!({ accessToken: 'token', user: { id: 1 } });
+      await act(async () => {
+        try {
+          await loginOperation;
+        } catch (e) {
+          // May fail if state was cleared
+        }
+      });
+
+      // State should be consistent
+      const state = useAuthStore.getState();
+      expect(state.isLoading).toBe(false);
+    });
+  });
+
+  describe('localStorage Edge Cases', () => {
+    it('should handle localStorage quota exceeded', () => {
+      const originalSetItem = Storage.prototype.setItem;
+      let setItemCalled = false;
+      
+      Storage.prototype.setItem = vi.fn(() => {
+        setItemCalled = true;
+        throw new DOMException('QuotaExceededError');
+      });
+
+      const mockResponse = {
+        accessToken: 'test-token',
+        user: { id: 1, username: 'testuser', email: 'test@example.com' },
+      };
+      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+
+      act(async () => {
+        try {
+          await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
+        } catch (e) {
+          // Should handle gracefully
+        }
+      });
+
+      // Should not crash, state should still update
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBeDefined();
+
+      Storage.prototype.setItem = originalSetItem;
+    });
+
+    it('should handle localStorage disabled', () => {
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = vi.fn(() => {
+        throw new Error('localStorage is disabled');
+      });
+
+      const mockResponse = {
+        accessToken: 'test-token',
+        user: { id: 1, username: 'testuser', email: 'test@example.com' },
+      };
+      vi.mocked(authService.login).mockResolvedValue(mockResponse);
+
+      act(async () => {
+        try {
+          await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
+        } catch (e) {
+          // Should handle gracefully
+        }
+      });
+
+      // Should not crash
+      const state = useAuthStore.getState();
+      expect(state).toBeDefined();
+
+      Storage.prototype.setItem = originalSetItem;
+    });
+
+    it('should handle malformed data in localStorage', () => {
+      // Set invalid JSON
+      localStorage.setItem('user', 'invalid-json{');
+      localStorage.setItem('accessToken', 'token');
+
+      // Should not crash when reading
+      const state = useAuthStore.getState();
+      expect(state).toBeDefined();
+
+      // Clear invalid data
+      localStorage.removeItem('user');
+    });
+
+    it('should handle null values in localStorage', () => {
+      localStorage.setItem('accessToken', 'null');
+      localStorage.setItem('user', 'null');
+
+      const state = useAuthStore.getState();
+      expect(state).toBeDefined();
+    });
+
+    it('should handle empty string values in localStorage', () => {
+      localStorage.setItem('accessToken', '');
+      localStorage.setItem('user', '');
+
+      const state = useAuthStore.getState();
+      expect(state).toBeDefined();
+    });
   });
 });

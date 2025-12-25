@@ -372,5 +372,140 @@ describe('authService', () => {
       await expect(authService.fetchCurrentUser())
         .rejects.toThrow('Network Error');
     });
+
+    describe('HTTP Status Codes', () => {
+      it('should handle 400 Bad Request errors', async () => {
+        const error = new Error('Bad Request');
+        (error as any).response = { status: 400, data: { message: 'Invalid request' } };
+        vi.mocked(apiClient.post).mockRejectedValue(error);
+
+        await expect(authService.login({ usernameOrEmail: 'test', password: 'bad' }))
+          .rejects.toThrow('Bad Request');
+      });
+
+      it('should handle 401 Unauthorized errors', async () => {
+        const error = new Error('Unauthorized');
+        (error as any).response = { status: 401, data: { message: 'Invalid credentials' } };
+        vi.mocked(apiClient.post).mockRejectedValue(error);
+
+        await expect(authService.login({ usernameOrEmail: 'test', password: 'wrong' }))
+          .rejects.toThrow('Unauthorized');
+      });
+
+      it('should handle 403 Forbidden errors', async () => {
+        const error = new Error('Forbidden');
+        (error as any).response = { status: 403, data: { message: 'Access denied' } };
+        vi.mocked(apiClient.get).mockRejectedValue(error);
+
+        await expect(authService.fetchCurrentUser())
+          .rejects.toThrow('Forbidden');
+      });
+
+      it('should handle 404 Not Found errors', async () => {
+        const error = new Error('Not Found');
+        (error as any).response = { status: 404, data: { message: 'Resource not found' } };
+        vi.mocked(apiClient.get).mockRejectedValue(error);
+
+        await expect(authService.verifyEmail('invalid-token'))
+          .rejects.toThrow('Not Found');
+      });
+
+      it('should handle 500 Internal Server Error', async () => {
+        const error = new Error('Internal Server Error');
+        (error as any).response = { status: 500, data: { message: 'Server error' } };
+        vi.mocked(apiClient.post).mockRejectedValue(error);
+
+        await expect(authService.signup({
+          username: 'test',
+          email: 'test@example.com',
+          password: 'Password123!',
+          firstName: 'Test',
+          lastName: 'User',
+        })).rejects.toThrow('Internal Server Error');
+      });
+    });
+
+    describe('Timeout Errors', () => {
+      it('should handle timeout errors', async () => {
+        const timeoutError = new Error('Request timeout');
+        timeoutError.name = 'TimeoutError';
+        vi.mocked(apiClient.post).mockRejectedValue(timeoutError);
+
+        await expect(authService.login({ usernameOrEmail: 'test', password: 'test' }))
+          .rejects.toThrow('Request timeout');
+      });
+
+      it('should handle timeout errors during OAuth2 callback', async () => {
+        const timeoutError = new Error('Request timeout');
+        timeoutError.name = 'TimeoutError';
+        vi.mocked(apiClient.get).mockRejectedValue(timeoutError);
+
+        await expect(authService.handleOAuth2Callback('google', 'code'))
+          .rejects.toThrow('Request timeout');
+      });
+    });
+
+    describe('Malformed Responses', () => {
+      it('should handle responses with missing data', async () => {
+        const mockResponse = { data: null };
+        vi.mocked(apiClient.post).mockResolvedValue(mockResponse as any);
+
+        const result = await authService.login({ usernameOrEmail: 'test', password: 'test' });
+        // Should handle gracefully or throw based on implementation
+        expect(result).toBeDefined();
+      });
+
+      it('should handle responses with unexpected structure', async () => {
+        const mockResponse = { data: { unexpected: 'structure' } };
+        vi.mocked(apiClient.post).mockResolvedValue(mockResponse as any);
+
+        const result = await authService.login({ usernameOrEmail: 'test', password: 'test' });
+        expect(result).toBeDefined();
+      });
+
+      it('should handle null responses', async () => {
+        vi.mocked(apiClient.post).mockResolvedValue(null as any);
+
+        await expect(authService.login({ usernameOrEmail: 'test', password: 'test' }))
+          .rejects.toThrow();
+      });
+
+      it('should handle undefined responses', async () => {
+        vi.mocked(apiClient.post).mockResolvedValue(undefined as any);
+
+        await expect(authService.login({ usernameOrEmail: 'test', password: 'test' }))
+          .rejects.toThrow();
+      });
+    });
+
+    describe('Error Propagation', () => {
+      it('should propagate errors from all endpoints', async () => {
+        const error = new Error('Service error');
+        vi.mocked(apiClient.post).mockRejectedValue(error);
+
+        await expect(authService.forgotPassword({ email: 'test@example.com' }))
+          .rejects.toThrow('Service error');
+
+        await expect(authService.resetPassword({
+          token: 'token',
+          newPassword: 'pass',
+          confirmPassword: 'pass',
+        })).rejects.toThrow('Service error');
+
+        await expect(authService.resendVerification({ email: 'test@example.com' }))
+          .rejects.toThrow('Service error');
+      });
+
+      it('should propagate errors from GET endpoints', async () => {
+        const error = new Error('GET error');
+        vi.mocked(apiClient.get).mockRejectedValue(error);
+
+        await expect(authService.verifyEmail('token'))
+          .rejects.toThrow('GET error');
+
+        await expect(authService.fetchCurrentUser())
+          .rejects.toThrow('GET error');
+      });
+    });
   });
 });

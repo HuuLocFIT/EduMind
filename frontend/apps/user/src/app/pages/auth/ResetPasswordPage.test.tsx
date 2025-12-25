@@ -143,5 +143,111 @@ describe('ResetPasswordPage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
     });
+
+    it('should show error for empty password', async () => {
+      const user = userEvent.setup();
+      renderResetPasswordPage('valid-token');
+
+      await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should show error for weak password', async () => {
+      const user = userEvent.setup();
+      renderResetPasswordPage('valid-token');
+
+      const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+      await user.type(passwordInputs[0], 'weak');
+      await user.type(passwordInputs[1], 'weak');
+      await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should allow submission when passwords match and are strong', async () => {
+      const user = userEvent.setup();
+      mockResetPassword.mockResolvedValue({ success: true });
+      renderResetPasswordPage('valid-token');
+
+      const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+      await user.type(passwordInputs[0], 'StrongPassword123!');
+      await user.type(passwordInputs[1], 'StrongPassword123!');
+      await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+      await waitFor(() => {
+        expect(mockResetPassword).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Loading States', () => {
+    it('should disable submit button when loading', async () => {
+      const user = userEvent.setup();
+      let resolveReset: (value: any) => void;
+      const resetPromise = new Promise((resolve) => {
+        resolveReset = resolve;
+      });
+      mockResetPassword.mockReturnValue(resetPromise);
+
+      renderResetPasswordPage('valid-token');
+
+      const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+      await user.type(passwordInputs[0], 'NewPassword123!');
+      await user.type(passwordInputs[1], 'NewPassword123!');
+      await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /reset password|loading/i });
+        expect(button).toBeDisabled();
+      });
+
+      resolveReset!({ success: true });
+      await resetPromise;
+    });
+  });
+
+  describe('Token Expiration', () => {
+    it('should handle expired token error', async () => {
+      const user = userEvent.setup();
+      const error = new Error('Token expired');
+      (error as any).response = { status: 400, data: { message: 'Reset token has expired' } };
+      mockResetPassword.mockRejectedValue(error);
+
+      renderResetPasswordPage('expired-token');
+
+      const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+      await user.type(passwordInputs[0], 'NewPassword123!');
+      await user.type(passwordInputs[1], 'NewPassword123!');
+      await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle invalid token error', async () => {
+      const user = userEvent.setup();
+      const error = new Error('Invalid token');
+      (error as any).response = { status: 400, data: { message: 'Invalid reset token' } };
+      mockResetPassword.mockRejectedValue(error);
+
+      renderResetPasswordPage('invalid-token');
+
+      const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+      await user.type(passwordInputs[0], 'NewPassword123!');
+      await user.type(passwordInputs[1], 'NewPassword123!');
+      await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+    });
   });
 });

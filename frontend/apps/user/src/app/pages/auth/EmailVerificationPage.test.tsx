@@ -144,4 +144,48 @@ describe('EmailVerificationPage', () => {
       expect(mockResendVerification).not.toHaveBeenCalled();
     });
   });
+
+  describe('Token Expiration', () => {
+    it('should handle expired token', async () => {
+      const error = new Error('Token expired');
+      (error as any).response = { status: 400, data: { message: 'Verification token has expired' } };
+      mockVerifyEmail.mockRejectedValue(error);
+      renderEmailVerificationPage('expired-token');
+
+      await waitFor(() => {
+        expect(screen.getByText('Verification Failed')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle invalid token format', async () => {
+      const error = new Error('Invalid token');
+      (error as any).response = { status: 400, data: { message: 'Invalid verification token' } };
+      mockVerifyEmail.mockRejectedValue(error);
+      renderEmailVerificationPage('invalid-format-token');
+
+      await waitFor(() => {
+        expect(screen.getByText('Verification Failed')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle missing token gracefully', () => {
+      renderEmailVerificationPage();
+
+      expect(screen.getByRole('heading', { name: /email verification required/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /resend verification email/i }).length).toBeGreaterThan(0);
+    });
+
+    it('should show appropriate error message for expired token', async () => {
+      const error = new Error('Token expired');
+      (error as any).response = { status: 400, data: { message: 'This verification link has expired. Please request a new one.' } };
+      mockVerifyEmail.mockRejectedValue(error);
+      renderEmailVerificationPage('expired-token');
+
+      await waitFor(() => {
+        const alert = screen.getByRole('alert');
+        expect(alert).toBeInTheDocument();
+      });
+    });
+  });
 });
