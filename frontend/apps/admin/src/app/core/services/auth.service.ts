@@ -11,7 +11,7 @@ import type {
   User,
 } from '@edumind/shared-types';
 import { UserRole } from '@edumind/shared-constants';
-import { getPrimaryRole, AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
+import { AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
 
 export type AdminUser = User;
 
@@ -134,8 +134,8 @@ export class AuthService {
   }
 
   private validateAdminRole(user: User): void {
-    const primaryRole = getPrimaryRole(user);
-    if (primaryRole !== UserRole.ADMIN) {
+    const hasAdminRole = user.roles?.includes(UserRole.ADMIN);
+    if (!hasAdminRole) {
       throw this.createError('Access denied. Admin privileges required.', 403);
     }
   }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card } from '@edumind/user-ui';
 import { useAuthStore } from '../stores/auth.store';
-import { authService } from '@user/services/index';
+import { authService } from '../services/auth.service';
 import { ProfileTab } from '../components/course-module/ProfileTab';
 import { PasswordTab } from '../components/course-module/PasswordTab';
 import { NotificationsTab } from '../components/course-module/NotificationsTab';

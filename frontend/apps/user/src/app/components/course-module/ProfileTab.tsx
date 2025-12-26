@@ -7,7 +7,8 @@ import {
   UpdateProfileRequestSchema,
   type UpdateProfileRequest,
 } from "@edumind/shared-types";
-import { authService, fileUploadService } from "@user/services/index";
+import { authService } from '../../services/auth.service';
+import { fileUploadService } from '../../services/file-upload.service';
 
 interface ProfileTabProps {
   user: User | null;

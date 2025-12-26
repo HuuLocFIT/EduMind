@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
-import { ADMIN_ROUTES, getPrimaryRole } from '@edumind/shared-utils';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
 
 interface NavItem {
   label: string;
@@ -161,6 +161,6 @@ export class MainLayoutComponent {
 
   get role(): string | undefined {
     const user = this.currentUser;
-    return user ? getPrimaryRole(user) : undefined;
+    return user ? "Admin" : undefined;
   }
 }

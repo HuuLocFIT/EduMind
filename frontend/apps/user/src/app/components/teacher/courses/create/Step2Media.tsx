@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { fileUploadService } from "@user/services/index";
+import { fileUploadService } from '../../../../services/file-upload.service';
 import { Input, FileUpload, type UploadedFile } from "@edumind/user-ui";
 import type { StepProps } from "./types";
 

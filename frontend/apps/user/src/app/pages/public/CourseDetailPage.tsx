@@ -18,12 +18,10 @@ import {
   ReviewForm,
   CurriculumAccordion,
 } from "../../components/course-module";
-import {
-  courseService,
-  enrollmentService,
-  courseReviewService,
-  wishlistService,
-} from "@user/services/index";  
+import { courseService } from '../../services/course.service';
+import { enrollmentService } from '../../services/enrollment.service';
+import { courseReviewService } from '../../services/course-review.service';
+import { wishlistService } from '../../services/wishlist.service';  
 import type {
   CourseDetailResponse,
   ReviewResponse,
@@ -40,7 +38,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
-import { useAuthStore } from "@user/stores/auth.store";
+import { useAuthStore } from '../../stores/auth.store';
 import { queryKeys } from "../../lib/query-keys";
 import {
   STALE_TIME_COURSE_DETAIL,

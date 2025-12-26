@@ -3,11 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card, Button, Loading } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
-import {
-  enrollmentService,
-  courseService,
-  wishlistService,
-} from "@user/services/index";
+import { enrollmentService } from '../services/enrollment.service';
+import { courseService } from '../services/course.service';
+import { wishlistService } from '../services/wishlist.service';
 import { CourseGrid } from "../components/course-module";
 import { EnrollmentCard } from "../components/course-module/EnrollmentCard";
 import type { EnrollmentResponse, CourseResponse } from "@edumind/shared-types";
@@ -29,7 +27,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
-import TeacherApplicationBanner from "@user/components/TeacherApplicationBanner";
+import TeacherApplicationBanner from "../components/TeacherApplicationBanner";
 
 // StatCard Component
 interface StatCardProps {

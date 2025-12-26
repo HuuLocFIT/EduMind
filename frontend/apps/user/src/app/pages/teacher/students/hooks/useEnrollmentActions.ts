@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { teacherCourseService } from "@user/services/index";
+import { teacherCourseService } from '../../../../services/teacher-course.service';
 import { useToast } from "@edumind/user-ui";
 import type { EnrollmentResponse } from "@edumind/shared-types";
 import { isPaidCourse } from "../utils/students.utils";

@@ -22,7 +22,8 @@ import {
 } from '@edumind/user-ui';
 
 import { FileUpload, UploadedFile } from '@edumind/user-ui';
-import { teacherApplicationService, fileUploadService } from '@user/services/index'; 
+import { teacherApplicationService } from '../../services/teacher-application.service';
+import { fileUploadService } from '../../services/file-upload.service'; 
 import { USER_ROUTES } from '@edumind/shared-utils';
 
 // Form schema matching TeacherApplicationRequest

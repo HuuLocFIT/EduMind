@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { Shield, ArrowLeft, Key } from "lucide-react";
-import { authService } from "@user/services/index";
-import { useAuthStore } from "@user/stores/auth.store";
+import { authService } from '../../services/auth.service';
+import { useAuthStore } from '../../stores/auth.store';
 import { USER_ROUTES } from "@edumind/shared-utils";
 import {
   Button,

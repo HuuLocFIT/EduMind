@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { teacherCourseService } from "@user/services/index";
+import { teacherCourseService } from '../../../../services/teacher-course.service';
 import type { CourseResponse } from "@edumind/shared-types";
 import type { CourseStudentsPageState } from "../types/students.types";
 

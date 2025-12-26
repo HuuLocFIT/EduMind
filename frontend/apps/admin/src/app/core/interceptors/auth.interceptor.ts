@@ -7,13 +7,13 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { map, catchError, switchMap } from 'rxjs/operators';
-import { throwError, BehaviorSubject, filter, take } from 'rxjs';
+import { throwError, Subject, take } from 'rxjs';
 import { unwrapApiResponse } from '@edumind/shared-utils';
 import { AuthService } from '../services/auth.service';
 
 // Track refresh state across interceptor calls
 let isRefreshing = false;
-const refreshTokenSubject = new BehaviorSubject<string | null>(null);
+let refreshTokenSubject = new Subject<string>();
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -74,12 +74,14 @@ function handleUnauthorizedError(
 ) {
   if (!isRefreshing) {
     isRefreshing = true;
-    refreshTokenSubject.next(null);
+    // Create new Subject for this refresh cycle
+    refreshTokenSubject = new Subject<string>();
 
     return authService.refreshToken().pipe(
       switchMap((response) => {
         isRefreshing = false;
         refreshTokenSubject.next(response.accessToken);
+        refreshTokenSubject.complete();
 
         // Retry original request with new token
         const retryRequest = request.clone({
@@ -100,20 +102,20 @@ function handleUnauthorizedError(
           })
         );
       }),
-      catchError((refreshError) => {
+      catchError((refreshErr) => {
         isRefreshing = false;
-        refreshTokenSubject.next(null);
+        // Propagate error to all queued requests
+        refreshTokenSubject.error(refreshErr);
 
         // Refresh failed - force logout
         authService.forceLogout();
 
-        return throwError(() => refreshError);
+        return throwError(() => refreshErr);
       })
     );
   } else {
     // Another request is already refreshing - wait for it
     return refreshTokenSubject.pipe(
-      filter((token) => token !== null),
       take(1),
       switchMap((token) => {
         // Retry with the new token from the other request's refresh

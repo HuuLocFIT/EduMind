@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { CheckCircle, XCircle, Mail, GraduationCap } from "lucide-react";
-import { authService } from "@user/services/index";
+import { authService } from '../../services/auth.service';
 
 import { Button, Card, Alert, useToast } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
