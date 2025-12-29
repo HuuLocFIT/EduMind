@@ -100,6 +100,17 @@ export const teacherCoursesKeys = {
 } as const;
 
 // ============================================
+// Teacher Applications
+// ============================================
+export const teacherApplicationKeys = {
+  all: ['teacher-application'] as const,
+  myApplication: (userId?: number) => 
+    ['teacher-application', 'my-application', userId] as const,
+  trialStatus: (userId?: number) => 
+    ['teacher-application', 'trial-status', userId] as const,
+} as const;
+
+// ============================================
 // Helper: Get all keys for a resource
 // ============================================
 export const queryKeys = {
@@ -109,5 +120,6 @@ export const queryKeys = {
   categories: categoriesKeys,
   instructors: instructorsKeys,
   teacherCourses: teacherCoursesKeys,
+  teacherApplication: teacherApplicationKeys,
 } as const;
 
