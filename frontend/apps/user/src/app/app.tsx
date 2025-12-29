@@ -1,6 +1,12 @@
+import { Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ToastProvider, useToast, ToastContainer } from "@edumind/user-ui";
+import {
+  ToastProvider,
+  useToast,
+  ToastContainer,
+  FullPageLoading,
+} from "@edumind/user-ui";
 import { USER_ROUTES, TEACHER_ROUTES } from "@edumind/shared-utils";
 import { queryClient } from "./lib/query-client";
 
@@ -14,58 +20,97 @@ import {
   TeacherApplicationRoute,
   TeacherApplicationStatusRoute,
 } from "./components/TeacherApplicationGuards";
+import { AppErrorBoundary } from "./components/RouteErrorBoundary";
+import { createLazyRoute } from "./components/LazyRoute";
 
-// Auth Pages
-import {
-  LoginPage,
-  SignupPage,
-  OAuth2CallbackPage,
-  ForgotPasswordPage,
-  ResetPasswordPage,
-  EmailVerificationPage,
-  TwoFactorSetupPage,
-  TwoFactorRecoveryPage,
-} from "./pages/auth";
-
-// Public Pages
-import { HomePage, BrowseCoursesPage, CourseDetailPage } from "./pages/public";
-
-// Profile Settings Page
-import { ProfileSettingsPage } from "./pages/ProfileSettingsPage";
-
-// Dashboard Page
-import { DashboardPage } from "./pages/DashboardPage";
-
-// Not Found Page
+// ============================================
+// EAGER LOADED - Critical path pages
+// ============================================
+import { HomePage } from "./pages/public/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
-// Teacher Application Pages
+// Placeholder pages from teacher (inline components, no lazy needed)
 import {
-  TeacherApplicationPage,
-  ApplicationStatusPage,
-} from "./pages/teacher-application";
-
-// Teacher Pages
-import {
-  TeacherDashboardPage,
-  TeacherCoursesPage,
-  TeacherCourseCreatePage,
-  TeacherCourseEditPage,
-  TeacherCourseDetailPage,
-  TeacherStudentsPage,
   TeacherReviewsPage,
   TeacherAnalyticsPage,
   TeacherSettingsPage,
 } from "./pages/teacher";
 
+// Auth Pages
+const LoginPage = createLazyRoute(() => import("./pages/auth/LoginPage"));
+const SignupPage = createLazyRoute(() => import("./pages/auth/SignupPage"));
+const OAuth2CallbackPage = createLazyRoute(
+  () => import("./pages/auth/OAuth2CallbackPage")
+);
+const ForgotPasswordPage = createLazyRoute(
+  () => import("./pages/auth/ForgotPasswordPage")
+);
+const ResetPasswordPage = createLazyRoute(
+  () => import("./pages/auth/ResetPasswordPage")
+);
+const EmailVerificationPage = createLazyRoute(
+  () => import("./pages/auth/EmailVerificationPage")
+);
+const TwoFactorSetupPage = createLazyRoute(
+  () => import("./pages/auth/TwoFactorSetupPage")
+);
+const TwoFactorRecoveryPage = createLazyRoute(
+  () => import("./pages/auth/TwoFactorRecoveryPage")
+);
+
+// Public Pages (except HomePage)
+const BrowseCoursesPage = createLazyRoute(
+  () => import("./pages/public/BrowseCoursesPage")
+);
+const CourseDetailPage = createLazyRoute(
+  () => import("./pages/public/CourseDetailPage")
+);
+
+// Dashboard & Profile
+const DashboardPage = createLazyRoute(() => import("./pages/DashboardPage"));
+const ProfileSettingsPage = createLazyRoute(
+  () => import("./pages/ProfileSettingsPage")
+);
+
 // Learning Pages
-import {
-  CoursePlayerPage,
-  CertificatesPage,
-  WishlistPage,
-  MyLearningPage,
-} from "./pages/learning";
-import { QueryErrorBoundary } from "./components/QueryErrorBoundary";
+const CoursePlayerPage = createLazyRoute(
+  () => import("./pages/learning/CoursePlayerPage")
+);
+const CertificatesPage = createLazyRoute(
+  () => import("./pages/learning/CertificatesPage")
+);
+const WishlistPage = createLazyRoute(() => import("./pages/learning/WishlistPage"));
+const MyLearningPage = createLazyRoute(
+  () => import("./pages/learning/MyLearningPage")
+);
+
+// Teacher Application Pages
+const TeacherApplicationPage = createLazyRoute(
+  () => import("./pages/teacher-application/TeacherApplicationPage")
+);
+const ApplicationStatusPage = createLazyRoute(
+  () => import("./pages/teacher-application/ApplicationStatusPage")
+);
+
+// Teacher Portal Pages
+const TeacherDashboardPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherDashboardPage")
+);
+const TeacherCoursesPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherCoursesPage")
+);
+const TeacherCourseCreatePage = createLazyRoute(
+  () => import("./pages/teacher/TeacherCourseCreatePage")
+);
+const TeacherCourseEditPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherCourseEditPage")
+);
+const TeacherCourseDetailPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherCourseDetailPage")
+);
+const TeacherStudentsPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherStudentsPage")
+);
 
 function AppContent() {
   const { toasts, closeToast } = useToast();
@@ -74,116 +119,238 @@ function AppContent() {
     <BrowserRouter>
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      <QueryErrorBoundary>
+      <AppErrorBoundary>
         <Routes>
-          {/* Public Routes */}
+          {/* ================================================================ */}
+          {/* Public Routes - No authentication required                     */}
+          {/* ================================================================ */}
           <Route path="/" element={<MainLayout />}>
-            <Route path={USER_ROUTES.ROOT} element={<HomePage />} />
-            <Route path={USER_ROUTES.COURSES} element={<BrowseCoursesPage />} />
+            <Route index element={<HomePage />} />
+            <Route
+              path={USER_ROUTES.COURSES}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading courses..." />}>
+                  <BrowseCoursesPage />
+                </Suspense>
+              }
+            />
             <Route
               path={USER_ROUTES.COURSE_DETAIL}
-              element={<CourseDetailPage />}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading course details..." />}>
+                  <CourseDetailPage />
+                </Suspense>
+              }
             />
           </Route>
 
-          {/* Auth Routes */}
+          {/* ================================================================ */}
+          {/* Auth Routes - Authentication pages                              */}
+          {/* ================================================================ */}
           <Route element={<AuthLayout />}>
-            <Route path={USER_ROUTES.LOGIN} element={<LoginPage />} />
-            <Route path={USER_ROUTES.SIGNUP} element={<SignupPage />} />
+            <Route
+              path={USER_ROUTES.LOGIN}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading login..." />}>
+                  <LoginPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={USER_ROUTES.SIGNUP}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading signup..." />}>
+                  <SignupPage />
+                </Suspense>
+              }
+            />
             <Route
               path={USER_ROUTES.OAUTH2_REDIRECT}
-              element={<OAuth2CallbackPage />}
+              element={
+                <Suspense fallback={<FullPageLoading message="Processing authentication..." />}>
+                  <OAuth2CallbackPage />
+                </Suspense>
+              }
             />
             <Route
               path={USER_ROUTES.FORGOT_PASSWORD}
-              element={<ForgotPasswordPage />}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading forgot password..." />}>
+                  <ForgotPasswordPage />
+                </Suspense>
+              }
             />
             <Route
               path={USER_ROUTES.RESET_PASSWORD}
-              element={<ResetPasswordPage />}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading reset password..." />}>
+                  <ResetPasswordPage />
+                </Suspense>
+              }
             />
             <Route
               path={USER_ROUTES.VERIFY_EMAIL}
-              element={<EmailVerificationPage />}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading email verification..." />}>
+                  <EmailVerificationPage />
+                </Suspense>
+              }
             />
             <Route
               path={USER_ROUTES.TWO_FA_RECOVERY}
-              element={<TwoFactorRecoveryPage />}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading 2FA recovery..." />}>
+                  <TwoFactorRecoveryPage />
+                </Suspense>
+              }
             />
           </Route>
 
-          {/* Protected Routes - Main Site */}
+          {/* ================================================================ */}
+          {/* Protected Routes - Requires authentication                      */}
+          {/* ================================================================ */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<MainLayout />}>
-              <Route path={USER_ROUTES.DASHBOARD} element={<DashboardPage />} />
-              <Route path={USER_ROUTES.LEARNING} element={<MyLearningPage />} />
+              {/* Dashboard & Profile */}
               <Route
-                path={USER_ROUTES.LEARNING_COURSE}
-                element={<CoursePlayerPage />}
-              />
-
-              <Route
-                path={USER_ROUTES.CERTIFICATES}
-                element={<CertificatesPage />}
+                path={USER_ROUTES.DASHBOARD}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading dashboard..." />}>
+                    <DashboardPage />
+                  </Suspense>
+                }
               />
               <Route
                 path={USER_ROUTES.PROFILE_SETTINGS}
-                element={<ProfileSettingsPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading profile settings..." />}>
+                    <ProfileSettingsPage />
+                  </Suspense>
+                }
               />
               <Route
                 path={USER_ROUTES.TWO_FA_SETUP}
-                element={<TwoFactorSetupPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading 2FA setup..." />}>
+                    <TwoFactorSetupPage />
+                  </Suspense>
+                }
               />
-              <Route path={USER_ROUTES.WISHLIST} element={<WishlistPage />} />
 
+              {/* Learning */}
+              <Route
+                path={USER_ROUTES.LEARNING}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading my learning..." />}>
+                    <MyLearningPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.LEARNING_COURSE}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading course player..." />}>
+                    <CoursePlayerPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.CERTIFICATES}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading certificates..." />}>
+                    <CertificatesPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.WISHLIST}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading wishlist..." />}>
+                    <WishlistPage />
+                  </Suspense>
+                }
+              />
+
+              {/* Teacher Application */}
               <Route element={<TeacherApplicationStatusRoute />}>
                 <Route
                   path={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-                  element={<ApplicationStatusPage />}
+                  element={
+                    <Suspense fallback={<FullPageLoading message="Loading application status..." />}>
+                      <ApplicationStatusPage />
+                    </Suspense>
+                  }
                 />
               </Route>
               <Route element={<TeacherApplicationRoute />}>
                 <Route
                   path={USER_ROUTES.TEACHER_APPLICATION}
-                  element={<TeacherApplicationPage />}
+                  element={
+                    <Suspense fallback={<FullPageLoading message="Loading teacher application..." />}>
+                      <TeacherApplicationPage />
+                    </Suspense>
+                  }
                 />
               </Route>
             </Route>
           </Route>
 
           {/* ================================================================ */}
-          {/* Teacher Portal Routes - Protected with TeacherGuard             */}
+          {/* Teacher Portal Routes - Requires teacher role                   */}
           {/* ================================================================ */}
           <Route element={<TeacherGuard />}>
             <Route element={<TeacherLayout />}>
-              {/* Dashboard */}
               <Route
                 path={TEACHER_ROUTES.DASHBOARD}
-                element={<TeacherDashboardPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading teacher dashboard..." />}>
+                    <TeacherDashboardPage />
+                  </Suspense>
+                }
               />
 
               {/* Courses */}
               <Route
                 path={TEACHER_ROUTES.COURSES}
-                element={<TeacherCoursesPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading teacher courses..." />}>
+                    <TeacherCoursesPage />
+                  </Suspense>
+                }
               />
               <Route
                 path={TEACHER_ROUTES.COURSE_CREATE}
-                element={<TeacherCourseCreatePage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading course creation..." />}>
+                    <TeacherCourseCreatePage />
+                  </Suspense>
+                }
               />
               <Route
                 path={TEACHER_ROUTES.COURSE_EDIT}
-                element={<TeacherCourseEditPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading course editor..." />}>
+                    <TeacherCourseEditPage />
+                  </Suspense>
+                }
               />
               <Route
                 path={TEACHER_ROUTES.COURSE_DETAIL}
-                element={<TeacherCourseDetailPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading course details..." />}>
+                    <TeacherCourseDetailPage />
+                  </Suspense>
+                }
               />
 
               {/* Students */}
               <Route
                 path={TEACHER_ROUTES.STUDENTS}
-                element={<TeacherStudentsPage />}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading students..." />}>
+                    <TeacherStudentsPage />
+                  </Suspense>
+                }
               />
 
               {/* Reviews */}
@@ -206,11 +373,13 @@ function AppContent() {
             </Route>
           </Route>
 
-          {/* 404 fallback */}
+          {/* ================================================================ */}
+          {/* 404 Fallback                                                    */}
+          {/* ================================================================ */}
           <Route path={USER_ROUTES.NOT_FOUND} element={<NotFoundPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </QueryErrorBoundary>
+      </AppErrorBoundary>
     </BrowserRouter>
   );
 }

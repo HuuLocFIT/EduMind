@@ -584,3 +584,5 @@ export const CourseDetailPage: React.FC = () => {
     </div>
   );
 };
+
+export default CourseDetailPage;

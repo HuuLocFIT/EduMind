@@ -21,7 +21,7 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
-export function ForgotPasswordPage() {
+function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState("");
@@ -203,3 +203,6 @@ export function ForgotPasswordPage() {
     </div>
   );
 }
+
+export { ForgotPasswordPage };
+export default ForgotPasswordPage;
