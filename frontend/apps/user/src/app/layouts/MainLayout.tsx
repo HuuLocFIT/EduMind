@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
 import {
@@ -17,8 +18,8 @@ import {
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
-import { ApplicationStatus } from "@edumind/shared-types";
 import { teacherApplicationService } from '../services/teacher-application.service';
+import { queryKeys } from "../lib/query-keys";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -27,14 +28,38 @@ export const MainLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
-  const [applicationStatus, setApplicationStatus] =
-    useState<ApplicationStatus | null>(null);
-  const [hasApplication, setHasApplication] = useState(false);
-
   const isStudent = user?.roles.includes(UserRole.STUDENT);
   const isTeacher =
     user?.roles.includes(UserRole.TEACHER) ||
     user?.roles.includes(UserRole.TEACHER_TRIAL);
+
+  // Use React Query to fetch application status (prevents request waterfall)
+  const { data: applicationData } = useQuery({
+    queryKey: queryKeys.teacherApplication.myApplication(user?.id),
+    queryFn: async () => {
+      try {
+        return await teacherApplicationService.getMyApplication();
+      } catch (error: any) {
+        // Return null for 404 (no application exists)
+        if (error.response?.status === 404 || error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    enabled: Boolean(isStudent && isAuthenticated && user?.id),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error: any) => {
+      // Don't retry on 404 errors
+      if (error?.response?.status === 404 || error?.status === 404) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+
+  const hasApplication = Boolean(applicationData);
+  const applicationStatus = applicationData?.status || null;
 
   const handleLogout = () => {
     logout();
@@ -46,27 +71,6 @@ export const MainLayout: React.FC = () => {
       location.pathname === path || location.pathname.startsWith(path + "/")
     );
   };
-
-  useEffect(() => {
-    const fetchApplicationStatus = async () => {
-      if (!isStudent) return;
-
-      try {
-        const response = await teacherApplicationService.getMyApplication();
-        if (response) {
-          setHasApplication(true);
-          setApplicationStatus(response.status as ApplicationStatus);
-        }
-      } catch (error: any) {
-        if (error.response?.status === 404) {
-          setHasApplication(false);
-          setApplicationStatus(null);
-        }
-      }
-    };
-
-    fetchApplicationStatus();
-  }, [isStudent]);
 
   return (
     <div className="min-h-screen bg-gray-50">

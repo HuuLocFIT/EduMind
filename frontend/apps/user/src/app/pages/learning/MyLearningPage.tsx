@@ -425,3 +425,5 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     </Card>
   );
 };
+
+export default MyLearningPage;

@@ -480,3 +480,5 @@ export function TeacherApplicationPage() {
     </div>
   );
 }
+
+export default TeacherApplicationPage;

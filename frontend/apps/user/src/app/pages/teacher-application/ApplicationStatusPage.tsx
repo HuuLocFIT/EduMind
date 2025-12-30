@@ -332,3 +332,5 @@ const getStatusStyle = (status?: string | null) => {
     </div>
   );
 }
+
+export default ApplicationStatusPage;

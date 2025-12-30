@@ -677,3 +677,5 @@ export const BrowseCoursesPage: React.FC = () => {
     </div>
   );
 };
+
+export default BrowseCoursesPage;

@@ -860,3 +860,5 @@ export const CoursePlayerPage: React.FC = () => {
     </div>
   );
 };
+
+export default CoursePlayerPage;

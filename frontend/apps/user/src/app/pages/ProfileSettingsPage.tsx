@@ -35,6 +35,7 @@ export const ProfileSettingsPage: React.FC = () => {
         }
       }
     };
+
     refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]); // Use location.key to detect navigation changes
@@ -94,3 +95,5 @@ export const ProfileSettingsPage: React.FC = () => {
     </div>
   );
 };
+
+export default ProfileSettingsPage;

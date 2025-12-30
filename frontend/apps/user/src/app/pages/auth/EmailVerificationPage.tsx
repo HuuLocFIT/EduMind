@@ -6,7 +6,7 @@ import { authService } from '../../services/auth.service';
 import { Button, Card, Alert, useToast } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
-export function EmailVerificationPage() {
+function EmailVerificationPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
@@ -226,3 +226,6 @@ export function EmailVerificationPage() {
     </div>
   );
 }
+
+export { EmailVerificationPage };
+export default EmailVerificationPage;

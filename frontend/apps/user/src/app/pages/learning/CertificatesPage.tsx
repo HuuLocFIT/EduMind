@@ -99,3 +99,5 @@ export const CertificatesPage: React.FC = () => {
     </div>
   );
 };
+
+export default CertificatesPage;

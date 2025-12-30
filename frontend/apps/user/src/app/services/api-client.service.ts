@@ -202,9 +202,12 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - logout user
+        // Refresh failed - logout user and clear ALL auth state
+        // IMPORTANT: Must also clear 'auth-storage' (Zustand persist key)
+        // to prevent isAuthenticated from rehydrating as true
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('auth-storage');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
