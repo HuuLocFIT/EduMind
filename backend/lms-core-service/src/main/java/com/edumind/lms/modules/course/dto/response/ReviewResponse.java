@@ -15,6 +15,7 @@ public class ReviewResponse {
     private Long id;
     private Long courseId;
     private String courseTitle;
+    private String courseThumbnailUrl;
     private Long studentId;
     private String studentName;
     private String avatarUrl;
@@ -22,6 +23,10 @@ public class ReviewResponse {
     private Integer rating;
     private String comment;
     private Boolean isApproved;
+    private Boolean isFlagged;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String instructorReply;
+    private LocalDateTime instructorReplyAt;
+    private Boolean hasReply;
 }

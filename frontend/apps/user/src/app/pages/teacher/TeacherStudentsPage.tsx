@@ -108,13 +108,6 @@ export const TeacherStudentsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <button
-            onClick={() => navigate(TEACHER_ROUTES.DASHBOARD)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </button>
           <h1 className="text-2xl font-bold text-gray-900">Course Students</h1>
           <p className="text-gray-500 mt-1">
             View and track students enrolled in your courses

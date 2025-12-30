@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.course.service;
 
 import com.edumind.lms.modules.course.config.ReviewConfigProperties;
+import com.edumind.lms.modules.course.dto.response.InstructorReviewsStatsResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.CourseReview;
 import com.edumind.lms.modules.course.entity.Enrollment;
@@ -26,7 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -357,5 +361,114 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         }
         
         courseRepository.save(course);
+    }
+
+    @Override
+    @Transactional
+    public CourseReview replyToReview(Long reviewId, Long instructorId, String reply) {
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
+
+        // Verify instructor owns the course
+        if (!review.getCourse().getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only reply to reviews on your own courses");
+        }
+
+        // Verify review is approved
+        if (!review.getIsApproved()) {
+            throw new IllegalStateException("Cannot reply to unapproved reviews");
+        }
+
+        // Set reply with timestamp
+        review.setInstructorReplyWithTimestamp(reply);
+
+        log.info("Instructor {} replied to review {} on course {}",
+                instructorId, reviewId, review.getCourse().getId());
+
+        return reviewRepository.save(review);
+    }
+
+    @Override
+    @Transactional
+    public CourseReview deleteReply(Long reviewId, Long instructorId) {
+        CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
+
+        // Verify instructor owns the course
+        if (!review.getCourse().getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only delete replies on your own courses");
+        }
+
+        // Clear reply
+        review.clearInstructorReply();
+
+        log.info("Instructor {} deleted reply on review {} for course {}",
+                instructorId, reviewId, review.getCourse().getId());
+
+        return reviewRepository.save(review);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CourseReview> getInstructorReviews(
+            Long instructorId,
+            Long courseId,
+            Integer rating,
+            Boolean hasReply,
+            Pageable pageable) {
+
+        return reviewRepository.findInstructorReviews(
+                instructorId,
+                courseId,
+                rating,
+                hasReply,
+                pageable
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InstructorReviewsStatsResponse getInstructorReviewsStats(Long instructorId) {
+        long totalReviews = reviewRepository.countInstructorReviews(instructorId);
+        Double averageRating = reviewRepository.calculateInstructorAverageRating(instructorId);
+        long repliedCount = reviewRepository.countInstructorRepliedReviews(instructorId);
+
+        // Build rating distribution map
+        Map<Integer, Long> distribution = new LinkedHashMap<>();
+        // Initialize all ratings to 0
+        for (int i = 5; i >= 1; i--) {
+            distribution.put(i, 0L);
+        }
+
+        // Fill with actual counts
+        List<Object[]> rawDistribution = reviewRepository.getInstructorRatingDistribution(instructorId);
+        for (Object[] row : rawDistribution) {
+            Integer ratingValue = ((Number) row[0]).intValue();
+            Long count = ((Number) row[1]).longValue();
+            distribution.put(ratingValue, count);
+        }
+
+        return InstructorReviewsStatsResponse.builder()
+                .totalReviews(totalReviews)
+                .averageRating(averageRating != null ? averageRating : 0.0)
+                .repliedCount(repliedCount)
+                .needReplyCount(totalReviews - repliedCount)
+                .ratingDistribution(distribution)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getInstructorCoursesWithReviews(Long instructorId) {
+        List<Object[]> rawData = reviewRepository.findInstructorCoursesWithReviews(instructorId);
+
+        return rawData.stream()
+                .map(row -> {
+                    Map<String, Object> course = new HashMap<>();
+                    course.put("id", row[0]);
+                    course.put("title", row[1]);
+                    return course;
+                })
+                .collect(Collectors.toList());
     }
 }

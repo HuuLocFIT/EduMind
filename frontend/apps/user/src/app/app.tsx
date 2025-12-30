@@ -31,7 +31,6 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 
 // Placeholder pages from teacher (inline components, no lazy needed)
 import {
-  TeacherReviewsPage,
   TeacherAnalyticsPage,
   TeacherSettingsPage,
 } from "./pages/teacher";
@@ -110,6 +109,9 @@ const TeacherCourseDetailPage = createLazyRoute(
 );
 const TeacherStudentsPage = createLazyRoute(
   () => import("./pages/teacher/TeacherStudentsPage")
+);
+const TeacherReviewsPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherReviewsPage")
 );
 
 function AppContent() {
@@ -356,7 +358,10 @@ function AppContent() {
               {/* Reviews */}
               <Route
                 path={TEACHER_ROUTES.REVIEWS}
-                element={<TeacherReviewsPage />}
+                element={<Suspense fallback={<FullPageLoading message="Loading reviews..." />}>
+                    <TeacherReviewsPage />
+                  </Suspense>
+                }
               />
 
               {/* Analytics */}

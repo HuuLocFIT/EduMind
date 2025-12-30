@@ -57,6 +57,12 @@ export const STALE_TIME_REVIEWS = 5 * 60 * 1000; // 5 minutes
  */
 export const STALE_TIME_TEACHER_COURSES = 2 * 60 * 1000; // 2 minutes
 
+/**
+ * Teacher reviews
+ * Reviews and stats - cache for 2 minutes
+ */
+export const STALE_TIME_TEACHER_REVIEWS = 2 * 60 * 1000; // 2 minutes
+
 // ============================================
 // Retry Configuration
 // ============================================

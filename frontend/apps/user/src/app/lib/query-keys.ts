@@ -111,6 +111,34 @@ export const teacherApplicationKeys = {
 } as const;
 
 // ============================================
+// Teacher Reviews
+// ============================================
+export const teacherReviewsKeys = {
+  all: ['teacher-reviews'] as const,
+  list: (params: {
+    page?: number;
+    size?: number;
+    courseId?: number;
+    rating?: number;
+    hasReply?: boolean;
+    sortBy?: string;
+    sortDir?: string;
+  }) => [
+    'teacher-reviews',
+    'list',
+    params.page,
+    params.size,
+    params.courseId,
+    params.rating,
+    params.hasReply,
+    params.sortBy,
+    params.sortDir,
+  ] as const,
+  stats: ['teacher-reviews', 'stats'] as const,
+  courses: ['teacher-reviews', 'courses'] as const,
+} as const;
+
+// ============================================
 // Helper: Get all keys for a resource
 // ============================================
 export const queryKeys = {
@@ -121,5 +149,6 @@ export const queryKeys = {
   instructors: instructorsKeys,
   teacherCourses: teacherCoursesKeys,
   teacherApplication: teacherApplicationKeys,
+  teacherReviews: teacherReviewsKeys,
 } as const;
 

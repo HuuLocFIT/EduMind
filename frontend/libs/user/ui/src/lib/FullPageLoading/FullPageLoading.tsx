@@ -9,7 +9,7 @@ export const FullPageLoading: React.FC<FullPageLoadingProps> = ({
   message = "Loading...",
 }) => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-gray-50 z-50">
       <div className="text-center">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">

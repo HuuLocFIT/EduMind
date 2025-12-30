@@ -4,7 +4,9 @@ import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.client.UserClient;
 import com.edumind.lms.modules.course.dto.request.CreateReviewRequest;
+import com.edumind.lms.modules.course.dto.request.InstructorReplyRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateReviewRequest;
+import com.edumind.lms.modules.course.dto.response.InstructorReviewsStatsResponse;
 import com.edumind.lms.modules.course.dto.response.RatingDistributionResponse;
 import com.edumind.lms.modules.course.dto.response.ReviewResponse;
 import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
@@ -23,6 +25,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -285,6 +288,140 @@ public class CourseReviewController {
         ));
     }
 
+    /**
+     * Get all reviews for instructor's courses with filters
+     */
+    @GetMapping("/instructor/my-reviews")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<PagedResponse<ReviewResponse>> getInstructorReviews(
+            @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(required = false) Boolean hasReply,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+
+        Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<CourseReview> reviews = reviewService.getInstructorReviews(
+                instructorId,
+                courseId,
+                rating,
+                hasReply,
+                pageable
+        );
+        Page<ReviewResponse> responsePage = reviews.map(this::toResponse);
+
+        return ResponseEntity.ok(PagedResponse.of(
+                responsePage.getContent(),
+                responsePage.getNumber(),
+                responsePage.getSize(),
+                responsePage.getTotalElements(),
+                responsePage.getTotalPages()
+        ));
+    }
+
+    /**
+     * Get instructor reviews statistics
+     */
+    @GetMapping("/instructor/my-reviews/stats")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<InstructorReviewsStatsResponse>> getInstructorReviewsStats(
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        InstructorReviewsStatsResponse stats = reviewService.getInstructorReviewsStats(instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    /**
+     * Get courses with reviews for filter dropdown
+     */
+    @GetMapping("/instructor/my-reviews/courses")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getInstructorCoursesWithReviews(
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        List<Map<String, Object>> courses = reviewService.getInstructorCoursesWithReviews(instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success(courses));
+    }
+
+    /**
+     * Reply to a review
+     */
+    @PostMapping("/{reviewId}/reply")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<ReviewResponse>> replyToReview(
+            @PathVariable Long reviewId,
+            @Valid @RequestBody InstructorReplyRequest request,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+
+        CourseReview review = reviewService.replyToReview(
+                reviewId,
+                instructorId,
+                request.getReply()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Reply added successfully",
+                toResponse(review)
+        ));
+    }
+
+    /**
+     * Update reply to a review
+     */
+    @PutMapping("/{reviewId}/reply")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<ReviewResponse>> updateReply(
+            @PathVariable Long reviewId,
+            @Valid @RequestBody InstructorReplyRequest request,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+
+        CourseReview review = reviewService.replyToReview(
+                reviewId,
+                instructorId,
+                request.getReply()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Reply updated successfully",
+                toResponse(review)
+        ));
+    }
+
+    /**
+     * Delete reply from a review
+     */
+    @DeleteMapping("/{reviewId}/reply")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<ReviewResponse>> deleteReply(
+            @PathVariable Long reviewId,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        CourseReview review = reviewService.deleteReply(reviewId, instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Reply deleted successfully",
+                toResponse(review)
+        ));
+    }
+
     // Helper methods
     private Long extractUserId(Authentication authentication) {
         return Long.parseLong(authentication.getName());
@@ -296,12 +433,10 @@ public class CourseReviewController {
         String profilePictureUrl = null;
 
         try {
-            // Fetch user details from User Service (public profile)
             ApiResponse<UserPublicProfileResponse> userResponse = userClient.getUserPublicProfile(review.getStudentId());
             if (userResponse != null && userResponse.getData() != null) {
                 UserPublicProfileResponse user = userResponse.getData();
 
-                // Prefer displayName if available; otherwise build from firstName + lastName
                 if (user.getDisplayName() != null && !user.getDisplayName().isBlank()) {
                     studentName = user.getDisplayName();
                 } else if (user.getFirstName() != null || user.getLastName() != null) {
@@ -324,13 +459,15 @@ public class CourseReviewController {
                 profilePictureUrl = user.getProfilePictureUrl();
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch user details for student ID: {}. Using default name.", review.getStudentId(), e);
+            log.warn("Failed to fetch user details for student ID: {}. Using default name.",
+                    review.getStudentId(), e);
         }
 
         return ReviewResponse.builder()
                 .id(review.getId())
                 .courseId(review.getCourse().getId())
                 .courseTitle(review.getCourse().getTitle())
+                .courseThumbnailUrl(review.getCourse().getThumbnailUrl())
                 .studentId(review.getStudentId())
                 .studentName(studentName)
                 .avatarUrl(avatarUrl)
@@ -338,8 +475,12 @@ public class CourseReviewController {
                 .rating(review.getRating())
                 .comment(review.getReviewText())
                 .isApproved(review.getIsApproved())
+                .isFlagged(review.getIsFlagged())
                 .createdAt(review.getCreatedAt())
                 .updatedAt(review.getUpdatedAt())
+                .instructorReply(review.getInstructorReply())
+                .instructorReplyAt(review.getInstructorReplyAt())
+                .hasReply(review.hasInstructorReply())
                 .build();
     }
 }
