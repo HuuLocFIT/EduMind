@@ -1,9 +1,11 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.dto.response.InstructorReviewsStatsResponse;
 import com.edumind.lms.modules.course.entity.CourseReview;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Map;
 
 public interface CourseReviewService {
@@ -140,4 +142,52 @@ public interface CourseReviewService {
      * @return true if review meets auto-approve criteria
      */
     boolean shouldAutoApprove(Integer rating);
+
+    /**
+     * Add or update instructor reply to a review
+     * @param reviewId Review ID
+     * @param instructorId Instructor ID (for authorization)
+     * @param reply Reply content
+     * @return Updated review
+     */
+    CourseReview replyToReview(Long reviewId, Long instructorId, String reply);
+
+    /**
+     * Delete instructor reply from a review
+     * @param reviewId Review ID
+     * @param instructorId Instructor ID (for authorization)
+     * @return Updated review
+     */
+    CourseReview deleteReply(Long reviewId, Long instructorId);
+
+    /**
+     * Get all reviews for instructor's courses with filters
+     * @param instructorId Instructor ID
+     * @param courseId Optional course filter
+     * @param rating Optional rating filter
+     * @param hasReply Optional filter for replied/unreplied
+     * @param pageable Pagination
+     * @return Page of reviews
+     */
+    Page<CourseReview> getInstructorReviews(
+            Long instructorId,
+            Long courseId,
+            Integer rating,
+            Boolean hasReply,
+            Pageable pageable
+    );
+
+    /**
+     * Get statistics for instructor's reviews
+     * @param instructorId Instructor ID
+     * @return Stats DTO
+     */
+    InstructorReviewsStatsResponse getInstructorReviewsStats(Long instructorId);
+
+    /**
+     * Get list of instructor's courses that have reviews (for filter dropdown)
+     * @param instructorId Instructor ID
+     * @return List of course id/title pairs
+     */
+    List<Map<String, Object>> getInstructorCoursesWithReviews(Long instructorId);
 }

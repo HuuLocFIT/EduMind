@@ -13,6 +13,9 @@ import {
   LessonListResponseSchema,
   SuspendEnrollmentRequestSchema,
   ReportToAdminRequestSchema,
+  ReviewResponseSchema,
+  InstructorReviewsStatsResponseSchema,
+  CourseWithReviewsListSchema,
   type CourseResponse,
   type CourseDetailResponse,
   type InstructorStatsResponse,
@@ -34,11 +37,16 @@ import {
   type EnrollmentPagedResponse,
   type SectionListResponse,
   type SectionDetailListResponse,
-  type LessonListResponse
+  type LessonListResponse,
+  type InstructorReviewsStatsResponse,
+  type InstructorReplyRequest,
+  type CourseWithReviewsList,
+  type TeacherReviewFilterParams,
 } from "@edumind/shared-types";
 import {
   ENROLLMENT_ENDPOINTS,
   TEACHER_PORTAL_ENDPOINTS,
+  INSTRUCTOR_REVIEW_ENDPOINTS,
 } from "@edumind/shared-utils";
 
 export interface TeacherCoursePaginationParams {
@@ -276,6 +284,79 @@ export const teacherCourseService = {
     return ReviewPagedResponseSchema.parse(
       response.data
     ) as ReviewPagedResponse;
+  },
+
+  /**
+   * Get all reviews for instructor's courses with filters
+   */
+  async getInstructorReviews(
+    params: TeacherReviewFilterParams = {}
+  ): Promise<PagedResponse<ReviewResponse>> {
+    const response = await apiClient.get<ReviewPagedResponse>(
+      INSTRUCTOR_REVIEW_ENDPOINTS.MY_REVIEWS,
+      { params }
+    );
+    return ReviewPagedResponseSchema.parse(response.data) as ReviewPagedResponse;
+  },
+
+  /**
+   * Get instructor reviews statistics
+   */
+  async getInstructorReviewsStats(): Promise<InstructorReviewsStatsResponse> {
+    const response = await apiClient.get<InstructorReviewsStatsResponse>(
+      INSTRUCTOR_REVIEW_ENDPOINTS.MY_REVIEWS_STATS
+    );
+    return InstructorReviewsStatsResponseSchema.parse(response.data);
+  },
+
+  /**
+   * Get courses with reviews for filter dropdown
+   */
+  async getCoursesWithReviews(): Promise<CourseWithReviewsList> { 
+    const response = await apiClient.get<CourseWithReviewsList>(
+      INSTRUCTOR_REVIEW_ENDPOINTS.MY_REVIEWS_COURSES
+    );
+    return CourseWithReviewsListSchema.parse(response.data);
+  },
+
+  /**
+   * Reply to a review
+   */
+  async replyToReview(
+    reviewId: number,
+    reply: string
+  ): Promise<ReviewResponse> {
+    const request: InstructorReplyRequest = { reply };
+    const response = await apiClient.post<ReviewResponse>(
+      INSTRUCTOR_REVIEW_ENDPOINTS.REPLY(reviewId),
+      request
+    );
+    return ReviewResponseSchema.parse(response.data);
+  },
+
+  /**
+   * Update reply to a review
+   */
+  async updateReply(
+    reviewId: number,
+    reply: string
+  ): Promise<ReviewResponse> {
+    const request: InstructorReplyRequest = { reply };
+    const response = await apiClient.put<ReviewResponse>(
+      INSTRUCTOR_REVIEW_ENDPOINTS.REPLY(reviewId),
+      request
+    );
+    return ReviewResponseSchema.parse(response.data);
+  },
+
+  /**
+   * Delete reply from a review
+   */
+  async deleteReply(reviewId: number): Promise<ReviewResponse> {
+    const response = await apiClient.delete<ReviewResponse>(
+      INSTRUCTOR_REVIEW_ENDPOINTS.DELETE_REPLY(reviewId)
+    );
+    return ReviewResponseSchema.parse(response.data);
   },
 };
 

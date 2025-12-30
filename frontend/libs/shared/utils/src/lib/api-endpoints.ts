@@ -257,6 +257,24 @@ export const REVIEW_ENDPOINTS = {
   PENDING: `${API_BASE_PATH}/reviews/pending`,
 } as const;
 
+// Instructor Review Endpoints
+export const INSTRUCTOR_REVIEW_ENDPOINTS = {
+  // Get all reviews for instructor's courses
+  MY_REVIEWS: `${API_BASE_PATH}/reviews/instructor/my-reviews`,
+  
+  // Get reviews stats
+  MY_REVIEWS_STATS: `${API_BASE_PATH}/reviews/instructor/my-reviews/stats`,
+  
+  // Get courses with reviews (for filter dropdown)
+  MY_REVIEWS_COURSES: `${API_BASE_PATH}/reviews/instructor/my-reviews/courses`,
+  
+  // Reply to a review
+  REPLY: (reviewId: number) => `${API_BASE_PATH}/reviews/${reviewId}/reply`,
+  
+  // Delete reply
+  DELETE_REPLY: (reviewId: number) => `${API_BASE_PATH}/reviews/${reviewId}/reply`,
+} as const;
+
 /**
  * Wishlist endpoints
  */
