@@ -45,7 +45,7 @@ public class CourseController {
         private final InstructorNameResolver instructorNameResolver;
 
         @PostMapping
-        @PreAuthorize("hasRole('TEACHER')")
+        @PreAuthorize("@teacherSecurity.isActiveTeacher()")
         public ResponseEntity<ApiResponse<CourseResponse>> createCourse(
                         @Valid @RequestBody CreateCourseRequest request,
                         Authentication authentication) {
@@ -70,7 +70,7 @@ public class CourseController {
         }
 
         @PutMapping("/{id}")
-        @PreAuthorize("hasRole('TEACHER')")
+        @PreAuthorize("@teacherSecurity.isActiveTeacher()")
         public ResponseEntity<ApiResponse<CourseResponse>> updateCourse(
                         @PathVariable Long id,
                         @Valid @RequestBody UpdateCourseRequest request,
@@ -91,7 +91,7 @@ public class CourseController {
         }
 
         @PostMapping("/{id}/publish")
-        @PreAuthorize("hasRole('TEACHER')")
+        @PreAuthorize("@teacherSecurity.isActiveTeacher()")
         public ResponseEntity<ApiResponse<CourseResponse>> publishCourse(
                         @PathVariable Long id,
                         Authentication authentication) {
@@ -106,7 +106,7 @@ public class CourseController {
         }
 
         @DeleteMapping("/{id}")
-        @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+        @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
         public ResponseEntity<ApiResponse<Void>> deleteCourse(
                         @PathVariable Long id,
                         Authentication authentication) {
@@ -243,7 +243,7 @@ public class CourseController {
         }
 
         @GetMapping("/instructor/{instructorId}")
-        @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+        @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
         public ResponseEntity<PagedResponse<CourseResponse>> getCoursesByInstructor(
                         @PathVariable Long instructorId,
                         @RequestParam(defaultValue = "0") int page,
@@ -350,7 +350,7 @@ public class CourseController {
         }
 
         @GetMapping("/instructors/{instructorId}/stats")
-        @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+        @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
         public ResponseEntity<ApiResponse<InstructorStatsResponse>> getInstructorStats(
                         @PathVariable Long instructorId,
                         Authentication authentication) {

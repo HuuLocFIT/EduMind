@@ -135,7 +135,7 @@ public class CourseReviewController {
     }
 
     @GetMapping("/courses/{courseId}/all")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<PagedResponse<ReviewResponse>> getAllCourseReviews(
             @PathVariable Long courseId,
             @RequestParam(defaultValue = "0") int page,
@@ -205,7 +205,7 @@ public class CourseReviewController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<PagedResponse<ReviewResponse>> getPendingReviews(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -230,7 +230,7 @@ public class CourseReviewController {
     }
 
     @PostMapping("/{reviewId}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<ApiResponse<ReviewResponse>> approveReview(@PathVariable Long reviewId) {
         CourseReview review = reviewService.approveReview(reviewId);
         return ResponseEntity.ok(ApiResponse.success(
@@ -240,7 +240,7 @@ public class CourseReviewController {
     }
 
     @DeleteMapping("/{reviewId}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<ApiResponse<Void>> rejectReview(@PathVariable Long reviewId) {
         reviewService.rejectReview(reviewId);
         return ResponseEntity.ok(ApiResponse.success("Review rejected and deleted", null));

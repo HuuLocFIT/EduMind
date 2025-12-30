@@ -61,7 +61,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         tokenProvider.extractUserId(claims),
                         claims.getSubject(),
                         claims.get("email", String.class),
-                        authorities
+                        authorities,
+                        tokenProvider.extractTrialEndDate(claims)
                 );
 
                 UsernamePasswordAuthenticationToken authentication =

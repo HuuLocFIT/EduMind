@@ -54,6 +54,9 @@ public class JwtTokenProvider {
                 .claim("userId", userPrincipal.getId())
                 .claim("email", userPrincipal.getEmail())
                 .claim("roles", roles)
+                .claim("trialEndDate", userPrincipal.getTrialEndDate() != null 
+                        ? userPrincipal.getTrialEndDate().toString() 
+                        : null)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
