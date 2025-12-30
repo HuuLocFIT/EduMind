@@ -358,7 +358,10 @@ function AppContent() {
               {/* Reviews */}
               <Route
                 path={TEACHER_ROUTES.REVIEWS}
-                element={<TeacherReviewsPage />}
+                element={<Suspense fallback={<FullPageLoading message="Loading reviews..." />}>
+                    <TeacherReviewsPage />
+                  </Suspense>
+                }
               />
 
               {/* Analytics */}
