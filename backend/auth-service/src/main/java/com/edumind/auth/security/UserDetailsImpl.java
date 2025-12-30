@@ -10,6 +10,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,8 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
     private Map<String, Object> attributes;
 
     private boolean isActive;
+    
+    private LocalDateTime trialEndDate;
 
     // ============================================
     // FACTORY METHODS
@@ -57,7 +60,8 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
                 user.getPassword(),
                 authorities,
                 null,  // No attributes for local auth
-                user.getIsActive()
+                user.getIsActive(),
+                user.getTrialEndDate()
         );
     }
 
@@ -76,7 +80,8 @@ public class UserDetailsImpl implements UserDetails, OAuth2User {
                 user.getPassword(),
                 authorities,
                 attributes,  // OAuth2 attributes
-                user.getIsActive()
+                user.getIsActive(),
+                user.getTrialEndDate()
         );
     }
 

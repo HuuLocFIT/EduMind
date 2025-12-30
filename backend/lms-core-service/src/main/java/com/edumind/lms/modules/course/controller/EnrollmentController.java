@@ -117,7 +117,7 @@ public class EnrollmentController {
     }
 
     @GetMapping("/student/{studentId}")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getStudentEnrollments(
             @PathVariable Long studentId,
             @RequestParam(defaultValue = "0") int page,
@@ -138,7 +138,7 @@ public class EnrollmentController {
     }
 
     @GetMapping("/courses/{courseId}")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<PagedResponse<EnrollmentResponse>> getCourseEnrollments(
             @PathVariable Long courseId,
             @RequestParam(defaultValue = "0") int page,
@@ -251,7 +251,7 @@ public class EnrollmentController {
     // =========================================================================
 
     @PostMapping("/{id}/suspend")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<ApiResponse<Void>> suspendEnrollment(
             @PathVariable Long id,
             @Valid @RequestBody SuspendEnrollmentRequest request,
@@ -267,7 +267,7 @@ public class EnrollmentController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<ApiResponse<Void>> activateEnrollment(@PathVariable Long id, Authentication authentication) {
         log.info("Activating enrollment {}", id);
 
@@ -300,7 +300,7 @@ public class EnrollmentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<ApiResponse<Void>> unenrollStudent(@PathVariable Long id, Authentication authentication) {
         log.info("Unenrolling student for enrollment {}", id);
 
@@ -333,7 +333,7 @@ public class EnrollmentController {
     }
 
     @PostMapping("/{id}/report-to-admin")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
     public ResponseEntity<ApiResponse<Void>> reportToAdmin(
             @PathVariable Long id,
             @Valid @RequestBody ReportToAdminRequest request,

@@ -26,7 +26,7 @@ public class LessonController {
     private final LessonService lessonService;
 
     @PostMapping("/sections/{sectionId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<LessonResponse>> createLesson(
             @PathVariable Long sectionId,
             @Valid @RequestBody CreateLessonRequest request,
@@ -55,7 +55,7 @@ public class LessonController {
     }
 
     @PutMapping("/{lessonId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<LessonResponse>> updateLesson(
             @PathVariable Long lessonId,
             @Valid @RequestBody UpdateLessonRequest request,
@@ -83,7 +83,7 @@ public class LessonController {
     }
 
     @DeleteMapping("/{lessonId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<Void>> deleteLesson(
             @PathVariable Long lessonId,
             Authentication authentication) {
@@ -166,7 +166,7 @@ public class LessonController {
     }
 
     @PutMapping("/sections/{sectionId}/reorder")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<Void>> reorderLessons(
             @PathVariable Long sectionId,
             @Valid @RequestBody ReorderLessonsRequest request,

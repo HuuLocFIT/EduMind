@@ -424,7 +424,8 @@ class AuthServiceTest {
                 "encodedPassword",
                 Set.of(),
                 null,
-                true
+                true,
+                null  // trialEndDate
         );
 
         Authentication mockAuth = mock(Authentication.class);

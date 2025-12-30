@@ -90,7 +90,8 @@ class UserServiceTest {
                 "encodedPassword",
                 Set.of(),
                 null,
-                true
+                true,
+                null  // trialEndDate
         );
     }
 

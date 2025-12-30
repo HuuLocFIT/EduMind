@@ -30,7 +30,7 @@ public class SectionController {
     private final LessonService lessonService;
 
     @PostMapping("/courses/{courseId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<SectionResponse>> createSection(
             @PathVariable Long courseId,
             @Valid @RequestBody CreateSectionRequest request,
@@ -52,7 +52,7 @@ public class SectionController {
     }
 
     @PutMapping("/{sectionId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<SectionResponse>> updateSection(
             @PathVariable Long sectionId,
             @Valid @RequestBody UpdateSectionRequest request,
@@ -73,7 +73,7 @@ public class SectionController {
     }
 
     @DeleteMapping("/{sectionId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<Void>> deleteSection(
             @PathVariable Long sectionId,
             Authentication authentication) {
@@ -125,7 +125,7 @@ public class SectionController {
     }
 
     @PutMapping("/courses/{courseId}/reorder")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
     public ResponseEntity<ApiResponse<Void>> reorderSections(
             @PathVariable Long courseId,
             @Valid @RequestBody ReorderSectionsRequest request,

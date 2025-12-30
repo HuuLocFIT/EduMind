@@ -136,6 +136,23 @@ public class JwtTokenProvider {
         return null;
     }
 
+    /**
+     * Extract trial end date from JWT claims.
+     * Returns null if not present or cannot be parsed.
+     */
+    public java.time.LocalDateTime extractTrialEndDate(Claims claims) {
+        String trialEndDateStr = claims.get("trialEndDate", String.class);
+        if (!StringUtils.hasText(trialEndDateStr)) {
+            return null;
+        }
+        try {
+            return java.time.LocalDateTime.parse(trialEndDateStr);
+        } catch (Exception ex) {
+            log.warn("Unable to parse trialEndDate from token: {}", trialEndDateStr);
+            return null;
+        }
+    }
+
     private List<String> splitRoles(String rawRoles) {
         if (rawRoles.contains(",")) {
             return Arrays.stream(rawRoles.split("\\s*,\\s*")).toList();
