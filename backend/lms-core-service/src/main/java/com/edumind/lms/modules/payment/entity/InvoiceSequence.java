@@ -21,4 +21,13 @@ public class InvoiceSequence {
     @Column(name = "current_sequence", nullable = false)
     @Builder.Default
     private Integer currentSequence = 0;
+
+    // Alias methods for compatibility
+    public Long getLastValue() {
+        return currentSequence != null ? currentSequence.longValue() : 0L;
+    }
+
+    public void setLastValue(Long lastValue) {
+        this.currentSequence = lastValue != null ? lastValue.intValue() : 0;
+    }
 }

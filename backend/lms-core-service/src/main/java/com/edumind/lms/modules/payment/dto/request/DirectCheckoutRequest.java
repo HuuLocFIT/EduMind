@@ -1,38 +1,40 @@
 package com.edumind.lms.modules.payment.dto.request;
 
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProcessPaymentRequest {
+public class DirectCheckoutRequest {
 
-    @NotNull(message = "Order ID is required")
-    private Long orderId;
+    @NotNull(message = "Course ID is required")
+    private Long courseId;
 
     @NotNull(message = "Payment method is required")
     private PaymentMethod paymentMethod;
 
-    private String orderNumber;
-    private BigDecimal amount;
-    private String currency;
-
-    // Payment details
+    // For Mock gateway testing
     private String cardNumber;
     private String cardHolderName;
+    private String expiryDate;
+    private String cvv;
 
-    // User info
-    private Long userId;
-    private String userEmail;
-    private String userName;
+    // Customer info (needed for Order & Invoice)
+    @Email(message = "Valid email is required")
+    private String customerEmail;
+    private String customerName;
+    private String billingAddress;
+
+    // Return URLs (for PayPal/SePay redirect flows)
+    private String successUrl;
+    private String cancelUrl;
 
     // Metadata
     private String ipAddress;

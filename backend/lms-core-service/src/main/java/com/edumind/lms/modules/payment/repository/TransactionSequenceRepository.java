@@ -24,4 +24,10 @@ public interface TransactionSequenceRepository extends JpaRepository<Transaction
     @Query("UPDATE TransactionSequence s SET s.currentSequence = s.currentSequence + 1 " +
             "WHERE s.dateKey = :dateKey")
     int incrementSequence(@Param("dateKey") String dateKey);
+
+    /**
+     * Find by yearMonth (YYYYMM) - extracts first 6 characters from dateKey (YYYYMMDD)
+     */
+    @Query("SELECT s FROM TransactionSequence s WHERE SUBSTRING(s.dateKey, 1, 6) = :yearMonth")
+    Optional<TransactionSequence> findByYearMonth(@Param("yearMonth") String yearMonth);
 }

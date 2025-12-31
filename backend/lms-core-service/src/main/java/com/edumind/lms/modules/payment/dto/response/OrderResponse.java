@@ -42,4 +42,7 @@ public class OrderResponse {
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime completedAt;
+
+    // Error info
+    private String failureReason;
 }

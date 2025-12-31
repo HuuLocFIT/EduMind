@@ -28,7 +28,6 @@ public class EarningMapper {
                 .payoutId(earning.getPayoutId())
                 .paidAt(earning.getPaidAt())
                 .createdAt(earning.getCreatedAt())
-                .saleDate(earning.getCreatedAt())
                 .build();
     }
 

@@ -37,4 +37,6 @@ public class CartItem {
     @Column(name = "added_at", nullable = false)
     @Builder.Default
     private LocalDateTime addedAt = LocalDateTime.now();
+
+
 }

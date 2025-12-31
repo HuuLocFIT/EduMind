@@ -26,7 +26,7 @@ public class CartItemResponse {
 
     // Pricing
     private BigDecimal originalPrice;
-    private BigDecimal discountPrice;      // If course has discount
+    private BigDecimal discountAmount;     // If course has discount
     private BigDecimal effectivePrice;     // Price to charge
     private String currency;
 

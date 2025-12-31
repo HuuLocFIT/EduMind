@@ -22,9 +22,12 @@ public class RefundRequest {
     private Long orderId;
 
     // Optional: partial refund amount (null = full refund)
-    private BigDecimal amount;
+    @Positive(message = "Refund amount must be positive")
+    private BigDecimal amount;          // null = full refund
 
     @NotBlank(message = "Refund reason is required")
     @Size(min = 10, max = 500, message = "Reason must be between 10 and 500 characters")
     private String reason;
+
+    private String notes;
 }

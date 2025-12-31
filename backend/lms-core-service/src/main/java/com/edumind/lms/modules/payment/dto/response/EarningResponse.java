@@ -44,5 +44,4 @@ public class EarningResponse {
 
     // Timestamps
     private LocalDateTime createdAt;
-    private LocalDateTime saleDate;        // Same as createdAt, more user-friendly name
 }

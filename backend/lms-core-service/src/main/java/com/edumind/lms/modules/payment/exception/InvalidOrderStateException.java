@@ -13,4 +13,9 @@ public class InvalidOrderStateException extends BadRequestException {
     public InvalidOrderStateException(String message) {
         super(message);
     }
+
+    public InvalidOrderStateException(Long orderId, OrderStatus currentStatus, String action) {
+        super("Cannot " + action + " order with ID " + orderId +
+                ". Current status: " + currentStatus);
+    }
 }

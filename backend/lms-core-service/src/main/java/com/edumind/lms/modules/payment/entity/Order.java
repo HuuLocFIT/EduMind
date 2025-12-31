@@ -68,12 +68,25 @@ public class Order extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    // Customer info
+    @Column(name = "customer_email", length = 255)
+    private String customerEmail;
+
+    @Column(name = "customer_name", length = 255)
+    private String customerName;
+
+    @Column(name = "billing_address", columnDefinition = "TEXT")
+    private String billingAddress;
+
     // Metadata
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
     @Column(name = "user_agent", length = 500)
     private String userAgent;
+
+    @Column(name = "failure_reason", length = 500)
+    private String failureReason;
 
     // Relationships
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)

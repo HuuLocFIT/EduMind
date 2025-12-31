@@ -32,6 +32,9 @@ public class OrderItem extends BaseEntity {
     @Column(name = "course_title", nullable = false)
     private String courseTitle;
 
+    @Column(name = "course_slug", length = 255)
+    private String courseSlug;
+
     @Column(name = "course_thumbnail_url", length = 500)
     private String courseThumbnailUrl;
 
@@ -62,4 +65,6 @@ public class OrderItem extends BaseEntity {
     public boolean isFree() {
         return finalPrice.compareTo(BigDecimal.ZERO) == 0;
     }
+
+
 }

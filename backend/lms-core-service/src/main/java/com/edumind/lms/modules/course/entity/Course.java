@@ -121,4 +121,9 @@ public class Course extends BaseEntity {
     public BigDecimal getEffectivePrice() {
         return discountPrice != null ? discountPrice : price;
     }
+
+    // Alias method for compatibility
+    public BigDecimal getOriginalPrice() {
+        return price;
+    }
 }

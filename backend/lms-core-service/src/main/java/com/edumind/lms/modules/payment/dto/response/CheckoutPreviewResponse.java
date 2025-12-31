@@ -14,7 +14,7 @@ import java.util.List;
 @Builder
 public class CheckoutPreviewResponse {
 
-    private List<CheckoutItemResponse> items;
+    private List<CheckoutItemPreview> items;
     private int itemCount;
 
     // Pricing breakdown
@@ -27,9 +27,11 @@ public class CheckoutPreviewResponse {
 
     // Payment options
     private boolean isFreeCheckout;       // totalAmount = 0
+    private boolean requiresPayment;       // !allFree
     private List<String> availablePaymentMethods;
 
     // Validation
     private boolean isValid;
     private List<String> validationErrors;
+    private List<String> warnings;        // Warnings about items
 }

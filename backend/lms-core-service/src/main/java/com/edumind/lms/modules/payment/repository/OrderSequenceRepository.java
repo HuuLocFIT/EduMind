@@ -24,4 +24,10 @@ public interface OrderSequenceRepository extends JpaRepository<OrderSequence, Lo
     @Query("UPDATE OrderSequence s SET s.currentSequence = s.currentSequence + 1 " +
             "WHERE s.dateKey = :dateKey")
     int incrementSequence(@Param("dateKey") String dateKey);
+
+    /**
+     * Find by yearMonth (YYYYMM) - extracts first 6 characters from dateKey (YYYYMMDD)
+     */
+    @Query("SELECT s FROM OrderSequence s WHERE SUBSTRING(s.dateKey, 1, 6) = :yearMonth")
+    Optional<OrderSequence> findByYearMonth(@Param("yearMonth") String yearMonth);
 }

@@ -62,6 +62,12 @@ public class Transaction extends BaseEntity {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
+    @Column(name = "failure_code", length = 50)
+    private String failureCode;
+
+    @Column(name = "redirect_url", length = 500)
+    private String redirectUrl;
+
     // Timestamps
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
