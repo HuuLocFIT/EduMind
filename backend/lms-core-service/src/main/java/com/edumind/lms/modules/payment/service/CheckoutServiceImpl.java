@@ -40,7 +40,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final EnrollmentRepository enrollmentRepository;
 
     private final CartService cartService;
-    private final NumberGeneratorService numberGeneratorService;
+    private final OrderService orderService;
     private final TransactionService transactionService;
     private final EarningService earningService;
     private final InvoiceService invoiceService;
@@ -86,20 +86,22 @@ public class CheckoutServiceImpl implements CheckoutService {
                 continue;
             }
 
-            BigDecimal price = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-            BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : price;
-            BigDecimal discount = originalPrice.subtract(price);
+            BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+            BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+            BigDecimal discount = originalPrice.subtract(finalPrice);
 
             CheckoutItemPreview preview = CheckoutItemPreview.builder()
                     .courseId(course.getId())
                     .courseTitle(course.getTitle())
                     .courseSlug(course.getSlug())
-                    .courseThumbnail(course.getThumbnailUrl())
+                    .courseThumbnailUrl(course.getThumbnailUrl())
+                    .instructorId(course.getInstructorId())
                     .instructorName(course.getInstructorName())
-                    .price(price)
+                    .effectivePrice(finalPrice)
                     .originalPrice(originalPrice)
-                    .discount(discount)
-                    .isFree(price.compareTo(BigDecimal.ZERO) == 0)
+                    .discountAmount(discount)
+                    .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                    .isFree(finalPrice.compareTo(BigDecimal.ZERO) == 0)
                     .build();
 
             itemPreviews.add(preview);
@@ -128,7 +130,6 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     @Override
-    @Transactional
     public CheckoutResultResponse checkout(Long userId, CheckoutRequest request) {
         log.info("Processing checkout for user: {}", userId);
 
@@ -141,8 +142,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new CartEmptyException();
         }
 
-        // 2. Build order
-        Order order = createOrder(userId, cartItems, request);
+        // 2. Build order (inside transaction via OrderService)
+        Order order = orderService.createOrderFromCart(userId, cartItems, request);
 
         // 3. Check if payment required
         if (order.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
@@ -150,12 +151,11 @@ public class CheckoutServiceImpl implements CheckoutService {
             return completeFreeOrder(order, userId);
         }
 
-        // 4. Process payment
+        // 4. Process payment (outside transaction to avoid holding DB connection during network call)
         return processPayment(order, request);
     }
 
     @Override
-    @Transactional
     public CheckoutResultResponse directCheckout(Long userId, DirectCheckoutRequest request) {
         log.info("Processing direct checkout for user: {}, course: {}", userId, request.getCourseId());
 
@@ -171,15 +171,15 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new CourseAlreadyPurchasedException(request.getCourseId());
         }
 
-        // Create order with single item
-        Order order = createOrderForSingleCourse(userId, course, request);
+        // Create order with single item (inside transaction via OrderService)
+        Order order = orderService.createOrderFromSingleCourse(userId, course, request);
 
         // Check if free
         if (order.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
             return completeFreeOrder(order, userId);
         }
 
-        // Process payment
+        // Process payment (outside transaction to avoid holding DB connection during network call)
         CheckoutRequest checkoutRequest = CheckoutRequest.builder()
                 .paymentMethod(request.getPaymentMethod())
                 .cardNumber(request.getCardNumber())
@@ -206,10 +206,17 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     @Override
-    @Transactional
     public CheckoutResultResponse retryPayment(Long userId, Long orderId, CheckoutRequest request) {
         log.info("Retrying payment for order: {}", orderId);
 
+        Order order = resetOrderForRetry(userId, orderId);
+
+        // Process payment (outside transaction to avoid holding DB connection during network call)
+        return processPayment(order, request);
+    }
+
+    @Transactional
+    private Order resetOrderForRetry(Long userId, Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
@@ -226,107 +233,12 @@ public class CheckoutServiceImpl implements CheckoutService {
         // Reset order status
         order.setStatus(OrderStatus.PENDING);
         order.setFailureReason(null);
-        orderRepository.save(order);
-
-        return processPayment(order, request);
+        return orderRepository.save(order);
     }
 
     // ===== Private Helpers =====
 
-    private Order createOrder(Long userId, List<CartItem> cartItems, CheckoutRequest request) {
-        Order order = new Order();
-        order.setOrderNumber(numberGeneratorService.generateOrderNumber());
-        order.setUserId(userId);
-        order.setStatus(OrderStatus.PENDING);
-        order.setPaymentMethod(request.getPaymentMethod());
-        order.setCurrency("USD");
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-
-        // Customer info
-        order.setCustomerEmail(request.getCustomerEmail());
-        order.setCustomerName(request.getCustomerName());
-        order.setBillingAddress(request.getBillingAddress());
-
-        order = orderRepository.save(order);
-
-        BigDecimal subtotal = BigDecimal.ZERO;
-        BigDecimal totalDiscount = BigDecimal.ZERO;
-
-        for (CartItem cartItem : cartItems) {
-            Course course = courseRepository.findById(cartItem.getCourseId()).orElse(null);
-            if (course == null || !course.isPublished()) continue;
-            if (enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId())) continue;
-
-            BigDecimal price = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-            BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : price;
-            BigDecimal discount = originalPrice.subtract(price);
-
-            OrderItem item = new OrderItem();
-            item.setOrder(order);
-            item.setCourseId(course.getId());
-            item.setCourseTitle(course.getTitle());
-            item.setCourseSlug(course.getSlug());
-            item.setCourseThumbnailUrl(course.getThumbnailUrl());
-            item.setInstructorId(course.getInstructorId());
-            item.setInstructorName(course.getInstructorName());
-            item.setFinalPrice(price);
-            item.setOriginalPrice(originalPrice);
-            item.setDiscountAmount(discount);
-
-            orderItemRepository.save(item);
-
-            subtotal = subtotal.add(originalPrice);
-            totalDiscount = totalDiscount.add(discount);
-        }
-
-        order.setSubtotal(subtotal);
-        order.setDiscountTotal(totalDiscount);
-        order.setTotalAmount(subtotal.subtract(totalDiscount));
-
-        return orderRepository.save(order);
-    }
-
-    private Order createOrderForSingleCourse(Long userId, Course course, DirectCheckoutRequest request) {
-        Order order = new Order();
-        order.setOrderNumber(numberGeneratorService.generateOrderNumber());
-        order.setUserId(userId);
-        order.setStatus(OrderStatus.PENDING);
-        order.setPaymentMethod(request.getPaymentMethod());
-        order.setCurrency("USD");
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-
-        order.setCustomerEmail(request.getCustomerEmail());
-        order.setCustomerName(request.getCustomerName());
-
-        order = orderRepository.save(order);
-
-        BigDecimal price = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-        BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : price;
-        BigDecimal discount = originalPrice.subtract(price);
-
-        OrderItem item = new OrderItem();
-        item.setOrder(order);
-        item.setCourseId(course.getId());
-        item.setCourseTitle(course.getTitle());
-        item.setCourseSlug(course.getSlug());
-        item.setCourseThumbnailUrl(course.getThumbnailUrl());
-        item.setInstructorId(course.getInstructorId());
-        item.setInstructorName(course.getInstructorName());
-        item.setFinalPrice(price);
-        item.setOriginalPrice(originalPrice);
-        item.setDiscountAmount(discount);
-
-        orderItemRepository.save(item);
-
-        order.setSubtotal(originalPrice);
-        order.setDiscountTotal(discount);
-        order.setTotalAmount(price);
-
-        return orderRepository.save(order);
-    }
-
+    @Transactional
     private CheckoutResultResponse completeFreeOrder(Order order, Long userId) {
         log.info("Completing free order: {}", order.getOrderNumber());
 
@@ -396,6 +308,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
     }
 
+    @Transactional
     private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction transaction,
                                                            CheckoutRequest request) {
         log.info("Payment successful for order: {}", order.getOrderNumber());
@@ -431,6 +344,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .build();
     }
 
+    @Transactional
     private CheckoutResultResponse handlePendingPayment(Order order, Transaction transaction,
                                                         GatewayPaymentResult result) {
         log.info("Payment pending for order: {} - redirect required", order.getOrderNumber());
@@ -450,6 +364,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .build();
     }
 
+    @Transactional
     private CheckoutResultResponse handleFailedPayment(Order order, Transaction transaction,
                                                        GatewayPaymentResult result) {
         log.warn("Payment failed for order: {} - {}", order.getOrderNumber(), result.getErrorMessage());
@@ -483,6 +398,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             } catch (Exception e) {
                 log.error("Failed to create enrollment for course {}: {}",
                         item.getCourseId(), e.getMessage());
+                throw new PaymentFailedException("Failed to activate enrollment: " + e.getMessage());
             }
         }
     }

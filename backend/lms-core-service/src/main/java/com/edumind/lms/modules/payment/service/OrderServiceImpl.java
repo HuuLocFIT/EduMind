@@ -1,14 +1,20 @@
 package com.edumind.lms.modules.payment.service;
 
+import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.repository.CourseRepository;
+import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
+import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.OrderItemResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderSummaryResponse;
+import com.edumind.lms.modules.payment.entity.CartItem;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.OrderItem;
 import com.edumind.lms.modules.payment.enums.OrderStatus;
+import com.edumind.lms.modules.payment.exception.CartEmptyException;
 import com.edumind.lms.modules.payment.exception.InvalidOrderStateException;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
-import com.edumind.lms.modules.payment.mapper.OrderMapper;
 import com.edumind.lms.modules.payment.repository.OrderItemRepository;
 import com.edumind.lms.modules.payment.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,7 +36,9 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final OrderMapper orderMapper;
+    private final NumberGeneratorService numberGeneratorService;
+    private final CourseRepository courseRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -136,6 +145,114 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         log.info("Order {} cancelled by user {}", order.getOrderNumber(), userId);
+    }
+
+    @Override
+    @Transactional
+    public Order createOrderFromCart(Long userId, List<CartItem> cartItems, CheckoutRequest request) {
+        log.debug("Creating order from cart for user: {}", userId);
+
+        Order order = new Order();
+        order.setOrderNumber(numberGeneratorService.generateOrderNumber());
+        order.setUserId(userId);
+        order.setStatus(OrderStatus.PENDING);
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setCurrency("USD");
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        // Customer info
+        order.setCustomerEmail(request.getCustomerEmail());
+        order.setCustomerName(request.getCustomerName());
+        order.setBillingAddress(request.getBillingAddress());
+
+        order = orderRepository.save(order);
+
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal totalDiscount = BigDecimal.ZERO;
+        int validItemsCount = 0;
+
+        for (CartItem cartItem : cartItems) {
+            Course course = courseRepository.findById(cartItem.getCourseId()).orElse(null);
+            if (course == null || !course.isPublished()) continue;
+            if (enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId())) continue;
+
+            BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+            BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+            BigDecimal discount = originalPrice.subtract(finalPrice);
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setCourseId(course.getId());
+            item.setCourseTitle(course.getTitle());
+            item.setCourseSlug(course.getSlug());
+            item.setCourseThumbnailUrl(course.getThumbnailUrl());
+            item.setInstructorId(course.getInstructorId());
+            item.setInstructorName(course.getInstructorName());
+            item.setFinalPrice(finalPrice);
+            item.setOriginalPrice(originalPrice);
+            item.setDiscountAmount(discount);
+
+            orderItemRepository.save(item);
+
+            subtotal = subtotal.add(originalPrice);
+            totalDiscount = totalDiscount.add(discount);
+            validItemsCount++;
+        }
+
+        if (validItemsCount == 0) {
+            throw new CartEmptyException("No valid items to checkout (Courses may have been unpublished or already purchased)");
+        }
+
+        order.setSubtotal(subtotal);
+        order.setDiscountTotal(totalDiscount);
+        order.setTotalAmount(subtotal.subtract(totalDiscount));
+
+        return orderRepository.save(order);
+    }
+
+    @Override
+    @Transactional
+    public Order createOrderFromSingleCourse(Long userId, Course course, DirectCheckoutRequest request) {
+        log.debug("Creating order from single course for user: {}, course: {}", userId, course.getId());
+
+        Order order = new Order();
+        order.setOrderNumber(numberGeneratorService.generateOrderNumber());
+        order.setUserId(userId);
+        order.setStatus(OrderStatus.PENDING);
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setCurrency("USD");
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        order.setCustomerEmail(request.getCustomerEmail());
+        order.setCustomerName(request.getCustomerName());
+
+        order = orderRepository.save(order);
+
+        BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+        BigDecimal effectivePrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+        BigDecimal discount = originalPrice.subtract(effectivePrice);
+
+        OrderItem item = new OrderItem();
+        item.setOrder(order);
+        item.setCourseId(course.getId());
+        item.setCourseTitle(course.getTitle());
+        item.setCourseSlug(course.getSlug());
+        item.setCourseThumbnailUrl(course.getThumbnailUrl());
+        item.setInstructorId(course.getInstructorId());
+        item.setInstructorName(course.getInstructorName());
+        item.setFinalPrice(effectivePrice);
+        item.setOriginalPrice(originalPrice);
+        item.setDiscountAmount(discount);
+
+        orderItemRepository.save(item);
+
+        order.setSubtotal(originalPrice);
+        order.setDiscountTotal(discount);
+        order.setTotalAmount(effectivePrice);
+
+        return orderRepository.save(order);
     }
 
     // ===== Private Helpers =====

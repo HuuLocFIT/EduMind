@@ -16,13 +16,13 @@ public class CheckoutItemPreview {
     private Long courseId;
     private String courseTitle;
     private String courseSlug;
-    private String courseThumbnail;
+    private String courseThumbnailUrl;
     private String instructorName;
     private Long instructorId;
 
     private BigDecimal originalPrice;
-    private BigDecimal price;
-    private BigDecimal discount;
+    private BigDecimal effectivePrice;
+    private BigDecimal discountAmount;
     private String currency;
 
     private boolean isFree;

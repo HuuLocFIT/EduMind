@@ -162,9 +162,9 @@ public class CartServiceImpl implements CartService {
             Course course = courseRepository.findById(item.getCourseId()).orElse(null);
 
             if (course != null) {
-                BigDecimal price = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-                BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : price;
-                BigDecimal discount = originalPrice.subtract(price);
+                BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+                BigDecimal finalPrice = course.getEffectivePrice();
+                BigDecimal discount = originalPrice.subtract(finalPrice);
 
                 CartItemResponse itemResponse = CartItemResponse.builder()
                         .courseId(course.getId())
@@ -173,10 +173,9 @@ public class CartServiceImpl implements CartService {
                         .courseThumbnailUrl(course.getThumbnailUrl())
                         .instructorId(course.getInstructorId())
                         .instructorName(course.getInstructorName())
-
                         .originalPrice(originalPrice)
                         .discountAmount(discount)
-                        .effectivePrice(price)
+                        .effectivePrice(finalPrice)
                         .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
                         .addedAt(item.getAddedAt())
                         .build();
@@ -197,7 +196,7 @@ public class CartServiceImpl implements CartService {
                 .subtotal(subtotal)
                 .discountTotal(totalDiscount)
                 .totalAmount(totalAmount)
-                .currency("USD")
+                .currency("USD")    
                 .updatedAt(cart.getUpdatedAt())
                 .build();
 
