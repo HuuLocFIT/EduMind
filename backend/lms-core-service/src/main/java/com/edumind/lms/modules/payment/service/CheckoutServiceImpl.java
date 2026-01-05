@@ -26,6 +26,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -68,8 +72,18 @@ public class CheckoutServiceImpl implements CheckoutService {
         BigDecimal totalDiscount = BigDecimal.ZERO;
         List<String> warnings = new ArrayList<>();
 
+        List<Long> courseIds = items.stream()
+                .map(CartItem::getCourseId)
+                .collect(Collectors.toList());
+
+        Map<Long, Course> coursesMap = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Function.identity()));
+
+        Set<Long> enrolledCourseIds = new java.util.HashSet<>(
+                enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
+
         for (CartItem item : items) {
-            Course course = courseRepository.findById(item.getCourseId()).orElse(null);
+            Course course = coursesMap.get(item.getCourseId());
 
             if (course == null) {
                 warnings.add("Course not found: " + item.getCourseId());
@@ -81,7 +95,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 continue;
             }
 
-            if (enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId())) {
+            if (enrolledCourseIds.contains(course.getId())) {
                 warnings.add("Already enrolled in: " + course.getTitle());
                 continue;
             }
@@ -130,6 +144,58 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public CheckoutPreviewResponse previewDirectCheckout(Long userId, Long courseId) {
+        log.info("Previewing direct checkout for user: {}, course: {}", userId, courseId);
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new CourseNotAvailableException(courseId));
+
+        if (!course.isPublished()) {
+            throw new CourseNotAvailableException(courseId, "Course is not published");
+        }
+
+        List<String> warnings = new ArrayList<>();
+        // Use existsByCourseIdAndStudentId which is more efficient (uses indexed columns directly)
+        if (enrollmentRepository.existsByCourseIdAndStudentId(course.getId(), userId)) {
+            warnings.add("Already enrolled in: " + course.getTitle());
+        }
+
+        BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+        BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+        BigDecimal discount = originalPrice.subtract(finalPrice);
+
+        CheckoutItemPreview preview = CheckoutItemPreview.builder()
+                .courseId(course.getId())
+                .courseTitle(course.getTitle())
+                .courseSlug(course.getSlug())
+                .courseThumbnailUrl(course.getThumbnailUrl())
+                .instructorId(course.getInstructorId())
+                .instructorName(course.getInstructorName())
+                .effectivePrice(finalPrice)
+                .originalPrice(originalPrice)
+                .discountAmount(discount)
+                .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                .isFree(finalPrice.compareTo(BigDecimal.ZERO) == 0)
+                .build();
+
+        List<CheckoutItemPreview> items = List.of(preview);
+        boolean isFree = finalPrice.compareTo(BigDecimal.ZERO) == 0;
+
+        return CheckoutPreviewResponse.builder()
+                .items(items)
+                .itemCount(1)
+                .subtotal(originalPrice)
+                .discountTotal(discount)
+                .totalAmount(finalPrice)
+                .currency("USD")
+                .isFreeCheckout(isFree)
+                .requiresPayment(!isFree)
+                .warnings(warnings.isEmpty() ? null : warnings)
+                .build();
+    }
+
+    @Override
     public CheckoutResultResponse checkout(Long userId, CheckoutRequest request) {
         log.info("Processing checkout for user: {}", userId);
 
@@ -167,7 +233,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new CourseNotAvailableException(request.getCourseId(), "Course is not published");
         }
 
-        if (enrollmentRepository.existsByUserIdAndCourseId(userId, request.getCourseId())) {
+        // Use existsByCourseIdAndStudentId which is more efficient (uses indexed columns directly)
+        if (enrollmentRepository.existsByCourseIdAndStudentId(request.getCourseId(), userId)) {
             throw new CourseAlreadyPurchasedException(request.getCourseId());
         }
 

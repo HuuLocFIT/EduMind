@@ -41,6 +41,26 @@ public interface InvoiceService {
     String generateInvoicePdf(Long invoiceId);
 
     /**
+     * Generate PDF for invoice as byte array
+     */
+    byte[] generateInvoicePdfBytes(Long invoiceId);
+
+    /**
+     * Get invoice by ID with user ownership check
+     */
+    InvoiceResponse getInvoiceByIdAndUser(Long invoiceId, Long userId);
+
+    /**
+     * Get invoice by invoice number with user ownership check
+     */
+    InvoiceResponse getInvoiceByNumberAndUser(String invoiceNumber, Long userId);
+
+    /**
+     * Get invoice by order ID with user ownership check
+     */
+    InvoiceResponse getInvoiceByOrderIdAndUser(Long orderId, Long userId);
+
+    /**
      * Send invoice email to user
      */
     void sendInvoiceEmail(Long invoiceId);

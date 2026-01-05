@@ -27,6 +27,11 @@ public interface CheckoutService {
     CheckoutResultResponse directCheckout(Long userId, DirectCheckoutRequest request);
 
     /**
+     * Preview direct checkout (buy now)
+     */
+    CheckoutPreviewResponse previewDirectCheckout(Long userId, Long courseId);
+
+    /**
      * Handle payment gateway callback/webhook
      */
     void handlePaymentCallback(String gatewayTransactionId, String status, String rawPayload);

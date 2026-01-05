@@ -8,6 +8,7 @@ import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.OrderItemResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderSummaryResponse;
+import com.edumind.lms.modules.payment.dto.response.OrderCountResponse;
 import com.edumind.lms.modules.payment.entity.CartItem;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.OrderItem;
@@ -27,6 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,16 +46,31 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public OrderResponse getOrderById(Long orderId) {
-        Order order = getOrderEntity(orderId);
+    public OrderResponse getOrderByIdAndUser(Long orderId, Long userId) {
+        // Use EntityGraph to fetch order with items in a single query
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        
+        // Verify ownership
+        if (!order.getUserId().equals(userId)) {
+            throw new OrderNotFoundException(orderId);
+        }
+        
         return buildOrderResponse(order);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public OrderResponse getOrderByNumber(String orderNumber) {
-        Order order = orderRepository.findByOrderNumber(orderNumber)
+    public OrderResponse getOrderByNumberAndUser(String orderNumber, Long userId) {
+        // Use EntityGraph to fetch order with items in a single query
+        Order order = orderRepository.findWithItemsByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+        
+        // Verify ownership
+        if (!order.getUserId().equals(userId)) {
+             throw new OrderNotFoundException(orderNumber);
+        }
+
         return buildOrderResponse(order);
     }
 
@@ -64,17 +83,34 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<OrderSummaryResponse> getUserOrders(Long userId, Pageable pageable) {
-        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
-                .map(this::buildOrderSummary);
+    public Page<OrderSummaryResponse> getOrdersByUser(Long userId, Pageable pageable) {
+        Page<Order> ordersPage = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        return buildOrderSummaryPage(ordersPage);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderSummaryResponse> getUserOrdersByStatus(Long userId, OrderStatus status) {
-        return orderRepository.findByUserIdAndStatus(userId, status).stream()
-                .map(this::buildOrderSummary)
+    public Page<OrderSummaryResponse> getOrdersByUserAndStatus(Long userId, OrderStatus status, Pageable pageable) {
+        Page<Order> ordersPage = orderRepository.findByUserIdAndStatus(userId, status, pageable);
+        return buildOrderSummaryPage(ordersPage);
+    }
+
+    private Page<OrderSummaryResponse> buildOrderSummaryPage(Page<Order> ordersPage) {
+        List<Long> orderIds = ordersPage.getContent().stream()
+                .map(Order::getId)
                 .collect(Collectors.toList());
+
+        Map<Long, Integer> itemCounts = new java.util.HashMap<>();
+        if (!orderIds.isEmpty()) {
+            List<Object[]> counts = orderItemRepository.countItemsByOrderIds(orderIds);
+            for (Object[] row : counts) {
+                Long orderId = (Long) row[0];
+                Long count = (Long) row[1];
+                itemCounts.put(orderId, count.intValue());
+            }
+        }
+
+        return ordersPage.map(order -> buildOrderSummary(order, itemCounts.getOrDefault(order.getId(), 0)));
     }
 
     @Override
@@ -126,8 +162,10 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public void cancelOrder(Long orderId, Long userId) {
-        Order order = getOrderEntity(orderId);
+    public OrderResponse cancelOrder(Long orderId, Long userId) {
+        // Use EntityGraph to fetch order with items in a single query
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         // Verify user owns the order
         if (!order.getUserId().equals(userId)) {
@@ -145,6 +183,75 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         log.info("Order {} cancelled by user {}", order.getOrderNumber(), userId);
+        return buildOrderResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse requestRefund(Long orderId, Long userId, String reason) {
+        // Use EntityGraph to fetch order with items in a single query
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // Verify user owns the order
+        if (!order.getUserId().equals(userId)) {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        // Can only refund completed orders
+        if (order.getStatus() != OrderStatus.COMPLETED) {
+            throw new InvalidOrderStateException(orderId, order.getStatus(), "refund");
+        }
+
+        // TODO: Check refund window logic (e.g. 30 days) if needed
+
+        order.setStatus(OrderStatus.REFUNDED); // Or REFUND_REQUESTED if manual approval needed
+        // For now simplifying to refunded state as per requirement or maybe PROCESSING_REFUND
+        // Assuming immediate refund or request marking:
+        order.setFailureReason("Refund requested: " + reason); // Using failure reason to store refund reason for now
+        order.setUpdatedAt(LocalDateTime.now());
+
+        orderRepository.save(order);
+        
+        log.info("Refund requested for order {} by user {}", order.getOrderNumber(), userId);
+        return buildOrderResponse(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderCountResponse getOrderCountsByUser(Long userId) {
+        int total = (int) orderRepository.countByUserId(userId);
+        
+        List<Object[]> statusCounts = orderRepository.countStatusByUserId(userId);
+        
+        int pending = 0;
+        int completed = 0;
+        int failed = 0;
+        int refunded = 0;
+        int cancelled = 0;
+
+        for (Object[] row : statusCounts) {
+            OrderStatus status = (OrderStatus) row[0];
+            int count = ((Long) row[1]).intValue();
+            
+            switch (status) {
+                case PENDING -> pending += count;
+                case PROCESSING -> pending += count;
+                case COMPLETED -> completed += count;
+                case FAILED -> failed += count;
+                case REFUNDED -> refunded += count;
+                case CANCELLED -> cancelled += count;
+            }
+        }
+        
+        return OrderCountResponse.builder()
+                .total(total)
+                .pending(pending)
+                .completed(completed)
+                .failed(failed)
+                .refunded(refunded)
+                .cancelled(cancelled)
+                .build();
     }
 
     @Override
@@ -172,10 +279,20 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalDiscount = BigDecimal.ZERO;
         int validItemsCount = 0;
 
+        List<Long> courseIds = cartItems.stream()
+                .map(CartItem::getCourseId)
+                .collect(Collectors.toList());
+
+        Map<Long, Course> coursesMap = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Function.identity()));
+
+        Set<Long> enrolledCourseIds = new java.util.HashSet<>(
+                enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
+
         for (CartItem cartItem : cartItems) {
-            Course course = courseRepository.findById(cartItem.getCourseId()).orElse(null);
+            Course course = coursesMap.get(cartItem.getCourseId());
             if (course == null || !course.isPublished()) continue;
-            if (enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId())) continue;
+            if (enrolledCourseIds.contains(course.getId())) continue;
 
             BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
             BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
@@ -258,7 +375,10 @@ public class OrderServiceImpl implements OrderService {
     // ===== Private Helpers =====
 
     private OrderResponse buildOrderResponse(Order order) {
-        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        // Use items from order if already loaded (via EntityGraph), otherwise fetch
+        List<OrderItem> items = order.getItems() != null && !order.getItems().isEmpty()
+                ? order.getItems()
+                : orderItemRepository.findByOrderId(order.getId());
 
         List<OrderItemResponse> itemResponses = items.stream()
                 .map(this::buildOrderItemResponse)
@@ -299,9 +419,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    private OrderSummaryResponse buildOrderSummary(Order order) {
-        int itemCount = orderItemRepository.countByOrderId(order.getId());
-
+    private OrderSummaryResponse buildOrderSummary(Order order, int itemCount) {
         return OrderSummaryResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())

@@ -32,7 +32,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Page<Order> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, OrderStatus status, Pageable pageable);
 
+    Page<Order> findByUserIdAndStatus(Long userId, OrderStatus status, Pageable pageable);
+
     List<Order> findByUserIdAndStatus(Long userId, OrderStatus status);
+
+    long countByUserId(Long userId);
 
     // Check if user has purchased a course
     @Query("SELECT COUNT(o) > 0 FROM Order o JOIN o.items oi " +
@@ -42,6 +46,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Statistics
     @Query("SELECT COUNT(o) FROM Order o WHERE o.userId = :userId AND o.status = :status")
     long countByUserIdAndStatus(@Param("userId") Long userId, @Param("status") OrderStatus status);
+
+    @Query("SELECT o.status, COUNT(o) FROM Order o WHERE o.userId = :userId GROUP BY o.status")
+    List<Object[]> countStatusByUserId(@Param("userId") Long userId);
 
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
             "WHERE o.status = 'COMPLETED' AND o.completedAt BETWEEN :startDate AND :endDate")

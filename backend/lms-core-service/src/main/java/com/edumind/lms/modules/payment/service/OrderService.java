@@ -5,6 +5,7 @@ import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.OrderResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderSummaryResponse;
+import com.edumind.lms.modules.payment.dto.response.OrderCountResponse;
 import com.edumind.lms.modules.payment.entity.CartItem;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.enums.OrderStatus;
@@ -21,12 +22,15 @@ public interface OrderService {
     /**
      * Get order by ID
      */
-    OrderResponse getOrderById(Long orderId);
+    /**
+     * Get order by ID and User (security check)
+     */
+    OrderResponse getOrderByIdAndUser(Long orderId, Long userId);
 
     /**
-     * Get order by order number
+     * Get order by order number and User (security check)
      */
-    OrderResponse getOrderByNumber(String orderNumber);
+    OrderResponse getOrderByNumberAndUser(String orderNumber, Long userId);
 
     /**
      * Get order entity (internal use)
@@ -36,12 +40,12 @@ public interface OrderService {
     /**
      * Get user's orders with pagination
      */
-    Page<OrderSummaryResponse> getUserOrders(Long userId, Pageable pageable);
+    Page<OrderSummaryResponse> getOrdersByUser(Long userId, Pageable pageable);
 
     /**
      * Get user's orders by status
      */
-    List<OrderSummaryResponse> getUserOrdersByStatus(Long userId, OrderStatus status);
+    Page<OrderSummaryResponse> getOrdersByUserAndStatus(Long userId, OrderStatus status, Pageable pageable);
 
     /**
      * Update order status
@@ -61,7 +65,17 @@ public interface OrderService {
     /**
      * Cancel order (by user, before payment)
      */
-    void cancelOrder(Long orderId, Long userId);
+    OrderResponse cancelOrder(Long orderId, Long userId);
+
+    /**
+     * Request refund (by user, after payment)
+     */
+    OrderResponse requestRefund(Long orderId, Long userId, String reason);
+
+    /**
+     * Get order counts by status for user
+     */
+    OrderCountResponse getOrderCountsByUser(Long userId);
 
     /**
      * Create order from cart items (transactional)

@@ -162,6 +162,59 @@ public class InvoiceServiceImpl implements InvoiceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public byte[] generateInvoicePdfBytes(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new InvoiceNotFoundException(invoiceId));
+
+        log.info("Generating PDF bytes for invoice: {}", invoice.getInvoiceNumber());
+
+        // TODO: Implement actual PDF generation using a library like iText or Apache PDFBox
+        // For now, return empty byte array as placeholder
+        log.warn("PDF generation not yet implemented, returning empty bytes");
+        return new byte[0];
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InvoiceResponse getInvoiceByIdAndUser(Long invoiceId, Long userId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new InvoiceNotFoundException(invoiceId));
+
+        if (!invoice.getUserId().equals(userId)) {
+            throw new InvoiceNotFoundException(invoiceId);
+        }
+
+        return buildInvoiceResponse(invoice);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InvoiceResponse getInvoiceByNumberAndUser(String invoiceNumber, Long userId) {
+        Invoice invoice = invoiceRepository.findByInvoiceNumber(invoiceNumber)
+                .orElseThrow(() -> new InvoiceNotFoundException(invoiceNumber));
+
+        if (!invoice.getUserId().equals(userId)) {
+            throw new InvoiceNotFoundException(invoiceNumber);
+        }
+
+        return buildInvoiceResponse(invoice);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InvoiceResponse getInvoiceByOrderIdAndUser(Long orderId, Long userId) {
+        Invoice invoice = invoiceRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new InvoiceNotFoundException("Order: " + orderId));
+
+        if (!invoice.getUserId().equals(userId)) {
+            throw new InvoiceNotFoundException("Order: " + orderId);
+        }
+
+        return buildInvoiceResponse(invoice);
+    }
+
+    @Override
     @Transactional
     public void sendInvoiceEmail(Long invoiceId) {
         log.info("Sending invoice email for: {}", invoiceId);

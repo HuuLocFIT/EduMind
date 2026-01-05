@@ -1,0 +1,159 @@
+package com.edumind.lms.modules.payment.controller;
+
+import com.edumind.common.response.ApiResponse;
+import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
+import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
+import com.edumind.lms.modules.payment.dto.response.CheckoutPreviewResponse;
+import com.edumind.lms.modules.payment.dto.response.CheckoutResultResponse;
+import com.edumind.lms.modules.payment.service.CheckoutService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+@RestController
+@RequestMapping("/checkout")
+@RequiredArgsConstructor
+@Slf4j
+@PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
+public class CheckoutController {
+
+    private final CheckoutService checkoutService;
+
+    // ==================== Cart Checkout ====================
+
+    /**
+     * Preview checkout before payment
+     * Shows order summary, totals, and validates cart items
+     * POST /checkout/preview
+     */
+    @PostMapping("/preview")
+    public ResponseEntity<ApiResponse<CheckoutPreviewResponse>> previewCheckout(
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} requesting checkout preview", userId);
+
+        CheckoutPreviewResponse preview = checkoutService.previewCheckout(userId);
+
+        return ResponseEntity.ok(ApiResponse.success(preview));
+    }
+
+    /**
+     * Process checkout for all items in cart
+     * POST /checkout
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponse<CheckoutResultResponse>> checkout(
+            @Valid @RequestBody CheckoutRequest request,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} processing checkout with method {}", userId, request.getPaymentMethod());
+
+        // Capture IP and user agent for fraud detection
+        enrichRequestMetadata(request);
+
+        CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+        String message = result.isSuccess()
+                ? "Payment processed successfully"
+                : "Payment processing failed";
+
+        return ResponseEntity.ok(ApiResponse.success(message, result));
+    }
+
+    // ==================== Direct Checkout (Buy Now) ====================
+
+    /**
+     * Preview direct checkout for a single course
+     * POST /checkout/direct/preview
+     */
+    @PostMapping("/direct/preview")
+    public ResponseEntity<ApiResponse<CheckoutPreviewResponse>> previewDirectCheckout(
+            @RequestParam Long courseId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} requesting direct checkout preview for course {}", userId, courseId);
+
+        CheckoutPreviewResponse preview = checkoutService.previewDirectCheckout(userId, courseId);
+
+        return ResponseEntity.ok(ApiResponse.success(preview));
+    }
+
+    /**
+     * Process direct checkout for a single course (Buy Now)
+     * Bypasses cart - purchases single course immediately
+     * POST /checkout/direct
+     */
+    @PostMapping("/direct")
+    public ResponseEntity<ApiResponse<CheckoutResultResponse>> directCheckout(
+            @Valid @RequestBody DirectCheckoutRequest request,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} processing direct checkout for course {} with method {}",
+                userId, request.getCourseId(), request.getPaymentMethod());
+
+        // Capture IP and user agent for fraud detection
+        enrichRequestMetadata(request);
+
+        CheckoutResultResponse result = checkoutService.directCheckout(userId, request);
+
+        String message = result.isSuccess()
+                ? "Course purchased successfully"
+                : "Purchase failed";
+
+        return ResponseEntity.ok(ApiResponse.success(message, result));
+    }
+
+    // ==================== Helper Methods ====================
+
+    private Long extractUserId(Authentication authentication) {
+        return Long.valueOf(authentication.getPrincipal().toString());
+    }
+
+    private void enrichRequestMetadata(CheckoutRequest request) {
+        HttpServletRequest httpRequest = getHttpServletRequest();
+        if (httpRequest != null) {
+            if (request.getIpAddress() == null) {
+                request.setIpAddress(getClientIp(httpRequest));
+            }
+            if (request.getUserAgent() == null) {
+                request.setUserAgent(httpRequest.getHeader("User-Agent"));
+            }
+        }
+    }
+
+    private void enrichRequestMetadata(DirectCheckoutRequest request) {
+        HttpServletRequest httpRequest = getHttpServletRequest();
+        if (httpRequest != null) {
+            if (request.getIpAddress() == null) {
+                request.setIpAddress(getClientIp(httpRequest));
+            }
+            if (request.getUserAgent() == null) {
+                request.setUserAgent(httpRequest.getHeader("User-Agent"));
+            }
+        }
+    }
+
+    private HttpServletRequest getHttpServletRequest() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return attributes != null ? attributes.getRequest() : null;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+}

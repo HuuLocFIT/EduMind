@@ -52,6 +52,14 @@ public interface InstructorEarningRepository extends JpaRepository<InstructorEar
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
+    @Query("SELECT e FROM InstructorEarning e WHERE e.instructorId = :instructorId " +
+            "AND e.createdAt BETWEEN :startDate AND :endDate ORDER BY e.createdAt DESC")
+    Page<InstructorEarning> findByInstructorIdAndDateRange(
+            @Param("instructorId") Long instructorId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
     @Query("SELECT COALESCE(SUM(e.netAmount), 0) FROM InstructorEarning e " +
             "WHERE e.instructorId = :instructorId " +
             "AND e.createdAt BETWEEN :startDate AND :endDate " +
