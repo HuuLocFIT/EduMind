@@ -1,7 +1,6 @@
 package com.edumind.lms.modules.course.service;
 
 import com.edumind.common.response.ApiResponse;
-import com.edumind.lms.modules.course.client.UserClient;
 import com.edumind.lms.modules.course.dto.model.InstructorStatsProjection;
 import com.edumind.lms.modules.course.dto.response.InstructorStatsResponse;
 import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
@@ -13,6 +12,7 @@ import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.event.CourseCreatedEvent;
 import com.edumind.lms.modules.course.event.CoursePublishedEvent;
+import com.edumind.lms.shared.client.UserClient;
 import com.edumind.lms.shared.exception.BadRequestException;
 import com.edumind.lms.shared.exception.ConflictException;
 import com.edumind.lms.shared.exception.UnauthorizedException;

@@ -11,7 +11,9 @@ import org.springframework.scheduling.annotation.EnableAsync;
 		"com.edumind.common"
 })
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = "com.edumind.lms.modules.course.client")
+@EnableFeignClients(basePackages = {
+		"com.edumind.lms.shared.client"
+})
 @EnableAsync
 public class LmsCoreServiceApplication {
 

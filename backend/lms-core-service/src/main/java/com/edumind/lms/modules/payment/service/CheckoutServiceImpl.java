@@ -13,6 +13,7 @@ import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.event.OrderCompletedEvent;
 import com.edumind.lms.modules.payment.event.PaymentFailedEvent;
 import com.edumind.lms.modules.payment.exception.*;
+import com.edumind.lms.modules.payment.enums.TransactionStatus;
 import com.edumind.lms.modules.payment.gateway.*;
 import com.edumind.lms.modules.payment.gateway.config.PaymentGatewayRegistry;
 import com.edumind.lms.modules.payment.repository.*;
@@ -42,6 +43,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final OrderItemRepository orderItemRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final TransactionRepository transactionRepository; // Added dependency
 
     private final CartService cartService;
     private final OrderService orderService;
@@ -49,6 +51,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final EarningService earningService;
     private final InvoiceService invoiceService;
     private final EnrollmentService enrollmentService;
+    private final NumberGeneratorService numberGeneratorService; // Added dependency
 
     private final PaymentGatewayRegistry gatewayRegistry;
     private final ApplicationEventPublisher eventPublisher;
@@ -344,6 +347,20 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         PaymentGateway gateway = gatewayRegistry.getActiveGateway();
 
+        // 1. Create Transaction PENDING (Before Gateway Call)
+        // This ensures we have a record even if the server crashes during/after gateway response
+        Transaction transaction = new Transaction();
+        transaction.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
+        transaction.setOrder(order);
+        transaction.setGateway(order.getPaymentMethod());
+        transaction.setAmount(order.getTotalAmount());
+        transaction.setCurrency(order.getCurrency());
+        transaction.setStatus(TransactionStatus.PENDING);
+        transaction.setCreatedAt(LocalDateTime.now());
+        
+        transaction = transactionRepository.save(transaction);
+        log.info("Created PENDING transaction: {}", transaction.getTransactionNumber());
+
         // Build gateway request
         GatewayPaymentRequest gatewayRequest = GatewayPaymentRequest.builder()
                 .orderNumber(order.getOrderNumber())
@@ -360,17 +377,37 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .description("Payment for Order #" + order.getOrderNumber())
                 .build();
 
-        // Process payment
+        // 2. Process payment (Call Gateway)
         GatewayPaymentResult result = gateway.processPayment(gatewayRequest);
 
-        // Create transaction record
-        Transaction transaction = transactionService.createTransaction(order, result);
+        // 3. Update Transaction with Result
+        transaction.setGatewayTransactionId(result.getGatewayTransactionId());
+        transaction.setGatewayResponse(result.getRawResponse());
+        
+        // Update local amount info if provided (e.g. SePay)
+        if (result.getLocalAmount() != null) {
+            transaction.setLocalAmount(result.getLocalAmount());
+            transaction.setLocalCurrency(result.getLocalCurrency());
+            transaction.setExchangeRate(result.getExchangeRate());
+        }
 
         if (result.isSuccess()) {
+            transaction.setStatus(TransactionStatus.SUCCESS);
+            transaction.setProcessedAt(LocalDateTime.now());
+            transactionRepository.save(transaction);
+            
             return handleSuccessfulPayment(order, transaction, request);
         } else if (result.isRequiresRedirect()) {
+            transaction.setRedirectUrl(result.getRedirectUrl());
+            transactionRepository.save(transaction);
+            
             return handlePendingPayment(order, transaction, result);
         } else {
+            transaction.setStatus(TransactionStatus.FAILED);
+            transaction.setFailureCode(result.getErrorCode());
+            transaction.setFailureReason(result.getErrorMessage());
+            transactionRepository.save(transaction);
+            
             return handleFailedPayment(order, transaction, result);
         }
     }
@@ -459,7 +496,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         for (OrderItem item : items) {
             try {
-                enrollmentService.enrollStudent(order.getUserId(), item.getCourseId());
+                enrollmentService.enrollStudent(item.getCourseId(),order.getUserId());
                 log.debug("Created enrollment for user {} in course {}",
                         order.getUserId(), item.getCourseId());
             } catch (Exception e) {

@@ -40,14 +40,16 @@ public class Order extends BaseEntity {
 
     // Pricing
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal subtotal;
+    @Builder.Default
+    private BigDecimal subtotal = BigDecimal.ZERO;
 
     @Column(name = "discount_total", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal discountTotal = BigDecimal.ZERO;
 
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalAmount;
+    @Builder.Default
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
     @Column(length = 3)
     @Builder.Default

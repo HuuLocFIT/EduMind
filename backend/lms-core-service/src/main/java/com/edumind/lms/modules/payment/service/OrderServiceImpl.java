@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.payment.service;
 
+import com.edumind.common.response.ApiResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
@@ -18,6 +19,8 @@ import com.edumind.lms.modules.payment.exception.InvalidOrderStateException;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
 import com.edumind.lms.modules.payment.repository.OrderItemRepository;
 import com.edumind.lms.modules.payment.repository.OrderRepository;
+import com.edumind.lms.shared.client.UserClient;
+import com.edumind.lms.shared.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -43,6 +46,7 @@ public class OrderServiceImpl implements OrderService {
     private final NumberGeneratorService numberGeneratorService;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final UserClient userClient; // Injected
 
     @Override
     @Transactional(readOnly = true)
@@ -269,8 +273,7 @@ public class OrderServiceImpl implements OrderService {
         order.setUpdatedAt(LocalDateTime.now());
 
         // Customer info
-        order.setCustomerEmail(request.getCustomerEmail());
-        order.setCustomerName(request.getCustomerName());
+        fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
         order.setBillingAddress(request.getBillingAddress());
 
         order = orderRepository.save(order);
@@ -342,8 +345,7 @@ public class OrderServiceImpl implements OrderService {
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
-        order.setCustomerEmail(request.getCustomerEmail());
-        order.setCustomerName(request.getCustomerName());
+        fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
 
         order = orderRepository.save(order);
 
@@ -430,5 +432,35 @@ public class OrderServiceImpl implements OrderService {
                 .createdAt(order.getCreatedAt())
                 .completedAt(order.getCompletedAt())
                 .build();
+    }
+
+    private void fillCustomerDetails(Order order, String reqName, String reqEmail) {
+        String name = reqName;
+        String email = reqEmail;
+
+        if (name == null || email == null) {
+            try {
+                ApiResponse<UserResponse> userResponse = userClient.getCurrentUser();
+                if (userResponse != null && userResponse.getData() != null) {
+                    if (email == null) email = userResponse.getData().getEmail();
+                    if (name == null) {
+                        String first = userResponse.getData().getFirstName();
+                        String last = userResponse.getData().getLastName();
+                        name = (first != null ? first : "") + " " + (last != null ? last : "");
+                        name = name.trim();
+                        if (name.isEmpty()) name = userResponse.getData().getDisplayName();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch user details for order creation: {}", e.getMessage());
+            }
+        }
+        
+        // Fallback if still null to prevent Invoice crash
+        if (email == null) email = "unknown@edumind.com";
+        if (name == null || name.isEmpty()) name = "Unknown User";
+
+        order.setCustomerName(name);
+        order.setCustomerEmail(email);
     }
 }
