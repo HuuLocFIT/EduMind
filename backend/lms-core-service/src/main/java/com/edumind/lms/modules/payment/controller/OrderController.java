@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/orders")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
+@PreAuthorize("@teacherSecurity.isActiveTeacherOrStudent(authentication.principal.userId)")
 public class OrderController {
 
     private final OrderService orderService;

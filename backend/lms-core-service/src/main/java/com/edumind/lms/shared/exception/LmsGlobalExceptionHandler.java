@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
+import com.edumind.lms.modules.payment.exception.PaymentFailedException;
+import com.edumind.lms.modules.payment.gateway.exception.PaymentGatewayException;
 @Slf4j
 @RestControllerAdvice(basePackages = "com.edumind.lms")
 public class LmsGlobalExceptionHandler {
@@ -39,16 +40,16 @@ public class LmsGlobalExceptionHandler {
                 .build();
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex,
+    @ExceptionHandler({ResourceNotFoundException.class, com.edumind.common.exception.ResourceNotFoundException.class})
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(RuntimeException ex,
                                                                 HttpServletRequest request) {
         log.error("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(buildResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request));
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex,
+    @ExceptionHandler({BadRequestException.class, com.edumind.common.exception.BadRequestException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequest(RuntimeException ex,
                                                           HttpServletRequest request) {
         log.warn("Bad request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -124,6 +125,22 @@ public class LmsGlobalExceptionHandler {
         log.warn("Access denied (not enrolled): {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(buildResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request));
+    }
+
+    @ExceptionHandler(PaymentFailedException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentFailed(PaymentFailedException ex,
+                                                             HttpServletRequest request) {
+        log.warn("Payment failed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(buildResponse(HttpStatus.BAD_REQUEST, "Payment Failed", ex.getMessage(), request));
+    }
+
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentGateway(PaymentGatewayException ex,
+                                                              HttpServletRequest request) {
+        log.error("Payment gateway error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(buildResponse(HttpStatus.BAD_GATEWAY, "Payment Gateway Error", ex.getMessage(), request));
     }
 
     @ExceptionHandler(Exception.class)

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/cart")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
+@PreAuthorize("@teacherSecurity.isActiveTeacherOrStudent(authentication.principal.userId)")
 public class CartController {
     private final CartService cartService;
 

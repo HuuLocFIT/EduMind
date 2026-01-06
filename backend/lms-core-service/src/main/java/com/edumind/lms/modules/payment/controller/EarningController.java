@@ -30,7 +30,7 @@ import java.util.List;
 @RequestMapping("/teacher/earnings")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasRole('TEACHER')")
+@PreAuthorize("@teacherSecurity.isActiveTeacher()")
 public class EarningController {
 
     private final EarningService earningService;

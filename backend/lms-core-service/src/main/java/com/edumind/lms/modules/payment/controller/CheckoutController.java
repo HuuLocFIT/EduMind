@@ -21,7 +21,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @RequestMapping("/checkout")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
+@PreAuthorize("@teacherSecurity.isActiveTeacherOrStudent(authentication.principal.userId)")
 public class CheckoutController {
 
     private final CheckoutService checkoutService;

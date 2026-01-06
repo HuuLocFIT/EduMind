@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/invoices")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
+@PreAuthorize("@teacherSecurity.isActiveTeacherOrStudent(authentication.principal.userId)")
 public class InvoiceController {
 
     private final InvoiceService invoiceService;

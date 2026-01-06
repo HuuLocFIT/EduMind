@@ -62,6 +62,10 @@ public class SecurityConfig {
                         // Preview lessons only - public
                         .requestMatchers(HttpMethod.GET, "/lessons/courses/{courseId}/preview").permitAll()
 
+                        // Payment webhooks - public (called by external payment gateways)
+                        .requestMatchers(HttpMethod.POST, "/payments/webhook/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/payments/webhook/health").permitAll()
+
                         .anyRequest().authenticated()
                 );
 
