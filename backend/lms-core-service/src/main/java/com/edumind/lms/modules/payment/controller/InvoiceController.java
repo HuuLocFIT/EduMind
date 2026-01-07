@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.payment.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.payment.dto.response.InvoiceResponse;
 import com.edumind.lms.modules.payment.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class InvoiceController {
      * GET /invoices
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<InvoiceResponse>>> getMyInvoices(
+    public ResponseEntity<PagedResponse<InvoiceResponse>> getMyInvoices(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -51,7 +52,12 @@ public class InvoiceController {
 
         Page<InvoiceResponse> invoices = invoiceService.getUserInvoices(userId, pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(invoices));
+        return ResponseEntity.ok(PagedResponse.of(
+                invoices.getContent(),
+                invoices.getNumber(),
+                invoices.getSize(),
+                invoices.getTotalElements(),
+                invoices.getTotalPages()));
     }
 
     // ==================== Invoice Details ====================

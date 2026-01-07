@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.payment.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.payment.dto.response.CourseEarningResponse;
 import com.edumind.lms.modules.payment.dto.response.EarningResponse;
 import com.edumind.lms.modules.payment.dto.response.EarningsSummaryResponse;
@@ -42,7 +43,7 @@ public class EarningController {
      * GET /teacher/earnings
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<EarningResponse>>> getMyEarnings(
+    public ResponseEntity<PagedResponse<EarningResponse>> getMyEarnings(
             @RequestParam(required = false) EarningStatus status,
             @RequestParam(required = false) Long courseId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
@@ -64,7 +65,12 @@ public class EarningController {
         Page<EarningResponse> earnings = earningService.getEarningsByInstructor(
                 instructorId, status, courseId, fromDate, toDate, pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(earnings));
+        return ResponseEntity.ok(PagedResponse.of(
+                earnings.getContent(),
+                earnings.getNumber(),
+                earnings.getSize(),
+                earnings.getTotalElements(),
+                earnings.getTotalPages()));
     }
 
     // ==================== Earnings Summary ====================

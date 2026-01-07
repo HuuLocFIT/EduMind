@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.payment.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderSummaryResponse;
 import com.edumind.lms.modules.payment.dto.response.OrderCountResponse;
@@ -33,7 +34,7 @@ public class OrderController {
      * GET /orders
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<OrderSummaryResponse>>> getMyOrders(
+    public ResponseEntity<PagedResponse<OrderSummaryResponse>> getMyOrders(
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -56,7 +57,12 @@ public class OrderController {
             orders = orderService.getOrdersByUser(userId, pageable);
         }
 
-        return ResponseEntity.ok(ApiResponse.success(orders));
+        return ResponseEntity.ok(PagedResponse.of(
+                orders.getContent(),
+                orders.getNumber(),
+                orders.getSize(),
+                orders.getTotalElements(),
+                orders.getTotalPages()));
     }
 
     // ==================== Order Details ====================
