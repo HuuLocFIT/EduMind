@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -279,9 +280,9 @@ public class MockPaymentGateway implements PaymentGateway {
         txn.setCurrency(request.getCurrency());
         txn.setStatus(result.getStatus());
         txn.setRefundedAmount(BigDecimal.ZERO);
-        txn.setCreatedAt(java.time.LocalDateTime.now());
+        txn.setCreatedAt(LocalDateTime.now());
         if (result.isSuccess()) {
-            txn.setCompletedAt(java.time.LocalDateTime.now());
+            txn.setCompletedAt(LocalDateTime.now());
         }
 
         transactions.put(transactionId, txn);

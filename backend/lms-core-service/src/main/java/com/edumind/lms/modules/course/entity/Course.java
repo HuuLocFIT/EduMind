@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Entity
 @Table(name = "courses", schema = "course")
@@ -119,11 +120,12 @@ public class Course extends BaseEntity {
     }
 
     public BigDecimal getEffectivePrice() {
-        return discountPrice != null ? discountPrice : price;
+        return Optional.ofNullable(discountPrice)
+                .or(() -> Optional.ofNullable(price))
+                .orElse(BigDecimal.ZERO);
     }
 
-    // Alias method for compatibility
     public BigDecimal getOriginalPrice() {
-        return price;
+        return Optional.ofNullable(price).orElse(BigDecimal.ZERO);
     }
 }

@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,7 +83,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         Map<Long, Course> coursesMap = courseRepository.findAllById(courseIds).stream()
                 .collect(Collectors.toMap(Course::getId, Function.identity()));
 
-        Set<Long> enrolledCourseIds = new java.util.HashSet<>(
+        Set<Long> enrolledCourseIds = new HashSet<>(
                 enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
 
         for (CartItem item : items) {
@@ -103,8 +104,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                 continue;
             }
 
-            BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-            BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+            BigDecimal originalPrice = course.getOriginalPrice();
+            BigDecimal finalPrice = course.getEffectivePrice();
             BigDecimal discount = originalPrice.subtract(finalPrice);
 
             CheckoutItemPreview preview = CheckoutItemPreview.builder()
@@ -164,8 +165,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             warnings.add("Already enrolled in: " + course.getTitle());
         }
 
-        BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-        BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+        BigDecimal originalPrice = course.getOriginalPrice();
+        BigDecimal finalPrice = course.getEffectivePrice();
         BigDecimal discount = originalPrice.subtract(finalPrice);
 
         CheckoutItemPreview preview = CheckoutItemPreview.builder()
@@ -336,9 +337,18 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .success(true)
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
-                .status(OrderStatus.COMPLETED)
-                .message("Enrollment successful! You can now access your courses.")
+                .orderStatus(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(order.getPaymentMethod())
                 .invoiceNumber(invoice.getInvoiceNumber())
+                .invoiceUrl(invoice.getPdfUrl())
+                .enrolledCourseIds(order.getItems().stream()
+                        .map(OrderItem::getCourseId)
+                        .collect(Collectors.toList()))
+                .createdAt(order.getCreatedAt())
+                .completedAt(order.getCompletedAt())
+                .message("Enrollment successful! You can now access your courses.")
                 .build();
     }
 
@@ -442,9 +452,19 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
                 .transactionNumber(transaction.getTransactionNumber())
-                .status(OrderStatus.COMPLETED)
-                .message("Payment successful! You can now access your courses.")
+                .gatewayTransactionId(transaction.getGatewayTransactionId())
+                .orderStatus(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(order.getPaymentMethod())
                 .invoiceNumber(invoice.getInvoiceNumber())
+                .invoiceUrl(invoice.getPdfUrl())
+                .enrolledCourseIds(order.getItems().stream()
+                        .map(OrderItem::getCourseId)
+                        .collect(Collectors.toList()))
+                .createdAt(order.getCreatedAt())
+                .completedAt(order.getCompletedAt())
+                .message("Payment successful! You can now access your courses.")
                 .build();
     }
 
@@ -462,9 +482,14 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
                 .transactionNumber(transaction.getTransactionNumber())
-                .status(OrderStatus.PROCESSING)
+                .orderStatus(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(order.getPaymentMethod())
+                .createdAt(order.getCreatedAt())
                 .message("Please complete payment on the payment provider's page.")
                 .redirectUrl(result.getRedirectUrl())
+                .requiresRedirect(true)
                 .build();
     }
 
@@ -485,9 +510,14 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
                 .transactionNumber(transaction.getTransactionNumber())
-                .status(OrderStatus.FAILED)
+                .orderStatus(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(order.getPaymentMethod())
+                .createdAt(order.getCreatedAt())
                 .message("Payment failed: " + result.getErrorMessage())
                 .errorCode(result.getErrorCode())
+                .errorMessage(result.getErrorMessage())
                 .build();
     }
 

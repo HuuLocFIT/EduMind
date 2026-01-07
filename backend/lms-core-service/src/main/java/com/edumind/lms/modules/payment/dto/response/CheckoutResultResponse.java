@@ -24,7 +24,6 @@ public class CheckoutResultResponse {
     private Long orderId;
     private String orderNumber;
     private OrderStatus orderStatus;
-    private OrderStatus status;  // Alias for orderStatus
     private BigDecimal totalAmount;
     private String currency;
     private PaymentMethod paymentMethod;

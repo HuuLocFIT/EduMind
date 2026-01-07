@@ -30,6 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -52,9 +53,9 @@ public class EarningServiceImpl implements EarningService {
 
         // Fetch existing earnings once before the loop to avoid N+1 query problem
         List<InstructorEarning> existingEarnings = earningRepository.findByOrderId(order.getId());
-        java.util.Set<Long> existingOrderItemIds = existingEarnings.stream()
+        Set<Long> existingOrderItemIds = existingEarnings.stream()
                 .map(e -> e.getOrderItem().getId())
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
 
         for (OrderItem orderItem : orderItems) {
             // Check if earning already exists

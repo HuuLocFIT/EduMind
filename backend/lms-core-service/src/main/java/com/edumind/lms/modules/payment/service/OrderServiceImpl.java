@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -289,7 +290,7 @@ public class OrderServiceImpl implements OrderService {
         Map<Long, Course> coursesMap = courseRepository.findAllById(courseIds).stream()
                 .collect(Collectors.toMap(Course::getId, Function.identity()));
 
-        Set<Long> enrolledCourseIds = new java.util.HashSet<>(
+        Set<Long> enrolledCourseIds = new HashSet<>(
                 enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
 
         for (CartItem cartItem : cartItems) {
@@ -297,8 +298,8 @@ public class OrderServiceImpl implements OrderService {
             if (course == null || !course.isPublished()) continue;
             if (enrolledCourseIds.contains(course.getId())) continue;
 
-            BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-            BigDecimal finalPrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+            BigDecimal originalPrice = course.getOriginalPrice();
+            BigDecimal finalPrice = course.getEffectivePrice();
             BigDecimal discount = originalPrice.subtract(finalPrice);
 
             OrderItem item = new OrderItem();
