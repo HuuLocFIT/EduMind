@@ -1,8 +1,8 @@
 package com.edumind.auth.controller;
 
 import com.edumind.auth.config.TestSecurityConfig;
-import com.edumind.auth.dto.response.FileUploadResponse;
-import com.edumind.auth.service.CloudinaryService;
+import com.edumind.common.dto.FileUploadResponse;
+import com.edumind.common.service.CloudinaryService;
 import com.edumind.common.exception.BadRequestException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

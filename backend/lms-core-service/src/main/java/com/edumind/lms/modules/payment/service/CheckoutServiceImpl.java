@@ -327,11 +327,20 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         // Generate invoice
         InvoiceResponse invoice = invoiceService.generateInvoice(order);
+        
+        // Generate PDF for invoice
+        invoiceService.generateInvoicePdf(invoice.getId());
+        
+        // Reload invoice to get updated PDF URL
+        invoice = invoiceService.getInvoiceById(invoice.getId());
 
         // Publish event
         eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
 
         log.info("Free order completed: {}", order.getOrderNumber());
+
+        // Load order items explicitly (lazy loading issue)
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
         return CheckoutResultResponse.builder()
                 .success(true)
@@ -343,7 +352,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .paymentMethod(order.getPaymentMethod())
                 .invoiceNumber(invoice.getInvoiceNumber())
                 .invoiceUrl(invoice.getPdfUrl())
-                .enrolledCourseIds(order.getItems().stream()
+                .enrolledCourseIds(orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList()))
                 .createdAt(order.getCreatedAt())
@@ -443,9 +452,18 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         // Generate invoice
         InvoiceResponse invoice = invoiceService.generateInvoice(order);
+        
+        // Generate PDF for invoice
+        invoiceService.generateInvoicePdf(invoice.getId());
+        
+        // Reload invoice to get updated PDF URL
+        invoice = invoiceService.getInvoiceById(invoice.getId());
 
         // Publish event
         eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
+
+        // Load order items explicitly (lazy loading issue)
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
         return CheckoutResultResponse.builder()
                 .success(true)
@@ -459,7 +477,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .paymentMethod(order.getPaymentMethod())
                 .invoiceNumber(invoice.getInvoiceNumber())
                 .invoiceUrl(invoice.getPdfUrl())
-                .enrolledCourseIds(order.getItems().stream()
+                .enrolledCourseIds(orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList()))
                 .createdAt(order.getCreatedAt())

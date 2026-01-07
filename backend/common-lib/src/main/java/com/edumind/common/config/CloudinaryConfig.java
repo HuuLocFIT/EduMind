@@ -1,4 +1,4 @@
-package com.edumind.auth.config;
+package com.edumind.common.config;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
@@ -27,3 +27,4 @@ public class CloudinaryConfig {
         ));
     }
 }
+

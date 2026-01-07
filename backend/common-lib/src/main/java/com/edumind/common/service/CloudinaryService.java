@@ -1,13 +1,12 @@
-package com.edumind.auth.service;
+package com.edumind.common.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
-import com.edumind.auth.dto.response.FileUploadResponse;
+import com.edumind.common.dto.FileUploadResponse;
 import com.edumind.common.exception.FileUploadException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,14 +14,17 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class CloudinaryService {
-    private static final Logger logger = LoggerFactory.getLogger(CloudinaryService.class);
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-    @Autowired
-    private Cloudinary cloudinary;
+    private final Cloudinary cloudinary;
 
+    /**
+     * Upload document (PDF, DOC, etc.)
+     */
     public FileUploadResponse uploadDocument(MultipartFile file, String folder) {
         validateFile(file);
 
@@ -35,8 +37,9 @@ public class CloudinaryService {
 
             String publicId = folder + "/" + UUID.randomUUID().toString() + extension;
 
-            logger.info("🔄 Uploading document to Cloudinary: {}", originalFilename);
+            log.info("🔄 Uploading document to Cloudinary: {}", originalFilename);
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
@@ -49,7 +52,7 @@ public class CloudinaryService {
             );
 
             String secureUrl = (String) uploadResult.get("secure_url");
-            logger.info("✅ Upload success: {}", secureUrl);
+            log.info("✅ Upload success: {}", secureUrl);
 
             return FileUploadResponse.builder()
                     .publicId((String) uploadResult.get("public_id"))
@@ -61,8 +64,68 @@ public class CloudinaryService {
                     .build();
 
         } catch (IOException e) {
-            logger.error("❌ Failed to upload document to Cloudinary", e);
+            log.error("❌ Failed to upload document to Cloudinary", e);
             throw new FileUploadException("Failed to upload document: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Upload PDF bytes directly (for generated PDFs)
+     */
+    public FileUploadResponse uploadPdf(byte[] pdfBytes, String folder, String filename) {
+        if (pdfBytes == null || pdfBytes.length == 0) {
+            throw new FileUploadException("PDF bytes cannot be empty");
+        }
+
+        try {
+            // Ensure filename has .pdf extension for Cloudinary to recognize format
+            String filenameWithExt = filename.endsWith(".pdf") ? filename : filename + ".pdf";
+            // Only use filename in publicId, let Cloudinary add folder automatically
+            // This prevents duplicate folder prefix (e.g., "edumind/invoices/edumind/invoices/...")
+            String publicId = filenameWithExt;
+
+            log.info("🔄 Uploading PDF to Cloudinary: {} in folder: {}", filenameWithExt, folder);
+
+            // Validate PDF bytes (check PDF magic bytes: %PDF)
+            if (pdfBytes.length < 4 || 
+                pdfBytes[0] != 0x25 || // %
+                pdfBytes[1] != 0x50 || // P
+                pdfBytes[2] != 0x44 || // D
+                pdfBytes[3] != 0x46) { // F
+                log.warn("⚠️ Warning: PDF bytes may not be valid PDF format");
+            }
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    pdfBytes,
+                    ObjectUtils.asMap(
+                            "public_id", publicId,
+                            "folder", folder,
+                            "resource_type", "auto",
+                            "use_filename", false,
+                            "unique_filename", false
+                            // Note: Do not specify "format" for raw files - Cloudinary auto-detects from bytes
+                            // Note: publicId should NOT include folder path when "folder" option is specified
+                    )
+            );
+
+            String secureUrl = (String) uploadResult.get("secure_url");
+            String detectedResourceType = (String) uploadResult.get("resource_type");
+            String detectedFormat = (String) uploadResult.get("format");
+            log.info("✅ PDF uploaded successfully: {} (Type: {}, Format: {})", secureUrl, detectedResourceType, detectedFormat);
+
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(filenameWithExt)
+                    .fileType("pdf")
+                    .resourceType("raw")
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
+
+        } catch (IOException e) {
+            log.error("❌ Failed to upload PDF to Cloudinary", e);
+            throw new FileUploadException("Failed to upload PDF: " + e.getMessage());
         }
     }
 
@@ -76,8 +139,9 @@ public class CloudinaryService {
         try {
             String publicId = folder + "/" + UUID.randomUUID().toString();
 
-            logger.info("🔄 Uploading image to Cloudinary: {}", file.getOriginalFilename());
+            log.info("🔄 Uploading image to Cloudinary: {}", file.getOriginalFilename());
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
@@ -92,7 +156,7 @@ public class CloudinaryService {
             );
 
             String secureUrl = (String) uploadResult.get("secure_url");
-            logger.info("✅ Image uploaded successfully: {}", secureUrl);
+            log.info("✅ Image uploaded successfully: {}", secureUrl);
 
             return FileUploadResponse.builder()
                     .publicId((String) uploadResult.get("public_id"))
@@ -104,7 +168,7 @@ public class CloudinaryService {
                     .build();
 
         } catch (IOException e) {
-            logger.error("❌ Failed to upload image to Cloudinary", e);
+            log.error("❌ Failed to upload image to Cloudinary", e);
             throw new FileUploadException("Failed to upload image: " + e.getMessage());
         }
     }
@@ -115,25 +179,24 @@ public class CloudinaryService {
      * @param resourceType: "image", "video", or "raw"
      */
     public void deleteFile(String publicId, String resourceType) {
-        // 1. Validate publicId
         if (publicId == null || publicId.trim().isEmpty()) {
-            logger.warn("⚠️ Delete skipped: publicId is null or empty");
+            log.warn("⚠️ Delete skipped: publicId is null or empty");
             return;
         }
 
         try {
-            logger.info("🔄 Deleting file from Cloudinary. PublicId: {}, Type: {}", publicId, resourceType);
+            log.info("🔄 Deleting file from Cloudinary. PublicId: {}, Type: {}", publicId, resourceType);
 
             String validResourceType = (resourceType == null || resourceType.trim().isEmpty()) ? "image" : resourceType;
 
             if (!"image".equals(validResourceType)
                     && !"video".equals(validResourceType)
                     && !"raw".equals(validResourceType)) {
-
-                logger.warn("⚠️ Invalid resource_type '{}' detected. Defaulting to 'image'.", resourceType);
+                log.warn("⚠️ Invalid resource_type '{}' detected. Defaulting to 'image'.", resourceType);
                 validResourceType = "image";
             }
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> deleteResult = cloudinary.uploader().destroy(
                     publicId,
                     ObjectUtils.asMap(
@@ -144,16 +207,16 @@ public class CloudinaryService {
 
             String result = (String) deleteResult.get("result");
             if ("ok".equals(result)) {
-                logger.info("✅ File deleted successfully: {}", publicId);
+                log.info("✅ File deleted successfully: {}", publicId);
             } else if ("not found".equals(result)) {
-                logger.warn("⚠️ File not found on Cloudinary (already deleted?): {}", publicId);
+                log.warn("⚠️ File not found on Cloudinary (already deleted?): {}", publicId);
             } else {
-                logger.error("❌ Failed to delete file. Cloudinary response: {}", result);
+                log.error("❌ Failed to delete file. Cloudinary response: {}", result);
                 throw new FileUploadException("Cloudinary error: " + result);
             }
 
         } catch (IOException e) {
-            logger.error("❌ Exception while deleting file from Cloudinary", e);
+            log.error("❌ Exception while deleting file from Cloudinary", e);
             throw new FileUploadException("Failed to delete file: " + e.getMessage());
         }
     }
@@ -198,7 +261,7 @@ public class CloudinaryService {
             return publicId;
 
         } catch (Exception e) {
-            logger.error("❌ Failed to extract public_id from URL: {}", url);
+            log.error("❌ Failed to extract public_id from URL: {}", url);
             return null;
         }
     }
@@ -216,7 +279,7 @@ public class CloudinaryService {
             }
             return "image"; // Default to image if not found
         } catch (Exception e) {
-            logger.error("❌ Failed to extract resource_type from URL: {}", url);
+            log.error("❌ Failed to extract resource_type from URL: {}", url);
             return "image"; // Default on error
         }
     }
@@ -262,3 +325,4 @@ public class CloudinaryService {
         }
     }
 }
+
