@@ -1,8 +1,8 @@
 package com.edumind.lms.modules.course.service;
 
 import com.edumind.common.response.ApiResponse;
-import com.edumind.lms.modules.course.client.UserClient;
 import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
+import com.edumind.lms.shared.client.UserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

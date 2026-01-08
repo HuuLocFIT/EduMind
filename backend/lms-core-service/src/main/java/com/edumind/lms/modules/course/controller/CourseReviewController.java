@@ -2,7 +2,6 @@ package com.edumind.lms.modules.course.controller;
 
 import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.PagedResponse;
-import com.edumind.lms.modules.course.client.UserClient;
 import com.edumind.lms.modules.course.dto.request.CreateReviewRequest;
 import com.edumind.lms.modules.course.dto.request.InstructorReplyRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateReviewRequest;
@@ -12,6 +11,7 @@ import com.edumind.lms.modules.course.dto.response.ReviewResponse;
 import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
 import com.edumind.lms.modules.course.entity.CourseReview;
 import com.edumind.lms.modules.course.service.CourseReviewService;
+import com.edumind.lms.shared.client.UserClient;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

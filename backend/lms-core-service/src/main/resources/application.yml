@@ -101,3 +101,32 @@ app:
   review:
     auto-approve-enabled: ${REVIEW_AUTO_APPROVE_ENABLED:true}
     auto-approve-threshold: ${REVIEW_AUTO_APPROVE_THRESHOLD:0}
+
+# Payment Gateway Configuration
+payment:
+  gateway: ${PAYMENT_GATEWAY:mock}  # mock | paypal | sepay
+
+  # Mock Gateway (for development/testing)
+  mock:
+    enabled: true
+    delay-ms: 1500                  # Simulate processing delay
+    success-rate: 0.95              # 95% success rate for testing
+    # Test card numbers:
+    # - Ends with 0000: Always success
+    # - Ends with 1111: Always fail
+    # - Others: Based on success-rate
+
+  # PayPal Configuration (future)
+  paypal:
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    mode: ${PAYPAL_MODE:sandbox}    # sandbox | live
+    webhook-id: ${PAYPAL_WEBHOOK_ID:}
+
+  # SePay Configuration (future - Vietnam)
+  sepay:
+    api-key: ${SEPAY_API_KEY:}
+    merchant-id: ${SEPAY_MERCHANT_ID:}
+    secret-key: ${SEPAY_SECRET_KEY:}
+    base-url: ${SEPAY_BASE_URL:https://my.sepay.vn}
+    webhook-secret: ${SEPAY_WEBHOOK_SECRET:}

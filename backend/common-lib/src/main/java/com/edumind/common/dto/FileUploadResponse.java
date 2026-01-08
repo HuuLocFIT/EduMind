@@ -1,4 +1,4 @@
-package com.edumind.auth.dto.response;
+package com.edumind.common.dto;
 
 import lombok.Builder;
 import lombok.Data;
@@ -13,3 +13,4 @@ public class FileUploadResponse {
     private String resourceType;  // raw or image
     private long size;
 }
+

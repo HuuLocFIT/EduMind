@@ -1,7 +1,7 @@
 package com.edumind.auth.controller;
 
-import com.edumind.auth.dto.response.FileUploadResponse;
-import com.edumind.auth.service.CloudinaryService;
+import com.edumind.common.dto.FileUploadResponse;
+import com.edumind.common.service.CloudinaryService;
 import com.edumind.common.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
