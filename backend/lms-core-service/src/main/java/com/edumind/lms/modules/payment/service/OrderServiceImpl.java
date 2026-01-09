@@ -313,6 +313,7 @@ public class OrderServiceImpl implements OrderService {
             item.setFinalPrice(finalPrice);
             item.setOriginalPrice(originalPrice);
             item.setDiscountAmount(discount);
+            item.setCurrency("USD");
 
             orderItemRepository.save(item);
 
@@ -365,6 +366,7 @@ public class OrderServiceImpl implements OrderService {
         item.setFinalPrice(effectivePrice);
         item.setOriginalPrice(originalPrice);
         item.setDiscountAmount(discount);
+        item.setCurrency("USD");
 
         orderItemRepository.save(item);
 
@@ -419,6 +421,8 @@ public class OrderServiceImpl implements OrderService {
                 .finalPrice(item.getFinalPrice())
                 .originalPrice(item.getOriginalPrice())
                 .discountAmount(item.getDiscountAmount())
+                .currency(item.getCurrency() != null ? item.getCurrency() : "USD")
+                .createdAt(item.getCreatedAt())
                 .build();
     }
 

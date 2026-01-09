@@ -87,6 +87,20 @@ export const USER_ROUTES = {
   // Teacher Application
   TEACHER_APPLICATION: '/teacher/application',
   TEACHER_APPLICATION_STATUS: '/teacher/application/status',
+
+  // Cart & Checkout
+  CART: '/cart',
+  CHECKOUT: '/checkout',
+  CHECKOUT_SUCCESS: '/checkout/success',
+  CHECKOUT_FAILED: '/checkout/failed',
+
+  // Orders
+  ORDERS: '/orders',
+  ORDER_DETAIL: '/orders/:orderId',
+
+  // Invoices
+  INVOICES: '/invoices',
+  INVOICE_DETAIL: '/invoices/:invoiceId',
   
   // Not found
   NOT_FOUND: '/404',

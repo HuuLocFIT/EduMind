@@ -197,6 +197,7 @@ public class CartServiceImpl implements CartService {
                 .discountTotal(totalDiscount)
                 .totalAmount(totalAmount)
                 .currency("USD")    
+                .createdAt(cart.getCreatedAt())
                 .updatedAt(cart.getUpdatedAt())
                 .build();
 

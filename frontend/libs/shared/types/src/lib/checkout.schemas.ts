@@ -83,20 +83,20 @@ export const CheckoutPreviewResponseSchema = z.object({
   // Pricing breakdown
   subtotal: z.number(),
   discountTotal: z.number(),
-  taxAmount: z.number(),
-  taxRate: z.number(),
+  taxAmount: z.number().nullable(),
+  taxRate: z.number().nullable(),
   totalAmount: z.number(),
   currency: z.string(),
 
   // Payment options
   isFreeCheckout: z.boolean(),
   requiresPayment: z.boolean(),
-  availablePaymentMethods: z.array(z.string()),
+  availablePaymentMethods: z.array(z.string()).nullable(),
 
   // Validation
   isValid: z.boolean(),
-  validationErrors: z.array(z.string()).optional(),
-  warnings: z.array(z.string()).optional(),
+  validationErrors: z.array(z.string()).nullable().optional(),
+  warnings: z.array(z.string()).nullable().optional(),
 });
 
 export const CheckoutResultResponseSchema = z.object({

@@ -10,7 +10,7 @@ export const AddToCartRequestSchema = z.object({
 // ==================== Response Schemas ====================
 
 export const CartItemResponseSchema = z.object({
-  id: z.number(),
+  id: z.number().nullable().optional(),
   courseId: z.number(),
 
   // Course details

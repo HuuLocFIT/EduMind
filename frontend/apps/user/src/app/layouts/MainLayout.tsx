@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
+import { CartIcon, CartDrawer } from "../components/payment-module";
 import {
   BookOpen,
   GraduationCap,
@@ -27,6 +28,7 @@ export const MainLayout: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   const isStudent = user?.roles.includes(UserRole.STUDENT);
   const isTeacher =
@@ -125,6 +127,9 @@ export const MainLayout: React.FC = () => {
 
               {isAuthenticated ? (
                 <div className="flex items-center gap-4">
+                  {/* Cart */}
+                  <CartIcon onClick={() => setCartDrawerOpen(true)} />
+
                   {/* Wishlist */}
                   <button
                     onClick={() => navigate(USER_ROUTES.WISHLIST)}
@@ -455,6 +460,9 @@ export const MainLayout: React.FC = () => {
       <main>
         <Outlet />
       </main>
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
 
       {/* Footer */}
       <footer className="bg-white border-t mt-12">
