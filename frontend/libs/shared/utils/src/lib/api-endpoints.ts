@@ -287,14 +287,60 @@ export const WISHLIST_ENDPOINTS = {
 } as const;
 
 /**
- * Payment endpoints (for future use)
+ * Cart endpoints
  */
-export const PAYMENT_ENDPOINTS = {
-  BASE: `${API_BASE_PATH}/payments`,
-  CREATE: `${API_BASE_PATH}/payments`,
-  DETAIL: (paymentId: string | number) => `${API_BASE_PATH}/payments/${paymentId}`,
-  HISTORY: `${API_BASE_PATH}/payments/history`,
-  VERIFY: (paymentId: string | number) => `${API_BASE_PATH}/payments/${paymentId}/verify`,
+export const CART_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/cart`,
+  ITEMS: `${API_BASE_PATH}/cart/items`,
+  ITEM: (courseId: string | number) => `${API_BASE_PATH}/cart/items/${courseId}`,
+  COUNT: `${API_BASE_PATH}/cart/count`,
+  CHECK: (courseId: string | number) => `${API_BASE_PATH}/cart/check/${courseId}`,
+} as const;
+
+/**
+ * Checkout endpoints
+ */
+export const CHECKOUT_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/checkout`,
+  PREVIEW: `${API_BASE_PATH}/checkout/preview`,
+  DIRECT_PREVIEW: `${API_BASE_PATH}/checkout/direct/preview`,
+  DIRECT: `${API_BASE_PATH}/checkout/direct`,
+} as const;
+
+/**
+ * Order endpoints
+ */
+export const ORDER_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/orders`,
+  DETAIL: (orderId: string | number) => `${API_BASE_PATH}/orders/${orderId}`,
+  BY_NUMBER: (orderNumber: string) => `${API_BASE_PATH}/orders/number/${orderNumber}`,
+  CANCEL: (orderId: string | number) => `${API_BASE_PATH}/orders/${orderId}/cancel`,
+  REFUND: (orderId: string | number) => `${API_BASE_PATH}/orders/${orderId}/refund`,
+  COUNT: `${API_BASE_PATH}/orders/count`,
+} as const;
+
+/**
+ * Invoice endpoints
+ */
+export const INVOICE_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/invoices`,
+  DETAIL: (invoiceId: string | number) => `${API_BASE_PATH}/invoices/${invoiceId}`,
+  BY_NUMBER: (invoiceNumber: string) => `${API_BASE_PATH}/invoices/number/${invoiceNumber}`,
+  BY_ORDER: (orderId: string | number) => `${API_BASE_PATH}/invoices/order/${orderId}`,
+  DOWNLOAD: (invoiceId: string | number) => `${API_BASE_PATH}/invoices/${invoiceId}/download`,
+  VIEW: (invoiceId: string | number) => `${API_BASE_PATH}/invoices/${invoiceId}/view`,
+} as const;
+
+/**
+ * Earning endpoints (Teacher)
+ */
+export const EARNING_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/teacher/earnings`,
+  DETAIL: (earningId: string | number) => `${API_BASE_PATH}/teacher/earnings/${earningId}`,
+  SUMMARY: `${API_BASE_PATH}/teacher/earnings/summary`,
+  MONTHLY: `${API_BASE_PATH}/teacher/earnings/monthly`,
+  BY_COURSE: `${API_BASE_PATH}/teacher/earnings/by-course`,
+  EXPORT: `${API_BASE_PATH}/teacher/earnings/export`,
 } as const;
 
 /**
