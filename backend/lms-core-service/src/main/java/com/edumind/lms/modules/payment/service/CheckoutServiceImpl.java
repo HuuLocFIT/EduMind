@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.payment.service;
 
 import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.EnrollmentService;
@@ -160,8 +161,9 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         List<String> warnings = new ArrayList<>();
-        // Use existsByCourseIdAndStudentId which is more efficient (uses indexed columns directly)
-        if (enrollmentRepository.existsByCourseIdAndStudentId(course.getId(), userId)) {
+        // Use existsByCourseIdAndStudentIdAndStatusNot to allow re-enrollment if DROPPED
+        if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
+                course.getId(), userId, EnrollmentStatus.DROPPED)) {
             warnings.add("Already enrolled in: " + course.getTitle());
         }
 
@@ -237,8 +239,9 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new CourseNotAvailableException(request.getCourseId(), "Course is not published");
         }
 
-        // Use existsByCourseIdAndStudentId which is more efficient (uses indexed columns directly)
-        if (enrollmentRepository.existsByCourseIdAndStudentId(request.getCourseId(), userId)) {
+        // Use existsByCourseIdAndStudentIdAndStatusNot to allow re-enrollment if DROPPED
+        if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
+                request.getCourseId(), userId, com.edumind.lms.modules.course.enums.EnrollmentStatus.DROPPED)) {
             throw new CourseAlreadyPurchasedException(request.getCourseId());
         }
 

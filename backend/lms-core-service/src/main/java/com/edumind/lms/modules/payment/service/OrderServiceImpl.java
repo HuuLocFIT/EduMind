@@ -427,6 +427,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderSummaryResponse buildOrderSummary(Order order, int itemCount) {
+        OrderItem firstItem = order.getItems().isEmpty() ? null : order.getItems().get(0);
+
         return OrderSummaryResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -434,6 +436,8 @@ public class OrderServiceImpl implements OrderService {
                 .itemCount(itemCount)
                 .totalAmount(order.getTotalAmount())
                 .currency(order.getCurrency())
+                .firstCourseTitle(firstItem != null ? firstItem.getCourseTitle() : null)
+                .firstCourseThumbnail(firstItem != null ? firstItem.getCourseThumbnailUrl() : null)
                 .createdAt(order.getCreatedAt())
                 .completedAt(order.getCompletedAt())
                 .build();

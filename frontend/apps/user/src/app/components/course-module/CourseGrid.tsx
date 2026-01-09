@@ -13,8 +13,10 @@ interface CourseGridProps {
   enrolledCourseIds?: Set<number>;
   cartCourseIds?: Set<number>;
   addingToCartIds?: Set<number>;
+  enrollingCourseIds?: Set<number>;
   onAddToCart?: (courseId: number) => void;
   onGoToCourse?: (courseId: number) => void;
+  onEnrollFree?: (courseId: number) => void;
 }
 
 export const CourseGrid: React.FC<CourseGridProps> = ({
@@ -26,8 +28,10 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
   enrolledCourseIds = new Set(),
   cartCourseIds = new Set(),
   addingToCartIds = new Set(),
+  enrollingCourseIds = new Set(),
   onAddToCart,
   onGoToCourse,
+  onEnrollFree,
 }) => {
   const gridClasses = {
     2: "grid-cols-1 sm:grid-cols-2",
@@ -55,8 +59,10 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
           isEnrolled={enrolledCourseIds.has(course.id)}
           isInCart={cartCourseIds.has(course.id)}
           isAddingToCart={addingToCartIds.has(course.id)}
+          isEnrolling={enrollingCourseIds.has(course.id)}
           onAddToCart={onAddToCart}
           onGoToCourse={onGoToCourse}
+          onEnrollFree={onEnrollFree}
         />
       ))}
     </div>

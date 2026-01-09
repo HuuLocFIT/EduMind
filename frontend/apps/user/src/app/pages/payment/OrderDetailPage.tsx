@@ -5,19 +5,76 @@ import { useOrder, useCancelOrder, useRequestRefund } from "../../hooks/useOrder
 import { useInvoiceByOrder } from "../../hooks/useInvoices";
 import {
   Package, ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle,
-  Download, FileText, RefreshCw,
+  Download, FileText, RefreshCw, CreditCard, Receipt, Calendar,
+  User, Hash, TrendingUp,
 } from "lucide-react";
 import { USER_ROUTES, UserRouteHelpers, downloadBlob } from "@edumind/shared-utils";
 import { OrderStatus } from "@edumind/shared-constants";
 import { invoiceService } from "../../services/invoice.service";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock; description: string }> = {
-  [OrderStatus.PENDING]: { label: "Pending", color: "yellow", icon: Clock, description: "Your order is being processed" },
-  [OrderStatus.PROCESSING]: { label: "Processing", color: "blue", icon: Clock, description: "Payment is being verified" },
-  [OrderStatus.COMPLETED]: { label: "Completed", color: "green", icon: CheckCircle, description: "Order completed successfully" },
-  [OrderStatus.FAILED]: { label: "Failed", color: "red", icon: XCircle, description: "Payment failed" },
-  [OrderStatus.CANCELLED]: { label: "Cancelled", color: "gray", icon: XCircle, description: "Order was cancelled" },
-  [OrderStatus.REFUNDED]: { label: "Refunded", color: "blue", icon: RefreshCw, description: "Refund has been processed" },
+const STATUS_CONFIG: Record<string, {
+  label: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  icon: typeof Clock;
+  description: string;
+  gradient: string;
+}> = {
+  [OrderStatus.PENDING]: {
+    label: "Pending",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-200",
+    icon: Clock,
+    description: "Your order is being processed",
+    gradient: "from-amber-50 to-amber-100/50",
+  },
+  [OrderStatus.PROCESSING]: {
+    label: "Processing",
+    color: "text-blue-600",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
+    icon: Clock,
+    description: "Payment is being verified",
+    gradient: "from-blue-50 to-blue-100/50",
+  },
+  [OrderStatus.COMPLETED]: {
+    label: "Completed",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50",
+    borderColor: "border-emerald-200",
+    icon: CheckCircle,
+    description: "Order completed successfully",
+    gradient: "from-emerald-50 to-emerald-100/50",
+  },
+  [OrderStatus.FAILED]: {
+    label: "Failed",
+    color: "text-red-600",
+    bgColor: "bg-red-50",
+    borderColor: "border-red-200",
+    icon: XCircle,
+    description: "Payment failed",
+    gradient: "from-red-50 to-red-100/50",
+  },
+  [OrderStatus.CANCELLED]: {
+    label: "Cancelled",
+    color: "text-gray-600",
+    bgColor: "bg-gray-50",
+    borderColor: "border-gray-200",
+    icon: XCircle,
+    description: "Order was cancelled",
+    gradient: "from-gray-50 to-gray-100/50",
+  },
+  [OrderStatus.REFUNDED]: {
+    label: "Refunded",
+    color: "text-purple-600",
+    bgColor: "bg-purple-50",
+    borderColor: "border-purple-200",
+    icon: RefreshCw,
+    description: "Refund has been processed",
+    gradient: "from-purple-50 to-purple-100/50",
+  },
 };
 
 export const OrderDetailPage: React.FC = () => {
@@ -78,11 +135,18 @@ export const OrderDetailPage: React.FC = () => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const formatCurrency = (amount: number, currency = "USD") => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).format(amount);
   };
 
   // Loading state
@@ -97,14 +161,20 @@ export const OrderDetailPage: React.FC = () => {
   // Error state
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="p-8 max-w-md text-center">
-          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Order Not Found</h2>
-          <p className="text-gray-600 mb-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <Card className="p-8 sm:p-12 max-w-md text-center rounded-2xl border border-gray-200 shadow-lg">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <XCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Order Not Found</h2>
+          <p className="text-gray-600 mb-6">
             {(error as Error)?.message || "Unable to load order details"}
           </p>
-          <Button variant="primary" onClick={() => navigate(USER_ROUTES.ORDERS)}>
+          <Button
+            variant="primary"
+            onClick={() => navigate(USER_ROUTES.ORDERS)}
+            className="bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md"
+          >
             Back to Orders
           </Button>
         </Card>
@@ -121,95 +191,108 @@ export const OrderDetailPage: React.FC = () => {
     <>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6">
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Back Button - Icon only on mobile */}
-              <button
-                onClick={() => navigate(USER_ROUTES.ORDERS)}
-                className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex-shrink-0"
-              >
-                <ArrowLeft className="w-4 h-4 text-gray-600" />
-                <span className="hidden sm:inline ml-1.5 text-sm font-medium text-gray-700">Orders</span>
-              </button>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
-                  Order #{order.orderNumber}
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-500 truncate">{formatDate(order.createdAt)}</p>
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+            {/* Mobile: Back + Order Info on same row, Status below | Desktop: All on same row */}
+            <div className="space-y-3 sm:space-y-0">
+              {/* First Row: Back Button + Order Info */}
+              <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+                {/* Back Button */}
+                <button
+                  onClick={() => navigate(USER_ROUTES.ORDERS)}
+                  className="flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex-shrink-0 group"
+                >
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
+                  <span className="hidden sm:inline ml-2 text-sm font-medium text-gray-700 group-hover:text-gray-900">Back to Orders</span>
+                </button>
+                
+                {/* Order Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-200/50 flex-shrink-0">
+                      <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900 break-words sm:truncate">
+                        Order #{order.orderNumber}
+                      </h1>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-500">
+                           <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                           <span className="break-words sm:truncate">{formatDate(order.createdAt)}</span>
+                        </div>
+                        <span className="hidden sm:inline text-gray-300 mx-1">|</span>
+                        <div className={`sm:hidden px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 border ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor}`}>
+                          <StatusIcon className="w-3 h-3" />
+                          <span>{statusConfig.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Status Badge - Desktop only */}
+                <div className={`hidden sm:flex px-4 py-2 rounded-full text-sm font-semibold items-center gap-2 border ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} shadow-sm flex-shrink-0`}>
+                  <StatusIcon className="w-4 h-4" />
+                  <span>{statusConfig.label}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
           <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             
             {/* Sidebar - Show FIRST on mobile */}
             <div className="order-1 lg:order-2 lg:col-span-1 space-y-4 sm:space-y-6">
-              {/* Status Card - Mobile optimized */}
-              <Card className={`p-3 sm:p-4 lg:p-6 border-l-4 ${
-                statusConfig.color === "green" ? "border-l-green-500" :
-                statusConfig.color === "yellow" ? "border-l-yellow-500" :
-                statusConfig.color === "red" ? "border-l-red-500" :
-                statusConfig.color === "blue" ? "border-l-blue-500" :
-                statusConfig.color === "orange" ? "border-l-orange-500" :
-                "border-l-gray-500"
-              }`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    statusConfig.color === "green" ? "bg-green-100 text-green-600" :
-                    statusConfig.color === "yellow" ? "bg-yellow-100 text-yellow-600" :
-                    statusConfig.color === "red" ? "bg-red-100 text-red-600" :
-                    statusConfig.color === "blue" ? "bg-blue-100 text-blue-600" :
-                    statusConfig.color === "orange" ? "bg-orange-100 text-orange-600" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>
-                    <StatusIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900">{statusConfig.label}</h2>
-                    <p className="text-xs sm:text-sm text-gray-600 truncate">{statusConfig.description}</p>
-                  </div>
-                </div>
-              </Card>
-
               {/* Order Summary */}
-              <Card className="p-3 sm:p-4 lg:p-6">
-                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Order Summary</h3>
-                <div className="space-y-2 sm:space-y-3">
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-600">Subtotal:</span>
-                    <span>${order.subtotal?.toFixed(2) || "0.00"}</span>
+              <Card className="p-4 sm:p-5 lg:p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                  <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                  <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Order Summary</h3>
+                </div>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex justify-between items-center text-xs sm:text-sm lg:text-base">
+                    <span className="text-gray-600 font-medium">Subtotal:</span>
+                    <span className="font-semibold text-gray-900 text-right break-words">{formatCurrency(order.subtotal || 0, order.currency)}</span>
                   </div>
                   {(order as any).discountAmount > 0 && (
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-gray-600">Discount:</span>
-                      <span className="text-green-600">-${(order as any).discountAmount.toFixed(2)}</span>
+                    <div className="flex justify-between items-center text-xs sm:text-sm lg:text-base">
+                      <span className="text-gray-600 font-medium">Discount:</span>
+                      <span className="font-semibold text-emerald-600 text-right break-words">-{formatCurrency((order as any).discountAmount, order.currency)}</span>
                     </div>
                   )}
-                  <div className="pt-2 sm:pt-3 border-t">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm sm:text-base font-semibold">Total:</span>
-                      <PriceTag price={order.totalAmount} size="md" />
+                  <div className="pt-3 sm:pt-4 border-t-2 border-gray-100">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Total:</span>
+                      <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600 text-right break-words">
+                        {formatCurrency(order.totalAmount, order.currency)}
+                      </div>
                     </div>
                   </div>
                 </div>
               </Card>
 
               {/* Payment Info */}
-              <Card className="p-3 sm:p-4 lg:p-6">
-                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Payment</h3>
-                <div className="space-y-2 text-xs sm:text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Method:</span>
-                    <span>{order.paymentMethod}</span>
+              <Card className="p-4 sm:p-5 lg:p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                  <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Payment Information</h3>
+                </div>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-xl">
+                    <span className="text-xs sm:text-sm text-gray-600 font-medium">Method:</span>
+                    <span className="text-xs sm:text-sm font-semibold text-gray-900 capitalize text-right">{order.paymentMethod}</span>
                   </div>
                   {(order as any).transaction && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-gray-600 flex-shrink-0">Transaction:</span>
-                      <span className="font-mono text-xs truncate">{(order as any).transaction.transactionId}</span>
+                    <div className="p-3 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-xs text-gray-500 font-medium">Transaction ID</span>
+                      </div>
+                      <span className="font-mono text-xs sm:text-sm text-gray-900 break-all">{((order as any).transaction.transactionId || "").substring(0, 20)}...</span>
                     </div>
                   )}
                 </div>
@@ -217,23 +300,30 @@ export const OrderDetailPage: React.FC = () => {
 
               {/* Invoice */}
               {invoice && (
-                <Card className="p-3 sm:p-4 lg:p-6">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Invoice</h3>
-                  <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                    <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm sm:text-base font-medium truncate">{invoice.invoiceNumber}</p>
-                      <p className="text-xs text-gray-500">PDF Invoice</p>
+                <Card className="p-4 sm:p-5 lg:p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                    <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Invoice</h3>
+                  </div>
+                  <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl mb-3 sm:mb-4 border border-blue-200/50">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white flex items-center justify-center shadow-sm flex-shrink-0">
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-semibold text-gray-900 break-words mb-0.5">{invoice.invoiceNumber}</p>
+                        <p className="text-xs text-gray-600">PDF Document</p>
+                      </div>
                     </div>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="primary"
                     size="sm"
-                    className="w-full"
+                    className="w-full bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all text-xs sm:text-sm"
                     onClick={handleDownloadInvoice}
-                    leftIcon={<Download className="w-4 h-4" />}
+                    leftIcon={<Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                   >
-                    Download
+                    Download Invoice
                   </Button>
                 </Card>
               )}
@@ -242,49 +332,80 @@ export const OrderDetailPage: React.FC = () => {
             {/* Main Content */}
             <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Order Items */}
-              <Card className="p-3 sm:p-4 lg:p-6">
-                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                  Order Items ({order.items?.length || 0})
-                </h3>
-                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
-                  {order.items?.map((item) => (
-                    <div key={item.courseId} className="flex items-center gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 bg-gray-50 rounded-lg">
-                      <div className="w-14 h-10 sm:w-16 sm:h-12 lg:w-20 lg:h-14 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+              <Card className="p-4 sm:p-5 lg:p-8 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900">
+                        Order Items
+                      </h3>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                        {order.items?.length || 0} {order.items?.length === 1 ? "course" : "courses"} in this order
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 sm:space-y-4">
+                  {order.items?.map((item, index) => (
+                    <Link
+                      key={item.courseId}
+                      to={UserRouteHelpers.courseDetail(item.courseId)}
+                      className="group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all duration-300"
+                    >
+                      <div className="w-full sm:w-20 sm:h-14 lg:w-24 lg:h-16 aspect-video sm:aspect-auto rounded-xl overflow-hidden bg-gray-200 flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
                         {item.courseThumbnailUrl ? (
                           <img
                             src={item.courseThumbnailUrl}
                             alt={item.courseTitle}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200" />
+                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                            <Package className="w-6 h-6 text-blue-400" />
+                          </div>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <Link
-                          to={UserRouteHelpers.courseDetail(item.courseId)}
-                          className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 hover:text-blue-600 line-clamp-2"
-                        >
+                      <div className="flex-1 min-w-0 w-full sm:w-auto">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 mb-1.5">
                           {item.courseTitle}
-                        </Link>
-                        <p className="text-xs text-gray-500 truncate">{item.instructorName}</p>
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2 sm:mb-0">
+                          <User className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">{item.instructorName}</span>
+                        </div>
                       </div>
-                      <PriceTag price={item.finalPrice} size="sm" />
-                    </div>
+                      <div className="flex-shrink-0 text-left sm:text-right w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 sm:border-0">
+                        <div className="text-base sm:text-lg font-bold text-gray-900">
+                          {formatCurrency(item.finalPrice, order.currency)}
+                        </div>
+                        {item.originalPrice && item.originalPrice > item.finalPrice && (
+                          <div className="text-xs text-gray-400 line-through">
+                            {formatCurrency(item.originalPrice, order.currency)}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </Card>
 
               {/* Actions */}
               {(canCancel || canRefund) && (
-                <Card className="p-3 sm:p-4 lg:p-6">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Actions</h3>
-                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                <Card className="p-4 sm:p-5 lg:p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0" />
+                    <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Order Actions</h3>
+                  </div>
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
                     {canCancel && (
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => setIsCancelDialogOpen(true)}
+                        className="w-full sm:w-auto bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:border-red-300 shadow-sm hover:shadow-md transition-all text-xs sm:text-sm"
                       >
                         Cancel Order
                       </Button>
@@ -294,6 +415,7 @@ export const OrderDetailPage: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setIsRefundDialogOpen(true)}
+                        className="w-full sm:w-auto bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:border-amber-300 shadow-sm hover:shadow-md transition-all text-xs sm:text-sm"
                       >
                         Request Refund
                       </Button>
@@ -319,18 +441,64 @@ export const OrderDetailPage: React.FC = () => {
         isLoading={cancelOrder.isPending}
       />
 
-      {/* Refund Dialog */}
-      <ConfirmDialog
-        isOpen={isRefundDialogOpen}
-        onClose={() => setIsRefundDialogOpen(false)}
-        onConfirm={handleRequestRefund}
-        title="Request Refund"
-        message="Please provide a reason for your refund request. Our team will review it within 3-5 business days."
-        confirmText="Submit Request"
-        cancelText="Cancel"
-        variant="warning"
-        isLoading={requestRefund.isPending}
-      />
+      {/* Refund Dialog - Custom Modal */}
+      {isRefundDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 lg:p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start sm:items-center gap-3 mb-4 sm:mb-6">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Request Refund</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Our team will review within 3-5 business days</p>
+              </div>
+            </div>
+            
+            <div className="mb-4 sm:mb-6">
+              <label htmlFor="refund-reason" className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                Reason for Refund <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="refund-reason"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Please provide a detailed reason for your refund request..."
+                rows={4}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-none text-xs sm:text-sm"
+              />
+              {refundReason.length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">This field is required</p>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsRefundDialogOpen(false);
+                  setRefundReason("");
+                }}
+                className="flex-1 border-gray-300 hover:bg-gray-50 text-xs sm:text-sm"
+                disabled={requestRefund.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleRequestRefund}
+                isLoading={requestRefund.isPending}
+                disabled={!refundReason.trim()}
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+              >
+                Submit Request
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
