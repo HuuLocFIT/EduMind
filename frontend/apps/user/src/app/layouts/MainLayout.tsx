@@ -16,6 +16,7 @@ import {
   Settings,
   UserPlus,
   FileText,
+  Package,
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
@@ -218,6 +219,17 @@ export const MainLayout: React.FC = () => {
                           Wishlist
                         </button>
 
+                        <button
+                          onClick={() => {
+                            navigate(USER_ROUTES.ORDERS);
+                            setUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                        >
+                          <Package className="w-4 h-4" />
+                          My Orders
+                        </button>
+
                         {/* ========================================== */}
                         {/* STUDENT: Teacher Application Section */}
                         {/* ========================================== */}
@@ -360,6 +372,13 @@ export const MainLayout: React.FC = () => {
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Certificates
+                    </Link>
+                    <Link
+                      to={USER_ROUTES.ORDERS}
+                      className="text-gray-700 hover:text-blue-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      My Orders
                     </Link>
                     <Link
                       to={USER_ROUTES.PROFILE_SETTINGS}
