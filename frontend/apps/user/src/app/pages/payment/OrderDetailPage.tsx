@@ -122,33 +122,34 @@ export const OrderDetailPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6">
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Back Button - Icon only on mobile */}
+              <button
                 onClick={() => navigate(USER_ROUTES.ORDERS)}
-                leftIcon={<ArrowLeft className="w-4 h-4" />}
-                size="sm"
+                className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex-shrink-0"
               >
-                Back to Orders
-              </Button>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-900">
+                <ArrowLeft className="w-4 h-4 text-gray-600" />
+                <span className="hidden sm:inline ml-1.5 text-sm font-medium text-gray-700">Orders</span>
+              </button>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">
                   Order #{order.orderNumber}
                 </h1>
-                <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
+                <p className="text-xs sm:text-sm text-gray-500 truncate">{formatDate(order.createdAt)}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Status Card */}
-              <Card className={`p-6 border-l-4 ${
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            
+            {/* Sidebar - Show FIRST on mobile */}
+            <div className="order-1 lg:order-2 lg:col-span-1 space-y-4 sm:space-y-6">
+              {/* Status Card - Mobile optimized */}
+              <Card className={`p-3 sm:p-4 lg:p-6 border-l-4 ${
                 statusConfig.color === "green" ? "border-l-green-500" :
                 statusConfig.color === "yellow" ? "border-l-yellow-500" :
                 statusConfig.color === "red" ? "border-l-red-500" :
@@ -156,8 +157,8 @@ export const OrderDetailPage: React.FC = () => {
                 statusConfig.color === "orange" ? "border-l-orange-500" :
                 "border-l-gray-500"
               }`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
                     statusConfig.color === "green" ? "bg-green-100 text-green-600" :
                     statusConfig.color === "yellow" ? "bg-yellow-100 text-yellow-600" :
                     statusConfig.color === "red" ? "bg-red-100 text-red-600" :
@@ -165,24 +166,90 @@ export const OrderDetailPage: React.FC = () => {
                     statusConfig.color === "orange" ? "bg-orange-100 text-orange-600" :
                     "bg-gray-100 text-gray-600"
                   }`}>
-                    <StatusIcon className="w-6 h-6" />
+                    <StatusIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{statusConfig.label}</h2>
-                    <p className="text-sm text-gray-600">{statusConfig.description}</p>
+                  <div className="min-w-0">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900">{statusConfig.label}</h2>
+                    <p className="text-xs sm:text-sm text-gray-600 truncate">{statusConfig.description}</p>
                   </div>
                 </div>
               </Card>
 
+              {/* Order Summary */}
+              <Card className="p-3 sm:p-4 lg:p-6">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Order Summary</h3>
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex justify-between text-xs sm:text-sm">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span>${order.subtotal?.toFixed(2) || "0.00"}</span>
+                  </div>
+                  {(order as any).discountAmount > 0 && (
+                    <div className="flex justify-between text-xs sm:text-sm">
+                      <span className="text-gray-600">Discount:</span>
+                      <span className="text-green-600">-${(order as any).discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 sm:pt-3 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm sm:text-base font-semibold">Total:</span>
+                      <PriceTag price={order.totalAmount} size="md" />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Payment Info */}
+              <Card className="p-3 sm:p-4 lg:p-6">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Payment</h3>
+                <div className="space-y-2 text-xs sm:text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Method:</span>
+                    <span>{order.paymentMethod}</span>
+                  </div>
+                  {(order as any).transaction && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-gray-600 flex-shrink-0">Transaction:</span>
+                      <span className="font-mono text-xs truncate">{(order as any).transaction.transactionId}</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Invoice */}
+              {invoice && (
+                <Card className="p-3 sm:p-4 lg:p-6">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Invoice</h3>
+                  <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                    <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm sm:text-base font-medium truncate">{invoice.invoiceNumber}</p>
+                      <p className="text-xs text-gray-500">PDF Invoice</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleDownloadInvoice}
+                    leftIcon={<Download className="w-4 h-4" />}
+                  >
+                    Download
+                  </Button>
+                </Card>
+              )}
+            </div>
+
+            {/* Main Content */}
+            <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Order Items */}
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <Card className="p-3 sm:p-4 lg:p-6">
+                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                   Order Items ({order.items?.length || 0})
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                   {order.items?.map((item) => (
-                    <div key={item.courseId} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-20 h-14 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                    <div key={item.courseId} className="flex items-center gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 bg-gray-50 rounded-lg">
+                      <div className="w-14 h-10 sm:w-16 sm:h-12 lg:w-20 lg:h-14 rounded overflow-hidden bg-gray-200 flex-shrink-0">
                         {item.courseThumbnailUrl ? (
                           <img
                             src={item.courseThumbnailUrl}
@@ -196,11 +263,11 @@ export const OrderDetailPage: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <Link
                           to={UserRouteHelpers.courseDetail(item.courseId)}
-                          className="font-medium text-gray-900 hover:text-blue-600"
+                          className="text-xs sm:text-sm lg:text-base font-medium text-gray-900 hover:text-blue-600 line-clamp-2"
                         >
                           {item.courseTitle}
                         </Link>
-                        <p className="text-sm text-gray-500">{item.instructorName}</p>
+                        <p className="text-xs text-gray-500 truncate">{item.instructorName}</p>
                       </div>
                       <PriceTag price={item.finalPrice} size="sm" />
                     </div>
@@ -210,12 +277,13 @@ export const OrderDetailPage: React.FC = () => {
 
               {/* Actions */}
               {(canCancel || canRefund) && (
-                <Card className="p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Actions</h3>
-                  <div className="flex gap-3">
+                <Card className="p-3 sm:p-4 lg:p-6">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4">Actions</h3>
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
                     {canCancel && (
                       <Button
                         variant="secondary"
+                        size="sm"
                         onClick={() => setIsCancelDialogOpen(true)}
                       >
                         Cancel Order
@@ -224,77 +292,13 @@ export const OrderDetailPage: React.FC = () => {
                     {canRefund && (
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => setIsRefundDialogOpen(true)}
                       >
                         Request Refund
                       </Button>
                     )}
                   </div>
-                </Card>
-              )}
-            </div>
-
-            {/* Sidebar */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Order Summary */}
-              <Card className="p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Order Summary</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal:</span>
-                    <span>${order.subtotal?.toFixed(2) || "0.00"}</span>
-                  </div>
-                  {(order as any).discountAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discount:</span>
-                      <span className="text-green-600">-${(order as any).discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="pt-3 border-t">
-                    <div className="flex justify-between">
-                      <span className="font-semibold">Total:</span>
-                      <PriceTag price={order.totalAmount} size="md" />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Payment Info */}
-              <Card className="p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Payment</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Method:</span>
-                    <span>{order.paymentMethod}</span>
-                  </div>
-                  {(order as any).transaction && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Transaction:</span>
-                      <span className="font-mono text-xs">{(order as any).transaction.transactionId}</span>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Invoice */}
-              {invoice && (
-                <Card className="p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Invoice</h3>
-                  <div className="flex items-center gap-3 mb-4">
-                    <FileText className="w-8 h-8 text-blue-600" />
-                    <div>
-                      <p className="font-medium">{invoice.invoiceNumber}</p>
-                      <p className="text-sm text-gray-500">PDF Invoice</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleDownloadInvoice}
-                    leftIcon={<Download className="w-4 h-4" />}
-                  >
-                    Download Invoice
-                  </Button>
                 </Card>
               )}
             </div>

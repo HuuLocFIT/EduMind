@@ -151,44 +151,162 @@ export const CheckoutPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Back Button - Icon only on mobile */}
+            <button
               onClick={() => navigate(USER_ROUTES.CART)}
-              leftIcon={<ArrowLeft className="w-4 h-4" />}
-              size="sm"
+              className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
             >
-              Back to Cart
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">Checkout</h1>
-            </div>
-            <div className="flex items-center gap-2 text-green-600">
-              <ShieldCheck className="w-5 h-5" />
-              <span className="text-sm font-medium">Secure Checkout</span>
+              <ArrowLeft className="w-4 h-4 text-gray-600" />
+              <span className="hidden sm:inline ml-1.5 text-sm font-medium text-gray-700">Back</span>
+            </button>
+            
+            <h1 className="flex-1 text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
+              Checkout
+            </h1>
+            
+            {/* Secure Badge - Hidden on mobile, shown on tablet+ */}
+            <div className="hidden sm:flex items-center gap-1.5 text-green-600">
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm font-medium">Secure</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content - Payment Selection */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Order Items Preview */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          
+          {/* Order Summary - Show FIRST on mobile */}
+          <div className="order-1 lg:order-2 lg:col-span-1">
+            <Card className="p-4 sm:p-6 lg:sticky lg:top-8">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                Order Summary
+              </h3>
+
+              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                <div className="flex justify-between text-xs sm:text-sm">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="text-gray-900">${subtotal.toFixed(2)}</span>
+                </div>
+                
+                {discount > 0 && (
+                  <div className="flex justify-between text-xs sm:text-sm">
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="text-green-600">-${discount.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {tax > 0 && (
+                  <div className="flex justify-between text-xs sm:text-sm">
+                    <span className="text-gray-600">Tax:</span>
+                    <span className="text-gray-900">${tax.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="pt-2 sm:pt-3 border-t">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm sm:text-base font-semibold text-gray-900">Total:</span>
+                    <PriceTag price={total} size="lg" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Complete Order Button - Mobile visible */}
+              <Button
+                variant="primary"
+                onClick={handleCheckout}
+                disabled={!selectedPaymentMethod || checkoutMutation.isPending}
+                isLoading={checkoutMutation.isPending}
+                className="w-full"
+                size="lg"
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+              >
+                {checkoutMutation.isPending ? "Processing..." : (
+                  <>
+                    <span className="hidden sm:inline">Complete Order</span>
+                    <span className="sm:hidden">Pay Now</span>
+                  </>
+                )}
+              </Button>
+
+              {/* Security Badges */}
+              <div className="mt-3 sm:mt-4 flex flex-wrap gap-3 sm:gap-0 sm:flex-col sm:space-y-2">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Lock className="w-3 h-3" />
+                  <span>SSL encrypted</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>30-day guarantee</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Main Content - Order Items & Payment Methods */}
+          <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
+            
+            {/* Payment Method Selection - Show before items on mobile for faster checkout */}
+            <Card className="p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                Payment Method
+              </h2>
+              <div className="space-y-2 sm:space-y-3">
+                {PAYMENT_METHODS.map((method) => {
+                  const Icon = method.icon;
+                  const isSelected = selectedPaymentMethod === method.id;
+
+                  return (
+                    <button
+                      key={method.id}
+                      onClick={() => handleSelectPaymentMethod(method.id)}
+                      className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border-2 transition-all ${
+                        isSelected
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm sm:text-base font-medium text-gray-900">{method.name}</p>
+                        <p className="text-xs sm:text-sm text-gray-500 truncate">{method.description}</p>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? "border-blue-600" : "border-gray-300"
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* Order Items Preview - Collapsible on mobile */}
+            <Card className="p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Order Items ({items.length})
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {items.map((item) => (
                   <div
                     key={item.courseId}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg"
                   >
-                    <div className="w-16 h-12 rounded overflow-hidden bg-gray-200 flex-shrink-0">
+                    <div className="w-12 h-9 sm:w-16 sm:h-12 rounded overflow-hidden bg-gray-200 flex-shrink-0">
                       {item.courseThumbnailUrl ? (
                         <img
                           src={item.courseThumbnailUrl}
@@ -200,10 +318,10 @@ export const CheckoutPage: React.FC = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">
+                      <p className="text-sm sm:text-base font-medium text-gray-900 truncate">
                         {item.courseTitle}
                       </p>
-                      <p className="text-sm text-gray-500">{item.instructorName}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 truncate">{item.instructorName}</p>
                     </div>
                     <PriceTag
                       price={item.effectivePrice}
@@ -212,114 +330,6 @@ export const CheckoutPage: React.FC = () => {
                     />
                   </div>
                 ))}
-              </div>
-            </Card>
-
-            {/* Payment Method Selection */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Payment Method
-              </h2>
-              <div className="space-y-3">
-                {PAYMENT_METHODS.map((method) => {
-                  const Icon = method.icon;
-                  const isSelected = selectedPaymentMethod === method.id;
-
-                  return (
-                    <button
-                      key={method.id}
-                      onClick={() => handleSelectPaymentMethod(method.id)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? "border-blue-600 bg-blue-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-gray-900">{method.name}</p>
-                        <p className="text-sm text-gray-500">{method.description}</p>
-                      </div>
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? "border-blue-600" : "border-gray-300"
-                        }`}
-                      >
-                        {isSelected && (
-                          <div className="w-3 h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-
-          {/* Sidebar - Order Summary */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 sticky top-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Order Summary
-              </h3>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="text-gray-900">${subtotal.toFixed(2)}</span>
-                </div>
-                
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Discount:</span>
-                    <span className="text-green-600">-${discount.toFixed(2)}</span>
-                  </div>
-                )}
-                
-                {tax > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax:</span>
-                    <span className="text-gray-900">${tax.toFixed(2)}</span>
-                  </div>
-                )}
-
-                <div className="pt-3 border-t">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-gray-900">Total:</span>
-                    <PriceTag price={total} size="lg" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Complete Order Button */}
-              <Button
-                variant="primary"
-                onClick={handleCheckout}
-                disabled={!selectedPaymentMethod || checkoutMutation.isPending}
-                isLoading={checkoutMutation.isPending}
-                className="w-full"
-                size="lg"
-                rightIcon={<ArrowRight className="w-4 h-4" />}
-              >
-                {checkoutMutation.isPending ? "Processing..." : "Complete Order"}
-              </Button>
-
-              {/* Security Badges */}
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Lock className="w-3 h-3" />
-                  <span>256-bit SSL encryption</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <ShieldCheck className="w-3 h-3" />
-                  <span>30-day money-back guarantee</span>
-                </div>
               </div>
             </Card>
           </div>

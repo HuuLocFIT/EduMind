@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.payment.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,6 +26,7 @@ public class CheckoutItemPreview {
     private BigDecimal discountAmount;
     private String currency;
 
+    @JsonProperty("isFree")
     private boolean isFree;
 }
 

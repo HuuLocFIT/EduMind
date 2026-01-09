@@ -318,17 +318,25 @@ export const MainLayout: React.FC = () => {
               )}
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
+            {/* Mobile Menu Button + Cart Icon */}
+            <div className="flex items-center gap-1 md:hidden">
+              {/* Cart Icon - Always visible on mobile for authenticated users */}
+              {isAuthenticated && (
+                <CartIcon onClick={() => setCartDrawerOpen(true)} />
               )}
-            </button>
+              
+              {/* Hamburger Menu */}
+              <button
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Menu */}
