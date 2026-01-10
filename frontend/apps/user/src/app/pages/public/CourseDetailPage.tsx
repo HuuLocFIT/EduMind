@@ -353,16 +353,25 @@ export const CourseDetailPage: React.FC = () => {
                   />
                 )}
 
-                {/* Add to Cart Button (for paid courses) */}
+                  {/* Buy Now & Add to Cart Buttons (for paid courses) */}
                 {course.price > 0 && !isEnrolled && (
-                  <AddToCartButton
-                    courseId={Number(courseId)}
-                    isEnrolled={isEnrolled}
-                    fullWidth
-                    variant="primary"
-                    size="lg"
-                    className="mb-4"
-                  />
+                  <div className="space-y-3 mb-4">
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => navigate(`${USER_ROUTES.CHECKOUT}?courseId=${course.id}`)}
+                    >
+                      Buy Now
+                    </Button>
+                    <AddToCartButton
+                      courseId={Number(courseId)}
+                      isEnrolled={isEnrolled}
+                      fullWidth
+                      variant="outline"
+                      size="lg"
+                    />
+                  </div>
                 )}
 
                 {/* Already Enrolled indicator */}

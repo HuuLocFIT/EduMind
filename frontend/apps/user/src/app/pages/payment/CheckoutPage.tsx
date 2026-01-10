@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button, Loading, PriceTag, useToast } from "@edumind/user-ui";
-import { useCheckoutPreview, useCheckout } from "../../hooks/useCheckout";
+import {
+  useCheckoutPreview,
+  useCheckout,
+  useDirectCheckoutPreview,
+  useDirectCheckout,
+} from "../../hooks/useCheckout";
 import { useCheckoutStore } from "../../stores/checkout.store";
 import { useCartStore } from "../../stores/cart.store";
 import { CreditCard, Wallet, ArrowLeft, ArrowRight, ShieldCheck, Lock } from "lucide-react";
 import { USER_ROUTES, UserRouteHelpers } from "@edumind/shared-utils";
 import { PaymentMethod } from "@edumind/shared-constants";
-import type { CheckoutRequest } from "@edumind/shared-types";
+import type { CheckoutRequest, DirectCheckoutRequest } from "@edumind/shared-types";
 
 const PAYMENT_METHODS = [
   {
@@ -29,6 +34,10 @@ export const CheckoutPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { success: showSuccess, error: showError } = useToast();
 
+  const courseIdParam = searchParams.get("courseId");
+  const directCourseId = courseIdParam ? Number(courseIdParam) : null;
+  const isDirectCheckout = !!directCourseId;
+
   // Store state
   const {
     selectedPaymentMethod,
@@ -39,9 +48,29 @@ export const CheckoutPage: React.FC = () => {
   } = useCheckoutStore();
   const { clearCart } = useCartStore();
 
-  // Server state
-  const { data: preview, isLoading, error } = useCheckoutPreview(true);
-  const checkoutMutation = useCheckout();
+  // Server state - Cart Checkout
+  const {
+    data: cartPreview,
+    isLoading: isCartLoading,
+    error: cartError,
+  } = useCheckoutPreview(!isDirectCheckout);
+  const cartCheckoutMutation = useCheckout();
+
+  // Server state - Direct Checkout
+  const {
+    data: directPreview,
+    isLoading: isDirectLoading,
+    error: directError,
+  } = useDirectCheckoutPreview(directCourseId || 0, isDirectCheckout);
+  const directCheckoutMutation = useDirectCheckout();
+
+  // Derived state
+  const preview = isDirectCheckout ? directPreview : cartPreview;
+  const isLoading = isDirectCheckout ? isDirectLoading : isCartLoading;
+  const error = isDirectCheckout ? directError : cartError;
+  const isPending = isDirectCheckout
+    ? directCheckoutMutation.isPending
+    : cartCheckoutMutation.isPending;
 
   // Reset checkout state on mount
   useEffect(() => {
@@ -49,12 +78,12 @@ export const CheckoutPage: React.FC = () => {
     setStep("payment");
   }, [resetCheckout, setStep]);
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty (Only in Cart mode)
   useEffect(() => {
-    if (!isLoading && preview && preview.itemCount === 0) {
+    if (!isDirectCheckout && !isLoading && cartPreview && cartPreview.itemCount === 0) {
       navigate(USER_ROUTES.CART);
     }
-  }, [preview, isLoading, navigate]);
+  }, [isDirectCheckout, cartPreview, isLoading, navigate]);
 
   const handleSelectPaymentMethod = (method: PaymentMethod) => {
     setPaymentMethod(method);
@@ -67,21 +96,34 @@ export const CheckoutPage: React.FC = () => {
     }
 
     if (!preview || preview.itemCount === 0) {
-      showError("Your cart is empty");
-      navigate(USER_ROUTES.CART);
+      showError("No items to checkout");
+      if (!isDirectCheckout) {
+        navigate(USER_ROUTES.CART);
+      }
       return;
     }
 
     setStep("processing");
 
-    const request: CheckoutRequest = {
+    const baseRequest = {
       paymentMethod: selectedPaymentMethod,
       successUrl: `${window.location.origin}${USER_ROUTES.CHECKOUT_SUCCESS}`,
       cancelUrl: `${window.location.origin}${USER_ROUTES.CHECKOUT_FAILED}`,
     };
 
     try {
-      const result = await checkoutMutation.mutateAsync(request);
+      let result;
+
+      if (isDirectCheckout && directCourseId) {
+        const directRequest: DirectCheckoutRequest = {
+          courseId: directCourseId,
+          ...baseRequest,
+        };
+        result = await directCheckoutMutation.mutateAsync(directRequest);
+      } else {
+        const cartRequest: CheckoutRequest = baseRequest;
+        result = await cartCheckoutMutation.mutateAsync(cartRequest);
+      }
 
       if (result.success) {
         setResult({
@@ -89,8 +131,12 @@ export const CheckoutPage: React.FC = () => {
           redirectUrl: result.redirectUrl || undefined,
         });
 
-        // Clear cart on success
-        clearCart();
+        // Clear cart on success ONLY if it was a cart checkout
+        // (Direct checkout doesn't affect cart items necessarily, 
+        // though the backend might have logic for it if duplicates exist)
+        if (!isDirectCheckout) {
+          clearCart();
+        }
 
         // If there's a redirect URL (external payment), go there
         if (result.redirectUrl) {
@@ -102,7 +148,11 @@ export const CheckoutPage: React.FC = () => {
       } else {
         setStep("failed");
         setResult({ errorMessage: result.message || "Payment failed" });
-        navigate(`${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(result.message || "Payment failed")}`);
+        navigate(
+          `${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(
+            result.message || "Payment failed"
+          )}`
+        );
       }
     } catch (err: any) {
       setStep("failed");
@@ -133,8 +183,11 @@ export const CheckoutPage: React.FC = () => {
           <p className="text-gray-600 mb-4">
             {(error as Error)?.message || "Unable to load checkout"}
           </p>
-          <Button variant="primary" onClick={() => navigate(USER_ROUTES.CART)}>
-            Return to Cart
+          <Button
+            variant="primary"
+            onClick={() => navigate(isDirectCheckout ? USER_ROUTES.COURSES : USER_ROUTES.CART)}
+          >
+            Return to {isDirectCheckout ? "Courses" : "Cart"}
           </Button>
         </Card>
       </div>
@@ -155,17 +208,19 @@ export const CheckoutPage: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Back Button - Icon only on mobile */}
             <button
-              onClick={() => navigate(USER_ROUTES.CART)}
+              onClick={() => navigate(isDirectCheckout ? `${USER_ROUTES.COURSES}/${directCourseId}` : USER_ROUTES.CART)}
               className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
             >
               <ArrowLeft className="w-4 h-4 text-gray-600" />
-              <span className="hidden sm:inline ml-1.5 text-sm font-medium text-gray-700">Back</span>
+              <span className="hidden sm:inline ml-1.5 text-sm font-medium text-gray-700">
+                Back
+              </span>
             </button>
-            
+
             <h1 className="flex-1 text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-              Checkout
+              {isDirectCheckout ? "Buy Now" : "Checkout"}
             </h1>
-            
+
             {/* Secure Badge - Hidden on mobile, shown on tablet+ */}
             <div className="hidden sm:flex items-center gap-1.5 text-green-600">
               <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -178,7 +233,6 @@ export const CheckoutPage: React.FC = () => {
       {/* Content */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          
           {/* Order Summary - Show FIRST on mobile */}
           <div className="order-1 lg:order-2 lg:col-span-1">
             <Card className="p-4 sm:p-6 lg:sticky lg:top-8">
@@ -191,14 +245,16 @@ export const CheckoutPage: React.FC = () => {
                   <span className="text-gray-600">Subtotal:</span>
                   <span className="text-gray-900">${subtotal.toFixed(2)}</span>
                 </div>
-                
+
                 {discount > 0 && (
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-gray-600">Discount:</span>
-                    <span className="text-green-600">-${discount.toFixed(2)}</span>
+                    <span className="text-green-600">
+                      -${discount.toFixed(2)}
+                    </span>
                   </div>
                 )}
-                
+
                 {tax > 0 && (
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-gray-600">Tax:</span>
@@ -208,7 +264,9 @@ export const CheckoutPage: React.FC = () => {
 
                 <div className="pt-2 sm:pt-3 border-t">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm sm:text-base font-semibold text-gray-900">Total:</span>
+                    <span className="text-sm sm:text-base font-semibold text-gray-900">
+                      Total:
+                    </span>
                     <PriceTag price={total} size="lg" />
                   </div>
                 </div>
@@ -218,13 +276,15 @@ export const CheckoutPage: React.FC = () => {
               <Button
                 variant="primary"
                 onClick={handleCheckout}
-                disabled={!selectedPaymentMethod || checkoutMutation.isPending}
-                isLoading={checkoutMutation.isPending}
+                disabled={!selectedPaymentMethod || isPending}
+                isLoading={isPending}
                 className="w-full"
                 size="lg"
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
-                {checkoutMutation.isPending ? "Processing..." : (
+                {isPending ? (
+                  "Processing..."
+                ) : (
                   <>
                     <span className="hidden sm:inline">Complete Order</span>
                     <span className="sm:hidden">Pay Now</span>
@@ -248,7 +308,6 @@ export const CheckoutPage: React.FC = () => {
 
           {/* Main Content - Order Items & Payment Methods */}
           <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
-            
             {/* Payment Method Selection - Show before items on mobile for faster checkout */}
             <Card className="p-4 sm:p-6">
               <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
@@ -271,14 +330,20 @@ export const CheckoutPage: React.FC = () => {
                     >
                       <div
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
+                          isSelected
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-600"
                         }`}
                       >
                         <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <p className="text-sm sm:text-base font-medium text-gray-900">{method.name}</p>
-                        <p className="text-xs sm:text-sm text-gray-500 truncate">{method.description}</p>
+                        <p className="text-sm sm:text-base font-medium text-gray-900">
+                          {method.name}
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-500 truncate">
+                          {method.description}
+                        </p>
                       </div>
                       <div
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
@@ -321,11 +386,15 @@ export const CheckoutPage: React.FC = () => {
                       <p className="text-sm sm:text-base font-medium text-gray-900 truncate">
                         {item.courseTitle}
                       </p>
-                      <p className="text-xs sm:text-sm text-gray-500 truncate">{item.instructorName}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 truncate">
+                        {item.instructorName}
+                      </p>
                     </div>
                     <PriceTag
                       price={item.effectivePrice}
-                      originalPrice={item.discountAmount ? item.originalPrice : undefined}
+                      originalPrice={
+                        item.discountAmount ? item.originalPrice : undefined
+                      }
                       size="sm"
                     />
                   </div>
