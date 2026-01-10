@@ -133,6 +133,9 @@ const TeacherStudentsPage = createLazyRoute(
 const TeacherReviewsPage = createLazyRoute(
   () => import("./pages/teacher/TeacherReviewsPage")
 );
+const TeacherEarningsPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherEarningsPage")
+);
 
 function AppContent() {
   const { toasts, closeToast } = useToast();
@@ -440,6 +443,16 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.ANALYTICS}
                 element={<TeacherAnalyticsPage />}
+              />
+              
+              {/* Earnings */}
+              <Route
+                path={TEACHER_ROUTES.EARNINGS}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading earnings..." />}>
+                    <TeacherEarningsPage />
+                  </Suspense>
+                }
               />
 
               {/* Settings */}
