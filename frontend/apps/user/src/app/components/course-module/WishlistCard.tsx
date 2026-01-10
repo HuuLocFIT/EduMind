@@ -23,18 +23,34 @@ export const WishlistCard: React.FC<WishlistCardProps> = ({
   const isFree = item.price === 0;
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <div className="flex flex-col gap-4 p-4 md:flex-row">
+    <Card 
+      className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 rounded-xl overflow-hidden group"
+      padding="none" // Ensure image touches edges
+    >
+      <div className="flex flex-col md:flex-row h-full relative">
+        {/* Remove Button - Absolute Top Right */}
+        <button
+          onClick={(e) => {
+             e.stopPropagation();
+             onRemove(item.courseId);
+          }}
+          disabled={isRemoving}
+          className="absolute top-3 right-3 z-10 p-2 bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full shadow-sm transition-all"
+          title="Remove from wishlist"
+        >
+          {isRemoving ? <Loading /> : <Trash2 className="w-5 h-5" />}
+        </button>
+
         {/* Course Thumbnail */}
         <div
-          className="w-full h-40 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer md:w-40 md:h-24"
+          className="w-full md:w-72 h-48 md:h-auto bg-gray-100 flex-shrink-0 relative cursor-pointer"
           onClick={onViewCourse}
         >
           {item.thumbnailUrl ? (
             <img
               src={item.thumbnailUrl}
               alt={item.courseTitle}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -43,86 +59,66 @@ export const WishlistCard: React.FC<WishlistCardProps> = ({
           )}
         </div>
 
-        {/* Course Info */}
-        <div className="flex-1 min-w-0">
-          <h3
-            className="font-semibold text-lg text-gray-900 mb-1 line-clamp-2 cursor-pointer hover:text-blue-600"
-            onClick={onViewCourse}
-          >
-            {item.courseTitle}
-          </h3>
+        {/* Content Info */}
+        <div className="flex-1 p-6 flex flex-col justify-between">
+          <div>
+             <div className="pr-10"> {/* Padding right for absolute delete button */}
+                <h3
+                  className="font-bold text-xl text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-1"
+                  onClick={onViewCourse}
+                >
+                  {item.courseTitle}
+                </h3>
+                <p className="text-gray-600 font-medium text-sm mb-2">{item.instructorName}</p>
+             </div>
 
-          <p className="text-sm text-gray-600 mb-2">{item.instructorName}</p>
+             <div className="flex items-center gap-4 mb-3">
+                <RatingStars rating={item.rating || 0} size="sm" showNumber />
+                <span className="text-sm text-gray-500 border-l pl-4 border-gray-300">
+                  {item.reviewCount || 0} reviews
+                </span>
+             </div>
 
-          <div className="flex items-center gap-4 mb-3">
-            <RatingStars rating={item.rating || 0} size="sm" showNumber />
-            <span className="text-sm text-gray-500">
-              ({item.reviewCount || 0} reviews)
-            </span>
+             <div className="mb-4">
+               <PriceTag
+                  price={item.discountPrice ?? item.price ?? 0}
+                  originalPrice={item.discountPrice ? item.price : undefined}
+                  size="lg"
+                />
+             </div>
           </div>
 
-          {/* Price */}
-          <div className="mb-3">
-            <PriceTag
-              price={item.discountPrice ?? item.price ?? 0}
-              originalPrice={item.discountPrice ? item.price : undefined}
-              size="md"
-            />
-          </div>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pt-4 border-t border-gray-100 mt-auto">
+             <div className="text-sm text-gray-500 flex items-center gap-2 mb-2 md:mb-0">
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                Added {new Date(item.addedAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+             </div>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              variant="primary"
-              onClick={() => onEnroll(item.courseId)}
-              isLoading={isEnrolling}
-              size="sm"
-              className="w-full sm:w-auto"
-            >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              {isFree ? "Enroll Free" : "Enroll Now"}
-            </Button>
+             <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={onViewCourse}
+                  className="flex-1 md:flex-none"
+                >
+                  View Details
+                </Button>
 
-            <Button
-              variant="secondary"
-              onClick={onViewCourse}
-              size="sm"
-              className="w-full sm:w-auto"
-            >
-              View Details
-            </Button>
-
-            {/* Remove – full button on mobile, icon button on larger screens */}
-            <Button
-              variant="danger"
-              onClick={() => onRemove(item.courseId)}
-              isLoading={isRemoving}
-              size="sm"
-              className="w-full sm:hidden"
-            >
-              Remove
-            </Button>
-
-            <button
-              onClick={() => onRemove(item.courseId)}
-              disabled={isRemoving}
-              className="hidden sm:inline-flex sm:ml-auto p-2 text-gray-400 hover:text-red-600 transition-colors"
-              title="Remove from wishlist"
-            >
-              {isRemoving ? <Loading /> : <Trash2 className="w-5 h-5" />}
-            </button>
+                <Button
+                  variant="primary"
+                  onClick={() => onEnroll(item.courseId)}
+                  isLoading={isEnrolling}
+                  className="flex-1 md:flex-none"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  {isFree ? "Enroll Free" : "Enroll Now"}
+                </Button>
+             </div>
           </div>
         </div>
-      </div>
-
-      {/* Added Date */}
-      <div className="px-4 pb-3 text-xs text-gray-500">
-        Added{" "}
-        {new Date(item.addedAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}
       </div>
     </Card>
   );

@@ -183,18 +183,21 @@ export const WishlistPage: React.FC = () => {
     <>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Heart className="w-8 h-8 text-red-500" />
+        <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16 relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex-shrink-0">
+                  <Heart className="w-8 h-8 text-white" />
+                </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">
-                    My Wishlist
-                  </h1>
-                  <p className="text-gray-600 mt-1">
-                    {wishlistItems.length}{" "}
-                    {wishlistItems.length === 1 ? "course" : "courses"} saved
+                  <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2">My Wishlist</h1>
+                  <p className="text-blue-100 text-sm md:text-lg">
+                    {wishlistItems.length} {wishlistItems.length === 1 ? "course" : "courses"} saved for later
                   </p>
                 </div>
               </div>
@@ -203,6 +206,7 @@ export const WishlistPage: React.FC = () => {
                 <Button
                   variant="secondary"
                   onClick={() => setIsClearDialogOpen(true)}
+                  className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20 border w-full md:w-auto justify-center"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Clear All

@@ -32,6 +32,8 @@ export const coursesKeys = {
     ['courses', 'popular', page, size] as const,
   topRated: (page: number, size: number) => 
     ['courses', 'top-rated', page, size] as const,
+  newest: (page: number, size: number) =>
+    ['courses', 'newest', page, size] as const,
   filtered: (params: {
     filterType: string;
     page: number;

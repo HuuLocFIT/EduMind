@@ -191,8 +191,12 @@ export const OrderDetailPage: React.FC = () => {
     <>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16 relative z-10">
             {/* Mobile: Back + Order Info on same row, Status below | Desktop: All on same row */}
             <div className="space-y-3 sm:space-y-0">
               {/* First Row: Back Button + Order Info */}
@@ -200,29 +204,29 @@ export const OrderDetailPage: React.FC = () => {
                 {/* Back Button */}
                 <button
                   onClick={() => navigate(USER_ROUTES.ORDERS)}
-                  className="flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex-shrink-0 group"
+                  className="flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all duration-200 flex-shrink-0 group"
                 >
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
-                  <span className="hidden sm:inline ml-2 text-sm font-medium text-gray-700 group-hover:text-gray-900">Back to Orders</span>
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <span className="hidden sm:inline ml-2 text-sm font-medium text-white">Back to Orders</span>
                 </button>
                 
                 {/* Order Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start sm:items-center gap-3">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-200/50 flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 flex-shrink-0">
                       <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900 break-words sm:truncate">
+                      <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold break-words sm:truncate">
                         Order #{order.orderNumber}
                       </h1>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-500">
+                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-blue-100">
                            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                            <span className="break-words sm:truncate">{formatDate(order.createdAt)}</span>
                         </div>
-                        <span className="hidden sm:inline text-gray-300 mx-1">|</span>
-                        <div className={`sm:hidden px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 border ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor}`}>
+                        <span className="hidden sm:inline text-blue-300 mx-1">|</span>
+                        <div className={`sm:hidden px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 bg-white/20 backdrop-blur-md text-white border border-white/30`}>
                           <StatusIcon className="w-3 h-3" />
                           <span>{statusConfig.label}</span>
                         </div>
@@ -232,7 +236,7 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
                 
                 {/* Status Badge - Desktop only */}
-                <div className={`hidden sm:flex px-4 py-2 rounded-full text-sm font-semibold items-center gap-2 border ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} shadow-sm flex-shrink-0`}>
+                <div className={`hidden sm:flex px-4 py-2 rounded-full text-sm font-semibold items-center gap-2 bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-sm flex-shrink-0`}>
                   <StatusIcon className="w-4 h-4" />
                   <span>{statusConfig.label}</span>
                 </div>

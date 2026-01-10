@@ -1,13 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, Button, Loading } from "@edumind/user-ui";
+import { Loading } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
 import { enrollmentService } from '../services/enrollment.service';
 import { courseService } from '../services/course.service';
 import { wishlistService } from '../services/wishlist.service';
 import { CourseGrid } from "../components/course-module";
-import { EnrollmentCard } from "../components/course-module/EnrollmentCard";
 import type { EnrollmentResponse, CourseResponse } from "@edumind/shared-types";
 import { queryKeys } from "../lib/query-keys";
 import {
@@ -15,63 +14,27 @@ import {
   STALE_TIME_COURSES_PUBLIC,
   STALE_TIME_WISHLIST,
 } from "../lib/query-config";
-import {
-  BookOpen,
-  Clock,
-  Award,
-  TrendingUp,
-  Heart,
-  Calendar,
-  Target,
-  Zap,
-  LucideIcon,
-} from "lucide-react";
+import { ChevronRight, ThumbsUp } from "lucide-react";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import TeacherApplicationBanner from "../components/TeacherApplicationBanner";
 
-// StatCard Component
-interface StatCardProps {
-  icon: LucideIcon;
-  label: string;
-  value: string | number;
-  color: "blue" | "green" | "purple" | "orange";
-}
-
-const StatCard: React.FC<StatCardProps> = ({
-  icon: Icon,
-  label,
-  value,
-  color,
-}) => {
-  const colorClasses = {
-    blue: "bg-blue-100 text-blue-600",
-    green: "bg-green-100 text-green-600",
-    purple: "bg-purple-100 text-purple-600",
-    orange: "bg-orange-100 text-orange-600",
-  };
-
-  return (
-    <Card className="p-6">
-      <div className="flex items-center gap-4">
-        <div
-          className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[color]}`}
-        >
-          <Icon className="w-6 h-6" />
-        </div>
-        <div>
-          <p className="text-sm text-gray-600">{label}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-        </div>
-      </div>
-    </Card>
-  );
-};
+// Import split components
+import {
+  DashboardHeroSection,
+  ContinueLearningSection,
+  DashboardSidebar,
+  CategoriesSection,
+  NewestCoursesSection,
+} from './dashboard/components';
+import { categoryService } from "../services/category.service";
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const userId = user?.id;
+  const [hoveredCourse, setHoveredCourse] = useState<number | null>(null);
 
+  // Data fetching
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<
     EnrollmentResponse[]
   >({
@@ -100,6 +63,30 @@ export const DashboardPage: React.FC = () => {
       staleTime: STALE_TIME_COURSES_PUBLIC,
     });
 
+  const { data: newestCourses = [], isLoading: newestLoading } =
+    useQuery<CourseResponse[]>({
+      queryKey: queryKeys.courses.newest(0, 4),
+      queryFn: async () => {
+        const response = await courseService.getNewestCourses({
+          page: 0,
+          size: 4,
+        });
+        return response.data || [];
+      },
+      staleTime: STALE_TIME_COURSES_PUBLIC,
+    });
+
+  const { data: categories = [], isLoading: categoriesLoading } =
+    useQuery({
+      queryKey: queryKeys.categories.active,
+      queryFn: async () => {
+        const response = await categoryService.getActiveCategories();
+        // @ts-ignore
+        return response.data || response || [];
+      },
+      staleTime: Infinity, // Categories change rarely
+    });
+
   const { data: wishlistCount = 0, isLoading: wishlistLoading } =
     useQuery<number>({
       queryKey: queryKeys.wishlist.count(userId),
@@ -108,6 +95,7 @@ export const DashboardPage: React.FC = () => {
       enabled: Boolean(userId),
     });
 
+  // Derived data
   const recentEnrollments = useMemo(
     () => enrollments.slice(0, 3),
     [enrollments]
@@ -117,21 +105,37 @@ export const DashboardPage: React.FC = () => {
     () => ({
       totalCourses: enrollments.length,
       activeCourses: enrollments.filter((e) => e.status === "ACTIVE").length,
-      completedCourses: enrollments.filter((e) => e.status === "COMPLETED")
-        .length,
-      totalHoursLearned: 0, // TODO: Calculate from course duration and progress
+      completedCourses: enrollments.filter((e) => e.status === "COMPLETED").length,
+      notStarted: enrollments.filter((e) => e.progressPercentage === 0).length,
       currentStreak: 7, // TODO: Implement streak calculation
     }),
     [enrollments]
   );
 
-  const loading = enrollmentsLoading || recommendedLoading || wishlistLoading;
+  const mostRecentCourse = useMemo(() => {
+    if (enrollments.length === 0) return null;
+    return [...enrollments].sort(
+      (a, b) => new Date(b.lastAccessedAt || b.enrolledAt).getTime() - new Date(a.lastAccessedAt || a.enrolledAt).getTime()
+    )[0];
+  }, [enrollments]);
 
+  const loading = enrollmentsLoading || recommendedLoading || wishlistLoading || newestLoading || categoriesLoading;
+
+  // Helpers
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
+  };
+
+  // Handlers
+  const handleContinueLearning = (enrollment: EnrollmentResponse) => {
+    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId: enrollment.courseId }));
+  };
+
+  const handleViewCourse = (courseId: number) => {
+    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
   };
 
   if (loading) {
@@ -143,204 +147,69 @@ export const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h1 className="text-3xl font-bold mb-2">
-            {getGreeting()}, {user?.firstName || user?.username}! 👋
-          </h1>
-          <p className="text-blue-100">Welcome back to your learning journey</p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50">
+      {/* Hero Section */}
+      <DashboardHeroSection
+        greeting={getGreeting()}
+        userName={user?.firstName || user?.username}
+        stats={stats}
+        mostRecentCourse={mostRecentCourse}
+        onContinueLearning={handleContinueLearning}
+      />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <TeacherApplicationBanner />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            icon={BookOpen}
-            label="Total Courses"
-            value={stats.totalCourses}
-            color="blue"
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="In Progress"
-            value={stats.activeCourses}
-            color="green"
-          />
-          <StatCard
-            icon={Award}
-            label="Completed"
-            value={stats.completedCourses}
-            color="purple"
-          />
-          <StatCard
-            icon={Clock}
-            label="Hours Learned"
-            value={`${stats.totalHoursLearned}h`}
-            color="orange"
-          />
-        </div>
+        <CategoriesSection
+          categories={categories}
+          onCategoryClick={(categoryId) =>
+            navigate(`${USER_ROUTES.COURSES}?category=${categoryId}`)
+          }
+        />
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          {/* Continue Learning */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Continue Learning
-              </h2>
-              <Button
-                variant="secondary"
-                onClick={() => navigate(USER_ROUTES.LEARNING)}
-              >
-                View All
-              </Button>
-            </div>
-
-            {recentEnrollments.length > 0 ? (
-              <div className="space-y-4">
-                {recentEnrollments.map((enrollment) => (
-                  <EnrollmentCard
-                    key={enrollment.id}
-                    enrollment={enrollment}
-                    onClick={() =>
-                      navigate(
-                        buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, {
-                          courseId: enrollment.courseId,
-                        })
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No courses yet
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Start learning by enrolling in a course
-                </p>
-                <Button
-                  variant="primary"
-                  onClick={() => navigate(USER_ROUTES.COURSES)}
-                >
-                  Browse Courses
-                </Button>
-              </Card>
-            )}
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Main Column */}
+          <div className="flex-1 space-y-8">
+            <ContinueLearningSection
+              enrollments={recentEnrollments}
+              hoveredCourse={hoveredCourse}
+              onHoverCourse={setHoveredCourse}
+              onContinue={handleContinueLearning}
+              onViewDetails={handleViewCourse}
+              onViewAll={() => navigate(USER_ROUTES.LEARNING)}
+              onBrowseCourses={() => navigate(USER_ROUTES.COURSES)}
+            />
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Learning Streak */}
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Current Streak</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats.currentStreak} days
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">
-                Keep it up! Learn something new every day 🔥
-              </p>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">
-                Quick Actions
-              </h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => navigate(USER_ROUTES.COURSES)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                >
-                  <BookOpen className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-gray-900">
-                    Browse Courses
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => navigate(USER_ROUTES.WISHLIST)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                >
-                  <Heart className="w-5 h-5 text-red-500" />
-                  <div className="flex-1 flex items-center justify-between">
-                    <span className="font-medium text-gray-900">
-                      My Wishlist
-                    </span>
-                    {wishlistCount > 0 && (
-                      <span className="text-sm text-gray-500">
-                        {wishlistCount}{" "}
-                        {wishlistCount === 1 ? "course" : "courses"}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => navigate(USER_ROUTES.PROFILE_SETTINGS)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                >
-                  <Target className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium text-gray-900">
-                    Learning Goals
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => navigate(USER_ROUTES.CERTIFICATES)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                >
-                  <Award className="w-5 h-5 text-green-600" />
-                  <span className="font-medium text-gray-900">
-                    Certificates
-                  </span>
-                </button>
-              </div>
-            </Card>
-
-            {/* Upcoming Events - Phase 4 */}
-            <Card className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Upcoming</h3>
-              <div className="flex items-center gap-3 text-gray-600">
-                <Calendar className="w-5 h-5" />
-                <p className="text-sm">No upcoming events</p>
-              </div>
-            </Card>
-          </div>
+          <DashboardSidebar
+            currentStreak={stats.currentStreak}
+            wishlistCount={wishlistCount}
+            onBrowseCourses={() => navigate(USER_ROUTES.COURSES)}
+            onGoToWishlist={() => navigate(USER_ROUTES.WISHLIST)}
+            onGoToGoals={() => navigate(USER_ROUTES.PROFILE_SETTINGS)}
+            onGoToCertificates={() => navigate(USER_ROUTES.CERTIFICATES)}
+          />
         </div>
 
-        {/* Recommended Courses */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
+        {/* Recommended Courses - Full Width */}
+        <div className="mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <ThumbsUp className="w-6 h-6 text-blue-600" />
                 Recommended for You
               </h2>
-              <p className="text-gray-600 mt-1">
-                Based on your learning history
-              </p>
+              <p className="text-slate-500 text-sm mt-1">Based on your learning history</p>
             </div>
-            <Button
-              variant="secondary"
+            <button
               onClick={() => navigate(USER_ROUTES.COURSES)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 transition-colors"
             >
               Explore More
-            </Button>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
           <CourseGrid
@@ -355,7 +224,20 @@ export const DashboardPage: React.FC = () => {
             columns={4}
           />
         </div>
-      </div>
+
+        {/* Newest Courses */}
+        <NewestCoursesSection
+          courses={newestCourses}
+          onViewCourse={(course: CourseResponse) =>
+            navigate(
+              buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+                courseId: course.id,
+              })
+            )
+          }
+          onViewAll={() => navigate(USER_ROUTES.COURSES)}
+        />
+      </main>
     </div>
   );
 };
