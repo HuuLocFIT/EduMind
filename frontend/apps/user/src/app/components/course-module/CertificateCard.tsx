@@ -16,9 +16,9 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
   onShare,
 }) => {
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="hover:shadow-lg transition-shadow overflow-hidden" padding="none">
       {/* Certificate Preview */}
-      <div className="relative h-48 bg-gradient-to-br from-purple-600 to-blue-600 rounded-t-lg overflow-hidden">
+      <div className="relative h-48 bg-gradient-to-br from-purple-600 to-blue-600">
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
           <Award className="w-16 h-16 mb-3" />
           <h3 className="font-bold text-center text-lg line-clamp-2">
@@ -33,7 +33,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
       </div>
 
       {/* Info */}
-      <div className="p-4">
+      <div className="p-5">
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
           <Calendar className="w-4 h-4" />
           <span>

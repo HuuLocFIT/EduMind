@@ -8,9 +8,9 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const variantStyles = {
-  default: "bg-white",
+  default: "bg-white border border-gray-200 shadow-sm",
   bordered: "bg-white border border-gray-200",
-  elevated: "bg-white shadow-md hover:shadow-lg transition-shadow duration-200",
+  elevated: "bg-white shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200",
 };
 
 const paddingStyles = {
@@ -30,7 +30,7 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={clsx(
-        "rounded-lg",
+        "rounded-xl",
         variantStyles[variant],
         paddingStyles[padding],
         className

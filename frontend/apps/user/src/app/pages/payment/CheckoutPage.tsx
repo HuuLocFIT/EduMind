@@ -203,26 +203,30 @@ export const CheckoutPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6">
+      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 relative z-10">
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Back Button - Icon only on mobile */}
             <button
               onClick={() => navigate(isDirectCheckout ? `${USER_ROUTES.COURSES}/${directCourseId}` : USER_ROUTES.CART)}
-              className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 text-gray-600" />
-              <span className="hidden sm:inline ml-1.5 text-sm font-medium text-gray-700">
+              <ArrowLeft className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline ml-1.5 text-sm font-medium">
                 Back
               </span>
             </button>
 
-            <h1 className="flex-1 text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
+            <h1 className="flex-1 text-lg sm:text-xl lg:text-2xl font-bold">
               {isDirectCheckout ? "Buy Now" : "Checkout"}
             </h1>
 
-            {/* Secure Badge - Hidden on mobile, shown on tablet+ */}
-            <div className="hidden sm:flex items-center gap-1.5 text-green-600">
+            {/* Secure Badge - Visible on all devices */}
+            <div className="flex items-center gap-1.5 text-blue-100">
               <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">Secure</span>
             </div>

@@ -82,17 +82,23 @@ export const CartPage: React.FC = () => {
     <>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16 relative z-10">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex-shrink-0">
+                  <ShoppingCart className="w-8 h-8 text-white" />
+                </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">
+                  <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2 truncate">
                     Shopping Cart
                   </h1>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
-                    {items.length} {items.length === 1 ? "course" : "courses"}
+                  <p className="text-blue-100 text-sm md:text-lg">
+                    {items.length} {items.length === 1 ? "course" : "courses"} in your cart
                   </p>
                 </div>
               </div>
@@ -100,7 +106,7 @@ export const CartPage: React.FC = () => {
               {items.length > 0 && (
                 <button
                   onClick={() => setIsClearDialogOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline">Clear Cart</span>

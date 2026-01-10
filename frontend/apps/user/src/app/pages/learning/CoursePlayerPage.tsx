@@ -5,6 +5,7 @@ import {
   Card,
   Loading,
   ProgressBar,
+  useToast,
 } from '@edumind/user-ui';
 import { courseService } from '../../services/course.service';
 import { enrollmentService } from '../../services/enrollment.service';
@@ -36,6 +37,7 @@ import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const { success: showSuccess, error: showError,} = useToast();
 
   const REDIRECT_DELAY_SECONDS = 10;
 
@@ -411,9 +413,9 @@ export const CoursePlayerPage: React.FC = () => {
         setEnrollment(foundEnrollment);
       }
 
-      alert('Lesson marked as complete!');
+      showSuccess('Lesson marked as complete!');
     } catch (err: any) {
-      alert(err?.message || 'Failed to mark lesson as complete');
+      showError(err?.message || 'Failed to mark lesson as complete');
     }
   };
 
