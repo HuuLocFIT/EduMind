@@ -18,6 +18,7 @@ import {
   ReviewForm,
   CurriculumAccordion,
 } from "../../components/course-module";
+import { AddToCartButton } from "../../components/payment-module";
 import { courseService } from '../../services/course.service';
 import { enrollmentService } from '../../services/enrollment.service';
 import { courseReviewService } from '../../services/course-review.service';
@@ -341,14 +342,48 @@ export const CourseDetailPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Enroll Button */}
-                <EnrollButton
-                  courseId={Number(courseId)}
-                  isEnrolled={isEnrolled}
-                  isFree={course.price === 0}
-                  onEnroll={handleEnroll}
-                  className="mb-4"
-                />
+                {/* Enroll Button (for free courses) */}
+                {course.price === 0 && (
+                  <EnrollButton
+                    courseId={Number(courseId)}
+                    isEnrolled={isEnrolled}
+                    isFree={true}
+                    onEnroll={handleEnroll}
+                    className="mb-4"
+                  />
+                )}
+
+                  {/* Buy Now & Add to Cart Buttons (for paid courses) */}
+                {course.price > 0 && !isEnrolled && (
+                  <div className="space-y-3 mb-4">
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => navigate(`${USER_ROUTES.CHECKOUT}?courseId=${course.id}`)}
+                    >
+                      Buy Now
+                    </Button>
+                    <AddToCartButton
+                      courseId={Number(courseId)}
+                      isEnrolled={isEnrolled}
+                      fullWidth
+                      variant="outline"
+                      size="lg"
+                    />
+                  </div>
+                )}
+
+                {/* Already Enrolled indicator */}
+                {isEnrolled && course.price > 0 && (
+                  <EnrollButton
+                    courseId={Number(courseId)}
+                    isEnrolled={true}
+                    isFree={false}
+                    onEnroll={handleEnroll}
+                    className="mb-4"
+                  />
+                )}
 
                 {/* Wishlist Button */}
                 { !isEnrolled && 

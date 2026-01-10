@@ -91,6 +91,26 @@ const ApplicationStatusPage = createLazyRoute(
   () => import("./pages/teacher-application/ApplicationStatusPage")
 );
 
+// Payment Pages
+const CartPage = createLazyRoute(
+  () => import("./pages/payment/CartPage")
+);
+const CheckoutPage = createLazyRoute(
+  () => import("./pages/payment/CheckoutPage")
+);
+const CheckoutSuccessPage = createLazyRoute(
+  () => import("./pages/payment/CheckoutSuccessPage")
+);
+const CheckoutFailedPage = createLazyRoute(
+  () => import("./pages/payment/CheckoutFailedPage")
+);
+const OrdersPage = createLazyRoute(
+  () => import("./pages/payment/OrdersPage")
+);
+const OrderDetailPage = createLazyRoute(
+  () => import("./pages/payment/OrderDetailPage")
+);
+
 // Teacher Portal Pages
 const TeacherDashboardPage = createLazyRoute(
   () => import("./pages/teacher/TeacherDashboardPage")
@@ -294,6 +314,58 @@ function AppContent() {
                   }
                 />
               </Route>
+
+              {/* Cart & Checkout */}
+              <Route
+                path={USER_ROUTES.CART}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading cart..." />}>
+                    <CartPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.CHECKOUT}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading checkout..." />}>
+                    <CheckoutPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.CHECKOUT_SUCCESS}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading..." />}>
+                    <CheckoutSuccessPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.CHECKOUT_FAILED}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading..." />}>
+                    <CheckoutFailedPage />
+                  </Suspense>
+                }
+              />
+
+              {/* Orders */}
+              <Route
+                path={USER_ROUTES.ORDERS}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading orders..." />}>
+                    <OrdersPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.ORDER_DETAIL}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading order..." />}>
+                    <OrderDetailPage />
+                  </Suspense>
+                }
+              />
             </Route>
           </Route>
 

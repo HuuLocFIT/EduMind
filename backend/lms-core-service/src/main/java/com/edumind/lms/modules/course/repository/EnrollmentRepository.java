@@ -124,10 +124,16 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     boolean existsByUserIdAndCourseId(@Param("userId") Long userId, @Param("courseId") Long courseId);
 
     /**
+     * Check if student is enrolled excluding specific status (e.g. DROPPED)
+     */
+    boolean existsByCourseIdAndStudentIdAndStatusNot(Long courseId, Long studentId, EnrollmentStatus status);
+
+    /**
      * Find enrolled course IDs for a user from a list of course IDs.
      * Optimized to use direct foreign key access instead of join through course relationship.
      * Uses course_id foreign key directly for better performance.
+     * Excludes DROPPED enrollments.
      */
-    @Query("SELECT e.course.id FROM Enrollment e WHERE e.studentId = :userId AND e.course.id IN :courseIds")
+    @Query("SELECT e.course.id FROM Enrollment e WHERE e.studentId = :userId AND e.course.id IN :courseIds AND e.status != 'DROPPED'")
     List<Long> findEnrolledCourseIds(@Param("userId") Long userId, @Param("courseIds") List<Long> courseIds);
 }

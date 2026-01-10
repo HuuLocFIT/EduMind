@@ -49,6 +49,7 @@ public class SecurityConfig {
                         // Course detail
                         .requestMatchers(HttpMethod.GET, "/courses/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/courses/slug/{slug}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/instructors/{instructorId}/stats").permitAll()
 
                         // Categories - public
                         .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()

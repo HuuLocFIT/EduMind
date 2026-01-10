@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
+import { CartIcon, CartDrawer } from "../components/payment-module";
 import {
   BookOpen,
   GraduationCap,
@@ -15,6 +16,7 @@ import {
   Settings,
   UserPlus,
   FileText,
+  Package,
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
@@ -27,6 +29,7 @@ export const MainLayout: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   const isStudent = user?.roles.includes(UserRole.STUDENT);
   const isTeacher =
@@ -125,6 +128,9 @@ export const MainLayout: React.FC = () => {
 
               {isAuthenticated ? (
                 <div className="flex items-center gap-4">
+                  {/* Cart */}
+                  <CartIcon onClick={() => setCartDrawerOpen(true)} />
+
                   {/* Wishlist */}
                   <button
                     onClick={() => navigate(USER_ROUTES.WISHLIST)}
@@ -211,6 +217,17 @@ export const MainLayout: React.FC = () => {
                         >
                           <Heart className="w-4 h-4" />
                           Wishlist
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            navigate(USER_ROUTES.ORDERS);
+                            setUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                        >
+                          <Package className="w-4 h-4" />
+                          My Orders
                         </button>
 
                         {/* ========================================== */}
@@ -301,17 +318,25 @@ export const MainLayout: React.FC = () => {
               )}
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
+            {/* Mobile Menu Button + Cart Icon */}
+            <div className="flex items-center gap-1 md:hidden">
+              {/* Cart Icon - Always visible on mobile for authenticated users */}
+              {isAuthenticated && (
+                <CartIcon onClick={() => setCartDrawerOpen(true)} />
               )}
-            </button>
+              
+              {/* Hamburger Menu */}
+              <button
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Menu */}
@@ -355,6 +380,13 @@ export const MainLayout: React.FC = () => {
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Certificates
+                    </Link>
+                    <Link
+                      to={USER_ROUTES.ORDERS}
+                      className="text-gray-700 hover:text-blue-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      My Orders
                     </Link>
                     <Link
                       to={USER_ROUTES.PROFILE_SETTINGS}
@@ -455,6 +487,9 @@ export const MainLayout: React.FC = () => {
       <main>
         <Outlet />
       </main>
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
 
       {/* Footer */}
       <footer className="bg-white border-t mt-12">

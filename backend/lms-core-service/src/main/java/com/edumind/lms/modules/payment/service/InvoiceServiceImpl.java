@@ -3,6 +3,7 @@ package com.edumind.lms.modules.payment.service;
 import com.edumind.common.service.CloudinaryService;
 import com.edumind.lms.modules.payment.config.PaymentConstants;
 import com.edumind.lms.modules.payment.dto.response.InvoiceResponse;
+import com.edumind.lms.modules.payment.dto.response.OrderItemResponse;
 import com.edumind.lms.modules.payment.entity.Invoice;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.OrderItem;
@@ -102,10 +103,10 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     private InvoiceResponse buildInvoiceResponse(Invoice invoice) {
         List<OrderItem> items = orderItemRepository.findByOrderId(invoice.getOrder().getId());
-        List<com.edumind.lms.modules.payment.dto.response.OrderItemResponse> itemResponses = items.stream()
+        List<OrderItemResponse> itemResponses = items.stream()
                 .map(item -> {
-                    com.edumind.lms.modules.payment.dto.response.OrderItemResponse.OrderItemResponseBuilder builder =
-                            com.edumind.lms.modules.payment.dto.response.OrderItemResponse.builder()
+                    OrderItemResponse.OrderItemResponseBuilder builder =
+                            OrderItemResponse.builder()
                                     .id(item.getId())
                                     .courseId(item.getCourseId())
                                     .courseTitle(item.getCourseTitle())
@@ -115,7 +116,9 @@ public class InvoiceServiceImpl implements InvoiceService {
                                     .instructorName(item.getInstructorName())
                                     .originalPrice(item.getOriginalPrice())
                                     .finalPrice(item.getFinalPrice())
-                                    .discountAmount(item.getDiscountAmount());
+                                    .discountAmount(item.getDiscountAmount())
+                                    .currency(item.getCurrency() != null ? item.getCurrency() : "USD")
+                                    .createdAt(item.getCreatedAt());
                     return builder.build();
                 })
                 .collect(java.util.stream.Collectors.toList());

@@ -8,6 +8,15 @@ interface CourseGridProps {
   onCourseClick?: (course: CourseResponse) => void;
   columns?: 2 | 3 | 4;
   className?: string;
+  // Action props
+  showActions?: boolean;
+  enrolledCourseIds?: Set<number>;
+  cartCourseIds?: Set<number>;
+  addingToCartIds?: Set<number>;
+  enrollingCourseIds?: Set<number>;
+  onAddToCart?: (courseId: number) => void;
+  onGoToCourse?: (courseId: number) => void;
+  onEnrollFree?: (courseId: number) => void;
 }
 
 export const CourseGrid: React.FC<CourseGridProps> = ({
@@ -15,11 +24,19 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
   onCourseClick,
   columns = 3,
   className = "",
+  showActions = false,
+  enrolledCourseIds = new Set(),
+  cartCourseIds = new Set(),
+  addingToCartIds = new Set(),
+  enrollingCourseIds = new Set(),
+  onAddToCart,
+  onGoToCourse,
+  onEnrollFree,
 }) => {
   const gridClasses = {
-    2: "grid-cols-1 md:grid-cols-2",
-    3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
-    4: "grid-cols-1 md:grid-cols-2 lg:grid-cols-4",
+    2: "grid-cols-1 sm:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
   };
 
   if (courses.length === 0) {
@@ -32,14 +49,23 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
   }
 
   return (
-    <div className={`grid ${gridClasses[columns]} gap-6 ${className}`}>
+    <div className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6 ${className}`}>
       {courses.map((course) => (
         <CourseCard
           key={course.id}
           course={course}
           onClick={() => onCourseClick?.(course)}
+          showActions={showActions}
+          isEnrolled={enrolledCourseIds.has(course.id)}
+          isInCart={cartCourseIds.has(course.id)}
+          isAddingToCart={addingToCartIds.has(course.id)}
+          isEnrolling={enrollingCourseIds.has(course.id)}
+          onAddToCart={onAddToCart}
+          onGoToCourse={onGoToCourse}
+          onEnrollFree={onEnrollFree}
         />
       ))}
     </div>
   );
 };
+

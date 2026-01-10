@@ -21,3 +21,13 @@ export { teacherCourseService } from './teacher-course.service';
 export { teacherApplicationService } from './teacher-application.service';
 
 export { authService } from './auth.service';
+
+export { cartService } from './cart.service';
+
+export { checkoutService } from './checkout.service';
+
+export { orderService } from './order.service';
+
+export { invoiceService } from './invoice.service';
+
+export { earningService } from './earning.service';

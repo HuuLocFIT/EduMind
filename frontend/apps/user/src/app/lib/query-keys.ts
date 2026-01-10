@@ -139,6 +139,72 @@ export const teacherReviewsKeys = {
 } as const;
 
 // ============================================
+// Cart
+// ============================================
+export const cartKeys = {
+  all: ['cart'] as const,
+  items: ['cart', 'items'] as const,
+  count: ['cart', 'count'] as const,
+  check: (courseId: number) => ['cart', 'check', courseId] as const,
+} as const;
+
+// ============================================
+// Orders
+// ============================================
+export const orderKeys = {
+  all: ['orders'] as const,
+  list: (params?: {
+    status?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => ['orders', 'list', params] as const,
+  detail: (orderId: number) => ['orders', 'detail', orderId] as const,
+  byNumber: (orderNumber: string) => ['orders', 'number', orderNumber] as const,
+  count: ['orders', 'count'] as const,
+} as const;
+
+// ============================================
+// Invoices
+// ============================================
+export const invoiceKeys = {
+  all: ['invoices'] as const,
+  list: (params?: {
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => ['invoices', 'list', params] as const,
+  detail: (invoiceId: number) => ['invoices', 'detail', invoiceId] as const,
+  byNumber: (invoiceNumber: string) => ['invoices', 'number', invoiceNumber] as const,
+  byOrder: (orderId: number) => ['invoices', 'order', orderId] as const,
+} as const;
+
+// ============================================
+// Earnings (Teacher)
+// ============================================
+export const earningKeys = {
+  all: ['earnings'] as const,
+  list: (params?: {
+    status?: string;
+    courseId?: number;
+    fromDate?: string;
+    toDate?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => ['earnings', 'list', params] as const,
+  detail: (earningId: number) => ['earnings', 'detail', earningId] as const,
+  summary: (params?: { fromDate?: string; toDate?: string }) =>
+    ['earnings', 'summary', params] as const,
+  monthly: (months?: number) => ['earnings', 'monthly', months] as const,
+  byCourse: (params?: { fromDate?: string; toDate?: string }) =>
+    ['earnings', 'by-course', params] as const,
+} as const;
+
+// ============================================
 // Helper: Get all keys for a resource
 // ============================================
 export const queryKeys = {
@@ -150,5 +216,9 @@ export const queryKeys = {
   teacherCourses: teacherCoursesKeys,
   teacherApplication: teacherApplicationKeys,
   teacherReviews: teacherReviewsKeys,
+  cart: cartKeys,
+  orders: orderKeys,
+  invoices: invoiceKeys,
+  earnings: earningKeys,
 } as const;
 

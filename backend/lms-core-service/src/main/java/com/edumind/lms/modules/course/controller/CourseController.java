@@ -350,21 +350,10 @@ public class CourseController {
         }
 
         @GetMapping("/instructors/{instructorId}/stats")
-        @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
         public ResponseEntity<ApiResponse<InstructorStatsResponse>> getInstructorStats(
-                        @PathVariable Long instructorId,
-                        Authentication authentication) {
+                        @PathVariable Long instructorId) {
 
                 log.info("Getting stats for instructor: {}", instructorId);
-
-                Long currentUserId = Long.valueOf(authentication.getPrincipal().toString());
-                boolean isAdmin = authentication.getAuthorities().stream()
-                                .map(GrantedAuthority::getAuthority)
-                                .anyMatch(role -> "ROLE_ADMIN".equals(role));
-
-                if (!isAdmin && !instructorId.equals(currentUserId)) {
-                        throw new UnauthorizedException("You are not allowed to view stats for this instructor");
-                }
 
                 InstructorStatsResponse stats = courseService.getInstructorStats(instructorId);
 

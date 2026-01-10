@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Button, Loading, Input } from "@edumind/user-ui";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button, Loading, Input, useToast } from "@edumind/user-ui";
 import {
   CourseGrid,
   CategoryFilter,
@@ -9,7 +9,10 @@ import {
 } from "../../components/course-module";
 import { courseService } from '../../services/course.service';
 import { categoryService } from '../../services/category.service';
-import type { CourseResponse, CategoryResponse } from "@edumind/shared-types";
+import { enrollmentService } from '../../services/enrollment.service';
+import { checkoutService } from '../../services/checkout.service';
+import type { CourseResponse, CategoryResponse, DirectCheckoutRequest } from "@edumind/shared-types";
+import { PaymentMethod } from "@edumind/shared-constants";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import {
   Sparkles,
@@ -21,6 +24,9 @@ import {
 } from "lucide-react";
 import { queryKeys } from "../../lib/query-keys";
 import { STALE_TIME_CATEGORIES } from "../../lib/query-config";
+import { useCart, useAddToCart } from "../../hooks/useCart";
+import { useAuthStore } from "../../stores/auth.store";
+import { useCartStore } from "../../stores/cart.store";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
@@ -28,6 +34,9 @@ type FilterType = "all" | "free";
 export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { success: showSuccess, error: showError } = useToast();
+  const { isAuthenticated } = useAuthStore();
+  const queryClient = useQueryClient();
 
   // Filter type (all, free)
   const [filterType, setFilterType] = useState<FilterType>(
@@ -243,6 +252,102 @@ export const BrowseCoursesPage: React.FC = () => {
     setMaxPrice("");
     setSortBy("latest");
     setPage(0);
+  };
+
+  // Cart and enrollment state for action buttons
+  const { data: cart } = useCart();
+  const addToCartMutation = useAddToCart();
+  const { startAddingItem, finishAddingItem, isItemPending } = useCartStore();
+  const [addingIds, setAddingIds] = useState<Set<number>>(new Set());
+  const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
+
+  // Fetch user enrollments for showing "Enrolled" status
+  const { data: enrollmentsData } = useQuery({
+    queryKey: queryKeys.enrollments.me(),
+    queryFn: () => enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Build sets for quick lookup
+  const enrolledCourseIds = useMemo(() => {
+    if (!enrollmentsData?.data) return new Set<number>();
+    return new Set(enrollmentsData.data.map(e => e.courseId));
+  }, [enrollmentsData]);
+
+  const cartCourseIds = useMemo(() => {
+    if (!cart?.items) return new Set<number>();
+    return new Set(cart.items.map(item => item.courseId));
+  }, [cart]);
+
+  const handleAddToCart = async (courseId: number) => {
+    if (!isAuthenticated) {
+      showError("Please login to add courses to cart");
+      navigate(USER_ROUTES.LOGIN);
+      return;
+    }
+
+    try {
+      setAddingIds(prev => new Set(prev).add(courseId));
+      startAddingItem(courseId);
+      await addToCartMutation.mutateAsync(courseId);
+      showSuccess("Course added to cart!");
+    } catch (error: any) {
+      showError(error?.message || "Failed to add to cart");
+    } finally {
+      setAddingIds(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
+      finishAddingItem(courseId);
+    }
+  };
+
+  const handleGoToCourse = (courseId: number) => {
+    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId }));
+  };
+
+  // Direct checkout for free courses
+  const directCheckoutMutation = useMutation({
+    mutationFn: (request: DirectCheckoutRequest) => checkoutService.directCheckout(request),
+    onSuccess: (result, variables) => {
+      if (result.success) {
+        // Refresh enrollments immediately
+        queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+        showSuccess("Enrolled successfully!");
+        // Optional: Navigate to course or learning page logic here
+      } else {
+        showError(result.message || "Enrollment failed");
+      }
+    },
+    onError: (err: any) => {
+      showError(err.message || "Failed to enroll");
+    },
+    onSettled: (data, error, variables) => {
+       setEnrollingIds(prev => {
+        const next = new Set(prev);
+        next.delete(variables.courseId);
+        return next;
+       });
+    }
+  });
+
+  const handleEnrollFree = (courseId: number) => {
+    if (!isAuthenticated) {
+      showError("Please login to enroll");
+      navigate(USER_ROUTES.LOGIN);
+      return;
+    }
+
+    setEnrollingIds(prev => new Set(prev).add(courseId));
+
+    directCheckoutMutation.mutate({
+      courseId,
+      paymentMethod: PaymentMethod.FREE,
+      successUrl: window.location.href, // Stay on page or redirect?
+      cancelUrl: window.location.href,
+    });
   };
 
   return (
@@ -556,6 +661,14 @@ export const BrowseCoursesPage: React.FC = () => {
                 courses={courses}
                 onCourseClick={handleCourseClick}
                 columns={3}
+                showActions={true}
+                enrolledCourseIds={enrolledCourseIds}
+                cartCourseIds={cartCourseIds}
+                addingToCartIds={addingIds}
+                enrollingCourseIds={enrollingIds}
+                onAddToCart={handleAddToCart}
+                onGoToCourse={handleGoToCourse}
+                onEnrollFree={handleEnrollFree}
               />
             )}
 
