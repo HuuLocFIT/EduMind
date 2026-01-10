@@ -12,6 +12,7 @@ import {
   Zap,
   CheckCircle2,
 } from 'lucide-react';
+import { formatDate } from '@edumind/shared-utils';
 import { formatLastAccessed } from '../utils/formatLastAccessed';
 
 interface EnrollmentCardNewProps {
@@ -166,12 +167,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Calendar className="w-4 h-4" />
-              Enrolled{' '}
-              {new Date(enrollment.enrolledAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+              Enrolled {formatDate(enrollment.enrolledAt)}
             </div>
             <div className="flex items-center gap-2">
               <button

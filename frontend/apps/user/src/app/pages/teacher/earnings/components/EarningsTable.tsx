@@ -2,6 +2,7 @@ import React from "react";
 import { BookOpen, ChevronDown, Clock, CheckCircle, CreditCard, FileText } from "lucide-react";
 import { EarningStatus } from "@edumind/shared-constants";
 import type { EarningResponse, PagedResponse } from "@edumind/shared-types";
+import { formatDate } from "@edumind/shared-utils";
 import { Pagination } from "../../../../../app/components/teacher/courses/list";
 
 interface EarningsTableProps {
@@ -135,7 +136,7 @@ export const EarningsTable: React.FC<EarningsTableProps> = ({
                 {/* Date */}
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-500">
-                    {new Date(earning.createdAt).toLocaleDateString()}
+                    {formatDate(earning.createdAt)}
                   </span>
                 </td>
               </tr>

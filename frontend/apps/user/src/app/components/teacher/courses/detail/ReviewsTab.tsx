@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { teacherCourseService } from '../../../../services/teacher-course.service';
 import type { ReviewResponse } from "@edumind/shared-types";
 import { Skeleton, RatingStars } from "@edumind/user-ui";
+import { formatDate } from "@edumind/shared-utils";
 import { Star } from "lucide-react";
 
 interface ReviewsTabProps {
@@ -75,7 +76,7 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({ courseId }) => {
               <div className="flex items-center gap-2">
                 <RatingStars rating={review.rating} size="sm" />
                 <span className="text-sm text-gray-500">
-                  {new Date(review.createdAt).toLocaleDateString()}
+                  {formatDate(review.createdAt)}
                 </span>
               </div>
             </div>

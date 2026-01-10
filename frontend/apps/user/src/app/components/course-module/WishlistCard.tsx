@@ -1,6 +1,7 @@
 import React from "react";
 import { WishlistItemResponse } from "@edumind/shared-types";
 import { Button, Card, Loading, PriceTag, RatingStars } from "@edumind/user-ui";
+import { formatDate } from "@edumind/shared-utils";
 import { BookOpen, ShoppingCart, Trash2 } from "lucide-react";
 
 interface WishlistCardProps {
@@ -91,11 +92,7 @@ export const WishlistCard: React.FC<WishlistCardProps> = ({
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pt-4 border-t border-gray-100 mt-auto">
              <div className="text-sm text-gray-500 flex items-center gap-2 mb-2 md:mb-0">
                 <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
-                Added {new Date(item.addedAt).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                Added {formatDate(item.addedAt)}
              </div>
 
              <div className="flex items-center gap-3">

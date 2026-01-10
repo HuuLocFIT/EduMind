@@ -2,6 +2,7 @@
 
 import { EnrollmentResponse } from "@edumind/shared-types";
 import { Button, Card } from "@edumind/user-ui";
+import { formatDate } from "@edumind/shared-utils";
 import { Award, Calendar, Download, Share2 } from "lucide-react";
 
 interface CertificateCardProps {
@@ -38,9 +39,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
           <Calendar className="w-4 h-4" />
           <span>
             Completed:{" "}
-            {new Date(
-              enrollment.completedAt || enrollment.enrolledAt
-            ).toLocaleDateString()}
+            {formatDate(enrollment.completedAt || enrollment.enrolledAt)}
           </span>
         </div>
 

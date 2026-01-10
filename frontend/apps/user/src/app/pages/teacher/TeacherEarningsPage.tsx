@@ -10,7 +10,7 @@ import { EarningsTable } from "./earnings/components/EarningsTable";
 import { EarningsChart } from "./earnings/components/EarningsChart";
 import { TopCoursesCard } from "./earnings/components/TopCoursesCard";
 import { DateRangeFilter } from "./earnings/components/DateRangeFilter";
-import { TEACHER_ROUTES } from "@edumind/shared-utils";
+import { TEACHER_ROUTES, downloadBlob } from "@edumind/shared-utils";
 import { useNavigate } from "react-router-dom";
 
 export const TeacherEarningsPage: React.FC = () => {
@@ -76,12 +76,13 @@ export const TeacherEarningsPage: React.FC = () => {
   // Export
   const handleExport = async () => {
     try {
-      const url = earningService.getExportUrl({
+      const blob = await earningService.exportEarningsCsv({
         status: statusFilter === "ALL" ? undefined : statusFilter,
         fromDate: dateRange.fromDate,
         toDate: dateRange.toDate
       });
-      window.open(url, "_blank");
+      
+      downloadBlob(blob, `earnings-export-${new Date().toISOString().split('T')[0]}.csv`);
     } catch (err) {
       showToastError("Failed to export earnings");
     }

@@ -8,7 +8,7 @@ import {
   Download, FileText, RefreshCw, CreditCard, Receipt, Calendar,
   User, Hash, TrendingUp,
 } from "lucide-react";
-import { USER_ROUTES, UserRouteHelpers, downloadBlob } from "@edumind/shared-utils";
+import { USER_ROUTES, UserRouteHelpers, downloadBlob, formatDateTime } from "@edumind/shared-utils";
 import { OrderStatus } from "@edumind/shared-constants";
 import { invoiceService } from "../../services/invoice.service";
 
@@ -132,15 +132,7 @@ export const OrderDetailPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+
 
   const formatCurrency = (amount: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
@@ -223,7 +215,7 @@ export const OrderDetailPage: React.FC = () => {
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <div className="flex items-center gap-1.5 text-xs sm:text-sm text-blue-100">
                            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                           <span className="break-words sm:truncate">{formatDate(order.createdAt)}</span>
+                           <span className="break-words sm:truncate">{formatDateTime(order.createdAt)}</span>
                         </div>
                         <span className="hidden sm:inline text-blue-300 mx-1">|</span>
                         <div className={`sm:hidden px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 bg-white/20 backdrop-blur-md text-white border border-white/30`}>

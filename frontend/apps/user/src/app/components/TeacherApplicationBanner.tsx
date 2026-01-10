@@ -15,7 +15,7 @@ import { UserRole } from "@edumind/shared-constants";
 import {
   TeacherApplicationResponse,
 } from "@edumind/shared-types";
-import { USER_ROUTES } from "@edumind/shared-utils";
+import { USER_ROUTES, formatDate } from "@edumind/shared-utils";
 
 export const TeacherApplicationBanner: React.FC = () => {
   const { user } = useAuthStore();
@@ -182,7 +182,7 @@ export const TeacherApplicationBanner: React.FC = () => {
             {application.createdAt && (
               <p className="text-xs text-gray-500 mt-2">
                 Submitted:{" "}
-                {new Date(application.createdAt).toLocaleDateString()}
+                {formatDate(application.createdAt)}
               </p>
             )}
           </div>

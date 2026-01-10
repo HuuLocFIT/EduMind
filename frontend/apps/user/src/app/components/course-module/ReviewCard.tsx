@@ -3,6 +3,7 @@ import { Card } from "@edumind/user-ui";
 import { RatingStars } from "@edumind/user-ui";
 import type { ReviewResponse } from "@edumind/shared-types";
 import { useAuthStore } from "../../stores/auth.store";
+import { formatDate } from "@edumind/shared-utils";
 import { MessageSquare } from "lucide-react";
 
 interface ReviewCardProps {
@@ -16,9 +17,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 }) => {
   const { user } = useAuthStore();
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+
 
   return (
     <Card className={`p-4 ${className}`}>
