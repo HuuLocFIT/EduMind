@@ -15,7 +15,7 @@ import { useNavigate } from "react-router-dom";
 
 export const TeacherEarningsPage: React.FC = () => {
   const { user } = useAuthStore();
-  const { error: showToastError } = useToast();
+  const { error: showError } = useToast();
   const navigate = useNavigate();
   
   // State
@@ -84,7 +84,7 @@ export const TeacherEarningsPage: React.FC = () => {
       
       downloadBlob(blob, `earnings-export-${new Date().toISOString().split('T')[0]}.csv`);
     } catch (err) {
-      showToastError("Failed to export earnings");
+      showError("Failed to export earnings");
     }
   };
 

@@ -10,7 +10,6 @@ import type {
   CourseResponse,
 } from "@edumind/shared-types";
 import {
-  StatCard,
   Button,
   Skeleton,
   Alert
@@ -207,26 +206,66 @@ export const TeacherDashboardPage: React.FC = () => {
         <StatsLoading />
       ) : stats ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Courses"
-            value={stats.totalCourses ?? 0}
-            icon={<BookOpen className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Total Students"
-            value={stats.totalStudents ?? 0}
-            icon={<Users className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Total Reviews"
-            value={stats.totalReviews ?? 0}
-            icon={<Star className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Average Rating"
-            value={stats.averageRating?.toFixed(1) ?? "N/A"}
-            icon={<TrendingUp className="w-6 h-6" />}
-          />
+          {/* Total Courses */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100">
+                <BookOpen className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Courses</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {stats.totalCourses ?? 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Students */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-100">
+                <Users className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Students</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {stats.totalStudents ?? 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Reviews */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-100">
+                <Star className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Reviews</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {stats.totalReviews ?? 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Average Rating */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-100">
+                <TrendingUp className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Average Rating</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {stats.averageRating?.toFixed(1) ?? "N/A"}
+                  {stats.averageRating && <span className="text-sm text-gray-500 ml-1">/5</span>}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 
