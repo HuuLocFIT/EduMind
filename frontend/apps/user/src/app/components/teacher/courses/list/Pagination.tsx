@@ -20,10 +20,6 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   return (
     <div className="flex items-center justify-between bg-white rounded-xl border p-4">
-      <p className="text-sm text-gray-600">
-        Showing {page * size + 1} to{" "}
-        {Math.min((page + 1) * size, totalElements)} of {totalElements} courses
-      </p>
       <div className="flex items-center gap-2">
         <button
           onClick={() => onPageChange(page - 1)}

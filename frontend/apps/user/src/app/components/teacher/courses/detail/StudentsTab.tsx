@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { teacherCourseService } from '../../../../services/teacher-course.service';
 import type { EnrollmentResponse } from "@edumind/shared-types";
 import { Skeleton, ProgressBar } from "@edumind/user-ui";
+import { formatDate } from "@edumind/shared-utils";
 import { Users } from "lucide-react";
 
 interface StudentsTabProps {
@@ -64,7 +65,7 @@ export const StudentsTab: React.FC<StudentsTabProps> = ({ courseId }) => {
               Student #{enrollment.studentId}
             </p>
             <p className="text-sm text-gray-500">
-              Enrolled {new Date(enrollment.enrolledAt).toLocaleDateString()}
+              Enrolled {formatDate(enrollment.enrolledAt)}
             </p>
           </div>
           <div className="text-right">

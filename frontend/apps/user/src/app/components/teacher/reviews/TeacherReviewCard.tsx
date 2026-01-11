@@ -8,7 +8,7 @@ import {
   User,
 } from "lucide-react";
 import type { ReviewResponse } from "@edumind/shared-types";
-import { formatDistanceToNow } from "date-fns";
+import { formatTimeAgo } from "@edumind/shared-utils";
 
 interface ReviewCardProps {
   review: ReviewResponse;
@@ -25,13 +25,7 @@ export const TeacherReviewCard: React.FC<ReviewCardProps> = ({
   onDeleteReply,
   isProcessing = false,
 }) => {
-  const formatDate = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return dateString;
-    }
-  };
+
 
   const renderStars = (rating: number) => {
     return (
@@ -94,7 +88,7 @@ export const TeacherReviewCard: React.FC<ReviewCardProps> = ({
         {/* Date */}
         <div className="flex items-center gap-1 text-sm text-gray-400 flex-shrink-0">
           <Clock className="w-3.5 h-3.5" />
-          <span>{formatDate(review.createdAt)}</span>
+          <span>{formatTimeAgo(review.createdAt)}</span>
         </div>
       </div>
 
@@ -112,7 +106,7 @@ export const TeacherReviewCard: React.FC<ReviewCardProps> = ({
             <span className="text-sm font-medium text-blue-700">Your Reply</span>
             {review.instructorReplyAt && (
               <span className="text-xs text-blue-500">
-                {formatDate(review.instructorReplyAt)}
+                {formatTimeAgo(review.instructorReplyAt)}
               </span>
             )}
           </div>

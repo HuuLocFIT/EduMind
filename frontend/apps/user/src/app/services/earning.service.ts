@@ -45,8 +45,10 @@ const parseEarningsSummary = (payload: unknown): EarningsSummaryResponse =>
 const parseMonthlyEarnings = (payload: unknown): MonthlyEarningResponse[] =>
   z.array(MonthlyEarningResponseSchema).parse(payload);
 
-const parseCourseEarnings = (payload: unknown): CourseEarningResponse[] =>
-  z.array(CourseEarningResponseSchema).parse(payload);
+const parseCourseEarnings = (payload: unknown): CourseEarningResponse[] => {
+  if (payload === null || payload === undefined) return [];
+  return z.array(CourseEarningResponseSchema).parse(payload);
+};
 
 export const earningService = {
   /**

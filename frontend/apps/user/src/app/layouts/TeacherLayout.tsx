@@ -19,6 +19,7 @@ import {
   Home,
   AlertTriangle,
   Clock,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@edumind/user-ui";
 
@@ -54,6 +55,11 @@ const navItems: NavItem[] = [
     label: "Analytics",
     path: TEACHER_ROUTES.ANALYTICS,
     icon: <BarChart3 className="w-5 h-5" />,
+  },
+  {
+    label: "Earnings",
+    path: TEACHER_ROUTES.EARNINGS,
+    icon: <DollarSign className="w-5 h-5" />,
   },
   {
     label: "Settings",

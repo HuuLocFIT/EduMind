@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Box
 } from "lucide-react";
-import { USER_ROUTES, buildRouteWithParams } from "@edumind/shared-utils";
+import { USER_ROUTES, buildRouteWithParams, formatDateTime } from "@edumind/shared-utils";
 import { OrderStatus } from "@edumind/shared-constants";
 import type { OrderSummaryResponse } from "@edumind/shared-types";
 
@@ -95,15 +95,7 @@ export const OrdersPage: React.FC = () => {
     navigate(buildRouteWithParams(USER_ROUTES.ORDER_DETAIL, { orderId }));
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+
 
   const formatCurrency = (amount: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
@@ -232,7 +224,7 @@ export const OrdersPage: React.FC = () => {
                     <span className="text-gray-300">|</span>
                     <div className="flex items-center gap-1.5 sm:gap-2 text-gray-500">
                       <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      <span>{formatDate(order.createdAt)}</span>
+                      <span>{formatDateTime(order.createdAt)}</span>
                     </div>
                   </div>
 

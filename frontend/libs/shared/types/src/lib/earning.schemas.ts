@@ -16,7 +16,7 @@ export const EarningResponseSchema = z.object({
   courseId: z.number(),
 
   // Course info
-  courseTitle: z.string(),
+  courseTitle: z.string().nullable().optional(),
   courseThumbnailUrl: z.string().nullable().optional(),
 
   // Buyer info (anonymized)
@@ -53,12 +53,12 @@ export const MonthlyEarningResponseSchema = z.object({
 
 export const CourseEarningResponseSchema = z.object({
   courseId: z.number(),
-  courseTitle: z.string(),
+  courseTitle: z.string().nullable().optional(),
   courseThumbnailUrl: z.string().nullable().optional(),
-  totalGrossEarnings: z.number(),
-  totalNetEarnings: z.number(),
-  salesCount: z.number(),
-  averageSalePrice: z.number(),
+  totalGrossEarnings: z.coerce.number(),
+  totalNetEarnings: z.coerce.number(),
+  salesCount: z.coerce.number(),
+  averageSalePrice: z.coerce.number().nullable().optional(),
   currency: z.string(),
 });
 
@@ -66,34 +66,34 @@ export const EarningsSummaryResponseSchema = z.object({
   instructorId: z.number(),
 
   // Totals
-  totalGrossEarnings: z.number(),
-  totalNetEarnings: z.number(),
-  totalPlatformFees: z.number(),
+  totalGrossEarnings: z.coerce.number(),
+  totalNetEarnings: z.coerce.number(),
+  totalPlatformFees: z.coerce.number(),
 
   // By status
-  pendingEarnings: z.number(),
-  availableEarnings: z.number(),
-  paidEarnings: z.number(),
+  pendingEarnings: z.coerce.number(),
+  availableEarnings: z.coerce.number(),
+  paidEarnings: z.coerce.number(),
 
   // Current period (this month)
-  currentMonthGross: z.number(),
-  currentMonthNet: z.number(),
-  currentMonthSales: z.number(),
+  currentMonthGross: z.coerce.number(),
+  currentMonthNet: z.coerce.number(),
+  currentMonthSales: z.coerce.number(),
 
   // Previous period (last month)
-  previousMonthGross: z.number(),
-  previousMonthNet: z.number(),
-  previousMonthSales: z.number(),
+  previousMonthGross: z.coerce.number(),
+  previousMonthNet: z.coerce.number(),
+  previousMonthSales: z.coerce.number(),
 
   // Growth
-  monthOverMonthGrowthPercent: z.number(),
+  monthOverMonthGrowthPercent: z.coerce.number(),
 
   // Stats
-  totalSales: z.number(),
-  totalCoursesSold: z.number(),
+  totalSales: z.coerce.number(),
+  totalCoursesSold: z.coerce.number(),
 
   // Top performing courses
-  topCourses: z.array(CourseEarningResponseSchema).optional(),
+  topCourses: z.array(CourseEarningResponseSchema).nullable().optional(),
 
   currency: z.string(),
 });

@@ -131,6 +131,9 @@ export const TEACHER_ROUTES = {
   // Analytics
   ANALYTICS: '/teacher/analytics',
   
+  // Earnings
+  EARNINGS: '/teacher/earnings',
+  
   // Settings
   SETTINGS: '/teacher/settings',
   PROFILE: '/teacher/profile',

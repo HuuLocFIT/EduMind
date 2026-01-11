@@ -4,7 +4,7 @@ import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@edumind/user-ui';
-import { TEACHER_ROUTES, USER_ROUTES } from '@edumind/shared-utils';
+import { TEACHER_ROUTES, USER_ROUTES, formatDate } from '@edumind/shared-utils';
 import { DocumentInfo, StatusHistoryResponse } from '@edumind/shared-types';
 
 export function ApplicationStatusPage() {
@@ -73,13 +73,7 @@ export function ApplicationStatusPage() {
     return configs[status as keyof typeof configs] || configs.PENDING;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+
 
 const getStatusStyle = (status?: string | null) => {
   const styles = {
