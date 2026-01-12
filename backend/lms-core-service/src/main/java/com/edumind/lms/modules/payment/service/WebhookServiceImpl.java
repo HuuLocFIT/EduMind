@@ -14,8 +14,6 @@ import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
 import com.edumind.lms.modules.payment.exception.TransactionNotFoundException;
 import com.edumind.lms.modules.payment.repository.OrderRepository;
 import com.edumind.lms.modules.payment.repository.TransactionRepository;
-import com.edumind.lms.modules.payment.service.EarningService;
-import com.edumind.lms.modules.payment.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -189,7 +187,7 @@ public class WebhookServiceImpl implements WebhookService {
     // ==================== Helper Methods ====================
 
     private void createEnrollmentsForOrder(Order order) {
-        List<OrderItem> orderItems = order.getItems();
+        Set<OrderItem> orderItems = order.getItems();
 
         for (OrderItem item : orderItems) {
             try {

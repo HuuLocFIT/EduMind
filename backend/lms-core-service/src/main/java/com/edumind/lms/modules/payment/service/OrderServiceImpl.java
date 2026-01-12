@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -381,7 +382,7 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderResponse buildOrderResponse(Order order) {
         // Use items from order if already loaded (via EntityGraph), otherwise fetch
-        List<OrderItem> items = order.getItems() != null && !order.getItems().isEmpty()
+        Collection<OrderItem> items = order.getItems() != null && !order.getItems().isEmpty()
                 ? order.getItems()
                 : orderItemRepository.findByOrderId(order.getId());
 
@@ -427,7 +428,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderSummaryResponse buildOrderSummary(Order order, int itemCount) {
-        OrderItem firstItem = order.getItems().isEmpty() ? null : order.getItems().get(0);
+        OrderItem firstItem = order.getItems().isEmpty() ? null : order.getItems().iterator().next();
 
         return OrderSummaryResponse.builder()
                 .id(order.getId())

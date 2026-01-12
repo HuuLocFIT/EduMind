@@ -48,7 +48,7 @@ public class OrderMapper {
     }
 
     public OrderSummaryResponse toSummaryResponse(Order order) {
-        OrderItem firstItem = order.getItems().isEmpty() ? null : order.getItems().get(0);
+        OrderItem firstItem = order.getItems().isEmpty() ? null : order.getItems().iterator().next();
 
         return OrderSummaryResponse.builder()
                 .id(order.getId())
