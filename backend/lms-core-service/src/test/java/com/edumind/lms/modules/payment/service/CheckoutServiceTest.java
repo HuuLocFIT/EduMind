@@ -15,6 +15,9 @@ import com.edumind.lms.modules.payment.enums.OrderStatus;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.exception.CartEmptyException;
 import com.edumind.lms.modules.payment.exception.CourseNotAvailableException;
+import com.edumind.lms.modules.payment.exception.InvalidOrderStateException;
+import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
+import com.edumind.lms.modules.payment.enums.TransactionStatus;
 import com.edumind.lms.modules.payment.gateway.GatewayPaymentResult;
 import com.edumind.lms.modules.payment.gateway.GatewayResultStatus;
 import com.edumind.lms.modules.payment.gateway.PaymentGateway;
@@ -183,6 +186,69 @@ class CheckoutServiceTest {
             assertThatThrownBy(() -> checkoutService.previewCheckout(userId))
                     .isInstanceOf(CartEmptyException.class);
         }
+
+        @Test
+        @DisplayName("Should throw exception if cart not found")
+        void previewCheckout_CartNotFound_ThrowsException() {
+            // Given
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.previewCheckout(userId))
+                    .isInstanceOf(CartEmptyException.class);
+        }
+
+        @Test
+        @DisplayName("Should filter out unpublished courses with warnings")
+        void previewCheckout_UnpublishedCourse_FilteredWithWarning() {
+            // Given
+            Course unpublishedCourse = Course.builder()
+                    .title("Unpublished Course")
+                    .slug("unpublished-course")
+                    .thumbnailUrl("http://example.com/thumb.jpg")
+                    .instructorId(10L)
+                    .instructorName("Test Instructor")
+                    .price(new BigDecimal("50.00"))
+                    .discountPrice(new BigDecimal("40.00"))
+                    .currency("USD")
+                    .status(CourseStatus.DRAFT)
+                    .build();
+            ReflectionTestUtils.setField(unpublishedCourse, "id", 101L);
+
+            CartItem unpublishedCartItem = new CartItem();
+            unpublishedCartItem.setId(301L);
+            unpublishedCartItem.setCart(cart);
+            unpublishedCartItem.setCourseId(101L);
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem, unpublishedCartItem));
+            when(courseRepository.findAllById(anyList())).thenReturn(List.of(course, unpublishedCourse));
+            when(enrollmentRepository.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(Collections.emptyList());
+
+            // When
+            CheckoutPreviewResponse result = checkoutService.previewCheckout(userId);
+
+            // Then
+            assertThat(result.getItems()).hasSize(1); // Only published course
+            assertThat(result.getWarnings()).isNotNull();
+            assertThat(result.getWarnings()).anyMatch(w -> w.contains("no longer available"));
+        }
+
+        @Test
+        @DisplayName("Should filter out already enrolled courses with warnings")
+        void previewCheckout_AlreadyEnrolled_FilteredWithWarning() {
+            // Given
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(courseRepository.findAllById(anyList())).thenReturn(List.of(course));
+            // Return the courseId as already enrolled
+            when(enrollmentRepository.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(List.of(courseId));
+
+            // When & Then - should throw because all items are filtered
+            assertThatThrownBy(() -> checkoutService.previewCheckout(userId))
+                    .isInstanceOf(CartEmptyException.class)
+                    .hasMessageContaining("No valid items");
+        }
     }
 
     @Nested
@@ -214,6 +280,33 @@ class CheckoutServiceTest {
             // When & Then
             assertThatThrownBy(() -> checkoutService.previewDirectCheckout(userId, courseId))
                     .isInstanceOf(CourseNotAvailableException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception if course not published")
+        void previewDirectCheckout_CourseNotPublished_ThrowsException() {
+            // Given
+            course.setStatus(CourseStatus.DRAFT);
+            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.previewDirectCheckout(userId, courseId))
+                    .isInstanceOf(CourseNotAvailableException.class);
+        }
+
+        @Test
+        @DisplayName("Should return warning if user already enrolled")
+        void previewDirectCheckout_AlreadyEnrolled_ReturnsWarning() {
+            // Given
+            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(any(), any(), any())).thenReturn(true);
+
+            // When
+            CheckoutPreviewResponse result = checkoutService.previewDirectCheckout(userId, courseId);
+
+            // Then
+            assertThat(result.getWarnings()).isNotNull();
+            assertThat(result.getWarnings()).anyMatch(w -> w.contains("Already enrolled"));
         }
     }
 
@@ -352,6 +445,145 @@ class CheckoutServiceTest {
             // Invoice should NOT be generated
             verify(invoiceService, never()).generateInvoice(any(Order.class));
         }
+
+        @Test
+        @DisplayName("Should handle pending payment with redirect")
+        void checkout_PendingPayment_ReturnsRedirect() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            GatewayPaymentResult paymentResult = GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(GatewayResultStatus.PENDING)
+                    .requiresRedirect(true)
+                    .redirectUrl("https://paypal.com/checkout/abc123")
+                    .build();
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(paymentResult);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-2026-001");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.isPending()).isTrue();
+            assertThat(result.isRequiresRedirect()).isTrue();
+            assertThat(result.getRedirectUrl()).isEqualTo("https://paypal.com/checkout/abc123");
+            verify(cartService, never()).clearCart(userId);
+        }
+
+        @Test
+        @DisplayName("Should propagate exception when payment gateway throws")
+        void checkout_GatewayException_PropagatesException() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-2026-001");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(mockPaymentGateway.processPayment(any())).thenThrow(new RuntimeException("Gateway timeout"));
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.checkout(userId, request))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Gateway timeout");
+        }
+
+        @Test
+        @DisplayName("Should mark order as FAILED when enrollment fails after payment")
+        void checkout_EnrollmentFails_MarksOrderFailed() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder().paymentMethod(PaymentMethod.PAYPAL).build();
+            GatewayPaymentResult paymentResult = GatewayPaymentResult.builder().success(true).build();
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(paymentResult);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-2026-001");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+
+            // Simulate enrollment failure
+            doThrow(new RuntimeException("Enrollment system down")).when(enrollmentService).enrollStudent(any(), any());
+            // Need to mock order items for enrollment loop
+            when(orderItemRepository.findByOrderId(any())).thenReturn(List.of(orderItem));
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorMessage()).contains("Enrollment system down");
+            // Since order is a real object (not a mock), checking state directly
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED);
+            assertThat(order.getFailureReason()).contains("CRITICAL");
+        }
+    }
+
+    @Nested
+    @DisplayName("handlePaymentCallback Tests")
+    class HandlePaymentCallbackTests {
+        
+        @Test
+        @DisplayName("Should process successful callback")
+        void handlePaymentCallback_Success_CompletesOrder() {
+            // Given
+            String txnId = "gateway-txn-123";
+            Transaction transaction = new Transaction();
+            transaction.setGatewayTransactionId(txnId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setOrder(order);
+
+            when(transactionRepository.findByGatewayTransactionId(txnId)).thenReturn(Optional.of(transaction));
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            // Mock lazy loading
+            when(orderItemRepository.findByOrderId(any())).thenReturn(List.of(orderItem));
+            
+            // When
+            checkoutService.handlePaymentCallback(txnId, "SUCCESS", "{\"status\":\"success\"}");
+
+            // Then
+            assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
+            verify(orderRepository, atLeastOnce()).save(order);
+            verify(enrollmentService).enrollStudent(any(), any());
+        }
+
+        @Test
+        @DisplayName("Should process failed callback")
+        void handlePaymentCallback_Failed_FailsOrder() {
+             // Given
+             String txnId = "gateway-txn-fail";
+             Transaction transaction = new Transaction();
+             transaction.setGatewayTransactionId(txnId);
+             transaction.setStatus(TransactionStatus.PENDING);
+             transaction.setOrder(order);
+ 
+             when(transactionRepository.findByGatewayTransactionId(txnId)).thenReturn(Optional.of(transaction));
+ 
+             // When
+             checkoutService.handlePaymentCallback(txnId, "FAILED", "{\"status\":\"failed\"}");
+ 
+             // Then
+             assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.FAILED);
+             assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED);
+             verify(enrollmentService, never()).enrollStudent(any(), any());
+        }
     }
 
     @Nested
@@ -413,6 +645,197 @@ class CheckoutServiceTest {
             // When & Then
             assertThatThrownBy(() -> checkoutService.directCheckout(userId, request))
                     .isInstanceOf(com.edumind.lms.modules.payment.exception.CourseAlreadyPurchasedException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception if course not found")
+        void directCheckout_CourseNotFound_ThrowsException() {
+            // Given
+            DirectCheckoutRequest request = DirectCheckoutRequest.builder().courseId(courseId).build();
+            when(courseRepository.findById(courseId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.directCheckout(userId, request))
+                    .isInstanceOf(CourseNotAvailableException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception if course not published")
+        void directCheckout_CourseNotPublished_ThrowsException() {
+            // Given
+            DirectCheckoutRequest request = DirectCheckoutRequest.builder().courseId(courseId).build();
+            course.setStatus(CourseStatus.DRAFT);
+            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.directCheckout(userId, request))
+                    .isInstanceOf(CourseNotAvailableException.class);
+        }
+
+        @Test
+        @DisplayName("Should process free course direct checkout")
+        void directCheckout_FreeCourse_CompletesImmediately() {
+            // Given
+            Course freeCourse = Course.builder()
+                    .title("Free Course")
+                    .slug("free-course")
+                    .thumbnailUrl("http://example.com/thumb.jpg")
+                    .instructorId(10L)
+                    .instructorName("Test Instructor")
+                    .price(BigDecimal.ZERO)
+                    .discountPrice(BigDecimal.ZERO)
+                    .currency("USD")
+                    .status(CourseStatus.PUBLISHED)
+                    .publishedAt(LocalDateTime.now())
+                    .build();
+            ReflectionTestUtils.setField(freeCourse, "id", courseId);
+
+            DirectCheckoutRequest request = DirectCheckoutRequest.builder()
+                    .courseId(courseId)
+                    .paymentMethod(PaymentMethod.MOCK)
+                    .build();
+
+            Order freeOrder = new Order();
+            freeOrder.setId(400L);
+            freeOrder.setOrderNumber("ORD-2026-FREE");
+            freeOrder.setUserId(userId);
+            freeOrder.setTotalAmount(BigDecimal.ZERO);
+            freeOrder.setCurrency("USD");
+            OrderItem freeOrderItem = new OrderItem();
+            freeOrderItem.setCourseId(courseId);
+            freeOrder.setItems(new HashSet<>(Collections.singletonList(freeOrderItem)));
+
+            InvoiceResponse invoiceResponse = InvoiceResponse.builder().id(600L).invoiceNumber("INV-FREE").build();
+
+            when(courseRepository.findById(courseId)).thenReturn(Optional.of(freeCourse));
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(any(), any(), any())).thenReturn(false);
+            when(orderService.createOrderFromSingleCourse(eq(userId), any(Course.class), any(DirectCheckoutRequest.class))).thenReturn(freeOrder);
+            when(orderRepository.save(any(Order.class))).thenReturn(freeOrder);
+            when(orderItemRepository.findByOrderId(any())).thenReturn(Collections.singletonList(freeOrderItem));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(invoiceResponse);
+            when(invoiceService.getInvoiceById(anyLong())).thenReturn(invoiceResponse);
+
+            // When
+            CheckoutResultResponse result = checkoutService.directCheckout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            verifyNoInteractions(gatewayRegistry); // No payment gateway call for free course
+        }
+
+        @Test
+        @DisplayName("Should handle payment failure")
+        void directCheckout_PaymentFailed_ReturnsFailure() {
+            // Given
+            DirectCheckoutRequest request = DirectCheckoutRequest.builder()
+                    .courseId(courseId)
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            GatewayPaymentResult paymentResult = GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(GatewayResultStatus.FAILED)
+                    .errorCode("CARD_DECLINED")
+                    .errorMessage("Insufficient funds")
+                    .build();
+
+            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(any(), any(), any())).thenReturn(false);
+            when(orderService.createOrderFromSingleCourse(eq(userId), any(Course.class), any(DirectCheckoutRequest.class))).thenReturn(order);
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(paymentResult);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-2026-001");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+
+            // When
+            CheckoutResultResponse result = checkoutService.directCheckout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("CARD_DECLINED");
+            verify(enrollmentService, never()).enrollStudent(any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("retryPayment Tests")
+    class RetryPaymentTests {
+
+        @Test
+        @DisplayName("Should retry payment successfully on failed order")
+        void retryPayment_FailedOrder_Success() {
+            // Given
+            order.setStatus(OrderStatus.FAILED);
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            GatewayPaymentResult paymentResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("paypal-txn-retry")
+                    .amount(new BigDecimal("80.00"))
+                    .build();
+
+            InvoiceResponse invoiceResponse = InvoiceResponse.builder().id(600L).invoiceNumber("INV-123").build();
+
+            when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(paymentResult);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-2026-002");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(invoiceResponse);
+            when(invoiceService.getInvoiceById(anyLong())).thenReturn(invoiceResponse);
+            when(orderItemRepository.findByOrderId(any())).thenReturn(List.of(orderItem));
+
+            // When
+            CheckoutResultResponse result = checkoutService.retryPayment(userId, order.getId(), request);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            verify(orderRepository, times(2)).save(any(Order.class)); // reset + complete
+        }
+
+        @Test
+        @DisplayName("Should throw exception if order not found")
+        void retryPayment_OrderNotFound_ThrowsException() {
+            // Given
+            Long invalidOrderId = 999L;
+            CheckoutRequest request = CheckoutRequest.builder().paymentMethod(PaymentMethod.PAYPAL).build();
+            when(orderRepository.findById(invalidOrderId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.retryPayment(userId, invalidOrderId, request))
+                    .isInstanceOf(OrderNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception if order belongs to different user")
+        void retryPayment_DifferentUser_ThrowsException() {
+            // Given
+            Long otherUserId = 999L;
+            order.setStatus(OrderStatus.FAILED);
+            CheckoutRequest request = CheckoutRequest.builder().paymentMethod(PaymentMethod.PAYPAL).build();
+            when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.retryPayment(otherUserId, order.getId(), request))
+                    .isInstanceOf(OrderNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception if order already completed")
+        void retryPayment_CompletedOrder_ThrowsException() {
+            // Given
+            order.setStatus(OrderStatus.COMPLETED);
+            CheckoutRequest request = CheckoutRequest.builder().paymentMethod(PaymentMethod.PAYPAL).build();
+            when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.retryPayment(userId, order.getId(), request))
+                    .isInstanceOf(InvalidOrderStateException.class);
         }
     }
 }

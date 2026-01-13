@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityNotFoundException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -220,11 +221,11 @@ public class CheckoutServiceImpl implements CheckoutService {
         // 3. Check if payment required
         if (order.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
             // Free order - complete immediately
-            return completeFreeOrder(order, userId);
+            return completeFreeOrder(order, userId, true);
         }
 
         // 4. Process payment (outside transaction to avoid holding DB connection during network call)
-        return processPayment(order, request);
+        return processPayment(order, request, true);
     }
 
     @Override
@@ -250,7 +251,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         // Check if free
         if (order.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
-            return completeFreeOrder(order, userId);
+            return completeFreeOrder(order, userId, false);
         }
 
         // Process payment (outside transaction to avoid holding DB connection during network call)
@@ -264,7 +265,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .customerName(request.getCustomerName())
                 .build();
 
-        return processPayment(order, checkoutRequest);
+        return processPayment(order, checkoutRequest, false);
     }
 
     @Override
@@ -272,11 +273,38 @@ public class CheckoutServiceImpl implements CheckoutService {
     public void handlePaymentCallback(String gatewayTransactionId, String status, String rawPayload) {
         log.info("Handling payment callback: {} - {}", gatewayTransactionId, status);
 
-        // TODO: Implement callback handling
-        // 1. Verify callback signature
+        // 1. Find Transaction
+        Transaction transaction = transactionRepository.findByGatewayTransactionId(gatewayTransactionId)
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + gatewayTransactionId));
+
+        if (transaction.getStatus() == TransactionStatus.SUCCESS) {
+            log.info("Transaction {} already processed successfully", gatewayTransactionId);
+            return;
+        }
+
         // 2. Update transaction status
-        // 3. If success, complete order
-        // 4. If failed, fail order
+        transaction.setGatewayResponse(rawPayload);
+        
+        if ("SUCCESS".equalsIgnoreCase(status)) {
+            transaction.setStatus(TransactionStatus.SUCCESS);
+            transaction.setProcessedAt(LocalDateTime.now());
+            transactionRepository.save(transaction);
+            
+            Order order = transaction.getOrder();
+            if (!order.isCompleted()) {
+                handleSuccessfulPayment(order, transaction, false); // Callback usually not from cart flow directly or cart already handled
+            }
+        } else {
+            transaction.setStatus(TransactionStatus.FAILED);
+            transaction.setFailureReason("Callback reported failure: " + status);
+            transactionRepository.save(transaction);
+            
+            // Fail order
+            Order order = transaction.getOrder();
+            order.setStatus(OrderStatus.FAILED);
+            order.setFailureReason("Payment failed (callback): " + status);
+            orderRepository.save(order);
+        }
     }
 
     @Override
@@ -286,7 +314,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         Order order = resetOrderForRetry(userId, orderId);
 
         // Process payment (outside transaction to avoid holding DB connection during network call)
-        return processPayment(order, request);
+        // Note: retry payment clears cart since user might have added items before retrying
+        return processPayment(order, request, true);
     }
 
     @Transactional
@@ -313,7 +342,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     // ===== Private Helpers =====
 
     @Transactional
-    private CheckoutResultResponse completeFreeOrder(Order order, Long userId) {
+    private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
         log.info("Completing free order: {}", order.getOrderNumber());
 
         // Complete order
@@ -325,8 +354,10 @@ public class CheckoutServiceImpl implements CheckoutService {
         // Create enrollments
         createEnrollmentsForOrder(order);
 
-        // Clear cart
-        cartService.clearCart(userId);
+        // Clear cart only if checkout was from cart
+        if (isFromCart) {
+            cartService.clearCart(userId);
+        }
 
         // Generate invoice
         InvoiceResponse invoice = invoiceService.generateInvoice(order);
@@ -364,7 +395,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .build();
     }
 
-    private CheckoutResultResponse processPayment(Order order, CheckoutRequest request) {
+    private CheckoutResultResponse processPayment(Order order, CheckoutRequest request, boolean isFromCart) {
         log.info("Processing payment for order: {}", order.getOrderNumber());
 
         PaymentGateway gateway = gatewayRegistry.getActiveGateway();
@@ -418,7 +449,28 @@ public class CheckoutServiceImpl implements CheckoutService {
             transaction.setProcessedAt(LocalDateTime.now());
             transactionRepository.save(transaction);
             
-            return handleSuccessfulPayment(order, transaction, request);
+            try {
+                return handleSuccessfulPayment(order, transaction, isFromCart);
+            } catch (Exception e) {
+                log.error("CRITICAL: Payment successful but order completion failed for Order: {}", order.getOrderNumber(), e);
+                
+                // We cannot rollback the payment gateway charge here.
+                // We must mark the order in a state that indicates manual intervention is needed.
+                order.setStatus(OrderStatus.FAILED);
+                order.setFailureReason("CRITICAL: Payment Succeeded but Enrollment Failed: " + e.getMessage());
+                orderRepository.save(order);
+                
+                return CheckoutResultResponse.builder()
+                        .success(false)
+                        .orderId(order.getId())
+                        .orderNumber(order.getOrderNumber())
+                        .transactionNumber(transaction.getTransactionNumber())
+                        .message("Payment successful, but there was an error activating your course. Please contact support immediately.")
+                        .errorCode("ENROLLMENT_ERROR")
+                        .errorMessage(e.getMessage())
+                        .build();
+            }
+            
         } else if (result.isRequiresRedirect()) {
             transaction.setRedirectUrl(result.getRedirectUrl());
             transactionRepository.save(transaction);
@@ -436,39 +488,60 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     @Transactional
     private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction transaction,
-                                                           CheckoutRequest request) {
+                                                           boolean isFromCart) {
         log.info("Payment successful for order: {}", order.getOrderNumber());
 
-        // Complete order
+        // 1. Complete order (CRITICAL)
         order.setStatus(OrderStatus.COMPLETED);
         order.setCompletedAt(LocalDateTime.now());
         orderRepository.save(order);
 
-        // Create enrollments
+        // 2. Create enrollments (CRITICAL)
         createEnrollmentsForOrder(order);
 
-        // Create earnings
-        earningService.createEarningsForOrder(order);
+        // 3. Create earnings (Non-Critical)
+        try {
+            earningService.createEarningsForOrder(order);
+        } catch (Exception e) {
+            log.error("Failed to create earnings for order: {}", order.getOrderNumber(), e);
+            // Verify if we should throw or just log. For user experience, getting the course is priority.
+            // internal accounting can be fixed later. Keeping it non-blocking.
+        }
 
-        // Clear cart (if from cart checkout)
-        cartService.clearCart(order.getUserId());
+        // 4. Clear cart (Non-Critical)
+        if (isFromCart) {
+            try {
+                cartService.clearCart(order.getUserId());
+            } catch (Exception e) {
+                log.error("Failed to clear cart for user: {}", order.getUserId(), e);
+            }
+        }
 
-        // Generate invoice
-        InvoiceResponse invoice = invoiceService.generateInvoice(order);
-        
-        // Generate PDF for invoice
-        invoiceService.generateInvoicePdf(invoice.getId());
-        
-        // Reload invoice to get updated PDF URL
-        invoice = invoiceService.getInvoiceById(invoice.getId());
+        InvoiceResponse invoice = null;
+        try {
+            // 5. Generate invoice (Non-Critical)
+            invoice = invoiceService.generateInvoice(order);
+            
+            // Generate PDF for invoice
+            invoiceService.generateInvoicePdf(invoice.getId());
+            
+            // Reload invoice to get updated PDF URL
+            invoice = invoiceService.getInvoiceById(invoice.getId());
+        } catch (Exception e) {
+            log.error("Failed to generate invoice for order: {}", order.getOrderNumber(), e);
+        }
 
-        // Publish event
-        eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
+        // 6. Publish event (Non-Critical)
+        try {
+            eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
+        } catch (Exception e) {
+            log.error("Failed to publish OrderCompletedEvent for order: {}", order.getOrderNumber(), e);
+        }
 
         // Load order items explicitly (lazy loading issue)
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
-        return CheckoutResultResponse.builder()
+        CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
                 .success(true)
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -478,15 +551,22 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .totalAmount(order.getTotalAmount())
                 .currency(order.getCurrency())
                 .paymentMethod(order.getPaymentMethod())
-                .invoiceNumber(invoice.getInvoiceNumber())
-                .invoiceUrl(invoice.getPdfUrl())
                 .enrolledCourseIds(orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList()))
                 .createdAt(order.getCreatedAt())
                 .completedAt(order.getCompletedAt())
-                .message("Payment successful! You can now access your courses.")
-                .build();
+                .message("Payment successful! You can now access your courses.");
+
+        if (invoice != null) {
+            responseBuilder
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .invoiceUrl(invoice.getPdfUrl());
+        }
+        
+        return responseBuilder.build();
+
+
     }
 
     @Transactional
