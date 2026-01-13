@@ -2,10 +2,12 @@ spring:
   application:
     name: lms-core-service-test
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS payment\;CREATE SCHEMA IF NOT EXISTS course
     driver-class-name: org.h2.Driver
     username: sa
     password:
+    hikari:
+      schema: PUBLIC
   sql:
     init:
       mode: always
