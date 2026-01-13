@@ -25,12 +25,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
@@ -141,7 +143,10 @@ class CartServiceTest {
 
             // Then
             assertThat(response).isNotNull();
-            verify(cartItemRepository).save(any(CartItem.class));
+            // Verify price snapshot
+            verify(cartItemRepository).save(argThat(item -> 
+                item.getPriceSnapshot().compareTo(course.getPrice()) == 0
+            ));
         }
 
         @Test
@@ -351,6 +356,61 @@ class CartServiceTest {
 
             // Then
             assertThat(result).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Price Calculation Tests")
+    class PriceCalculationTests {
+
+        @Test
+        @DisplayName("Should calculate totals correctly for multiple items")
+        void buildCartResponse_MultipleItems_CalculatesCorrectly() {
+            // Given
+            // Item 1: $100, No Discount
+            Long courseId1 = 101L;
+            Course course1 = Course.builder()
+                    .title("Course 1")
+                    .price(new BigDecimal("100.00"))
+                    .build();
+            org.springframework.test.util.ReflectionTestUtils.setField(course1, "id", courseId1);
+            
+            CartItem item1 = new CartItem();
+            item1.setCourseId(courseId1);
+            item1.setCart(cart);
+
+            // Item 2: $200, $50 Discount (Effective $150)
+            Long courseId2 = 102L;
+            Course course2 = Course.builder()
+                    .title("Course 2")
+                    .price(new BigDecimal("200.00"))
+                    .discountPrice(new BigDecimal("150.00")) // Assuming effective price logic handles this
+                    .build();
+            org.springframework.test.util.ReflectionTestUtils.setField(course2, "id", courseId2);
+            
+            CartItem item2 = new CartItem();
+            item2.setCourseId(courseId2);
+            item2.setCart(cart);
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(Arrays.asList(item1, item2));
+            when(courseRepository.findAllById(anyCollection())).thenReturn(Arrays.asList(course1, course2));
+
+            // When
+            CartResponse response = cartService.getCart(userId);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.getItemCount()).isEqualTo(2);
+            
+            // Subtotal: 100 + 200 = 300
+            assertThat(response.getSubtotal()).isEqualByComparingTo(new BigDecimal("300.00"));
+            
+            // Discount: (100-100) + (200-150) = 0 + 50 = 50
+            assertThat(response.getDiscountTotal()).isEqualByComparingTo(new BigDecimal("50.00"));
+            
+            // Total: 300 - 50 = 250 (or 100 + 150)
+            assertThat(response.getTotalAmount()).isEqualByComparingTo(new BigDecimal("250.00"));
         }
     }
 }

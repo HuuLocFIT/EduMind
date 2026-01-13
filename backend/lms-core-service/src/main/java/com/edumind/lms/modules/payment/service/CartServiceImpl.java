@@ -14,6 +14,10 @@ import com.edumind.lms.modules.payment.exception.CourseAlreadyPurchasedException
 import com.edumind.lms.modules.payment.exception.CourseNotAvailableException;
 import com.edumind.lms.modules.payment.repository.CartItemRepository;
 import com.edumind.lms.modules.payment.repository.CartRepository;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -154,12 +158,34 @@ public class CartServiceImpl implements CartService {
     private CartResponse buildCartResponse(Cart cart) {
         List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
 
+        if (items.isEmpty()) {
+             return CartResponse.builder()
+                .id(cart.getId())
+                .userId(cart.getUserId())
+                .items(new ArrayList<>())
+                .itemCount(0)
+                .subtotal(BigDecimal.ZERO)
+                .discountTotal(BigDecimal.ZERO)
+                .totalAmount(BigDecimal.ZERO)
+                .currency("USD")
+                .createdAt(cart.getCreatedAt())
+                .updatedAt(cart.getUpdatedAt())
+                .build();
+        }
+
+        Set<Long> courseIds = items.stream()
+                .map(CartItem::getCourseId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Course> courseMap = courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Function.identity()));
+
         List<CartItemResponse> itemResponses = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal totalDiscount = BigDecimal.ZERO;
 
         for (CartItem item : items) {
-            Course course = courseRepository.findById(item.getCourseId()).orElse(null);
+            Course course = courseMap.get(item.getCourseId());
 
             if (course != null) {
                 BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
