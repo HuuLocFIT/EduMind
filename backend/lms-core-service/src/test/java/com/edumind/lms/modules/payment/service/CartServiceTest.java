@@ -89,7 +89,7 @@ class CartServiceTest {
         void getCart_ExistingUser_ReturnsCart() {
             // Given
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
-            when(cartItemRepository.findByCartIdWithCourse(cart.getId())).thenReturn(Collections.emptyList());
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(Collections.emptyList());
 
             // When
             CartResponse response = cartService.getCart(userId);
@@ -106,7 +106,7 @@ class CartServiceTest {
             // Given
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
             when(cartRepository.save(any(Cart.class))).thenReturn(cart);
-            when(cartItemRepository.findByCartIdWithCourse(anyLong())).thenReturn(Collections.emptyList());
+            when(cartItemRepository.findByCartId(anyLong())).thenReturn(Collections.emptyList());
 
             // When
             CartResponse response = cartService.getCart(userId);
@@ -134,7 +134,7 @@ class CartServiceTest {
             when(cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(false);
             when(cartItemRepository.save(any(CartItem.class))).thenAnswer(inv -> inv.getArgument(0));
             when(cartRepository.findByIdWithItems(cart.getId())).thenReturn(Optional.of(cart));
-            when(cartItemRepository.findByCartIdWithCourse(cart.getId())).thenReturn(Collections.emptyList());
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(Collections.emptyList());
 
             // When
             CartResponse response = cartService.addToCart(userId, request);
@@ -222,7 +222,7 @@ class CartServiceTest {
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(Optional.of(item));
             when(cartRepository.findByIdWithItems(cart.getId())).thenReturn(Optional.of(cart));
-            when(cartItemRepository.findByCartIdWithCourse(cart.getId())).thenReturn(Collections.emptyList());
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(Collections.emptyList());
 
             // When
             CartResponse response = cartService.removeFromCart(userId, courseId);
@@ -259,7 +259,7 @@ class CartServiceTest {
             cartService.clearCart(userId);
 
             // Then
-            verify(cartItemRepository).deleteByCartId(cart.getId());
+            verify(cartItemRepository).deleteAllByCartId(cart.getId());
         }
 
         @Test
@@ -272,7 +272,7 @@ class CartServiceTest {
             cartService.clearCart(userId);
 
             // Then
-            verify(cartItemRepository, never()).deleteByCartId(anyLong());
+            verify(cartItemRepository, never()).deleteAllByCartId(anyLong());
         }
     }
 

@@ -3,6 +3,8 @@ package com.edumind.lms.modules.payment.repository;
 import com.edumind.lms.modules.payment.PaymentTestHelper;
 import com.edumind.lms.modules.payment.entity.Cart;
 import com.edumind.lms.modules.payment.entity.CartItem;
+
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,7 @@ import com.edumind.lms.config.JpaAuditingConfig;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
@@ -57,7 +60,7 @@ class CartRepositoryTest {
     @DisplayName("Should return empty when cart not found by userId")
     void findByUserId_WhenNotExists_ShouldReturnEmpty() {
         // When
-        Optional<Cart> found = cartRepository.findByUserId(999L);
+        Optional<Cart> found = cartRepository.findByUserId(PaymentTestHelper.NON_EXISTENT_USER_ID);
 
         // Then
         assertThat(found).isEmpty();
@@ -73,7 +76,7 @@ class CartRepositoryTest {
 
         // When/Then
         assertThat(cartRepository.existsByUserId(userId)).isTrue();
-        assertThat(cartRepository.existsByUserId(999L)).isFalse();
+        assertThat(cartRepository.existsByUserId(PaymentTestHelper.NON_EXISTENT_USER_ID)).isFalse();
     }
 
     @Test
@@ -139,7 +142,7 @@ class CartRepositoryTest {
         assertThat(count).isZero();
 
         // When (No cart)
-        int missingCount = cartRepository.countItemsByUserId(999L);
+        int missingCount = cartRepository.countItemsByUserId(PaymentTestHelper.NON_EXISTENT_USER_ID);
         assertThat(missingCount).isZero();
     }
 
@@ -161,5 +164,68 @@ class CartRepositoryTest {
         // Then
         assertThat(result).isPresent();
         assertThat(result.get().getItems()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when saving duplicate cart for same user")
+    void save_DuplicateUserId_ShouldThrowException() {
+        // Given
+        Cart cart1 = PaymentTestHelper.createCart(userId);
+        entityManager.persist(cart1);
+        entityManager.flush();
+
+        Cart cart2 = PaymentTestHelper.createCart(userId);
+
+        // When & Then
+        Assertions.assertThatThrownBy(() -> {
+            cartRepository.save(cart2);
+            entityManager.flush();
+        }).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("Should return cart with empty items list when no items exist")
+    void findByUserIdWithItems_EmptyCart_ShouldReturnEmptyItemsList() {
+        // Given
+        Cart cart = PaymentTestHelper.createCart(userId);
+        entityManager.persist(cart);
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        Optional<Cart> result = cartRepository.findByUserIdWithItems(userId);
+
+        // Then
+        assertThat(result).isPresent();
+        assertThat(result.get().getItems()).isNotNull();
+        assertThat(result.get().getItems()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should return cart with empty items list when fetching by ID with no items")
+    void findByIdWithItems_EmptyCart_ShouldReturnEmptyItemsList() {
+        // Given
+        Cart cart = PaymentTestHelper.createCart(userId);
+        cart = entityManager.persist(cart);
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        Optional<Cart> result = cartRepository.findByIdWithItems(cart.getId());
+
+        // Then
+        assertThat(result).isPresent();
+        assertThat(result.get().getItems()).isNotNull();
+        assertThat(result.get().getItems()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should return empty when findByIdWithItems with non-existent ID")
+    void findByIdWithItems_NonExistentId_ShouldReturnEmpty() {
+        // When
+        Optional<Cart> result = cartRepository.findByIdWithItems(PaymentTestHelper.NON_EXISTENT_CART_ID);
+
+        // Then
+        assertThat(result).isEmpty();
     }
 }

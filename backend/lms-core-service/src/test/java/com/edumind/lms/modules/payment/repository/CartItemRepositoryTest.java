@@ -136,6 +136,32 @@ class CartItemRepositoryTest {
     }
 
     @Test
+    @DisplayName("Should find items by cart ID")
+    void findByCartId_ShouldReturnItems() {
+        // Given
+        CartItem item1 = PaymentTestHelper.createCartItem(courseId1, new BigDecimal("99.99"));
+        CartItem item2 = PaymentTestHelper.createCartItem(courseId2, new BigDecimal("49.99"));
+        cart.addItem(item1);
+        cart.addItem(item2);
+        entityManager.persist(item1);
+        entityManager.persist(item2);
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
+
+        // Then
+        assertThat(items).hasSize(2);
+        assertThat(items).extracting(CartItem::getCourseId)
+                .containsExactlyInAnyOrder(courseId1, courseId2);
+        assertThat(items).allSatisfy(ci -> {
+            assertThat(ci.getCart()).isNotNull();
+            assertThat(ci.getCart().getId()).isEqualTo(cart.getId());
+        });
+    }
+
+    @Test
     @DisplayName("Should count items by cart ID")
     void countByCartId_ShouldReturnCorrectCount() {
         // Given
@@ -152,5 +178,57 @@ class CartItemRepositoryTest {
 
         // Then
         assertThat(count).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Should delete cart items by cart ID using custom query")
+    void deleteByCartId_ShouldRemoveItems() {
+        // Given
+        CartItem item1 = PaymentTestHelper.createCartItem(courseId1, new BigDecimal("99.99"));
+        CartItem item2 = PaymentTestHelper.createCartItem(courseId2, new BigDecimal("49.99"));
+        cart.addItem(item1);
+        cart.addItem(item2);
+        entityManager.persist(item1);
+        entityManager.persist(item2);
+        entityManager.flush();
+
+        // When
+        cartItemRepository.deleteByCartId(cart.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        // Then
+        assertThat(cartItemRepository.countByCartId(cart.getId())).isZero();
+    }
+
+    // findByCartIdWithCourse_ShouldReturnItemsWithCart removed as it was redundant with findByCartId_ShouldReturnItems
+
+    @Test
+    @DisplayName("Should throw exception when saving duplicate course to same cart")
+    void save_DuplicateCourse_ShouldThrowException() {
+        // Given
+        CartItem item1 = PaymentTestHelper.createCartItem(courseId1, new BigDecimal("99.99"));
+        cart.addItem(item1);
+        entityManager.persist(item1);
+        entityManager.flush();
+
+        CartItem item2 = PaymentTestHelper.createCartItem(courseId1, new BigDecimal("99.99"));
+        item2.setCart(cart); // Manually set cart since addItem won't enforce DB constraint yet
+
+        // When & Then
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> {
+            cartItemRepository.save(item2);
+            entityManager.flush();
+        }).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("Should return empty list for non-existent cart ID")
+    void findByCartId_NonExistentCart_ShouldReturnEmpty() {
+        // When
+        List<CartItem> items = cartItemRepository.findByCartId(PaymentTestHelper.NON_EXISTENT_CART_ID);
+
+        // Then
+        assertThat(items).isEmpty();
     }
 }

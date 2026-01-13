@@ -19,10 +19,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import com.edumind.lms.modules.payment.enums.OrderStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,7 +66,7 @@ class OrderRepositoryTest {
     void findWithItemsById_ShouldFetchItemsEagerly() {
         // Given
         Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
-        OrderItem item = PaymentTestHelper.createOrderItem(201L, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
+        OrderItem item = PaymentTestHelper.createOrderItem(PaymentTestHelper.NON_EXISTENT_COURSE_ID, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
         order.addItem(item);
         
         entityManager.persist(order);
@@ -81,7 +79,7 @@ class OrderRepositoryTest {
         // Then
         assertThat(result).isPresent();
         assertThat(result.get().getItems()).hasSize(1);
-        assertThat(result.get().getItems().iterator().next().getCourseId()).isEqualTo(201L);
+        assertThat(result.get().getItems().iterator().next().getCourseId()).isEqualTo(PaymentTestHelper.NON_EXISTENT_COURSE_ID);
     }
 
     @Test
@@ -89,7 +87,7 @@ class OrderRepositoryTest {
     void findWithItemsAndTransactionsById_ShouldFetchEverything() {
         // Given
         Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
-        OrderItem item = PaymentTestHelper.createOrderItem(201L, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
+        OrderItem item = PaymentTestHelper.createOrderItem(PaymentTestHelper.NON_EXISTENT_COURSE_ID, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
         order.addItem(item);
 
         Transaction txn = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("100.00"));
@@ -112,7 +110,7 @@ class OrderRepositoryTest {
     @DisplayName("Should check if user has purchased a course")
     void hasUserPurchasedCourse_ShouldReturnTrueWrappedInBoolean() {
         // Given
-        Long courseId = 555L;
+        Long courseId = PaymentTestHelper.NON_EXISTENT_COURSE_ID;
         Order order = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00"));
         OrderItem item = PaymentTestHelper.createOrderItem(courseId, 1L, new BigDecimal("50.00"), new BigDecimal("50.00"));
         order.addItem(item);
@@ -122,15 +120,15 @@ class OrderRepositoryTest {
 
         // When/Then
         assertThat(orderRepository.hasUserPurchasedCourse(userId, courseId)).isTrue();
-        assertThat(orderRepository.hasUserPurchasedCourse(userId, 999L)).isFalse();
-        assertThat(orderRepository.hasUserPurchasedCourse(999L, courseId)).isFalse();
+        assertThat(orderRepository.hasUserPurchasedCourse(userId, 999111L)).isFalse();
+        assertThat(orderRepository.hasUserPurchasedCourse(PaymentTestHelper.NON_EXISTENT_USER_ID, courseId)).isFalse();
     }
 
     @Test
     @DisplayName("Should return false if order is not COMPLETED")
     void hasUserPurchasedCourse_WhenPending_ShouldReturnFalse() {
         // Given
-        Long courseId = 555L;
+        Long courseId = PaymentTestHelper.NON_EXISTENT_COURSE_ID;
         // Create PENDING order
         Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00")); 
         OrderItem item = PaymentTestHelper.createOrderItem(courseId, 1L, new BigDecimal("50.00"), new BigDecimal("50.00"));
@@ -227,5 +225,113 @@ class OrderRepositoryTest {
         // Then
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getOrderNumber()).isEqualTo(newOrder.getOrderNumber());
+    }
+
+    @Test
+    @DisplayName("Should calculate total revenue by date range")
+    void getTotalRevenueByDateRange_ShouldSumCompletedOrdersOnly() {
+        // Given
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Order 1: Completed, in range ($100)
+        Order o1 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        o1.setCompletedAt(now.minusDays(1));
+        entityManager.persist(o1);
+
+        // Order 2: Completed, in range ($50)
+        Order o2 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00"));
+        o2.setCompletedAt(now.minusDays(2));
+        entityManager.persist(o2);
+
+        // Order 3: Pending, in range (Should be ignored)
+        Order o3 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("200.00"));
+        // Force create date but status is PENDING
+        entityManager.persist(o3);
+
+        // Order 4: Completed, OUT of range (Old)
+        Order o4 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        o4.setCompletedAt(now.minusDays(10));
+        entityManager.persist(o4);
+
+        entityManager.flush();
+
+        // When
+        BigDecimal revenue = orderRepository.getTotalRevenueByDateRange(now.minusDays(5), now);
+
+        // Then
+        assertThat(revenue).isNotNull();
+        assertThat(revenue).isEqualByComparingTo(new BigDecimal("150.00"));
+    }
+
+    @Test
+    @DisplayName("Should return zero revenue when no completed orders in range")
+    void getTotalRevenueByDateRange_NoOrders_ShouldReturnZero() {
+        // When
+        BigDecimal revenue = orderRepository.getTotalRevenueByDateRange(LocalDateTime.now().minusDays(1), LocalDateTime.now());
+
+        // Then
+        assertThat(revenue).isNotNull();
+        assertThat(revenue).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("Should find order with items by order number")
+    void findWithItemsByOrderNumber_ShouldFetchItemsEagerly() {
+        // Given
+        String orderNum = PaymentTestHelper.generateOrderNumber();
+        Order order = PaymentTestHelper.createOrder(userId, orderNum, new BigDecimal("100.00"));
+        OrderItem item = PaymentTestHelper.createOrderItem(PaymentTestHelper.NON_EXISTENT_COURSE_ID, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
+        order.addItem(item);
+        
+        entityManager.persist(order);
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        Optional<Order> result = orderRepository.findWithItemsByOrderNumber(orderNum);
+
+        // Then
+        assertThat(result).isPresent();
+        assertThat(result.get().getItems()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Should find orders by user ID ordered by created at desc")
+    void findByUserIdOrderByCreatedAtDesc_ShouldReturnOrderedPage() throws InterruptedException {
+        // Given
+        Order o1 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
+        entityManager.persist(o1);
+        
+        // Ensure time gap
+        Thread.sleep(10);
+        
+        Order o2 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
+        entityManager.persist(o2);
+        
+        entityManager.flush();
+
+        // When
+        Page<Order> page = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 10));
+
+        // Then
+        assertThat(page.getContent()).hasSize(2);
+        assertThat(page.getContent().get(0).getId()).isEqualTo(o2.getId()); // Newer first
+        assertThat(page.getContent().get(1).getId()).isEqualTo(o1.getId());
+    }
+
+    @Test
+    @DisplayName("Should count user orders by user ID")
+    void countByUserId_ShouldReturnCorrectCount() {
+        // Given
+        entityManager.persist(PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createOrder(2L, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN)); // Other user
+        entityManager.flush();
+
+        // When
+        long count = orderRepository.countByUserId(userId);
+
+        // Then
+        assertThat(count).isEqualTo(2);
     }
 }

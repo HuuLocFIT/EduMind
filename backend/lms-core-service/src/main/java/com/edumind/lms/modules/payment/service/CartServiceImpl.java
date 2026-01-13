@@ -117,7 +117,7 @@ public class CartServiceImpl implements CartService {
         log.info("Clearing cart for user {}", userId);
 
         cartRepository.findByUserId(userId).ifPresent(cart -> {
-            cartItemRepository.deleteByCartId(cart.getId());
+            cartItemRepository.deleteAllByCartId(cart.getId());
             log.info("Cart cleared for user {}", userId);
         });
     }
@@ -152,7 +152,7 @@ public class CartServiceImpl implements CartService {
     }
 
     private CartResponse buildCartResponse(Cart cart) {
-        List<CartItem> items = cartItemRepository.findByCartIdWithCourse(cart.getId());
+        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
 
         List<CartItemResponse> itemResponses = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;

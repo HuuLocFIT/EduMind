@@ -100,6 +100,19 @@ class InvoiceRepositoryTest {
         // Then
         assertThat(page.getContent()).hasSize(2);
         assertThat(page.getTotalElements()).isEqualTo(2);
+        assertThat(page.getContent().get(0).getId()).isEqualTo(invoice2.getId()); // Newer first
+        assertThat(page.getContent().get(1).getId()).isEqualTo(invoice1.getId());
+    }
+
+    @Test
+    @DisplayName("Should return empty page when user has no invoices")
+    void findByUserIdOrderByIssuedAtDesc_NoInvoices_ShouldReturnEmptyPage() {
+        // When
+        Page<Invoice> page = invoiceRepository.findByUserIdOrderByIssuedAtDesc(userId, PageRequest.of(0, 10));
+
+        // Then
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isZero();
     }
 
     @Test
@@ -149,6 +162,16 @@ class InvoiceRepositoryTest {
     }
 
     @Test
+    @DisplayName("Should return empty when finding by non-existent ID with order")
+    void findByIdWithOrder_NonExistent_ShouldReturnEmpty() {
+        // When
+        Optional<Invoice> found = invoiceRepository.findByIdWithOrder(PaymentTestHelper.NON_EXISTENT_ORDER_ID);
+
+        // Then
+        assertThat(found).isEmpty();
+    }
+
+    @Test
     @DisplayName("Should find invoice by number with order and items")
     void findByInvoiceNumberWithOrderAndItems_ShouldFetchAll() {
         // Given
@@ -174,6 +197,16 @@ class InvoiceRepositoryTest {
     }
 
     @Test
+    @DisplayName("Should return empty when finding by non-existent invoice number with items")
+    void findByInvoiceNumberWithOrderAndItems_NonExistent_ShouldReturnEmpty() {
+        // When
+        Optional<Invoice> found = invoiceRepository.findByInvoiceNumberWithOrderAndItems("NON-EXISTENT-INV");
+
+        // Then
+        assertThat(found).isEmpty();
+    }
+
+    @Test
     @DisplayName("Should check if invoice exists by order ID")
     void existsByOrderId_ShouldReturnCorrectResult() {
         // Given
@@ -185,6 +218,6 @@ class InvoiceRepositoryTest {
 
         // When & Then
         assertThat(invoiceRepository.existsByOrderId(order.getId())).isTrue();
-        assertThat(invoiceRepository.existsByOrderId(999L)).isFalse();
+        assertThat(invoiceRepository.existsByOrderId(PaymentTestHelper.NON_EXISTENT_ORDER_ID)).isFalse();
     }
 }

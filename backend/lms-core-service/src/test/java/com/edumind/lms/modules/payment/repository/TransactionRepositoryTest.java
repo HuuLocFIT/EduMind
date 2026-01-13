@@ -13,11 +13,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -145,5 +148,157 @@ class TransactionRepositoryTest {
         }
         assertThat(foundMock).isTrue();
         assertThat(foundPaypal).isTrue();
+    }
+
+    // ===== Missing Tests for Lookups & Sorting =====
+
+    @Test
+    @DisplayName("Should find transaction by transaction number")
+    void findByTransactionNumber_WhenExists_ShouldReturnTransaction() {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+        String txnNum = PaymentTestHelper.generateTransactionNumber();
+        Transaction txn = PaymentTestHelper.createTransaction(order, txnNum, new BigDecimal("100.00"));
+        entityManager.persist(txn);
+        entityManager.flush();
+
+        // When
+        Optional<Transaction> found = transactionRepository.findByTransactionNumber(txnNum);
+
+        // Then
+        assertThat(found).isPresent();
+        assertThat(found.get().getTransactionNumber()).isEqualTo(txnNum);
+    }
+
+    @Test
+    @DisplayName("Should return empty for non-existent transaction number")
+    void findByTransactionNumber_WhenNotExists_ShouldReturnEmpty() {
+        // When
+        Optional<Transaction> found = transactionRepository.findByTransactionNumber("NON-EXISTENT-TXN");
+
+        // Then
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should find transaction by gateway transaction id")
+    void findByGatewayTransactionId_WhenExists_ShouldReturnTransaction() {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+        Transaction txn = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("100.00"));
+        String gatewayId = "gateway_12345";
+        txn.setGatewayTransactionId(gatewayId);
+        entityManager.persist(txn);
+        entityManager.flush();
+
+        // When
+        Optional<Transaction> found = transactionRepository.findByGatewayTransactionId(gatewayId);
+
+        // Then
+        assertThat(found).isPresent();
+        assertThat(found.get().getGatewayTransactionId()).isEqualTo(gatewayId);
+    }
+
+    @Test
+    @DisplayName("Should find transactions by order ID descending by creation")
+    void findByOrderIdOrderByCreatedAtDesc_ShouldReturnSortedList() throws InterruptedException {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        // Txn 1 (Older)
+        Transaction txn1 = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        entityManager.persist(txn1);
+        
+        Thread.sleep(10); // Check timestamp gap
+
+        // Txn 2 (Newer)
+        Transaction txn2 = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        entityManager.persist(txn2);
+        
+        entityManager.flush();
+
+        // When
+        List<Transaction> found = transactionRepository.findByOrderIdOrderByCreatedAtDesc(order.getId());
+
+        // Then
+        assertThat(found).hasSize(2);
+        assertThat(found.get(0).getId()).isEqualTo(txn2.getId()); // Newer first
+        assertThat(found.get(1).getId()).isEqualTo(txn1.getId());
+    }
+
+    @Test
+    @DisplayName("Should find first (latest) transaction by order ID")
+    void findFirstByOrderIdOrderByCreatedAtDesc_ShouldReturnLatest() throws InterruptedException {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        // Txn 1 (Older)
+        Transaction txn1 = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        entityManager.persist(txn1);
+        
+        Thread.sleep(10);
+
+        // Txn 2 (Newer)
+        Transaction txn2 = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        entityManager.persist(txn2);
+
+        entityManager.flush();
+
+        // When
+        Optional<Transaction> latest = transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId());
+
+        // Then
+        assertThat(latest).isPresent();
+        assertThat(latest.get().getId()).isEqualTo(txn2.getId());
+    }
+
+    // ===== Missing Tests for Pagination =====
+
+    @Test
+    @DisplayName("Should find transactions by status with pagination")
+    void findByStatus_ShouldReturnPagedResults() {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        entityManager.persist(PaymentTestHelper.createSuccessfulTransaction(order, PaymentTestHelper.generateTransactionNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createSuccessfulTransaction(order, PaymentTestHelper.generateTransactionNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createFailedTransaction(order, PaymentTestHelper.generateTransactionNumber(), BigDecimal.TEN, "Err"));
+        entityManager.flush();
+
+        // When
+        Page<Transaction> page = transactionRepository.findByStatus(TransactionStatus.SUCCESS, PageRequest.of(0, 10));
+
+        // Then
+        assertThat(page.getTotalElements()).isEqualTo(2);
+        assertThat(page.getContent()).allMatch(t -> t.getStatus() == TransactionStatus.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("Should find transactions by gateway with pagination")
+    void findByGateway_ShouldReturnPagedResults() {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        Transaction t1 = PaymentTestHelper.createSuccessfulTransaction(order, PaymentTestHelper.generateTransactionNumber(), BigDecimal.TEN);
+        t1.setGateway(PaymentMethod.MOCK);
+        entityManager.persist(t1);
+
+        Transaction t2 = PaymentTestHelper.createSuccessfulTransaction(order, PaymentTestHelper.generateTransactionNumber(), BigDecimal.TEN);
+        t2.setGateway(PaymentMethod.PAYPAL);
+        entityManager.persist(t2);
+        entityManager.flush();
+
+        // When
+        Page<Transaction> page = transactionRepository.findByGateway(PaymentMethod.MOCK, PageRequest.of(0, 10));
+
+        // Then
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent().get(0).getGateway()).isEqualTo(PaymentMethod.MOCK);
     }
 }

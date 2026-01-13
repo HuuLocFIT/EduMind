@@ -19,6 +19,12 @@ public final class PaymentTestHelper {
         // Utility class, prevent instantiation
     }
 
+    // ===== TEST CONSTANTS =====
+    public static final Long NON_EXISTENT_USER_ID = 999999L;
+    public static final Long NON_EXISTENT_CART_ID = 999999L;
+    public static final Long NON_EXISTENT_COURSE_ID = 999999L;
+    public static final Long NON_EXISTENT_ORDER_ID = 999999L;
+
     // ===== COURSE HELPERS =====
 
     /**
