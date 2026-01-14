@@ -103,6 +103,14 @@ public class LmsGlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParams(org.springframework.web.bind.MissingServletRequestParameterException ex,
+                                                             HttpServletRequest request) {
+        log.warn("Missing request parameter: {}", ex.getParameterName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(buildResponse(HttpStatus.BAD_REQUEST, "Missing Parameter", ex.getMessage(), request));
+    }
+
     @ExceptionHandler({InvalidRatingException.class})
     public ResponseEntity<ErrorResponse> handleInvalidRating(InvalidRatingException ex,
                                                              HttpServletRequest request) {

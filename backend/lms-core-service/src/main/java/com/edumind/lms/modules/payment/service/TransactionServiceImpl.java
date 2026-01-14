@@ -111,13 +111,24 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction transaction = transactionRepository.findByGatewayTransactionId(gatewayTransactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(gatewayTransactionId));
 
+        if (transaction.getStatus() == TransactionStatus.SUCCESS) {
+            log.info("Transaction {} is already SUCCESS. Ignoring update from gateway.", transaction.getTransactionNumber());
+            // We can still update the latest gateway response if needed for auditing
+            transaction.setGatewayResponse(result.getRawResponse());
+            transactionRepository.save(transaction);
+            return;
+        }
+
         transaction.setStatus(mapGatewayStatus(result.getStatus()));
 
         if (!result.isSuccess()) {
             transaction.setFailureCode(result.getErrorCode());
             transaction.setFailureReason(result.getErrorMessage());
         } else {
-            transaction.setProcessedAt(LocalDateTime.now());
+            // Only set processedAt if it's not already set
+            if (transaction.getProcessedAt() == null) {
+                transaction.setProcessedAt(LocalDateTime.now());
+            }
         }
 
         transaction.setGatewayResponse(result.getRawResponse());
