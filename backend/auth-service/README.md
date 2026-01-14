@@ -192,20 +192,31 @@ Key configuration sections:
 
 All sensitive values should be provided via environment variables (see Setup Instructions).
 
-### Database Configuration
+### Database Operations (Flyway CLI)
 
-The service uses Flyway for database migrations. Migrations are located in:
-```
-src/main/resources/db/migration/
+We enable `flyway-maven-plugin` for direct CLI schema management.
+
+**1. Create Migrations**
+Use the root helper:
+```bash
+../scripts/create-migration.sh
 ```
 
-Migrations run automatically on application startup. The database schema is version-controlled and includes:
-- User tables and roles
-- JWT refresh tokens
-- Email verification tokens
-- Password reset tokens
-- Teacher applications
-- Two-factor authentication setup
+**2. Migrate Database**
+```bash
+mvn flyway:migrate
+```
+
+**3. Reset Database**
+```bash
+mvn flyway:clean
+```
+
+**4. Check Status**
+```bash
+mvn flyway:info
+```
+
 
 ## Running the Service
 

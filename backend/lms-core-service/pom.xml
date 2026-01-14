@@ -171,6 +171,18 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+			<!-- Flyway Maven Plugin (For CLI operations: mvn flyway:migrate, flyway:clean) -->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<configuration>
+					<url>${env.LMS_CORE_DB_URL}</url>
+					<user>${env.LMS_CORE_DB_USERNAME}</user>
+					<password>${env.LMS_CORE_DB_PASSWORD}</password>
+					<schemas>course,assessment,gamification,payment,notification,public</schemas>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>

@@ -7,18 +7,20 @@ WORKDIR /app
 
 # Copy parent POM + all module POM to ensure Maven doesn't complain about missing modules
 COPY pom.xml /app/pom.xml
+COPY api-gateway/pom.xml /app/api-gateway/pom.xml
 COPY auth-service/pom.xml /app/auth-service/pom.xml
-COPY discovery-service/pom.xml /app/discovery-service/pom.xml
 COPY common-lib/pom.xml /app/common-lib/pom.xml
+COPY discovery-service/pom.xml /app/discovery-service/pom.xml
+COPY lms-core-service/pom.xml /app/lms-core-service/pom.xml
+
+# Download dependencies (cached if POMs don't change)
+RUN mvn dependency:go-offline -B -pl api-gateway -am
 
 # Copy source for module to build/dependencies
 COPY common-lib/src /app/common-lib/src
-COPY api-gateway/pom.xml /app/api-gateway/pom.xml
 COPY api-gateway/src /app/api-gateway/src
 
 # Build application (skip tests to build faster)
-# -pl: build module api-gateway
-# -am: also make dependencies (common-lib)
 RUN mvn clean package -DskipTests -pl api-gateway -am
 
 # Stage 2: Runtime image
@@ -42,9 +44,9 @@ COPY --from=build /app/api-gateway/target/api-gateway-*.jar app.jar
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 
-# Run application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run application with graceful shutdown support (exec)
+ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS} -jar app.jar"]
 

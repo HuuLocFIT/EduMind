@@ -127,6 +127,43 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # LMS Core Service
+  lms-core-service:
+    build:
+      context: .
+      dockerfile: lms-core-service/Dockerfile
+    container_name: edumind-lms-core-service
+    ports:
+      - "${LMS_CORE_SERVICE_PORT:-8082}:8082"
+    environment:
+      - LMS_CORE_SERVICE_PORT=${LMS_CORE_SERVICE_PORT:-8082}
+      - LMS_CORE_DB_URL=jdbc:postgresql://postgres-lms-core:5432/${LMS_CORE_DB_NAME:-edumind_core}
+      - LMS_CORE_DB_USERNAME=${LMS_CORE_DB_USERNAME:-postgres}
+      - LMS_CORE_DB_PASSWORD=${LMS_CORE_DB_PASSWORD:-postgres}
+      - LMS_CORE_DB_DRIVER=org.postgresql.Driver
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - LMS_CORE_SERVICE_ENCRYPTION_KEY=${LMS_CORE_SERVICE_ENCRYPTION_KEY}
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080}
+    depends_on:
+      postgres-lms-core:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
   # API Gateway
   api-gateway:
     build:

@@ -19,10 +19,12 @@ This document guides how to build and run Docker images for the microservices of
 
 The project uses Docker to containerize the microservices:
 
-- **discovery-service** (Port 8761): Eureka Server cho service discovery
+- **discovery-service** (Port 8761): Eureka Server for service discovery
 - **api-gateway** (Port 8080): Spring Cloud Gateway
 - **auth-service** (Port 8081): Authentication & Authorization service
-- **postgres-auth** (Port 5432): PostgreSQL database
+- **lms-core-service** (Port 8082): Core Learning Management System service
+- **postgres-auth** (Port 5432): PostgreSQL database for Auth
+- **postgres-lms-core** (Port 5433): PostgreSQL database for LMS Core
 - **redis** (Port 6379): Redis for rate limiting
 
 ## 🔧 Requirements
@@ -48,8 +50,10 @@ backend/
 │   └── Dockerfile              # Dockerfile for discovery-service
 ├── api-gateway/
 │   └── Dockerfile              # Dockerfile for api-gateway
-└── auth-service/
-    └── Dockerfile              # Dockerfile cho auth-service
+├── auth-service/
+│   └── Dockerfile              # Dockerfile for auth-service
+└── lms-core-service/
+    └── Dockerfile              # Dockerfile for lms-core-service
 ```
 
 ## 🏗️ Build Docker Images
@@ -67,6 +71,9 @@ docker build -f api-gateway/Dockerfile -t edumind/api-gateway:latest .
 
 # Build auth-service
 docker build -f auth-service/Dockerfile -t edumind/auth-service:latest .
+
+# Build lms-core-service
+docker build -f lms-core-service/Dockerfile -t edumind/lms-core-service:latest .
 ```
 
 ### Method 2: Build all with docker-compose
@@ -93,6 +100,7 @@ Expected result:
 edumind/discovery-service   latest    ...    ...    ...
 edumind/api-gateway         latest    ...    ...    ...
 edumind/auth-service        latest    ...    ...    ...
+edumind/lms-core-service    latest    ...    ...    ...
 ```
 
 ## 🚀 Run with Docker Compose
@@ -102,10 +110,15 @@ edumind/auth-service        latest    ...    ...    ...
 Create `.env` file in the `backend/` directory with the necessary environment variables:
 
 ```bash
-# Database
+# Auth Service Database
 AUTH_DB_NAME=edumind_auth
 AUTH_DB_USERNAME=postgres
 AUTH_DB_PASSWORD=your_secure_password
+
+# LMS Core Service Database
+LMS_CORE_DB_NAME=edumind_core
+LMS_CORE_DB_USERNAME=postgres
+LMS_CORE_DB_PASSWORD=your_secure_password
 
 # JWT
 JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters_long
@@ -120,7 +133,7 @@ MAIL_PASSWORD=your_app_password
 MAIL_FROM=noreply@edumind.com
 MAIL_ENABLED=true
 
-# Cloudinary (if used)
+# Cloudinary (Required for LMS Core)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
@@ -137,10 +150,16 @@ LMS_CORE_SERVICE_ENCRYPTION_KEY=your_encryption_key
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 
+# PayPal (Optional)
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_MODE=sandbox
+
 # Ports (optional, default values)
 DISCOVERY_SERVER_PORT=8761
 API_GATEWAY_PORT=8080
 AUTH_SERVICE_PORT=8081
+LMS_CORE_SERVICE_PORT=8082
 REDIS_PORT=6379
 ```
 
@@ -159,6 +178,7 @@ docker compose logs -f
 docker compose logs -f discovery-service
 docker compose logs -f api-gateway
 docker compose logs -f auth-service
+docker compose logs -f lms-core-service
 ```
 
 ### Step 3: Check running services
@@ -176,10 +196,12 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 - **Discovery Service Dashboard**: http://localhost:8761
 - **API Gateway**: http://localhost:8080
 - **Auth Service**: http://localhost:8081
+- **LMS Core Service**: http://localhost:8082
 - **API Gateway Health**: http://localhost:8080/actuator/health
 - **Auth Service Health**: http://localhost:8081/actuator/health
+- **LMS Core Service Health**: http://localhost:8082/actuator/health
 
-### Stop và Cleanup
+### Stop and Cleanup
 
 ```bash
 # Stop all services (keep containers and volumes)
@@ -226,18 +248,31 @@ docker compose down -v --rmi all
 | `JWT_EXPIRATION` | 86400000 | JWT expiration (ms) |
 | `MAIL_USERNAME` | - | Email username (required) |
 | `MAIL_PASSWORD` | - | Email password (required) |
-| `CLOUDINARY_CLOUD_NAME` | - | Cloudinary cloud name |
 | `GOOGLE_CLIENT_ID` | - | Google OAuth client ID |
 | `AUTH_SERVICE_ENCRYPTION_KEY` | - | Encryption key (required) |
+
+### LMS Core Service
+
+| Variable | Default | Description |
+|----------|---------|-------|
+| `LMS_CORE_SERVICE_PORT` | 8082 | Port of LMS Core Service |
+| `LMS_CORE_DB_URL` | jdbc:postgresql://postgres-lms-core:5432/edumind_core | Database URL |
+| `LMS_CORE_DB_USERNAME` | postgres | Database username |
+| `LMS_CORE_DB_PASSWORD` | - | Database password (required) |
+| `JWT_SECRET` | - | JWT secret key (required, shared with Auth Service) |
+| `CLOUDINARY_CLOUD_NAME` | - | Cloudinary cloud name (required) |
+| `CLOUDINARY_API_KEY` | - | Cloudinary API key (required) |
+| `CLOUDINARY_API_SECRET` | - | Cloudinary API secret (required) |
 | `LMS_CORE_SERVICE_ENCRYPTION_KEY` | - | Encryption key (required) |
 
 ## 🐛 Troubleshooting
 
-### 1. Build fails with "parent POM not found"
+### 1. Build fails with "parent POM not found" or "Child module does not exist"
 
-**Reason:** Build context is incorrect.
+**Reason:** Docker build context is incorrect or missing module POMs.
 
-**Solution:** Ensure build from the `backend/` directory:
+**Solution:** 
+All Dockerfiles are optimized to resolve the "Reactor" error by copying ALL module POMs at the beginning of the build. Ensure you run the build from the `backend/` root directory:
 ```bash
 cd backend
 docker build -f discovery-service/Dockerfile -t edumind/discovery-service:latest .
@@ -250,12 +285,12 @@ docker build -f discovery-service/Dockerfile -t edumind/discovery-service:latest
 **Solution:** Docker Compose has `depends_on` with healthcheck. Check:
 ```bash
 docker compose ps
-# Ensure postgres-auth has status "healthy"
+# Ensure postgres-auth / postgres-lms-core has status "healthy"
 ```
 
 ### 3. Service cannot register with Eureka
 
-**Nguyên nhân:** 
+**Reason:** 
 - Discovery service has not started
 - Network configuration is incorrect
 - Hostname cannot be resolved
@@ -327,16 +362,16 @@ healthcheck:
 
 ## 📝 Best Practices
 
-1. **Always use multi-stage build** to reduce image size
-2. **Use .dockerignore** to remove unnecessary files
-3. **Set health checks** for all services
-4. **Use environment variables** instead of hardcode values
+1. **Always use multi-stage build** with `mvn dependency:go-offline` layer to improve build speed and caching.
+2. **Use .dockerignore** to remove unnecessary files.
+3. **Set health checks** for all services.
+4. **Use environment variables** instead of hardcoded values.
 5. **Tag images with version** instead of using `latest`:
    ```bash
    docker build -t edumind/discovery-service:1.0.0 .
    ```
-6. **Do not commit .env file** to Git
-7. **Use docker compose** for development, Kubernetes for production
+6. **Do not commit .env file** to Git.
+7. **Use docker compose** for development/testing environments.
 
 ## 🔄 Development Workflow
 
@@ -344,10 +379,10 @@ healthcheck:
 
 1. **Development:**
    ```bash
-   # Start infrastructure (DB, Redis)
-   docker compose up -d postgres-auth redis
+   # Start infrastructure (DB, Redis, Discovery)
+   docker compose up -d postgres-auth postgres-lms-core redis discovery-service
    
-   # Run services locally with IDE
+   # Run services locally with IDE (IntelliJ/VS Code)
    # Services connect to Docker containers
    ```
 
