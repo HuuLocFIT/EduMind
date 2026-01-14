@@ -1,6 +1,5 @@
 package com.edumind.lms.modules.payment.controller;
 
-import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.config.security.JwtTokenProvider;
 import com.edumind.lms.config.security.TeacherSecurity;
 import com.edumind.lms.modules.payment.dto.response.OrderCountResponse;
@@ -22,19 +21,18 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import com.edumind.lms.shared.exception.BadRequestException;
+import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -110,6 +108,35 @@ class OrderControllerTest {
     }
 
     @Test
+    @DisplayName("GET /orders - With status filter success")
+    void getMyOrders_WithStatusFilter_Success() throws Exception {
+        Page<OrderSummaryResponse> page = new PageImpl<>(List.of(orderSummaryResponse));
+        when(orderService.getOrdersByUserAndStatus(eq(userId), eq(OrderStatus.COMPLETED), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/orders")
+                .param("status", "COMPLETED")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].status").value("COMPLETED"));
+
+        verify(orderService).getOrdersByUserAndStatus(eq(userId), eq(OrderStatus.COMPLETED), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("GET /orders - Empty returns empty page")
+    void getMyOrders_Empty_ReturnsEmptyPage() throws Exception {
+        Page<OrderSummaryResponse> page = new PageImpl<>(Collections.emptyList());
+        when(orderService.getOrdersByUser(eq(userId), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/orders")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
     @DisplayName("GET /orders/{id} - Get order by ID success")
     void getOrderById_Success() throws Exception {
         when(orderService.getOrderByIdAndUser(100L, userId)).thenReturn(orderResponse);
@@ -121,6 +148,18 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.data.orderNumber").value("ORD-123"));
 
         verify(orderService).getOrderByIdAndUser(100L, userId);
+    }
+
+    @Test
+    @DisplayName("GET /orders/{id} - Not found returns 404")
+    void getOrderById_NotFound_ReturnsNotFound() throws Exception {
+        when(orderService.getOrderByIdAndUser(999L, userId))
+                .thenThrow(new ResourceNotFoundException("Order not found"));
+
+        mockMvc.perform(get("/orders/{id}", 999L)
+                .principal(auth))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
@@ -149,6 +188,18 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.data.status").value("COMPLETED")); // Mock returned COMPLETED for simplicity but logical flow verified
 
         verify(orderService).cancelOrder(100L, userId);
+    }
+
+    @Test
+    @DisplayName("POST /orders/{id}/cancel - Not pending returns 400")
+    void cancelOrder_NotPending_ReturnsBadRequest() throws Exception {
+        when(orderService.cancelOrder(100L, userId))
+                .thenThrow(new BadRequestException("Only pending orders can be cancelled"));
+
+        mockMvc.perform(post("/orders/{id}/cancel", 100L)
+                .principal(auth))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

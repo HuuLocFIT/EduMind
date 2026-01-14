@@ -1,6 +1,5 @@
 package com.edumind.lms.modules.payment.controller;
 
-import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.config.security.JwtTokenProvider;
 import com.edumind.lms.config.security.TeacherSecurity;
 import com.edumind.lms.modules.payment.dto.response.CourseEarningResponse;
@@ -23,22 +22,24 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import com.edumind.lms.modules.payment.enums.EarningStatus;
+import com.edumind.lms.shared.exception.ResourceNotFoundException;
+import org.springframework.http.HttpHeaders;
 import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -110,6 +111,25 @@ class EarningControllerTest {
     }
 
     @Test
+    @DisplayName("GET /teacher/earnings - With filters success")
+    void getMyEarnings_WithFilters_Success() throws Exception {
+        Page<EarningResponse> page = new PageImpl<>(List.of(earningResponse));
+        when(earningService.getEarningsByInstructor(
+                eq(instructorId), eq(EarningStatus.PENDING), eq(100L), any(), any(), any(Pageable.class)))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/teacher/earnings")
+                .param("status", "PENDING")
+                .param("courseId", "100")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+        
+        verify(earningService).getEarningsByInstructor(
+                eq(instructorId), eq(EarningStatus.PENDING), eq(100L), any(), any(), any(Pageable.class));
+    }
+
+    @Test
     @DisplayName("GET /teacher/earnings/summary - Get summary success")
     void getEarningsSummary_Success() throws Exception {
         when(earningService.getEarningsSummary(eq(instructorId), any(), any())).thenReturn(summaryResponse);
@@ -155,5 +175,47 @@ class EarningControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].courseId").value(100));
+    }
+
+    @Test
+    @DisplayName("GET /teacher/earnings/export - Export CSV success")
+    void exportEarningsCsv_Success() throws Exception {
+        byte[] csvContent = "id,amount\n1,100".getBytes();
+        when(earningService.exportEarningsToCsv(eq(instructorId), any(), any(), any())).thenReturn(csvContent);
+
+        mockMvc.perform(get("/teacher/earnings/export")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("attachment; filename=\"earnings_")))
+                .andExpect(content().contentType("text/csv"))
+                .andExpect(content().bytes(csvContent));
+
+        verify(earningService).exportEarningsToCsv(eq(instructorId), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /teacher/earnings/{id} - Get earning by ID success")
+    void getEarningById_Success() throws Exception {
+        when(earningService.getEarningByIdAndInstructor(1L, instructorId)).thenReturn(earningResponse);
+
+        mockMvc.perform(get("/teacher/earnings/{id}", 1L)
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(1));
+
+        verify(earningService).getEarningByIdAndInstructor(1L, instructorId);
+    }
+
+    @Test
+    @DisplayName("GET /teacher/earnings/{id} - Not found returns 404")
+    void getEarningById_NotFound_ReturnsNotFound() throws Exception {
+        when(earningService.getEarningByIdAndInstructor(999L, instructorId))
+                .thenThrow(new ResourceNotFoundException("Earning not found"));
+
+        mockMvc.perform(get("/teacher/earnings/{id}", 999L)
+                .principal(auth))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 }

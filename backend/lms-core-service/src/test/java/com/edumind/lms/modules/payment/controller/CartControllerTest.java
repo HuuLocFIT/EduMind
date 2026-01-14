@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -122,6 +121,28 @@ class CartControllerTest {
     }
 
     @Test
+    @DisplayName("GET /cart - Empty cart returns empty items")
+    void getCart_EmptyCart_ReturnsEmptyResponse() throws Exception {
+        CartResponse emptyCart = CartResponse.builder()
+                .id(1L)
+                .items(Collections.emptyList())
+                .totalAmount(BigDecimal.ZERO)
+                .itemCount(0)
+                .build();
+
+        when(cartService.getCart(userId)).thenReturn(emptyCart);
+
+        mockMvc.perform(get("/cart")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.itemCount").value(0))
+                .andExpect(jsonPath("$.data.items").isEmpty());
+
+        verify(cartService).getCart(userId);
+    }
+
+    @Test
     @DisplayName("DELETE /cart/items/{courseId} - Remove item success")
     void removeFromCart_Success() throws Exception {
         when(cartService.removeFromCart(userId, 100L)).thenReturn(cartResponse);
@@ -162,6 +183,20 @@ class CartControllerTest {
     }
 
     @Test
+    @DisplayName("GET /cart/count - Empty cart returns zero")
+    void getCartItemCount_EmptyCart_ReturnsZero() throws Exception {
+        when(cartService.getCartItemCount(userId)).thenReturn(0);
+
+        mockMvc.perform(get("/cart/count")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value(0));
+
+        verify(cartService).getCartItemCount(userId);
+    }
+
+    @Test
     @DisplayName("GET /cart/check/{courseId} - Check in cart success")
     void isInCart_Success() throws Exception {
         when(cartService.isInCart(userId, 100L)).thenReturn(true);
@@ -171,6 +206,20 @@ class CartControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").value(true));
+
+        verify(cartService).isInCart(userId, 100L);
+    }
+
+    @Test
+    @DisplayName("GET /cart/check/{courseId} - Course not in cart returns false")
+    void isInCart_NotInCart_ReturnsFalse() throws Exception {
+        when(cartService.isInCart(userId, 100L)).thenReturn(false);
+
+        mockMvc.perform(get("/cart/check/{courseId}", 100L)
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value(false));
 
         verify(cartService).isInCart(userId, 100L);
     }

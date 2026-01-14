@@ -119,6 +119,43 @@ class CheckoutControllerTest {
     }
 
     @Test
+    @DisplayName("POST /checkout - Invalid request returns 400")
+    void checkout_InvalidRequest_ReturnsBadRequest() throws Exception {
+        CheckoutRequest request = new CheckoutRequest();
+        // Missing payment method and card number
+
+        mockMvc.perform(post("/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .principal(auth))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /checkout - Payment failure returns success false")
+    void checkout_PaymentFailed_ReturnsSuccessFalse() throws Exception {
+        CheckoutRequest request = new CheckoutRequest();
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCardNumber("4242424242420000");
+
+        CheckoutResultResponse failedResult = CheckoutResultResponse.builder()
+                .success(false)
+                .build();
+
+        when(checkoutService.checkout(eq(userId), any(CheckoutRequest.class))).thenReturn(failedResult);
+
+        mockMvc.perform(post("/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true)) // API call success
+                .andExpect(jsonPath("$.data.success").value(false)); // Business logic failure
+
+        verify(checkoutService).checkout(eq(userId), any(CheckoutRequest.class));
+    }
+
+    @Test
     @DisplayName("POST /checkout/direct/preview - Direct checkout preview success")
     void previewDirectCheckout_Success() throws Exception {
         when(checkoutService.previewDirectCheckout(userId, 100L)).thenReturn(previewResponse);
@@ -131,6 +168,14 @@ class CheckoutControllerTest {
                 .andExpect(jsonPath("$.data.totalAmount").value(99.99));
 
         verify(checkoutService).previewDirectCheckout(userId, 100L);
+    }
+
+    @Test
+    @DisplayName("POST /checkout/direct/preview - Missing param returns 400")
+    void previewDirectCheckout_MissingParam_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/checkout/direct/preview")
+                .principal(auth))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -152,5 +197,18 @@ class CheckoutControllerTest {
                 .andExpect(jsonPath("$.data.orderId").value(100));
 
         verify(checkoutService).directCheckout(eq(userId), any(DirectCheckoutRequest.class));
+    }
+
+    @Test
+    @DisplayName("POST /checkout/direct - Invalid request returns 400")
+    void directCheckout_InvalidRequest_ReturnsBadRequest() throws Exception {
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        // Missing fields
+
+        mockMvc.perform(post("/checkout/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .principal(auth))
+                .andExpect(status().isBadRequest());
     }
 }
