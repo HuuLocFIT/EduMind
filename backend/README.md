@@ -70,6 +70,11 @@ backend/
 - **Docker**: For running databases (PostgreSQL, Redis)
 - **Maven**: 3.6+
 
+### 🐳 Docker Support
+
+For detailed instructions on running the platform with Docker and Docker Compose, please refer to **[DOCKER.md](DOCKER.md)**.
+
+
 ### 1. Start Infrastructure
 
 Use Docker Compose to spin up the required databases:

@@ -134,9 +134,9 @@ services:
       dockerfile: lms-core-service/Dockerfile
     container_name: edumind-lms-core-service
     ports:
-      - "${LMS_CORE_SERVICE_PORT:-8082}:8082"
+      - "${LMS_CORE_SERVICE_PORT:-8083}:8083"
     environment:
-      - LMS_CORE_SERVICE_PORT=${LMS_CORE_SERVICE_PORT:-8082}
+      - LMS_CORE_SERVICE_PORT=${LMS_CORE_SERVICE_PORT:-8083}
       - LMS_CORE_DB_URL=jdbc:postgresql://postgres-lms-core:5432/${LMS_CORE_DB_NAME:-edumind_core}
       - LMS_CORE_DB_USERNAME=${LMS_CORE_DB_USERNAME:-postgres}
       - LMS_CORE_DB_PASSWORD=${LMS_CORE_DB_PASSWORD:-postgres}
@@ -157,7 +157,7 @@ services:
     networks:
       - edumind-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3

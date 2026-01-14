@@ -17,7 +17,10 @@ API Gateway service for EduMind Platform - A single entry point for all client r
 - [Monitoring](#monitoring)
 - [Troubleshooting](#troubleshooting)
 - [Deployment](#deployment)
+- [Deployment](#deployment)
 - [Best Practices](#best-practices)
+- [Docker Guide](../DOCKER.md)
+
 
 ## Overview
 

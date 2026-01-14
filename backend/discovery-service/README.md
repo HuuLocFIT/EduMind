@@ -16,6 +16,8 @@ Service Discovery server for EduMind Platform - A Eureka-based service registry 
 - [Troubleshooting](#troubleshooting)
 - [Deployment](#deployment)
 - [Best Practices](#best-practices)
+- [Docker Guide](../DOCKER.md)
+
 
 ## Overview
 
