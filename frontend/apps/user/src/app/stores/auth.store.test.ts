@@ -757,7 +757,7 @@ describe('useAuthStore', () => {
   });
 
   describe('localStorage Edge Cases', () => {
-    it('should handle localStorage quota exceeded', () => {
+    it('should handle localStorage quota exceeded', async () => {
       const originalSetItem = Storage.prototype.setItem;
       let setItemCalled = false;
       
@@ -772,7 +772,7 @@ describe('useAuthStore', () => {
       };
       mockLogin.mockResolvedValue(mockResponse);
 
-      act(async () => {
+      await act(async () => {
         try {
           await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
         } catch (e) {
@@ -787,7 +787,7 @@ describe('useAuthStore', () => {
       Storage.prototype.setItem = originalSetItem;
     });
 
-    it('should handle localStorage disabled', () => {
+    it('should handle localStorage disabled', async () => {
       const originalSetItem = Storage.prototype.setItem;
       Storage.prototype.setItem = vi.fn(() => {
         throw new Error('localStorage is disabled');
@@ -799,7 +799,7 @@ describe('useAuthStore', () => {
       };
       mockLogin.mockResolvedValue(mockResponse);
 
-      act(async () => {
+      await act(async () => {
         try {
           await useAuthStore.getState().login({ usernameOrEmail: 'test', password: 'pass' });
         } catch (e) {
