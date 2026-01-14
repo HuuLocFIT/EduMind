@@ -1,80 +1,146 @@
-# EduMind Frontend Monorepo
+# 🧠 EduMind Frontend Monorepo
 
-This workspace hosts the **Angular Admin** and **React User** applications plus shared TypeScript libraries, all orchestrated with [Nx](https://nx.dev). Use this guide for consistent onboarding and day-to-day operations.
+> **Status:** 🚀 Active Development
+> **Monorepo Strategy:** [Nx](https://nx.dev)
+> **Engine:** Node.js v24+
 
-## Requirements
+Welcome to the **EduMind** frontend repository. This workspace follows a unified monorepo architecture, housing both the **React-based User Platform** and the **Angular-based Admin Console**, backed by shared TypeScript libraries.
 
-- Node.js 24+ (prefer using nvm to match the team version) (we use node 24.2.0)
-- npm (repo currently ships with `package-lock.json`)
-- Local Nx CLI is installed via `npm install`
+---
 
-## Install & Core Commands
+## 🛠 Technology Stack
+
+We leverage a modern, bleeding-edge stack to ensure performance, scalability, and developer experience.
+
+| Domain | Technnology | version |
+| :--- | :--- | :--- |
+| **Monorepo** | Nx | v22 |
+| **User App** | React + Vite | v19 / v7 |
+| **Admin App** | Angular | v20 |
+| **Language** | TypeScript | v5.9 |
+| **Styling** | Tailwind CSS | v3.4 |
+| **Testing** | Vitest | v3.0 |
+
+### 🎓 User Application (`apps/user`)
+A high-performance consumer-facing learning platform.
+
+- **Core**: React 19, Vite, TypeScript.
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand) (Client state), [TanStack Query v5](https://tanstack.com/query) (Server state).
+- **Forms & Validation**: React Hook Form + Zod.
+- **UI System**: Tailwind CSS, Headless UI, Lucide React (Icons).
+- **Utilities**: Date-fns, Axios, JWT Decode.
+- **Testing**: Vitest (Unit/Integration).
+
+### 🛡️ Admin Application (`apps/admin`)
+A robust enterprise management console.
+
+- **Core**: Angular 20 (Zone.js enabled).
+- **Reactive Programming**: RxJS 7.8.
+- **Architecture**: Modular layout with separation of Core, Features, and Layouts.
+- **Bundler**: Angular CLI (@angular/build).
+
+---
+
+## 🏗 Architecture & Path Aliases
+
+This project uses **Strict Module Boundaries** and **Path Aliases** to maintain clean imports and separation of concerns.
+
+### Path Mapping
+Instead of deep relative imports (`../../../../`), we use explicit path aliases defined in `tsconfig.base.json`:
+
+| Alias | Resolves To | Purpose |
+| :--- | :--- | :--- |
+| **Shared Libs** | | |
+| `@edumind/shared-types` | `libs/shared/types` | Shared interfaces & DTOs |
+| `@edumind/shared-constants` | `libs/shared/constants` | Global config & constants |
+| `@edumind/shared-utils` | `libs/shared/utils` | Helper functions |
+| **User App** | | |
+| `@user/stores` | `apps/user/.../stores` | Zustand stores |
+| `@user/services` | `apps/user/.../services` | API clients |
+| `@user/components` | `apps/user/.../components` | Reusable UI atoms |
+| `@user/pages` | `apps/user/.../pages` | Route views |
+| **Admin App** | | |
+| `@admin/core` | `apps/admin/.../core` | Guards, Interceptors, Singleton services |
+| `@admin/features` | `apps/admin/.../features` | Lazy-loaded smart modules |
+
+---
+
+## 📦 Project Structure
+
+```text
+frontend/
+├── apps/
+│   ├── admin/               # Angular Admin Console
+│   └── user/                # React User Platform
+├── libs/
+│   ├── admin/               # Admin-specific libraries
+│   ├── shared/              # Shared logic (types, utils, constants)
+│   └── user/                # User-specific libraries
+├── tools/                   # Workspace scripts
+├── nx.json                  # Nx Configuration
+├── package.json             # Root dependencies
+└── tsconfig.base.json       # Base TS config & Path Aliases
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- **Node.js**: v24.x (Checked via `node -v`)
+- **Package Manager**: npm (ships with `package-lock.json`)
+
+### Installation
+```sh
+# Install dependencies
+npm install
+```
+
+### Development Server
+Run the applications locally:
 
 ```sh
-npm install               # run inside frontend/
-npm run start:admin       # Angular dev server (http://localhost:4200)
-npm run start:user        # React/Vite dev server (runs `nx serve user`)
-npm run build             # build everything (leverages Nx caching)
-npm run lint              # lint all projects
-npm run test              # run tests (currently Vitest, passWithNoTests on)
+# Start User App (http://localhost:3000)
+npm run start:user
+
+# Start Admin App (http://localhost:4200)
+npm run start:admin
+
+# Start Both (Parallel)
+npm start
 ```
 
-You can run any target directly: `npx nx <target> <project>` (e.g. `npx nx build admin`).
-
-## Projects
-
-| Project | Stack | Tags | Main commands |
-| --- | --- | --- | --- |
-| `admin` (`apps/admin`) | Angular 20 (`@angular/build`) | `scope:app`,`type:angular` | `nx serve admin`, `nx build admin` |
-| `user` (`apps/user`) | React 19 + Vite | `scope:app`,`type:react` | `nx serve user`, `nx build user`, `nx test user` |
-| `shared-constants`, `shared-types`, `shared-utils` | TypeScript libs (`@nx/js:tsc`) | `scope:shared` | `nx run shared-constants:build`, `nx run shared-types:build`, `nx run shared-utils:build` |
-
-Visualize the dependency graph with `npx nx graph`.
-
-## Module Boundaries
-
-Current tag conventions:
-
-- `scope:app` may depend only on `scope:shared`.
-- `scope:shared` must not depend on `scope:app`.
-- `type:*` describes technology (`angular`, `react`, `util`, `types`) and can be expanded.
-
-To enforce the rules, update `@nx/enforce-module-boundaries` in `eslint.config.mjs`, e.g.:
-
-```js
-depConstraints: [
-  { sourceTag: "scope:app", onlyDependOnLibsWithTags: ["scope:shared"] },
-  { sourceTag: "scope:shared", bannedExternalImports: ["apps/*"] }
-];
-```
-
-## Testing & Quality
-
-- React uses Vitest (`nx test user`). Add actual specs and remove `passWithNoTests` once ready.
-- Angular admin currently lacks unit/e2e targets; consider wiring Jest/Vitest and Playwright or Cypress.
-- Type checking via `nx run user:typecheck` or `nx run-many -t typecheck`.
-
-## CI Suggestions
-
+### Quality Checks
 ```sh
-npx nx affected -t lint,test,build --base=origin/main --head=HEAD
+# Run Linting (ESLint 9 + Typescript-ESLint)
+npm run lint
+
+# Run Tests (Vitest)
+npm run test:user
 ```
 
-Enable Nx Cloud (`npx nx connect`) to speed up pipelines with remote caching and task distribution.
+---
 
-## Generate New Projects
+## 🤝 Contribution Guidelines
 
-```sh
-npx nx g @nx/angular:app apps/<name>
-npx nx g @nx/react:app apps/<name> --bundler=vite
-npx nx g @nx/js:lib libs/shared/<feature>
-```
+1.  **Strict Typing**: No `any`. Define interfaces in `@edumind/shared-types` if reused.
+2.  **State Management**:
+    - Use **Zustand** for global client interaction (Sidebar, Modals).
+    - Use **TanStack Query** for all API data fetching and caching.
+3.  **Components**:
+    - **User App**: Favor small, functional components with hooks.
+    - **Admin App**: Use standalone components where possible.
+4.  **Commits**: Follow conventional commits (e.g., `feat:`, `fix:`, `chore:`).
 
-Always assign appropriate `tags` in each `project.json` to keep boundaries correct.
+---
 
-## Further Reading
+## 📚 Commands Reference
 
-- [Nx Fundamentals](https://nx.dev/getting-started/intro)
-- [Angular + Nx](https://nx.dev/angular)
-- [React + Nx (Vite)](https://nx.dev/react)
-- [Module Boundaries](https://nx.dev/concepts/module-boundaries)
+| Command | Action |
+| :--- | :--- |
+| `nx serve user` | Start React Dev Server |
+| `nx serve admin` | Start Angular Dev Server |
+| `nx build user` | Build React App for Production |
+| `nx build admin` | Build Angular App for Production |
+| `nx test user` | Run Vitest Unit Tests |
+| `nx graph` | Visualize Module Dependencies |

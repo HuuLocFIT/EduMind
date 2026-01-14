@@ -397,15 +397,38 @@ mvn spring-boot:run -Dspring-boot.run.profiles=prod
 
 All routes are configured in `application.yml`. The API Gateway uses path-based routing to forward requests to backend services.
 
-### Current Routes
+### Auth & User Routes (`auth-service`)
+| Route Pattern | Internal Path | Rate Limit | Description |
+|---------------|---------------|------------|-------------|
+| `/api/auth/oauth2/**` | `/oauth2/authorization` | - | OAuth2 Authorization |
+| `/api/auth/login/oauth2/**` | `/login/oauth2` | - | OAuth2 Callback |
+| `/api/auth/**` | `/auth/**` | 10 req/s | Authentication |
+| `/api/admin/**` | `/admin/**` | 10 req/s | Admin Management |
+| `/api/users/**` | `/users/**` | 10 req/s | User Profiles |
+| `/api/upload/**` | `/upload/**` | 10 req/s | File Uploads |
+| `/api/teacher-application/**` | `/teacher-application/**` | 10 req/s | Teacher Onboarding |
 
-| Route Pattern | Target Service | Internal Path | Rate Limit | Description |
-|---------------|----------------|---------------|------------|-------------|
-| `/api/auth/**` | AUTH-SERVICE | `/auth/**` | 10 req/s | Authentication endpoints |
-| `/api/admin/**` | AUTH-SERVICE | `/admin/**` | 10 req/s | Admin management endpoints |
-| `/api/users/**` | AUTH-SERVICE | `/users/**` | 10 req/s | User management endpoints |
-| `/api/upload/**` | AUTH-SERVICE | `/upload/**` | 10 req/s | File upload endpoints |
-| `/api/teacher-application/**` | AUTH-SERVICE | `/teacher-application/**` | 10 req/s | Teacher application endpoints |
+### LMS Core Routes (`lms-core-service`)
+| Route Pattern | Internal Path | Rate Limit | Description |
+|---------------|---------------|------------|-------------|
+| `/api/courses/**` | `/courses/**` | 20 req/s | Course Management |
+| `/api/categories/**` | `/categories/**` | 20 req/s | Category Browsing |
+| `/api/sections/**` | `/sections/**` | 20 req/s | Course Sections |
+| `/api/lessons/**` | `/lessons/**` | 20 req/s | Lesson Content |
+| `/api/enrollments/**` | `/enrollments/**` | 15 req/s | Student Enrollments |
+| `/api/progress/**` | `/progress/**` | 15 req/s | Learning Progress |
+| `/api/reviews/**` | `/reviews/**` | 10 req/s | Course Reviews |
+| `/api/wishlist/**` | `/wishlist/**` | 10 req/s | User Wishlist |
+
+### Payment & Commerce Routes (`lms-core-service`)
+| Route Pattern | Internal Path | Rate Limit | Description |
+|---------------|---------------|------------|-------------|
+| `/api/cart/**` | `/cart/**` | 15 req/s | Shopping Cart |
+| `/api/checkout/**` | `/checkout/**` | 10 req/s | Order Checkout |
+| `/api/orders/**` | `/orders/**` | 15 req/s | Order History |
+| `/api/invoices/**` | `/invoices/**` | 15 req/s | Invoice PDF/View |
+| `/api/teacher/earnings/**` | `/teacher/earnings/**` | 15 req/s | Teacher Payouts |
+| `/api/payments/webhook/**` | `/payments/webhook/**` | 50 req/s | **Payment Webhooks** |
 
 ### Route Example
 

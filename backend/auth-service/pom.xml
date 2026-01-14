@@ -206,6 +206,18 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+			<!-- Flyway Maven Plugin (For CLI operations: mvn flyway:migrate, flyway:clean) -->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<configuration>
+					<url>${env.AUTH_DB_URL}</url>
+					<user>${env.AUTH_DB_USERNAME}</user>
+					<password>${env.AUTH_DB_PASSWORD}</password>
+					<schemas>public</schemas>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
