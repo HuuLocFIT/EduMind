@@ -1,0 +1,270 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { CheckoutPage } from './CheckoutPage';
+import { useCheckout, useCheckoutPreview, useDirectCheckout, useDirectCheckoutPreview } from '../../hooks/useCheckout';
+import { useCheckoutStore } from '../../stores/checkout.store';
+import { useCartStore } from '../../stores/cart.store';
+import { PaymentMethod } from '@edumind/shared-constants';
+import { useSearchParams } from 'react-router-dom';
+import { USER_ROUTES } from '@edumind/shared-utils';
+import { useToast } from '@edumind/user-ui';
+
+// Mock Dependencies
+const mockNavigate = vi.fn();
+let mockSearchParams = new URLSearchParams();
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+  useSearchParams: () => [mockSearchParams],
+  Link: ({ children, to }: any) => <a href={to}>{children}</a>,
+}));
+
+vi.mock('../../hooks/useCheckout');
+vi.mock('../../stores/checkout.store');
+vi.mock('../../stores/cart.store');
+
+vi.mock('@edumind/user-ui', () => ({
+  Button: ({ children, onClick, disabled, isLoading }: any) => (
+    <button onClick={onClick} disabled={disabled}>
+      {isLoading ? 'Processing...' : children}
+    </button>
+  ),
+  Card: ({ children }: any) => <div>{children}</div>,
+  Loading: () => <div>Loading...</div>,
+  PriceTag: ({ price }: any) => <span>${price}</span>,
+  useToast: vi.fn(),
+}));
+
+vi.mock('lucide-react', () => ({
+  CreditCard: () => <span>CreditCardIcon</span>,
+  Wallet: () => <span>WalletIcon</span>,
+  ArrowLeft: () => <span>ArrowLeftIcon</span>,
+  ArrowRight: () => <span>ArrowRightIcon</span>,
+  ShieldCheck: () => <span>ShieldCheckIcon</span>,
+  Lock: () => <span>LockIcon</span>,
+}));
+
+describe('CheckoutPage', () => {
+  const mockShowSuccess = vi.fn();
+  const mockShowError = vi.fn();
+  
+  // Checkout Store Mocks
+  const mockSetPaymentMethod = vi.fn();
+  const mockSetStep = vi.fn();
+  const mockSetResult = vi.fn();
+  const mockResetCheckout = vi.fn();
+  
+  // Cart Store Mocks
+  const mockClearCart = vi.fn();
+  
+  // Hooks Mocks
+  const mockCheckoutMutate = vi.fn();
+  const mockDirectCheckoutMutate = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
+
+    (useToast as any).mockReturnValue({
+      success: mockShowSuccess,
+      error: mockShowError,
+    });
+
+    (useCheckoutStore as any).mockReturnValue({
+      selectedPaymentMethod: null,
+      setPaymentMethod: mockSetPaymentMethod,
+      setStep: mockSetStep,
+      setResult: mockSetResult,
+      reset: mockResetCheckout,
+    });
+
+    (useCartStore as any).mockReturnValue({
+      clearCart: mockClearCart,
+    });
+
+    // Default implementations for hooks
+    (useCheckoutPreview as any).mockReturnValue({ data: null, isLoading: false, error: null });
+    (useDirectCheckoutPreview as any).mockReturnValue({ data: null, isLoading: false, error: null });
+    
+    (useCheckout as any).mockReturnValue({
+      mutateAsync: mockCheckoutMutate,
+      isPending: false,
+    });
+    
+    (useDirectCheckout as any).mockReturnValue({
+      mutateAsync: mockDirectCheckoutMutate,
+      isPending: false,
+    });
+  });
+
+  const mockCartPreviewData = {
+    items: [{ courseId: 1, courseTitle: 'React Course', effectivePrice: 100 }],
+    subtotal: 100,
+    totalAmount: 100,
+    itemCount: 1,
+  };
+
+  it('renders loading state', () => {
+    (useCheckoutPreview as any).mockReturnValue({ isLoading: true });
+    render(<CheckoutPage />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('redirects to cart if cart is empty (Cart Mode)', () => {
+    (useCheckoutPreview as any).mockReturnValue({ 
+      data: { itemCount: 0 }, 
+      isLoading: false 
+    });
+    
+    render(<CheckoutPage />);
+    expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+  });
+
+  it('renders cart checkout preview correctly', () => {
+    (useCheckoutPreview as any).mockReturnValue({ 
+      data: mockCartPreviewData,
+      isLoading: false 
+    });
+
+    render(<CheckoutPage />);
+    
+    expect(screen.getByText('Checkout')).toBeInTheDocument();
+    expect(screen.getByText('React Course')).toBeInTheDocument();
+    expect(screen.getByText('PayPal')).toBeInTheDocument();
+  });
+
+  it('renders direct checkout preview correctly (Buy Now)', () => {
+    mockSearchParams.set('courseId', '99');
+    
+    (useDirectCheckoutPreview as any).mockReturnValue({
+      data: { ...mockCartPreviewData, items: [{ courseId: 99, courseTitle: 'Direct Course' }] },
+      isLoading: false
+    });
+
+    render(<CheckoutPage />);
+    
+    expect(screen.getByText('Buy Now')).toBeInTheDocument();
+    expect(screen.getByText('Direct Course')).toBeInTheDocument();
+    
+    // Should NOT call cart preview
+    expect(useCheckoutPreview).toHaveBeenCalledWith(false); 
+    // Should call direct preview
+    expect(useDirectCheckoutPreview).toHaveBeenCalledWith(99, true);
+  });
+
+  it('handles payment method selection', async () => {
+    const user = userEvent.setup();
+    (useCheckoutPreview as any).mockReturnValue({ 
+      data: mockCartPreviewData,
+      isLoading: false 
+    });
+    
+    render(<CheckoutPage />);
+    
+    // Click PayPal
+    await user.click(screen.getByText('PayPal'));
+    expect(mockSetPaymentMethod).toHaveBeenCalledWith(PaymentMethod.PAYPAL);
+  });
+
+  it('handles successful cart checkout', async () => {
+    const user = userEvent.setup();
+    (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false });
+    (useCheckoutStore as any).mockReturnValue({
+      selectedPaymentMethod: PaymentMethod.PAYPAL,
+      setPaymentMethod: mockSetPaymentMethod,
+      setStep: mockSetStep,
+      setResult: mockSetResult,
+      reset: mockResetCheckout,
+    });
+    
+    mockCheckoutMutate.mockResolvedValue({ 
+      success: true, 
+      orderNumber: 'ORD-123' 
+    });
+
+    render(<CheckoutPage />);
+    
+    // Click Complete Order
+    await user.click(screen.getByText('Complete Order'));
+
+    expect(mockSetStep).toHaveBeenCalledWith('processing');
+    expect(mockCheckoutMutate).toHaveBeenCalled();
+    expect(mockSetResult).toHaveBeenCalledWith({ orderNumber: 'ORD-123', redirectUrl: undefined });
+    expect(mockClearCart).toHaveBeenCalled(); // Should clear cart
+    expect(mockNavigate).toHaveBeenCalledWith(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=ORD-123`);
+  });
+  
+  it('handles successful direct checkout', async () => {
+    const user = userEvent.setup();
+    mockSearchParams.set('courseId', '99');
+    
+    (useDirectCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false });
+    (useCheckoutStore as any).mockReturnValue({
+      selectedPaymentMethod: PaymentMethod.SEPAY,
+      setPaymentMethod: mockSetPaymentMethod,
+      setStep: mockSetStep,
+      setResult: mockSetResult,
+      reset: mockResetCheckout,
+    });
+
+    mockDirectCheckoutMutate.mockResolvedValue({ 
+      success: true, 
+      orderNumber: 'ORD-999' 
+    });
+
+    render(<CheckoutPage />);
+    
+    await user.click(screen.getByText('Buy Now')); // Button calls same handler but might have diff text? 
+    // Wait, let's check button text. "Complete Order" is dynamic based on isPending.
+    // Actually the header says "Buy Now", button says "Complete Order" or "Pay Now" on mobile.
+    // Let's target text "Complete Order" which is default desktop text.
+    await user.click(screen.getByText('Complete Order'));
+
+    expect(mockDirectCheckoutMutate).toHaveBeenCalled();
+    expect(mockClearCart).not.toHaveBeenCalled(); // Direct checkout implies NOT clearing whole cart usually?
+    // In our implementation logic: if (!isDirectCheckout) { clearCart(); }
+    // So for direct checkout, it should NOT be called.
+  });
+
+  it('handles checkout failure', async () => {
+    const user = userEvent.setup();
+    (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false });
+    (useCheckoutStore as any).mockReturnValue({
+      selectedPaymentMethod: PaymentMethod.PAYPAL,
+      setPaymentMethod: mockSetPaymentMethod,
+      setStep: mockSetStep,
+      setResult: mockSetResult,
+      reset: mockResetCheckout,
+    });
+    
+    const errorMsg = 'Insufficient funds';
+    mockCheckoutMutate.mockResolvedValue({ 
+      success: false, 
+      message: errorMsg 
+    });
+
+    render(<CheckoutPage />);
+    await user.click(screen.getByText('Complete Order'));
+
+    expect(mockSetStep).toHaveBeenCalledWith('failed');
+    expect(mockSetResult).toHaveBeenCalledWith({ errorMessage: errorMsg });
+    expect(mockNavigate).toHaveBeenCalledWith(`${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(errorMsg)}`);
+  });
+
+  it('renders error state on load failure', async () => {
+    const user = userEvent.setup();
+    (useCheckoutPreview as any).mockReturnValue({ 
+      error: new Error('Load failed'),
+      isLoading: false 
+    });
+    
+    render(<CheckoutPage />);
+    
+    expect(screen.getByText('Checkout Error')).toBeInTheDocument();
+    expect(screen.getByText('Load failed')).toBeInTheDocument();
+    
+    await user.click(screen.getByText('Return to Cart'));
+    expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+  });
+});
