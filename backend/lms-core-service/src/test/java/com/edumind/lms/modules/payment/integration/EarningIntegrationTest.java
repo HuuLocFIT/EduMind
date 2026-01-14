@@ -173,4 +173,81 @@ class EarningIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data", hasSize(greaterThan(0))));
     }
+
+    @Test
+    void getMyEarnings_Empty_ReturnsEmptyList() throws Exception {
+        // No purchases made
+        setupTeacherSecurityContext();
+        
+        mockMvc.perform(get("/teacher/earnings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void getMonthlyEarnings_ReturnsMonthlyData() throws Exception {
+        // Create a purchase as student
+        setupStudentSecurityContext();
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        checkoutService.directCheckout(studentId, request);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Now get monthly earnings as teacher
+        setupTeacherSecurityContext();
+        
+        mockMvc.perform(get("/teacher/earnings/monthly"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    void getEarningById_Success() throws Exception {
+        // Create a purchase as student
+        setupStudentSecurityContext();
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        checkoutService.directCheckout(studentId, request);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Get the earning ID
+        var earnings = earningRepository.findAll();
+        Long earningId = earnings.get(0).getId();
+
+        // Now get earning by ID as teacher
+        setupTeacherSecurityContext();
+        
+        mockMvc.perform(get("/teacher/earnings/{id}", earningId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(earningId));
+    }
+
+    @Test
+    void exportEarningsCsv_Success() throws Exception {
+        // Create a purchase as student
+        setupStudentSecurityContext();
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        checkoutService.directCheckout(studentId, request);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Export as teacher
+        setupTeacherSecurityContext();
+        
+        mockMvc.perform(get("/teacher/earnings/export"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("text/csv"));
+    }
 }

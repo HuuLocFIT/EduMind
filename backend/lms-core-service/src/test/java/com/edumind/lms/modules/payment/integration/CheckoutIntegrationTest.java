@@ -160,4 +160,139 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.data.orderNumber").exists())
                 .andExpect(jsonPath("$.data.totalAmount").value(49.99));
     }
+
+    // ==================== Error Handling Tests ====================
+
+    @Test
+    void checkout_EmptyCart_ReturnsBadRequest() throws Exception {
+        // Don't add anything to cart
+        CheckoutRequest request = new CheckoutRequest();
+        request.setPaymentMethod(PaymentMethod.MOCK);
+
+        mockMvc.perform(post("/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void directCheckout_AlreadyPurchased_ReturnsBadRequest() throws Exception {
+        // First purchase
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+
+        mockMvc.perform(post("/checkout/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // Try to purchase again
+        mockMvc.perform(post("/checkout/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void directCheckout_NonExistentCourse_ReturnsBadRequest() throws Exception {
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(999L);
+        request.setPaymentMethod(PaymentMethod.MOCK);
+
+        mockMvc.perform(post("/checkout/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void directCheckout_UnpublishedCourse_ReturnsBadRequest() throws Exception {
+        // Create unpublished course
+        Course unpublished = Course.builder()
+                .title("Unpublished Course")
+                .slug("unpublished-course")
+                .description("Draft")
+                .instructorId(101L)
+                .instructorName("Prof. Test")
+                .category(course.getCategory())
+                .price(new BigDecimal("29.99"))
+                .currency("USD")
+                .status(CourseStatus.DRAFT)
+                .totalLessons(0)
+                .build();
+        courseRepository.save(unpublished);
+
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(unpublished.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+
+        mockMvc.perform(post("/checkout/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    // ==================== Free Checkout Tests ====================
+
+    @Test
+    void directCheckout_FreeCourse_CompletesWithoutPayment() throws Exception {
+        // Create free course
+        Course freeCourse = Course.builder()
+                .title("Free Course")
+                .slug("free-course")
+                .description("Free!")
+                .instructorId(101L)
+                .instructorName("Prof. Test")
+                .category(course.getCategory())
+                .price(BigDecimal.ZERO)
+                .currency("USD")
+                .status(CourseStatus.PUBLISHED)
+                .publishedAt(LocalDateTime.now())
+                .totalLessons(0)
+                .build();
+        courseRepository.save(freeCourse);
+
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(freeCourse.getId());
+        request.setPaymentMethod(PaymentMethod.FREE);
+
+        mockMvc.perform(post("/checkout/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.orderStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.paymentMethod").value("FREE"))
+                .andExpect(jsonPath("$.data.totalAmount").value(0));
+    }
+
+    // ==================== Post-Checkout Verification ====================
+
+    @Test
+    void checkout_ClearsCartAfterSuccess() throws Exception {
+        // Add item to cart
+        AddToCartRequest cartRequest = new AddToCartRequest();
+        cartRequest.setCourseId(course.getId());
+        cartService.addToCart(userId, cartRequest);
+
+        CheckoutRequest request = new CheckoutRequest();
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+
+        mockMvc.perform(post("/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // Verify cart is empty
+        mockMvc.perform(get("/cart/count"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(0));
+    }
 }

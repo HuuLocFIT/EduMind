@@ -163,4 +163,42 @@ class OrderIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.total").value(greaterThan(0)));
     }
+
+    @Test
+    void getOrderById_NotFound_ReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/orders/{id}", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void getMyOrders_Empty_ReturnsEmptyList() throws Exception {
+        // No orders created
+        mockMvc.perform(get("/orders"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data", hasSize(0)));
+    }
+
+    @Test
+    void getMyOrders_WithStatusFilter_FiltersCorrectly() throws Exception {
+        // Create an order (should be COMPLETED by mock gateway)
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        checkoutService.directCheckout(userId, request);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Filter by COMPLETED - should return 1
+        mockMvc.perform(get("/orders").param("status", "COMPLETED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(greaterThan(0))));
+
+        // Filter by PENDING - should return 0
+        mockMvc.perform(get("/orders").param("status", "PENDING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+    }
 }

@@ -137,4 +137,79 @@ class CartIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.items", hasSize(0)));
     }
+
+    @Test
+    void addToCart_InvalidCourse_ReturnsBadRequest() throws Exception {
+        AddToCartRequest request = new AddToCartRequest();
+        request.setCourseId(999L); // Non-existent ID
+
+        mockMvc.perform(post("/cart/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void clearCart_ShouldRemoveAllItems() throws Exception {
+        // Add item first
+        AddToCartRequest request = new AddToCartRequest();
+        request.setCourseId(course.getId());
+        
+        mockMvc.perform(post("/cart/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // Clear cart
+        mockMvc.perform(delete("/cart"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Verify empty
+        mockMvc.perform(get("/cart"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(0)));
+    }
+
+    @Test
+    void getCartItemCount_ShouldReturnCorrectCount() throws Exception {
+        // Add two items (need another course)
+        AddToCartRequest request1 = new AddToCartRequest();
+        request1.setCourseId(course.getId());
+        
+        mockMvc.perform(post("/cart/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request1)))
+                .andExpect(status().isOk());
+
+        // Verify count
+        mockMvc.perform(get("/cart/count"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value(1));
+    }
+
+    @Test
+    void addToCart_DuplicateItem_ShouldNotDuplicate() throws Exception {
+        AddToCartRequest request = new AddToCartRequest();
+        request.setCourseId(course.getId());
+
+        // Add first time
+        mockMvc.perform(post("/cart/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // Add second time (should fail with 400)
+        mockMvc.perform(post("/cart/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+        
+        mockMvc.perform(get("/cart"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)));
+    }
 }
