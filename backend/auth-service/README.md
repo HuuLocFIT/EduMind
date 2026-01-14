@@ -14,6 +14,8 @@ Authentication and Authorization Service for EduMind Platform - A microservice r
 - [Database Migrations](#database-migrations)
 - [Demo Users](#demo-users)
 - [Troubleshooting](#troubleshooting)
+- [Docker Guide](../DOCKER.md)
+
 
 ## Overview
 

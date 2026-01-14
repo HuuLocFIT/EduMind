@@ -22,7 +22,7 @@ The project uses Docker to containerize the microservices:
 - **discovery-service** (Port 8761): Eureka Server for service discovery
 - **api-gateway** (Port 8080): Spring Cloud Gateway
 - **auth-service** (Port 8081): Authentication & Authorization service
-- **lms-core-service** (Port 8082): Core Learning Management System service
+- **lms-core-service** (Port 8083): Core Learning Management System service
 - **postgres-auth** (Port 5432): PostgreSQL database for Auth
 - **postgres-lms-core** (Port 5433): PostgreSQL database for LMS Core
 - **redis** (Port 6379): Redis for rate limiting
@@ -159,7 +159,7 @@ PAYPAL_MODE=sandbox
 DISCOVERY_SERVER_PORT=8761
 API_GATEWAY_PORT=8080
 AUTH_SERVICE_PORT=8081
-LMS_CORE_SERVICE_PORT=8082
+LMS_CORE_SERVICE_PORT=8083
 REDIS_PORT=6379
 ```
 
@@ -196,10 +196,10 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 - **Discovery Service Dashboard**: http://localhost:8761
 - **API Gateway**: http://localhost:8080
 - **Auth Service**: http://localhost:8081
-- **LMS Core Service**: http://localhost:8082
+- **LMS Core Service**: http://localhost:8083
 - **API Gateway Health**: http://localhost:8080/actuator/health
 - **Auth Service Health**: http://localhost:8081/actuator/health
-- **LMS Core Service Health**: http://localhost:8082/actuator/health
+- **LMS Core Service Health**: http://localhost:8083/actuator/health
 
 ### Stop and Cleanup
 
@@ -255,7 +255,7 @@ docker compose down -v --rmi all
 
 | Variable | Default | Description |
 |----------|---------|-------|
-| `LMS_CORE_SERVICE_PORT` | 8082 | Port of LMS Core Service |
+| `LMS_CORE_SERVICE_PORT` | 8083 | Port of LMS Core Service |
 | `LMS_CORE_DB_URL` | jdbc:postgresql://postgres-lms-core:5432/edumind_core | Database URL |
 | `LMS_CORE_DB_USERNAME` | postgres | Database username |
 | `LMS_CORE_DB_PASSWORD` | - | Database password (required) |

@@ -18,6 +18,9 @@ This service owns course, assessment, gamification, payment, and notification do
 - **[Logging & Monitoring](#logging--monitoring)**
 - **[Testing](#testing)**
 - **[Troubleshooting](#troubleshooting)**
+- **[Docker Guide](../DOCKER.md)**
+
+
 
 ## Overview
 
