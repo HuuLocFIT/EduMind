@@ -26,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -166,6 +167,23 @@ class EarningServiceTest {
             // Then
             assertThat(result.getContent()).hasSize(1);
         }
+
+        @Test
+        @DisplayName("Should return empty page if no earnings")
+        void getInstructorEarnings_Empty_ReturnsEmptyPage() {
+            // Given
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<InstructorEarning> emptyPage = new PageImpl<>(Collections.emptyList());
+
+            when(earningRepository.findByInstructorIdOrderByCreatedAtDesc(instructorId, pageable)).thenReturn(emptyPage);
+
+            // When
+            Page<EarningResponse> result = earningService.getInstructorEarnings(instructorId, pageable);
+
+            // Then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.getTotalElements()).isZero();
+        }
     }
 
     @Nested
@@ -260,6 +278,17 @@ class EarningServiceTest {
             assertThat(earning.getStatus()).isEqualTo(EarningStatus.PAID);
             verify(earningRepository).save(earning);
         }
+
+        @Test
+        @DisplayName("Should throw exception if earning not found")
+        void markEarningsPaid_NotFound_ThrowsException() {
+            // Given
+            when(earningRepository.findById(earningId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> earningService.markEarningsPaid(earningId, "PAYOUT-123"))
+                    .isInstanceOf(InstructorEarningNotFoundException.class);
+        }
     }
 
     @Nested
@@ -289,6 +318,88 @@ class EarningServiceTest {
             // When & Then
             assertThatThrownBy(() -> earningService.getEarningByIdAndInstructor(earningId, 999L))
                     .isInstanceOf(InstructorEarningNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Should throw exception if earning not found")
+        void getEarningByIdAndInstructor_NotFound_ThrowsException() {
+            // Given
+            when(earningRepository.findById(earningId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> earningService.getEarningByIdAndInstructor(earningId, instructorId))
+                    .isInstanceOf(InstructorEarningNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("getEarningsSummary Tests")
+    class GetEarningsSummaryTests {
+
+        @Test
+        @DisplayName("Should return correct summary")
+        void getEarningsSummary_ReturnsCorrectSummary() {
+            // Given
+            when(earningRepository.sumTotalGrossAmountByInstructorId(instructorId)).thenReturn(new BigDecimal("1000.00"));
+            when(earningRepository.sumTotalNetAmountByInstructorId(instructorId)).thenReturn(new BigDecimal("800.00"));
+            when(earningRepository.sumNetAmountByInstructorIdAndStatus(eq(instructorId), eq(EarningStatus.PENDING))).thenReturn(new BigDecimal("200.00"));
+            when(earningRepository.sumNetAmountByInstructorIdAndStatus(eq(instructorId), eq(EarningStatus.AVAILABLE))).thenReturn(new BigDecimal("300.00"));
+            when(earningRepository.sumNetAmountByInstructorIdAndStatus(eq(instructorId), eq(EarningStatus.PAID))).thenReturn(new BigDecimal("300.00"));
+            when(earningRepository.sumNetAmountByInstructorIdAndDateRange(eq(instructorId), any(), any())).thenReturn(new BigDecimal("100.00"));
+            when(earningRepository.findByInstructorIdAndDateRange(eq(instructorId), any(), any())).thenReturn(List.of(earning));
+            when(earningRepository.countSalesByInstructorId(instructorId)).thenReturn(10L);
+            when(earningRepository.findTopCoursesByEarnings(eq(instructorId), any())).thenReturn(Collections.emptyList());
+
+            // When
+            EarningsSummaryResponse result = earningService.getEarningsSummary(instructorId);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getTotalGrossEarnings()).isEqualByComparingTo("1000.00");
+            assertThat(result.getTotalNetEarnings()).isEqualByComparingTo("800.00");
+            assertThat(result.getTotalPlatformFees()).isEqualByComparingTo("200.00");
+        }
+    }
+
+    @Nested
+    @DisplayName("exportEarningsToCsv Tests")
+    class ExportEarningsToCsvTests {
+
+        @Test
+        @DisplayName("Should return valid CSV bytes")
+        void exportEarningsToCsv_ReturnsValidCsv() {
+            // Given
+            when(earningRepository.findByInstructorIdAndDateRange(eq(instructorId), any(), any()))
+                    .thenReturn(List.of(earning));
+
+            // When
+            byte[] csvBytes = earningService.exportEarningsToCsv(instructorId, LocalDate.now().minusMonths(1), LocalDate.now(), null);
+
+            // Then
+            assertThat(csvBytes).isNotEmpty();
+            String csvContent = new String(csvBytes);
+            assertThat(csvContent).contains("Date,Order Number,Course Title,Status,Gross Amount,Platform Fee,Net Amount,Currency");
+            assertThat(csvContent).contains("PENDING");
+        }
+    }
+
+    @Nested
+    @DisplayName("getEarningsByCourse Tests")
+    class GetEarningsByCourseTests {
+
+        @Test
+        @DisplayName("Should return earnings grouped by course")
+        void getEarningsByCourse_ReturnsCourseEarnings() {
+            // Given
+            when(earningRepository.findByInstructorIdAndDateRange(eq(instructorId), any(), any()))
+                    .thenReturn(List.of(earning));
+
+            // When
+            var result = earningService.getEarningsByCourse(instructorId, LocalDate.now().minusMonths(1), LocalDate.now());
+
+            // Then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getCourseId()).isEqualTo(1L);
         }
     }
 }

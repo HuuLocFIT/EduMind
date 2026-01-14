@@ -5,7 +5,6 @@ import com.edumind.common.service.CloudinaryService;
 import com.edumind.lms.modules.payment.dto.response.InvoiceResponse;
 import com.edumind.lms.modules.payment.entity.Invoice;
 import com.edumind.lms.modules.payment.entity.Order;
-import com.edumind.lms.modules.payment.entity.OrderItem;
 import com.edumind.lms.modules.payment.enums.InvoiceStatus;
 import com.edumind.lms.modules.payment.enums.OrderStatus;
 import com.edumind.lms.modules.payment.exception.InvoiceNotFoundException;
@@ -205,6 +204,17 @@ class InvoiceServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getInvoiceNumber()).isEqualTo(invoiceNumber);
         }
+
+        @Test
+        @DisplayName("Should throw exception if invoice number not found")
+        void getInvoiceByNumber_NotFound_ThrowsException() {
+            // Given
+            when(invoiceRepository.findByInvoiceNumber(invoiceNumber)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> invoiceService.getInvoiceByNumber(invoiceNumber))
+                    .isInstanceOf(InvoiceNotFoundException.class);
+        }
     }
 
     @Nested
@@ -224,6 +234,17 @@ class InvoiceServiceTest {
 
             // Then
             assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("Should throw exception if invoice not found for order")
+        void getInvoiceByOrder_NotFound_ThrowsException() {
+            // Given
+            when(invoiceRepository.findByOrderId(orderId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> invoiceService.getInvoiceByOrder(orderId))
+                    .isInstanceOf(InvoiceNotFoundException.class);
         }
     }
 
@@ -247,6 +268,23 @@ class InvoiceServiceTest {
 
             // Then
             assertThat(result.getContent()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("Should return empty page if no invoices for user")
+        void getUserInvoices_NoneExist_ReturnsEmptyPage() {
+            // Given
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<Invoice> emptyPage = new PageImpl<>(Collections.emptyList());
+
+            when(invoiceRepository.findByUserIdOrderByIssuedAtDesc(userId, pageable)).thenReturn(emptyPage);
+
+            // When
+            Page<InvoiceResponse> result = invoiceService.getUserInvoices(userId, pageable);
+
+            // Then
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.getTotalElements()).isZero();
         }
     }
 
@@ -332,6 +370,18 @@ class InvoiceServiceTest {
             // Then
             assertThat(result).isNotNull();
         }
+
+        @Test
+        @DisplayName("Should throw exception if user does not own invoice by order")
+        void getInvoiceByOrderIdAndUser_WrongUser_ThrowsException() {
+            // Given
+            invoice.setUserId(999L);
+            when(invoiceRepository.findByOrderId(orderId)).thenReturn(Optional.of(invoice));
+
+            // When & Then
+            assertThatThrownBy(() -> invoiceService.getInvoiceByOrderIdAndUser(orderId, userId))
+                    .isInstanceOf(InvoiceNotFoundException.class);
+        }
     }
 
     @Nested
@@ -358,6 +408,39 @@ class InvoiceServiceTest {
             // Then
             assertThat(pdfUrl).isEqualTo("https://cloudinary.com/invoice.pdf");
             verify(cloudinaryService).uploadPdf(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("Should throw exception if invoice not found for PDF generation")
+        void generateInvoicePdf_NotFound_ThrowsException() {
+            // Given
+            when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> invoiceService.generateInvoicePdf(invoiceId))
+                    .isInstanceOf(InvoiceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Should delete old PDF before regenerating")
+        void generateInvoicePdf_DeletesOldPdf_IfExists() {
+            // Given
+            invoice.setPdfPublicId("old-public-id");
+            FileUploadResponse uploadResult = FileUploadResponse.builder()
+                    .url("https://cloudinary.com/new-invoice.pdf")
+                    .publicId("invoices/INV-2026-001-new")
+                    .build();
+
+            when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+            when(orderItemRepository.findByOrderId(orderId)).thenReturn(Collections.emptyList());
+            when(cloudinaryService.uploadPdf(any(), any(), any())).thenReturn(uploadResult);
+            when(invoiceRepository.save(any(Invoice.class))).thenReturn(invoice);
+
+            // When
+            invoiceService.generateInvoicePdf(invoiceId);
+
+            // Then
+            verify(cloudinaryService).deleteFile("old-public-id", "raw");
         }
     }
 
@@ -402,6 +485,17 @@ class InvoiceServiceTest {
 
             // Then
             verify(cloudinaryService).uploadPdf(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("Should throw exception if invoice not found for email")
+        void sendInvoiceEmail_NotFound_ThrowsException() {
+            // Given
+            when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> invoiceService.sendInvoiceEmail(invoiceId))
+                    .isInstanceOf(InvoiceNotFoundException.class);
         }
     }
 }

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -79,7 +80,7 @@ class CartServiceTest {
                 .instructorName("Test Instructor")
                 .build();
         // Set ID via reflection since it's auto-generated
-        org.springframework.test.util.ReflectionTestUtils.setField(course, "id", courseId);
+        ReflectionTestUtils.setField(course, "id", courseId);
     }
 
     @Nested
@@ -373,7 +374,7 @@ class CartServiceTest {
                     .title("Course 1")
                     .price(new BigDecimal("100.00"))
                     .build();
-            org.springframework.test.util.ReflectionTestUtils.setField(course1, "id", courseId1);
+            ReflectionTestUtils.setField(course1, "id", courseId1);
             
             CartItem item1 = new CartItem();
             item1.setCourseId(courseId1);
@@ -386,7 +387,7 @@ class CartServiceTest {
                     .price(new BigDecimal("200.00"))
                     .discountPrice(new BigDecimal("150.00")) // Assuming effective price logic handles this
                     .build();
-            org.springframework.test.util.ReflectionTestUtils.setField(course2, "id", courseId2);
+            ReflectionTestUtils.setField(course2, "id", courseId2);
             
             CartItem item2 = new CartItem();
             item2.setCourseId(courseId2);

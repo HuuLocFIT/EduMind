@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -143,6 +144,32 @@ class TransactionServiceTest {
             assertThat(created.getFailureCode()).isEqualTo("CARD_DECLINED");
             assertThat(created.getFailureReason()).isEqualTo("Card was declined");
         }
+
+        @Test
+        @DisplayName("Should create transaction with local currency (SePay)")
+        void createTransaction_WithLocalCurrency_CreatesCorrectly() {
+            // Given
+            GatewayPaymentResult result = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .amount(new BigDecimal("10.00"))
+                    .currency("USD")
+                    .localAmount(new BigDecimal("250000"))
+                    .localCurrency("VND")
+                    .exchangeRate(new BigDecimal("25000"))
+                    .build();
+
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn(transactionNumber);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Transaction created = transactionService.createTransaction(order, result);
+
+            // Then
+            assertThat(created.getLocalAmount()).isEqualByComparingTo("250000");
+            assertThat(created.getLocalCurrency()).isEqualTo("VND");
+            assertThat(created.getExchangeRate()).isEqualByComparingTo("25000");
+        }
     }
 
     @Nested
@@ -194,6 +221,17 @@ class TransactionServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getTransactionNumber()).isEqualTo(transactionNumber);
         }
+
+        @Test
+        @DisplayName("Should throw exception if transaction number not found")
+        void getTransactionByNumber_NotFound_ThrowsException() {
+            // Given
+            when(transactionRepository.findByTransactionNumber(transactionNumber)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> transactionService.getTransactionByNumber(transactionNumber))
+                    .isInstanceOf(TransactionNotFoundException.class);
+        }
     }
 
     @Nested
@@ -244,6 +282,7 @@ class TransactionServiceTest {
 
             transaction.setGatewayTransactionId(gatewayTxnId);
             transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setProcessedAt(null);
 
             when(transactionRepository.findByGatewayTransactionId(gatewayTxnId)).thenReturn(Optional.of(transaction));
             when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
@@ -253,6 +292,61 @@ class TransactionServiceTest {
 
             // Then
             assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
+            assertThat(transaction.getProcessedAt()).isNotNull();
+            verify(transactionRepository).save(transaction);
+        }
+
+        @Test
+        @DisplayName("Should ignore update if transaction is already SUCCESS")
+        void updateTransactionFromGateway_AlreadySuccess_Ignored() {
+            // Given
+            String gatewayTxnId = "gateway-txn-123";
+            GatewayPaymentResult result = GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(GatewayResultStatus.FAILED) // Even if gateway says failed now
+                    .build();
+
+            transaction.setGatewayTransactionId(gatewayTxnId);
+            transaction.setStatus(TransactionStatus.SUCCESS); // Already success
+            LocalDateTime originalProcessedAt = LocalDateTime.now().minusHours(1);
+            transaction.setProcessedAt(originalProcessedAt);
+
+            when(transactionRepository.findByGatewayTransactionId(gatewayTxnId)).thenReturn(Optional.of(transaction));
+            when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
+
+            // When
+            transactionService.updateTransactionFromGateway(gatewayTxnId, result);
+
+            // Then
+            assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS); // Should remain SUCCESS
+            assertThat(transaction.getProcessedAt()).isEqualTo(originalProcessedAt); // Should not change
+            verify(transactionRepository).save(transaction);
+        }
+
+        @Test
+        @DisplayName("Should update to FAILED if not already success")
+        void updateTransactionFromGateway_Failure_UpdatesStatus() {
+            // Given
+            String gatewayTxnId = "gateway-txn-123";
+            GatewayPaymentResult result = GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(GatewayResultStatus.FAILED)
+                    .errorCode("ERR01")
+                    .errorMessage("Some error")
+                    .build();
+
+            transaction.setGatewayTransactionId(gatewayTxnId);
+            transaction.setStatus(TransactionStatus.PENDING);
+
+            when(transactionRepository.findByGatewayTransactionId(gatewayTxnId)).thenReturn(Optional.of(transaction));
+            when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
+
+            // When
+            transactionService.updateTransactionFromGateway(gatewayTxnId, result);
+
+            // Then
+            assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.FAILED);
+            assertThat(transaction.getFailureCode()).isEqualTo("ERR01");
             verify(transactionRepository).save(transaction);
         }
 
