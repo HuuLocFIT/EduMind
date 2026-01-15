@@ -94,6 +94,9 @@ class CheckoutServiceTest {
     private NumberGeneratorService numberGeneratorService;
 
     @Mock
+    private PaymentMethodPolicyService paymentMethodPolicyService;
+
+    @Mock
     private PaymentGatewayRegistry gatewayRegistry;
 
     @Mock
@@ -145,6 +148,7 @@ class CheckoutServiceTest {
         order.setStatus(OrderStatus.PENDING);
         order.setTotalAmount(new BigDecimal("80.00"));
         order.setCurrency("USD");
+        order.setPaymentMethod(PaymentMethod.PAYPAL);
         order.setItems(new HashSet<>());
         
         orderItem = new OrderItem();
@@ -343,7 +347,10 @@ class CheckoutServiceTest {
             when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
             // Mock invoice service
             when(invoiceService.generateInvoice(any(Order.class))).thenReturn(invoiceResponse);
-            when(invoiceService.getInvoiceById(anyLong())).thenReturn(invoiceResponse);
+            // Order items are loaded for response + item-level cart removal
+            when(orderItemRepository.findByOrderId(eq(order.getId()))).thenReturn(List.of(orderItem));
+            // Payment method policy passes
+            doNothing().when(paymentMethodPolicyService).validatePaymentMethod(any(), any());
 
             // When
             CheckoutResultResponse result = checkoutService.checkout(userId, request);
@@ -352,7 +359,7 @@ class CheckoutServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isTrue();
             assertThat(result.getTransactionNumber()).isEqualTo("TXN-2026-001");
-            verify(cartService).clearCart(userId);
+            verify(cartService).removeItems(eq(userId), eq(List.of(courseId)));
             verify(invoiceService).generateInvoice(any(Order.class));
             verify(earningService).createEarningsForOrder(any(Order.class));
         }
@@ -524,16 +531,15 @@ class CheckoutServiceTest {
             when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(freeOrder);
             when(orderRepository.save(any(Order.class))).thenReturn(freeOrder);
             when(invoiceService.generateInvoice(any(Order.class))).thenReturn(invoiceResponse);
-            when(invoiceService.getInvoiceById(anyLong())).thenReturn(invoiceResponse);
             // Need to mock orderItemRepository because it is called to reload items
-            when(orderItemRepository.findByOrderId(any())).thenReturn(Collections.emptyList());
+            when(orderItemRepository.findByOrderId(any())).thenReturn(List.of(orderItem));
 
             // When
             CheckoutResultResponse result = checkoutService.checkout(userId, request);
 
             // Then
             assertThat(result).isNotNull();
-            verify(cartService).clearCart(userId);
+            verify(cartService).removeItems(eq(userId), eq(List.of(courseId)));
             verify(invoiceService).generateInvoice(any(Order.class));
             // Verify no payment gateway call
             verifyNoInteractions(gatewayRegistry);
@@ -571,7 +577,7 @@ class CheckoutServiceTest {
             // Then
             assertThat(result.isSuccess()).isFalse();
             // Cart should NOT be cleared on failure
-            verify(cartService, never()).clearCart(userId);
+            verify(cartService, never()).removeItems(anyLong(), anyList());
             // Invoice should NOT be generated
             verify(invoiceService, never()).generateInvoice(any(Order.class));
         }
@@ -608,7 +614,35 @@ class CheckoutServiceTest {
             assertThat(result.isPending()).isTrue();
             assertThat(result.isRequiresRedirect()).isTrue();
             assertThat(result.getRedirectUrl()).isEqualTo("https://paypal.com/checkout/abc123");
-            verify(cartService, never()).clearCart(userId);
+            verify(cartService, never()).removeItems(anyLong(), anyList());
+        }
+
+        @Test
+        @DisplayName("Should fail checkout when cart signature mismatches (CART_CHANGED)")
+        void checkout_CartSignatureMismatch_ReturnsCartChanged() {
+            // Given - Client sends an outdated/invalid cart signature
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .cartSignature("outdated-or-invalid-signature-abc123")
+                    .build();
+
+            // Mock cart lookup and items for previewCheckout re-computation
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(courseRepository.findAllById(anyList())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(Collections.emptyList());
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("CART_CHANGED");
+            assertThat(result.getMessage()).contains("cart has changed");
+            // Should NOT create order when signature mismatches
+            verify(orderService, never()).createOrderFromCart(any(), any(), any());
+            // Should NOT contact payment gateway
+            verifyNoInteractions(gatewayRegistry);
         }
 
         @Test

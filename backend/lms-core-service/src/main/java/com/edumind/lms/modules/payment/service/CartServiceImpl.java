@@ -14,6 +14,7 @@ import com.edumind.lms.modules.payment.exception.CourseAlreadyPurchasedException
 import com.edumind.lms.modules.payment.exception.CourseNotAvailableException;
 import com.edumind.lms.modules.payment.repository.CartItemRepository;
 import com.edumind.lms.modules.payment.repository.CartRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -26,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -140,6 +140,21 @@ public class CartServiceImpl implements CartService {
         return cartRepository.findByUserId(userId)
                 .map(cart -> cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId))
                 .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public void removeItems(Long userId, List<Long> courseIds) {
+        if (courseIds == null || courseIds.isEmpty()) {
+            return;
+        }
+
+        log.info("Removing {} course(s) from cart for user {}", courseIds.size(), userId);
+
+        cartRepository.findByUserId(userId).ifPresent(cart -> {
+            cartItemRepository.deleteByCartIdAndCourseIds(cart.getId(), courseIds);
+            log.info("Removed {} course(s) from cart for user {}", courseIds.size(), userId);
+        });
     }
 
     // ===== Private Helpers =====

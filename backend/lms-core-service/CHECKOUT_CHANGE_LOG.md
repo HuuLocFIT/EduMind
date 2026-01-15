@@ -50,7 +50,7 @@ This document records **code changes** made to address issues from `CHECKOUT_VUL
 
 Use the template above for each of these items as you implement them:
 
-1. **Concurrent checkout race condition** – user/cart level locking.
+1. ✅ **Concurrent checkout race condition** – user/cart level locking (DB unique index + application guard).
 2. **Payment callback vs direct success race** – idempotent order completion.
 3. **Order amount vs payment amount validation**.
 4. **Cart state validation between preview and checkout**.
@@ -60,10 +60,10 @@ Use the template above for each of these items as you implement them:
 8. **Transaction number/idempotency hardening**.
 9. **Order status validation before (re)processing payment**.
 10. **Atomic / resilient order completion (enrollments, earnings, invoices)**.
-11. **Gateway transaction ID uniqueness & idempotency**.
+11. ✅ **Gateway transaction ID uniqueness & idempotency**.
 12. **Callback ownership/authentication validation**.
-13. **Free-order double-processing guard**.
-14. **Safer cart clearing – only clear items included in the order**.
+13. ✅ **Free-order double-processing guard**.
+14. ✅ **Safer cart clearing – only clear items included in the order**.
 15. **Order expiration, retry limits, and related logic gaps**.
 
 For each implemented fix, add a new **“Fix N – …”** section above using the template and mark the corresponding item here as **done** (e.g. `1. ✅ ...`).
@@ -302,6 +302,578 @@ private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction 
 - Gateway **amount mismatches** are now detected and turned into structured failures (`AMOUNT_MISMATCH`) without completing the order.
 - `Order` is now **optimistically locked**, reducing silent races on status updates.
 
+
+---
+
+#### Fix 3 – Transaction Number Collision Handling & Gateway Tx ID Uniqueness
+
+- **Analysis reference**:
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → section `8. Missing Idempotency: Transaction Number Generation`
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → section `11. Missing Validation: Gateway Transaction ID Uniqueness`
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-2
+- **Issue summary**:
+  - Protect against rare collisions on `transactions.transaction_number` when generating new PENDING transactions.
+  - Enforce uniqueness of `gateway_transaction_id` at the database level to make duplicate callbacks/transactions safe and detectable.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+  - `src/main/resources/db/migration/V14__Add_unique_gateway_transaction_id.sql`
+
+**Before**
+
+```java
+// CheckoutServiceImpl.processPayment(...) – create PENDING transaction without retry
+Transaction transaction = transactionRepository
+        .findFirstByOrderIdAndStatusOrderByCreatedAtDesc(order.getId(), TransactionStatus.PENDING)
+        .orElseGet(() -> {
+            Transaction tx = new Transaction();
+            tx.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
+            tx.setOrder(order);
+            tx.setGateway(order.getPaymentMethod());
+            tx.setAmount(order.getTotalAmount());
+            tx.setCurrency(order.getCurrency());
+            tx.setStatus(TransactionStatus.PENDING);
+            tx.setCreatedAt(LocalDateTime.now());
+            return transactionRepository.save(tx);
+        });
+
+// DB – no uniqueness constraint for gateway_transaction_id
+-- transactions table had a unique constraint only on transaction_number
+-- gateway_transaction_id was nullable and not constrained
+```
+
+**After**
+
+```java
+// CheckoutServiceImpl – factor creation into helper with retry on constraint violation
+private Transaction createOrReusePendingTransaction(Order order) {
+    return transactionRepository
+            .findFirstByOrderIdAndStatusOrderByCreatedAtDesc(order.getId(), TransactionStatus.PENDING)
+            .orElseGet(() -> {
+                final int maxAttempts = 3;
+                int attempt = 0;
+                while (true) {
+                    attempt++;
+                    try {
+                        Transaction tx = new Transaction();
+                        tx.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
+                        tx.setOrder(order);
+                        tx.setGateway(order.getPaymentMethod());
+                        tx.setAmount(order.getTotalAmount());
+                        tx.setCurrency(order.getCurrency());
+                        tx.setStatus(TransactionStatus.PENDING);
+                        tx.setCreatedAt(LocalDateTime.now());
+                        return transactionRepository.save(tx);
+                    } catch (DataIntegrityViolationException ex) {
+                        if (attempt >= maxAttempts) {
+                            log.error("Failed to create transaction for order {} after {} attempts due to " +
+                                            "transaction number collision or constraint violation",
+                                    order.getOrderNumber(), maxAttempts, ex);
+                            throw ex;
+                        }
+                        log.warn("Retrying transaction creation for order {} due to constraint violation (attempt {}/{})",
+                                order.getOrderNumber(), attempt, maxAttempts);
+                    }
+                }
+            });
+}
+
+// DB migration – add unique index for gateway_transaction_id
+CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_gateway_tx_id
+ON payment.transactions (gateway_transaction_id)
+WHERE gateway_transaction_id IS NOT NULL;
+```
+
+**Behavior & Notes**
+
+- Creating a new PENDING transaction for an order now **retries up to 3 times** if a unique constraint violation occurs, making transaction number collisions highly unlikely to surface to callers.
+- `gateway_transaction_id` is now **unique (when not null)**, so duplicate callbacks or attempts to persist the same gateway transaction twice will hit a well-defined constraint instead of creating inconsistent data.
+- Existing callback logic (`handlePaymentCallback`) already treats a successful transaction as idempotent; with the new index, the system is better protected against accidental duplicate transaction rows for the same gateway ID.
+
+---
+
+#### Fix 4 – Free Order Idempotency & Safer Cart Clearing
+
+- **Analysis reference**:
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → section `14. Missing Validation: Free Order Double Processing`
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → section `15. Missing Validation: Cart Clearing Race Condition`
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-2
+- **Issue summary**:
+  - Make `completeFreeOrder` idempotent and safe when invoked multiple times or under races.
+  - Replace full-cart clearing with targeted removal of only the items that were part of the completed order.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+  - `src/main/java/com/edumind/lms/modules/payment/service/CartService.java`
+  - `src/main/java/com/edumind/lms/modules/payment/service/CartServiceImpl.java`
+  - `src/main/java/com/edumind/lms/modules/payment/repository/CartItemRepository.java`
+
+**Before**
+
+```java
+// CheckoutServiceImpl.completeFreeOrder(...) – not idempotent, clears whole cart
+@Transactional
+private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
+    log.info("Completing free order: {}", order.getOrderNumber());
+
+    // Complete order
+    order.setStatus(OrderStatus.COMPLETED);
+    order.setPaymentMethod(PaymentMethod.FREE);
+    order.setCompletedAt(LocalDateTime.now());
+    orderRepository.save(order);
+
+    // Create enrollments
+    createEnrollmentsForOrder(order);
+
+    // Clear cart only if checkout was from cart
+    if (isFromCart) {
+        cartService.clearCart(userId);
+    }
+    // ...
+}
+
+// CheckoutServiceImpl.handleSuccessfulPayment(...) – clear whole cart
+if (isFromCart) {
+    try {
+        cartService.clearCart(order.getUserId());
+    } catch (Exception e) {
+        log.error("Failed to clear cart for user: {}", order.getUserId(), e);
+    }
+}
+
+// CartService – no item-level removal API
+void clearCart(Long userId);
+```
+
+**After**
+
+```java
+// CartService – new API for item-level removal
+public interface CartService {
+    // ...
+    /**
+     * Remove specific courses from cart (used after successful checkout)
+     */
+    void removeItems(Long userId, List<Long> courseIds);
+}
+
+// CartItemRepository – bulk delete by cart and course IDs
+@Modifying
+@Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId AND ci.courseId IN :courseIds")
+void deleteByCartIdAndCourseIds(@Param("cartId") Long cartId, @Param("courseIds") List<Long> courseIds);
+
+// CartServiceImpl – implementation of item removal
+@Override
+@Transactional
+public void removeItems(Long userId, List<Long> courseIds) {
+    if (courseIds == null || courseIds.isEmpty()) {
+        return;
+    }
+
+    log.info("Removing {} course(s) from cart for user {}", courseIds.size(), userId);
+
+    cartRepository.findByUserId(userId).ifPresent(cart -> {
+        cartItemRepository.deleteByCartIdAndCourseIds(cart.getId(), courseIds);
+        log.info("Removed {} course(s) from cart for user {}", courseIds.size(), userId);
+    });
+}
+
+// CheckoutServiceImpl.completeFreeOrder(...) – idempotent + item-level cart clearing
+@Transactional
+private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
+    log.info("Completing free order: {}", order.getOrderNumber());
+
+    // Idempotency and status guards
+    if (order.getStatus() == OrderStatus.COMPLETED) {
+        log.info("Free order {} is already COMPLETED. Skipping duplicate completion.", order.getOrderNumber());
+        List<OrderItem> existingItems = orderItemRepository.findByOrderId(order.getId());
+        // ... build success response from existing state ...
+    }
+
+    if (order.getStatus() == OrderStatus.PROCESSING) {
+        log.info("Free order {} is in PROCESSING state. Treating as pending and not re-triggering side effects.",
+                order.getOrderNumber());
+        List<OrderItem> existingItems = orderItemRepository.findByOrderId(order.getId());
+        // ... build pending response ...
+    }
+
+    // Mark as processing during completion to reduce race risk
+    order.setStatus(OrderStatus.PROCESSING);
+    order.setPaymentMethod(PaymentMethod.FREE);
+    orderRepository.save(order);
+
+    // Create enrollments
+    createEnrollmentsForOrder(order);
+
+    // Load order items explicitly
+    List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+    // Clear only items that were actually ordered
+    if (isFromCart) {
+        List<Long> courseIds = orderItems.stream()
+                .map(OrderItem::getCourseId)
+                .collect(Collectors.toList());
+        cartService.removeItems(userId, courseIds);
+    }
+
+    // Generate invoice, publish event, build response...
+}
+
+// CheckoutServiceImpl.handleSuccessfulPayment(...) – also uses item-level clearing
+// (similar pattern: compute courseIds from orderItems and call cartService.removeItems)
+```
+
+**Behavior & Notes**
+
+- Calling `completeFreeOrder` multiple times is now **idempotent**: completed orders return the existing completion result, and processing orders surface a pending state instead of re-running side effects.
+- Both free and paid checkout flows now **only remove items from the cart that correspond to the completed order**, avoiding the previous race where unrelated items added during checkout could be lost.
+- The new `CartService.removeItems` API centralizes item-level cart cleanup and can be reused by future partial-order or multi-order flows.
+
+---
+
+#### Fix 5 – Cart Signature Validation Between Preview and Checkout
+
+- **Analysis reference**:
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → section `4. Missing Validation: Cart State Between Preview and Checkout`
+  - `CHECKOUT_VULNERABILITY_ANALYSIS_2.md` → section `2. Cart Signature / Versioning for Preview–Checkout Consistency`
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-3
+- **Issue summary**:
+  - Detect when the cart contents/pricing change between `previewCheckout` and `checkout` to prevent TOCTOU issues.
+  - Provide an opaque `cartSignature` to the frontend so it can be echoed back on checkout.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/dto/response/CheckoutPreviewResponse.java`
+  - `src/main/java/com/edumind/lms/modules/payment/dto/request/CheckoutRequest.java`
+  - `src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+
+**Before**
+
+```java
+// CheckoutPreviewResponse – no cart signature
+@Builder
+public class CheckoutPreviewResponse {
+    private List<CheckoutItemPreview> items;
+    private int itemCount;
+    private BigDecimal subtotal;
+    private BigDecimal discountTotal;
+    private BigDecimal totalAmount;
+    private String currency;
+    // ...
+}
+
+// CheckoutRequest – no field to carry preview state
+@Builder
+public class CheckoutRequest {
+    @NotNull
+    private PaymentMethod paymentMethod;
+    // ...
+}
+
+// CheckoutServiceImpl.checkout(...) – no validation of cart state between preview and checkout
+public CheckoutResultResponse checkout(Long userId, CheckoutRequest request) {
+    Cart cart = cartRepository.findByUserId(userId)
+            .orElseThrow(() -> new CartEmptyException());
+    List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+    if (cartItems.isEmpty()) {
+        throw new CartEmptyException();
+    }
+    Order order = orderService.createOrderFromCart(userId, cartItems, request);
+    // ...
+}
+```
+
+**After**
+
+```java
+// CheckoutPreviewResponse – include cartSignature
+@Builder
+public class CheckoutPreviewResponse {
+    // ...
+    private BigDecimal totalAmount;
+    private String currency;
+    // Payment options
+    @JsonProperty("isFreeCheckout")
+    private boolean isFreeCheckout;
+    private boolean requiresPayment;
+    private List<String> availablePaymentMethods;
+
+    /**
+     * Opaque cart signature returned to the client during preview and
+     * echoed back on checkout to detect cart changes between preview and checkout.
+     */
+    private String cartSignature;
+}
+
+// CheckoutRequest – client can echo back cartSignature
+@Builder
+public class CheckoutRequest {
+    @NotNull(message = "Payment method is required")
+    private PaymentMethod paymentMethod;
+    // ...
+    /**
+     * Optional cart signature returned from preview.
+     * When provided, checkout() will validate that the current cart state
+     * matches the previewed state before creating an order.
+     */
+    private String cartSignature;
+}
+
+// CheckoutServiceImpl.previewCheckout(...) – compute cartSignature
+BigDecimal totalAmount = subtotal.subtract(totalDiscount);
+boolean allFree = totalAmount.compareTo(BigDecimal.ZERO) == 0;
+String cartSignature = buildCartSignature(userId, itemPreviews, totalAmount);
+
+return CheckoutPreviewResponse.builder()
+        .items(itemPreviews)
+        .itemCount(itemPreviews.size())
+        .subtotal(subtotal)
+        .discountTotal(totalDiscount)
+        .totalAmount(totalAmount)
+        .currency("USD")
+        .isFreeCheckout(allFree)
+        .requiresPayment(!allFree)
+        .cartSignature(cartSignature)
+        .warnings(warnings.isEmpty() ? null : warnings)
+        .build();
+
+// CheckoutServiceImpl.checkout(...) – optional signature validation
+List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+if (cartItems.isEmpty()) {
+    throw new CartEmptyException();
+}
+
+// Optional cart signature validation (only if client provided one)
+if (request.getCartSignature() != null) {
+    CheckoutPreviewResponse currentPreview = previewCheckout(userId);
+    if (!request.getCartSignature().equals(currentPreview.getCartSignature())) {
+        log.warn("Cart signature mismatch for user {}. Expected: {}, Actual: {}",
+                userId, request.getCartSignature(), currentPreview.getCartSignature());
+        return CheckoutResultResponse.builder()
+                .success(false)
+                .orderStatus(null)
+                .message("Your cart has changed since the last preview. Please review your cart and try again.")
+                .errorCode("CART_CHANGED")
+                .errorMessage("Cart changed between preview and checkout")
+                .build();
+    }
+}
+
+// Helper to build deterministic signature
+private String buildCartSignature(Long userId, List<CheckoutItemPreview> items, BigDecimal totalAmount) {
+    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    StringBuilder sb = new StringBuilder();
+    sb.append("user:").append(userId).append("|");
+    items.stream()
+            .sorted((a, b) -> a.getCourseId().compareTo(b.getCourseId()))
+            .forEach(item -> sb.append(item.getCourseId())
+                    .append(":")
+                    .append(item.getEffectivePrice())
+                    .append(":")
+                    .append(item.getCurrency())
+                    .append("|"));
+    sb.append("total:").append(totalAmount);
+    // ... compute hex digest ...
+}
+```
+
+**Behavior & Notes**
+
+- Frontend now receives an opaque `cartSignature` from both cart and direct checkout previews and can include it on the subsequent `checkout` call.
+- When `cartSignature` is present, `checkout(...)` re-computes the current cart signature and **fails fast** with `CART_CHANGED` if anything about the cart contents/pricing has changed.
+- The validation is **opt-in** for backward compatibility: if `cartSignature` is omitted, behavior is unchanged from before.
+
+---
+
+#### Fix 6 – Payment Method Capability Validation & Gateway Currency Support
+
+- **Analysis reference**:
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → logic gap `2. No Payment Method Validation`
+  - `CHECKOUT_VULNERABILITY_ANALYSIS_2.md` → section `3. Payment Method Capability Validation & Routing`
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-3
+- **Issue summary**:
+  - Centralize validation of whether a selected `PaymentMethod` is valid for the order currency and active gateway.
+  - Populate available payment methods on preview based on gateway currency support.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/service/PaymentMethodPolicyService.java`
+  - `src/main/java/com/edumind/lms/modules/payment/service/PaymentMethodPolicyServiceImpl.java`
+  - `src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+
+**Before**
+
+```java
+// No policy service; CheckoutServiceImpl does not validate payment method beyond enum presence.
+
+// CheckoutServiceImpl.processPayment(...) – directly calls gateway
+order.setRetryCount(currentRetryCount + 1);
+order.setLastPaymentAttemptAt(LocalDateTime.now());
+orderRepository.save(order);
+
+PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+GatewayPaymentResult result = gateway.processPayment(gatewayRequest);
+```
+
+**After**
+
+```java
+// PaymentMethodPolicyService – interface
+public interface PaymentMethodPolicyService {
+    void validatePaymentMethod(PaymentMethod paymentMethod, String currency);
+    List<PaymentMethod> getAvailableMethods(String currency);
+}
+
+// PaymentMethodPolicyServiceImpl – simple policy using active gateway's supportsCurrency
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentMethodPolicyServiceImpl implements PaymentMethodPolicyService {
+
+    private final PaymentGatewayRegistry gatewayRegistry;
+
+    @Override
+    public void validatePaymentMethod(PaymentMethod paymentMethod, String currency) {
+        if (paymentMethod == PaymentMethod.FREE) {
+            return;
+        }
+        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        if (!gateway.supportsCurrency(currency)) {
+            log.warn("Payment method {} via gateway {} does not support currency {}",
+                    paymentMethod, gateway.getGatewayName(), currency);
+            throw new PaymentFailedException(
+                    "Selected payment method is not available for currency: " + currency);
+        }
+    }
+
+    @Override
+    public List<PaymentMethod> getAvailableMethods(String currency) {
+        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        if (!gateway.supportsCurrency(currency)) {
+            return List.of(PaymentMethod.FREE);
+        }
+        return Arrays.stream(PaymentMethod.values())
+                .filter(method -> method != PaymentMethod.FREE)
+                .collect(Collectors.toList());
+    }
+}
+
+// CheckoutServiceImpl – inject policy and validate in processPayment
+private final PaymentMethodPolicyService paymentMethodPolicyService;
+
+private CheckoutResultResponse processPayment(Order order, CheckoutRequest request, boolean isFromCart) {
+    // ... retry metadata ...
+    order.setRetryCount(currentRetryCount + 1);
+    order.setLastPaymentAttemptAt(LocalDateTime.now());
+    orderRepository.save(order);
+
+    // Validate payment method capabilities for this currency before contacting gateway
+    if (order.getPaymentMethod() != null) {
+        paymentMethodPolicyService.validatePaymentMethod(order.getPaymentMethod(), order.getCurrency());
+    }
+
+    PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+    GatewayPaymentResult result = gateway.processPayment(gatewayRequest);
+    // ...
+}
+```
+
+**Behavior & Notes**
+
+- If the active gateway does not support the order currency, checkout now fails early with a `BadRequest` (`PaymentFailedException`), instead of reaching the gateway and failing in undefined ways.
+- **Development/Testing**: `MockPaymentGateway.supportsCurrency()` returns `true` for all currencies, so this validation does not interfere with mock gateway testing or development workflows.
+- The policy layer is intentionally simple but centralized, making it easy to refine later (per-gateway/per-method rules, regional restrictions, etc.).
+
+---
+
+#### Fix 7 – Webhook HMAC Verification for SePay
+
+- **Analysis reference**:
+  - `CHECKOUT_VULNERABILITY_ANALYSIS.md` → section `12. Missing Validation: Order Ownership in Callback`
+  - `CHECKOUT_VULNERABILITY_ANALYSIS_2.md` → section `4. Callback Replay Protection & Multi-Tenant Ownership Checks` (partial)
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-3
+- **Issue summary**:
+  - Implement concrete HMAC-SHA256 verification for SePay webhooks using a shared secret.
+  - Make invalid/missing signatures fail verification instead of being silently accepted.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/service/WebhookServiceImpl.java`
+  - `src/test/java/com/edumind/lms/modules/payment/service/WebhookServiceTest.java`
+
+**Before**
+
+```java
+// WebhookServiceImpl.verifySepaySignature(...) – effectively a stub
+private boolean verifySepaySignature(WebhookPayloadRequest request, String signature) {
+    // TODO: Implement SePay signature verification in production
+    if (sepayWebhookSecret == null || sepayWebhookSecret.isEmpty()) {
+        log.warn("SePay signature verification skipped - no secret configured");
+        return true;
+    }
+
+    // Verify HMAC-SHA256 signature
+    // String dataToSign = request.getOrderNumber() + request.getAmount() + request.getStatus();
+    // String expectedSignature = HmacUtils.hmacSha256Hex(sepayWebhookSecret, dataToSign);
+    // return expectedSignature.equals(signature);
+
+    log.info("SePay signature verification for order: {}", request.getOrderNumber());
+    return true;
+}
+```
+
+**After**
+
+```java
+private boolean verifySepaySignature(WebhookPayloadRequest request, String signature) {
+    if (sepayWebhookSecret == null || sepayWebhookSecret.isEmpty()) {
+        log.warn("SePay signature verification skipped - no secret configured");
+        return true;
+    }
+
+    if (signature == null || signature.isEmpty()) {
+        log.warn("Missing SePay signature for order {}", request.getOrderNumber());
+        return false;
+    }
+
+    try {
+        String dataToSign = request.getOrderNumber()
+                + "|" + request.getAmount()
+                + "|" + request.getStatus();
+
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec keySpec = new SecretKeySpec(
+                sepayWebhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        mac.init(keySpec);
+        byte[] rawHmac = mac.doFinal(dataToSign.getBytes(StandardCharsets.UTF_8));
+
+        StringBuilder hex = new StringBuilder(rawHmac.length * 2);
+        for (byte b : rawHmac) {
+            String h = Integer.toHexString(0xff & b);
+            if (h.length() == 1) {
+                hex.append('0');
+            }
+            hex.append(h);
+        }
+        String expectedSignature = hex.toString();
+
+        boolean valid = expectedSignature.equalsIgnoreCase(signature);
+        if (!valid) {
+            log.warn("Invalid SePay signature for order {}. Expected {}, got {}",
+                    request.getOrderNumber(), expectedSignature, signature);
+        }
+        return valid;
+    } catch (Exception e) {
+        log.error("Error verifying SePay signature for order {}: {}",
+                request.getOrderNumber(), e.getMessage(), e);
+        return false;
+    }
+}
+```
+
+**Behavior & Notes**
+
+- With `payment.sepay.webhook-secret` configured, SePay webhooks now require a valid HMAC-SHA256 signature over `orderNumber|amount|status`; invalid or missing signatures cause verification to fail.
+- **Development/Testing**: If `payment.sepay.webhook-secret` is **not configured** (empty/null), signature verification is **skipped** and returns `true`, so this feature does not interfere with mock gateway testing or development workflows.
+- Mock and PayPal behavior are unchanged; PayPal still logs verification intent but expects a production SDK-backed implementation.
+- A new unit test in `WebhookServiceTest` verifies that a correctly computed HMAC passes the `verifySignature` check for SePay.
 
 ---
 

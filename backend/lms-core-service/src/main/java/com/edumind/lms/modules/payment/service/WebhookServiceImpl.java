@@ -21,7 +21,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 @RequiredArgsConstructor
@@ -104,19 +107,48 @@ public class WebhookServiceImpl implements WebhookService {
     }
 
     private boolean verifySepaySignature(WebhookPayloadRequest request, String signature) {
-        // TODO: Implement SePay signature verification in production
         if (sepayWebhookSecret == null || sepayWebhookSecret.isEmpty()) {
             log.warn("SePay signature verification skipped - no secret configured");
             return true;
         }
 
-        // Verify HMAC-SHA256 signature
-        // String dataToSign = request.getOrderNumber() + request.getAmount() + request.getStatus();
-        // String expectedSignature = HmacUtils.hmacSha256Hex(sepayWebhookSecret, dataToSign);
-        // return expectedSignature.equals(signature);
+        if (signature == null || signature.isEmpty()) {
+            log.warn("Missing SePay signature for order {}", request.getOrderNumber());
+            return false;
+        }
 
-        log.info("SePay signature verification for order: {}", request.getOrderNumber());
-        return true;
+        try {
+            String dataToSign = request.getOrderNumber()
+                    + "|" + request.getAmount()
+                    + "|" + request.getStatus();
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec keySpec = new SecretKeySpec(
+                    sepayWebhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(keySpec);
+            byte[] rawHmac = mac.doFinal(dataToSign.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hex = new StringBuilder(rawHmac.length * 2);
+            for (byte b : rawHmac) {
+                String h = Integer.toHexString(0xff & b);
+                if (h.length() == 1) {
+                    hex.append('0');
+                }
+                hex.append(h);
+            }
+            String expectedSignature = hex.toString();
+
+            boolean valid = expectedSignature.equalsIgnoreCase(signature);
+            if (!valid) {
+                log.warn("Invalid SePay signature for order {}. Expected {}, got {}",
+                        request.getOrderNumber(), expectedSignature, signature);
+            }
+            return valid;
+        } catch (Exception e) {
+            log.error("Error verifying SePay signature for order {}: {}",
+                    request.getOrderNumber(), e.getMessage(), e);
+            return false;
+        }
     }
 
     // ==================== Payment Status Handlers ====================

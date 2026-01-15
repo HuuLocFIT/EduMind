@@ -21,11 +21,15 @@ import com.edumind.lms.modules.payment.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityNotFoundException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -57,6 +61,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final InvoiceService invoiceService;
     private final EnrollmentService enrollmentService;
     private final NumberGeneratorService numberGeneratorService; // Added dependency
+    private final PaymentMethodPolicyService paymentMethodPolicyService;
 
     private final PaymentGatewayRegistry gatewayRegistry;
     private final ApplicationEventPublisher eventPublisher;
@@ -138,6 +143,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         BigDecimal totalAmount = subtotal.subtract(totalDiscount);
         boolean allFree = totalAmount.compareTo(BigDecimal.ZERO) == 0;
 
+        String cartSignature = buildCartSignature(userId, itemPreviews, totalAmount);
+
         return CheckoutPreviewResponse.builder()
                 .items(itemPreviews)
                 .itemCount(itemPreviews.size())
@@ -147,6 +154,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .currency("USD")
                 .isFreeCheckout(allFree)
                 .requiresPayment(!allFree)
+                .cartSignature(cartSignature)
                 .warnings(warnings.isEmpty() ? null : warnings)
                 .build();
     }
@@ -191,6 +199,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         List<CheckoutItemPreview> items = List.of(preview);
         boolean isFree = finalPrice.compareTo(BigDecimal.ZERO) == 0;
 
+        String cartSignature = buildCartSignature(userId, items, finalPrice);
+
         return CheckoutPreviewResponse.builder()
                 .items(items)
                 .itemCount(1)
@@ -200,6 +210,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .currency("USD")
                 .isFreeCheckout(isFree)
                 .requiresPayment(!isFree)
+                 .cartSignature(cartSignature)
                 .warnings(warnings.isEmpty() ? null : warnings)
                 .build();
     }
@@ -217,8 +228,36 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new CartEmptyException();
         }
 
+        // Optional cart signature validation (only if client provided one)
+        if (request.getCartSignature() != null) {
+            CheckoutPreviewResponse currentPreview = previewCheckout(userId);
+            if (!request.getCartSignature().equals(currentPreview.getCartSignature())) {
+                log.warn("Cart signature mismatch for user {}. Expected: {}, Actual: {}",
+                        userId, request.getCartSignature(), currentPreview.getCartSignature());
+                return CheckoutResultResponse.builder()
+                        .success(false)
+                        .orderStatus(null)
+                        .message("Your cart has changed since the last preview. Please review your cart and try again.")
+                        .errorCode("CART_CHANGED")
+                        .errorMessage("Cart changed between preview and checkout")
+                        .build();
+            }
+        }
+
         // 2. Build order (inside transaction via OrderService)
-        Order order = orderService.createOrderFromCart(userId, cartItems, request);
+        Order order;
+        try {
+            order = orderService.createOrderFromCart(userId, cartItems, request);
+        } catch (DataIntegrityViolationException ex) {
+            // Likely concurrent checkout hitting unique active-order constraint
+            log.warn("Active checkout already exists for user {}. Blocking duplicate checkout.", userId, ex);
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .message("You already have a checkout in progress. Please complete it or wait a moment.")
+                    .errorCode("CHECKOUT_IN_PROGRESS")
+                    .errorMessage("Active checkout already exists for this user")
+                    .build();
+        }
 
         // 3. Check if payment required
         if (order.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
@@ -347,18 +386,67 @@ public class CheckoutServiceImpl implements CheckoutService {
     private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
         log.info("Completing free order: {}", order.getOrderNumber());
 
-        // Complete order
-        order.setStatus(OrderStatus.COMPLETED);
+        // Idempotency and status guards
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            log.info("Free order {} is already COMPLETED. Skipping duplicate completion.", order.getOrderNumber());
+            List<OrderItem> existingItems = orderItemRepository.findByOrderId(order.getId());
+
+            return CheckoutResultResponse.builder()
+                    .success(true)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .enrolledCourseIds(existingItems.stream()
+                            .map(OrderItem::getCourseId)
+                            .collect(Collectors.toList()))
+                    .createdAt(order.getCreatedAt())
+                    .completedAt(order.getCompletedAt())
+                    .message("Order was already completed. No additional changes were applied.")
+                    .build();
+        }
+
+        if (order.getStatus() == OrderStatus.PROCESSING) {
+            log.info("Free order {} is in PROCESSING state. Treating as pending and not re-triggering side effects.",
+                    order.getOrderNumber());
+            List<OrderItem> existingItems = orderItemRepository.findByOrderId(order.getId());
+
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .pending(true)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .enrolledCourseIds(existingItems.stream()
+                            .map(OrderItem::getCourseId)
+                            .collect(Collectors.toList()))
+                    .createdAt(order.getCreatedAt())
+                    .message("Free order is currently being processed.")
+                    .build();
+        }
+
+        // Mark as processing during completion to reduce race risk
+        order.setStatus(OrderStatus.PROCESSING);
         order.setPaymentMethod(PaymentMethod.FREE);
-        order.setCompletedAt(LocalDateTime.now());
         orderRepository.save(order);
 
         // Create enrollments
         createEnrollmentsForOrder(order);
 
+        // Load order items explicitly (lazy loading issue)
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
         // Clear cart only if checkout was from cart
         if (isFromCart) {
-            cartService.clearCart(userId);
+            List<Long> courseIds = orderItems.stream()
+                    .map(OrderItem::getCourseId)
+                    .collect(Collectors.toList());
+            cartService.removeItems(userId, courseIds);
         }
 
         // Generate invoice with limited retries
@@ -368,9 +456,6 @@ public class CheckoutServiceImpl implements CheckoutService {
         eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
 
         log.info("Free order completed: {}", order.getOrderNumber());
-
-        // Load order items explicitly (lazy loading issue)
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
         return CheckoutResultResponse.builder()
                 .success(true)
@@ -509,22 +594,15 @@ public class CheckoutServiceImpl implements CheckoutService {
         order.setLastPaymentAttemptAt(LocalDateTime.now());
         orderRepository.save(order);
 
+        // Validate payment method capabilities for this currency before contacting gateway
+        if (order.getPaymentMethod() != null) {
+            paymentMethodPolicyService.validatePaymentMethod(order.getPaymentMethod(), order.getCurrency());
+        }
+
         PaymentGateway gateway = gatewayRegistry.getActiveGateway();
 
         // 1. Ensure we don't create duplicate PENDING transactions for the same order
-        Transaction transaction = transactionRepository
-                .findFirstByOrderIdAndStatusOrderByCreatedAtDesc(order.getId(), TransactionStatus.PENDING)
-                .orElseGet(() -> {
-                    Transaction tx = new Transaction();
-                    tx.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
-                    tx.setOrder(order);
-                    tx.setGateway(order.getPaymentMethod());
-                    tx.setAmount(order.getTotalAmount());
-                    tx.setCurrency(order.getCurrency());
-                    tx.setStatus(TransactionStatus.PENDING);
-                    tx.setCreatedAt(LocalDateTime.now());
-                    return transactionRepository.save(tx);
-                });
+        Transaction transaction = createOrReusePendingTransaction(order);
 
         log.info("Using PENDING transaction: {}", transaction.getTransactionNumber());
 
@@ -655,6 +733,42 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
     }
 
+    /**
+     * Create or reuse a PENDING transaction for the order with a retry loop
+     * to protect against rare transaction number collisions.
+     */
+    private Transaction createOrReusePendingTransaction(Order order) {
+        return transactionRepository
+                .findFirstByOrderIdAndStatusOrderByCreatedAtDesc(order.getId(), TransactionStatus.PENDING)
+                .orElseGet(() -> {
+                    final int maxAttempts = 3;
+                    int attempt = 0;
+                    while (true) {
+                        attempt++;
+                        try {
+                            Transaction tx = new Transaction();
+                            tx.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
+                            tx.setOrder(order);
+                            tx.setGateway(order.getPaymentMethod());
+                            tx.setAmount(order.getTotalAmount());
+                            tx.setCurrency(order.getCurrency());
+                            tx.setStatus(TransactionStatus.PENDING);
+                            tx.setCreatedAt(LocalDateTime.now());
+                            return transactionRepository.save(tx);
+                        } catch (DataIntegrityViolationException ex) {
+                            if (attempt >= maxAttempts) {
+                                log.error("Failed to create transaction for order {} after {} attempts due to " +
+                                                "transaction number collision or constraint violation",
+                                        order.getOrderNumber(), maxAttempts, ex);
+                                throw ex;
+                            }
+                            log.warn("Retrying transaction creation for order {} due to constraint violation (attempt {}/{})",
+                                    order.getOrderNumber(), attempt, maxAttempts);
+                        }
+                    }
+                });
+    }
+
     @Transactional
     private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction transaction,
                                                            boolean isFromCart) {
@@ -711,10 +825,16 @@ public class CheckoutServiceImpl implements CheckoutService {
             // internal accounting can be fixed later. Keeping it non-blocking.
         }
 
+        // Load order items explicitly (lazy loading issue)
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
         // 4. Clear cart (Non-Critical)
         if (isFromCart) {
             try {
-                cartService.clearCart(order.getUserId());
+                List<Long> courseIds = orderItems.stream()
+                        .map(OrderItem::getCourseId)
+                        .collect(Collectors.toList());
+                cartService.removeItems(order.getUserId(), courseIds);
             } catch (Exception e) {
                 log.error("Failed to clear cart for user: {}", order.getUserId(), e);
             }
@@ -729,9 +849,6 @@ public class CheckoutServiceImpl implements CheckoutService {
         } catch (Exception e) {
             log.error("Failed to publish OrderCompletedEvent for order: {}", order.getOrderNumber(), e);
         }
-
-        // Load order items explicitly (lazy loading issue)
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
 
         CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
                 .success(true)
@@ -812,6 +929,55 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .errorCode(result.getErrorCode())
                 .errorMessage(result.getErrorMessage())
                 .build();
+    }
+
+    /**
+     * Build a deterministic cart signature from user + items + total amount.
+     * This is used to detect cart changes between preview and checkout.
+     */
+    private String buildCartSignature(Long userId, List<CheckoutItemPreview> items, BigDecimal totalAmount) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("user:").append(userId).append("|");
+            // Sort items by courseId for deterministic ordering
+            items.stream()
+                    .sorted((a, b) -> a.getCourseId().compareTo(b.getCourseId()))
+                    .forEach(item -> sb.append(item.getCourseId())
+                            .append(":")
+                            .append(item.getEffectivePrice())
+                            .append(":")
+                            .append(item.getCurrency())
+                            .append("|"));
+            sb.append("total:").append(totalAmount);
+
+            byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                String h = Integer.toHexString(0xff & b);
+                if (h.length() == 1) {
+                    hex.append('0');
+                }
+                hex.append(h);
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            // Fallback: return plain concatenated string (still usable for change detection)
+            log.error("SHA-256 not available for cart signature. Falling back to raw string.", e);
+            StringBuilder sb = new StringBuilder();
+            sb.append("user:").append(userId).append("|");
+            items.stream()
+                    .sorted((a, b) -> a.getCourseId().compareTo(b.getCourseId()))
+                    .forEach(item -> sb.append(item.getCourseId())
+                            .append(":")
+                            .append(item.getEffectivePrice())
+                            .append(":")
+                            .append(item.getCurrency())
+                            .append("|"));
+            sb.append("total:").append(totalAmount);
+            return sb.toString();
+        }
     }
 
     private void createEnrollmentsForOrder(Order order) {

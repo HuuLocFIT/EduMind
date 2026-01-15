@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -357,6 +358,49 @@ class CartServiceTest {
 
             // Then
             assertThat(result).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("removeItems Tests")
+    class RemoveItemsTests {
+
+        @Test
+        @DisplayName("Should remove specific items from cart when cart exists")
+        void removeItems_CartExists_RemovesItems() {
+            // Given
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+
+            // When
+            cartService.removeItems(userId, List.of(100L, 101L));
+
+            // Then
+            verify(cartItemRepository).deleteByCartIdAndCourseIds(eq(cart.getId()), eq(List.of(100L, 101L)));
+        }
+
+        @Test
+        @DisplayName("Should do nothing when courseIds is null/empty")
+        void removeItems_NullOrEmpty_DoesNothing() {
+            // When
+            cartService.removeItems(userId, null);
+            cartService.removeItems(userId, Collections.emptyList());
+
+            // Then
+            verifyNoInteractions(cartRepository);
+            verifyNoInteractions(cartItemRepository);
+        }
+
+        @Test
+        @DisplayName("Should do nothing when cart does not exist")
+        void removeItems_NoCart_DoesNothing() {
+            // Given
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+            // When
+            cartService.removeItems(userId, List.of(courseId));
+
+            // Then
+            verify(cartItemRepository, never()).deleteByCartIdAndCourseIds(anyLong(), any());
         }
     }
 

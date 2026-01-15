@@ -37,4 +37,11 @@ public class CheckoutRequest {
     // Metadata (optional - for logging/fraud detection)
     private String ipAddress;
     private String userAgent;
+
+    /**
+     * Optional cart signature returned from preview.
+     * When provided, checkout() will validate that the current cart state
+     * matches the previewed state before creating an order.
+     */
+    private String cartSignature;
 }
