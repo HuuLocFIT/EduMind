@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -357,6 +358,135 @@ class CheckoutServiceTest {
         }
 
         @Test
+        @DisplayName("Should return ORDER_EXPIRED when order is expired before payment")
+        void checkout_ExpiredOrder_ReturnsOrderExpired() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            Order expiredOrder = new Order();
+            expiredOrder.setId(401L);
+            expiredOrder.setOrderNumber("ORD-EXPIRED");
+            expiredOrder.setUserId(userId);
+            expiredOrder.setStatus(OrderStatus.PENDING);
+            expiredOrder.setTotalAmount(new BigDecimal("80.00"));
+            expiredOrder.setCurrency("USD");
+            expiredOrder.setExpiresAt(LocalDateTime.now().minusMinutes(5));
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(expiredOrder);
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("ORDER_EXPIRED");
+            verifyNoInteractions(gatewayRegistry);
+        }
+
+        @Test
+        @DisplayName("Should handle null gateway response gracefully")
+        void checkout_NullGatewayResult_FailsGracefully() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(null);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-NULL-RESP");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("GATEWAY_NULL_RESPONSE");
+
+            ArgumentCaptor<Transaction> txCaptor = ArgumentCaptor.forClass(Transaction.class);
+            verify(transactionRepository, atLeastOnce()).save(txCaptor.capture());
+            Transaction savedTx = txCaptor.getValue();
+            assertThat(savedTx.getStatus()).isEqualTo(TransactionStatus.FAILED);
+            assertThat(savedTx.getFailureCode()).isEqualTo("GATEWAY_NULL_RESPONSE");
+        }
+
+        @Test
+        @DisplayName("Should enforce payment retry limit and fail when exceeded")
+        void checkout_RetryLimitExceeded_FailsImmediately() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            order.setRetryCount(3); // MAX_PAYMENT_ATTEMPTS is 3
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("RETRY_LIMIT_EXCEEDED");
+            verifyNoInteractions(gatewayRegistry);
+        }
+
+        @Test
+        @DisplayName("Should retry invoice generation on transient failures")
+        void checkout_InvoiceGeneration_RetriesOnFailure() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            GatewayPaymentResult paymentResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("paypal-txn-invoice-retry")
+                    .amount(new BigDecimal("80.00"))
+                    .build();
+
+            InvoiceResponse invoiceResponse = InvoiceResponse.builder()
+                    .id(601L)
+                    .invoiceNumber("INV-RETRY-OK")
+                    .build();
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(paymentResult);
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-2026-INV-RETRY");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderItemRepository.findByOrderId(any())).thenReturn(List.of(orderItem));
+
+            // First two attempts fail, third succeeds
+            when(invoiceService.generateInvoice(any(Order.class)))
+                    .thenThrow(new RuntimeException("PDF service down"))
+                    .thenThrow(new RuntimeException("PDF service still down"))
+                    .thenReturn(invoiceResponse);
+            when(invoiceService.getInvoiceById(anyLong())).thenReturn(invoiceResponse);
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            verify(invoiceService, times(3)).generateInvoice(any(Order.class));
+        }
+
+        @Test
         @DisplayName("Should process checkout for free course")
         void checkout_FreeCourse_CompletesImmediately() {
             // Given
@@ -562,6 +692,29 @@ class CheckoutServiceTest {
             assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
             verify(orderRepository, atLeastOnce()).save(order);
             verify(enrollmentService).enrollStudent(any(), any());
+        }
+
+        @Test
+        @DisplayName("Should not enroll again if user already enrolled when callback succeeds")
+        void handlePaymentCallback_Success_AlreadyEnrolled_SkipsEnrollment() {
+            // Given
+            String txnId = "gateway-txn-enrolled";
+            Transaction transaction = new Transaction();
+            transaction.setGatewayTransactionId(txnId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setOrder(order);
+
+            when(transactionRepository.findByGatewayTransactionId(txnId)).thenReturn(Optional.of(transaction));
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(any())).thenReturn(List.of(orderItem));
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(any(), any(), any()))
+                    .thenReturn(true); // already enrolled
+
+            // When
+            checkoutService.handlePaymentCallback(txnId, "SUCCESS", "{\"status\":\"success\"}");
+
+            // Then
+            verify(enrollmentService, never()).enrollStudent(any(), any());
         }
 
         @Test
@@ -795,7 +948,8 @@ class CheckoutServiceTest {
 
             // Then
             assertThat(result.isSuccess()).isTrue();
-            verify(orderRepository, times(2)).save(any(Order.class)); // reset + complete
+            // Order may be saved multiple times (reset + retry metadata + complete), we just assert it was saved at least twice
+            verify(orderRepository, atLeast(2)).save(any(Order.class));
         }
 
         @Test

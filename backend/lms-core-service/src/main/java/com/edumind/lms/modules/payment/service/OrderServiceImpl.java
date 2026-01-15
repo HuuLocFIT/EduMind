@@ -273,6 +273,12 @@ public class OrderServiceImpl implements OrderService {
         order.setCurrency("USD");
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
+        // Set a reasonable expiration window for payment (e.g., 30 minutes)
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+
+        // Audit: client metadata
+        order.setIpAddress(request.getIpAddress());
+        order.setUserAgent(request.getUserAgent());
 
         // Customer info
         fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
@@ -347,6 +353,11 @@ public class OrderServiceImpl implements OrderService {
         order.setCurrency("USD");
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+
+        // Audit: client metadata
+        order.setIpAddress(request.getIpAddress());
+        order.setUserAgent(request.getUserAgent());
 
         fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
 

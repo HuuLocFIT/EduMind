@@ -26,6 +26,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     Optional<Transaction> findFirstByOrderIdOrderByCreatedAtDesc(Long orderId);
 
+    Optional<Transaction> findFirstByOrderIdAndStatusOrderByCreatedAtDesc(Long orderId, TransactionStatus status);
+
     // By status
     Page<Transaction> findByStatus(TransactionStatus status, Pageable pageable);
 

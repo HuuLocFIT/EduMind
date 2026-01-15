@@ -690,5 +690,172 @@ class OrderServiceTest {
             assertThat(result.getSubtotal()).isEqualByComparingTo(BigDecimal.ZERO);
             assertThat(result.getTotalAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         }
+
+        @Test
+        @DisplayName("Should set expiration time to 30 minutes from now")
+        void createOrderFromSingleCourse_ShouldSetExpirationTime() {
+            // Given
+            DirectCheckoutRequest request = new DirectCheckoutRequest();
+            request.setCourseId(course.getId());
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+
+            LocalDateTime beforeCreation = LocalDateTime.now();
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+
+            // Then
+            assertThat(result.getExpiresAt()).isNotNull();
+            LocalDateTime afterCreation = LocalDateTime.now();
+            LocalDateTime expectedMin = beforeCreation.plusMinutes(30);
+            LocalDateTime expectedMax = afterCreation.plusMinutes(30);
+            assertThat(result.getExpiresAt()).isAfterOrEqualTo(expectedMin);
+            assertThat(result.getExpiresAt()).isBeforeOrEqualTo(expectedMax);
+        }
+
+        @Test
+        @DisplayName("Should set audit metadata (ipAddress, userAgent) from request")
+        void createOrderFromSingleCourse_ShouldSetAuditMetadata() {
+            // Given
+            DirectCheckoutRequest request = new DirectCheckoutRequest();
+            request.setCourseId(course.getId());
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+            request.setIpAddress("192.168.1.100");
+            request.setUserAgent("Mozilla/5.0 Test Browser");
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+
+            // Then
+            assertThat(result.getIpAddress()).isEqualTo("192.168.1.100");
+            assertThat(result.getUserAgent()).isEqualTo("Mozilla/5.0 Test Browser");
+        }
+    }
+
+    @Nested
+    @DisplayName("createOrderFromCart Audit & Expiration Tests")
+    class CreateOrderFromCartAuditTests {
+
+        @Test
+        @DisplayName("Should set expiration time to 30 minutes from now")
+        void createOrderFromCart_ShouldSetExpirationTime() {
+            // Given
+            CartItem cartItem = new CartItem();
+            cartItem.setCourseId(course.getId());
+            cartItem.setPriceSnapshot(course.getPrice());
+
+            CheckoutRequest request = new CheckoutRequest();
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+
+            LocalDateTime beforeCreation = LocalDateTime.now();
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
+
+            // Then
+            assertThat(result.getExpiresAt()).isNotNull();
+            LocalDateTime afterCreation = LocalDateTime.now();
+            LocalDateTime expectedMin = beforeCreation.plusMinutes(30);
+            LocalDateTime expectedMax = afterCreation.plusMinutes(30);
+            assertThat(result.getExpiresAt()).isAfterOrEqualTo(expectedMin);
+            assertThat(result.getExpiresAt()).isBeforeOrEqualTo(expectedMax);
+        }
+
+        @Test
+        @DisplayName("Should set audit metadata (ipAddress, userAgent) from request")
+        void createOrderFromCart_ShouldSetAuditMetadata() {
+            // Given
+            CartItem cartItem = new CartItem();
+            cartItem.setCourseId(course.getId());
+            cartItem.setPriceSnapshot(course.getPrice());
+
+            CheckoutRequest request = new CheckoutRequest();
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+            request.setIpAddress("10.0.0.1");
+            request.setUserAgent("Chrome/120.0");
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
+
+            // Then
+            assertThat(result.getIpAddress()).isEqualTo("10.0.0.1");
+            assertThat(result.getUserAgent()).isEqualTo("Chrome/120.0");
+        }
+
+        @Test
+        @DisplayName("Should handle null audit metadata gracefully")
+        void createOrderFromCart_NullAuditMetadata_HandledGracefully() {
+            // Given
+            CartItem cartItem = new CartItem();
+            cartItem.setCourseId(course.getId());
+            cartItem.setPriceSnapshot(course.getPrice());
+
+            CheckoutRequest request = new CheckoutRequest();
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+            // ipAddress and userAgent are null
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
+
+            // Then
+            assertThat(result.getIpAddress()).isNull();
+            assertThat(result.getUserAgent()).isNull();
+        }
     }
 }

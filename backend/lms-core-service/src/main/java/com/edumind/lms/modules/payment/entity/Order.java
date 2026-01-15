@@ -34,6 +34,11 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 public class Order extends BaseEntity {
+
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
 
@@ -71,6 +76,16 @@ public class Order extends BaseEntity {
     // Timestamps
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    @Column(name = "retry_count")
+    @Builder.Default
+    private Integer retryCount = 0;
+
+    @Column(name = "last_payment_attempt_at")
+    private LocalDateTime lastPaymentAttemptAt;
 
     // Customer info
     @Column(name = "customer_email", length = 255)

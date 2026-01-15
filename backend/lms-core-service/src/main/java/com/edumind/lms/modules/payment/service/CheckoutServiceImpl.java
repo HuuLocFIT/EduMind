@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CheckoutServiceImpl implements CheckoutService {
 
+    private static final int MAX_PAYMENT_ATTEMPTS = 3;
+
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final OrderRepository orderRepository;
@@ -359,14 +361,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             cartService.clearCart(userId);
         }
 
-        // Generate invoice
-        InvoiceResponse invoice = invoiceService.generateInvoice(order);
-        
-        // Generate PDF for invoice
-        invoiceService.generateInvoicePdf(invoice.getId());
-        
-        // Reload invoice to get updated PDF URL
-        invoice = invoiceService.getInvoiceById(invoice.getId());
+        // Generate invoice with limited retries
+        InvoiceResponse invoice = generateInvoiceWithRetry(order, 3);
 
         // Publish event
         eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
@@ -384,8 +380,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .totalAmount(order.getTotalAmount())
                 .currency(order.getCurrency())
                 .paymentMethod(order.getPaymentMethod())
-                .invoiceNumber(invoice.getInvoiceNumber())
-                .invoiceUrl(invoice.getPdfUrl())
+                .invoiceNumber(invoice != null ? invoice.getInvoiceNumber() : null)
+                .invoiceUrl(invoice != null ? invoice.getPdfUrl() : null)
                 .enrolledCourseIds(orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList()))
@@ -398,21 +394,139 @@ public class CheckoutServiceImpl implements CheckoutService {
     private CheckoutResultResponse processPayment(Order order, CheckoutRequest request, boolean isFromCart) {
         log.info("Processing payment for order: {}", order.getOrderNumber());
 
+        // Expiration check (for pending/failed retries)
+        if (order.getExpiresAt() != null && LocalDateTime.now().isAfter(order.getExpiresAt())
+                && order.getStatus() != OrderStatus.COMPLETED) {
+            log.warn("Order {} has expired. Current status: {}", order.getOrderNumber(), order.getStatus());
+            order.setStatus(OrderStatus.FAILED);
+            order.setFailureReason("Order expired before payment was completed.");
+            orderRepository.save(order);
+
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .createdAt(order.getCreatedAt())
+                    .message("This order has expired. Please create a new checkout.")
+                    .errorCode("ORDER_EXPIRED")
+                    .errorMessage("Order expired before payment was completed.")
+                    .build();
+        }
+
+        // 0. Guard against invalid order status (idempotency / safety)
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            log.warn("Order {} is already COMPLETED. Skipping payment processing.", order.getOrderNumber());
+
+            // Load latest transaction if available
+            Transaction latestTx = transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+                    .orElse(null);
+
+            // Load order items explicitly
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+            CheckoutResultResponse.CheckoutResultResponseBuilder builder = CheckoutResultResponse.builder()
+                    .success(true)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .enrolledCourseIds(orderItems.stream()
+                            .map(OrderItem::getCourseId)
+                            .collect(Collectors.toList()))
+                    .createdAt(order.getCreatedAt())
+                    .completedAt(order.getCompletedAt())
+                    .message("Order already completed. No additional payment was processed.");
+
+            if (latestTx != null) {
+                builder
+                        .transactionNumber(latestTx.getTransactionNumber())
+                        .gatewayTransactionId(latestTx.getGatewayTransactionId());
+            }
+
+            return builder.build();
+        }
+
+        if (order.getStatus() == OrderStatus.PROCESSING) {
+            log.warn("Order {} is currently PROCESSING. Skipping new payment request.", order.getOrderNumber());
+
+            Transaction latestTx = transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+                    .orElse(null);
+
+            CheckoutResultResponse.CheckoutResultResponseBuilder builder = CheckoutResultResponse.builder()
+                    .success(false)
+                    .pending(true)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .createdAt(order.getCreatedAt())
+                    .message("Payment is already being processed for this order.");
+
+            if (latestTx != null) {
+                builder
+                        .transactionNumber(latestTx.getTransactionNumber())
+                        .gatewayTransactionId(latestTx.getGatewayTransactionId())
+                        .redirectUrl(latestTx.getRedirectUrl())
+                        .requiresRedirect(latestTx.getRedirectUrl() != null);
+            }
+
+            return builder.build();
+        }
+
+        // Retry limit check
+        Integer currentRetryCount = order.getRetryCount() != null ? order.getRetryCount() : 0;
+        if (currentRetryCount >= MAX_PAYMENT_ATTEMPTS) {
+            log.warn("Order {} has reached max payment attempts ({})", order.getOrderNumber(), MAX_PAYMENT_ATTEMPTS);
+            order.setStatus(OrderStatus.FAILED);
+            order.setFailureReason("Maximum payment retry attempts exceeded.");
+            orderRepository.save(order);
+
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .createdAt(order.getCreatedAt())
+                    .message("Maximum payment retry attempts exceeded. Please create a new checkout.")
+                    .errorCode("RETRY_LIMIT_EXCEEDED")
+                    .errorMessage("Maximum payment retry attempts exceeded.")
+                    .build();
+        }
+
+        // Update retry metadata
+        order.setRetryCount(currentRetryCount + 1);
+        order.setLastPaymentAttemptAt(LocalDateTime.now());
+        orderRepository.save(order);
+
         PaymentGateway gateway = gatewayRegistry.getActiveGateway();
 
-        // 1. Create Transaction PENDING (Before Gateway Call)
-        // This ensures we have a record even if the server crashes during/after gateway response
-        Transaction transaction = new Transaction();
-        transaction.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
-        transaction.setOrder(order);
-        transaction.setGateway(order.getPaymentMethod());
-        transaction.setAmount(order.getTotalAmount());
-        transaction.setCurrency(order.getCurrency());
-        transaction.setStatus(TransactionStatus.PENDING);
-        transaction.setCreatedAt(LocalDateTime.now());
-        
-        transaction = transactionRepository.save(transaction);
-        log.info("Created PENDING transaction: {}", transaction.getTransactionNumber());
+        // 1. Ensure we don't create duplicate PENDING transactions for the same order
+        Transaction transaction = transactionRepository
+                .findFirstByOrderIdAndStatusOrderByCreatedAtDesc(order.getId(), TransactionStatus.PENDING)
+                .orElseGet(() -> {
+                    Transaction tx = new Transaction();
+                    tx.setTransactionNumber(numberGeneratorService.generateTransactionNumber());
+                    tx.setOrder(order);
+                    tx.setGateway(order.getPaymentMethod());
+                    tx.setAmount(order.getTotalAmount());
+                    tx.setCurrency(order.getCurrency());
+                    tx.setStatus(TransactionStatus.PENDING);
+                    tx.setCreatedAt(LocalDateTime.now());
+                    return transactionRepository.save(tx);
+                });
+
+        log.info("Using PENDING transaction: {}", transaction.getTransactionNumber());
 
         // Build gateway request
         GatewayPaymentRequest gatewayRequest = GatewayPaymentRequest.builder()
@@ -433,6 +547,23 @@ public class CheckoutServiceImpl implements CheckoutService {
         // 2. Process payment (Call Gateway)
         GatewayPaymentResult result = gateway.processPayment(gatewayRequest);
 
+        // Basic gateway response validation
+        if (result == null) {
+            log.error("Payment gateway returned null result for order {}", order.getOrderNumber());
+            transaction.setStatus(TransactionStatus.FAILED);
+            transaction.setFailureCode("GATEWAY_NULL_RESPONSE");
+            transaction.setFailureReason("Payment gateway returned an invalid response.");
+            transactionRepository.save(transaction);
+
+            GatewayPaymentResult safeResult = GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(null)
+                    .errorCode("GATEWAY_NULL_RESPONSE")
+                    .errorMessage("Payment gateway returned an invalid response.")
+                    .build();
+            return handleFailedPayment(order, transaction, safeResult);
+        }
+
         // 3. Update Transaction with Result
         transaction.setGatewayTransactionId(result.getGatewayTransactionId());
         transaction.setGatewayResponse(result.getRawResponse());
@@ -442,6 +573,44 @@ public class CheckoutServiceImpl implements CheckoutService {
             transaction.setLocalAmount(result.getLocalAmount());
             transaction.setLocalCurrency(result.getLocalCurrency());
             transaction.setExchangeRate(result.getExchangeRate());
+        }
+
+        // 3b. FX / currency sanity checks (non-fatal, logging only)
+        try {
+            if (result.getExchangeRate() != null && result.getExchangeRate().compareTo(BigDecimal.ZERO) <= 0) {
+                log.warn("Order {} received non-positive exchange rate from gateway: {}",
+                        order.getOrderNumber(), result.getExchangeRate());
+            }
+            if (result.getAmount() != null
+                    && result.getLocalAmount() != null
+                    && result.getExchangeRate() != null) {
+                BigDecimal expectedLocal = result.getAmount().multiply(result.getExchangeRate());
+                BigDecimal diff = expectedLocal.subtract(result.getLocalAmount()).abs();
+                if (diff.compareTo(BigDecimal.ONE) > 0) { // allow small rounding differences
+                    log.warn("Order {} FX mismatch: expected local {} but got {} (rate {}, base {})",
+                            order.getOrderNumber(), expectedLocal, result.getLocalAmount(),
+                            result.getExchangeRate(), result.getAmount());
+                }
+            }
+        } catch (Exception fxEx) {
+            log.warn("Order {} FX validation error: {}", order.getOrderNumber(), fxEx.getMessage());
+        }
+
+        // 3a. Validate that the processed amount matches the order amount (if provided by gateway)
+        if (result.getAmount() != null &&
+                result.getAmount().compareTo(order.getTotalAmount()) != 0) {
+            log.error("Payment amount mismatch for order {}: gateway charged {} {} but order total is {} {}",
+                    order.getOrderNumber(),
+                    result.getAmount(), result.getCurrency(),
+                    order.getTotalAmount(), order.getCurrency());
+
+            transaction.setStatus(TransactionStatus.FAILED);
+            transaction.setFailureCode("AMOUNT_MISMATCH");
+            transaction.setFailureReason("Gateway charged " + result.getAmount() + " " + result.getCurrency()
+                    + " but order total is " + order.getTotalAmount() + " " + order.getCurrency());
+            transactionRepository.save(transaction);
+
+            return handleFailedPayment(order, transaction, result);
         }
 
         if (result.isSuccess()) {
@@ -491,6 +660,40 @@ public class CheckoutServiceImpl implements CheckoutService {
                                                            boolean isFromCart) {
         log.info("Payment successful for order: {}", order.getOrderNumber());
 
+        // Idempotency guard: if order is already completed, do not attempt to complete again
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            log.info("Order {} is already COMPLETED. Skipping duplicate completion.", order.getOrderNumber());
+
+            // Load order items explicitly (lazy loading issue)
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+            CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
+                    .success(true)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .transactionNumber(transaction.getTransactionNumber())
+                    .gatewayTransactionId(transaction.getGatewayTransactionId())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .enrolledCourseIds(orderItems.stream()
+                            .map(OrderItem::getCourseId)
+                            .collect(Collectors.toList()))
+                    .createdAt(order.getCreatedAt())
+                    .completedAt(order.getCompletedAt())
+                    .message("Order was already completed. No additional changes were applied.");
+
+            Invoice existingInvoice = order.getInvoice();
+            if (existingInvoice != null) {
+                responseBuilder
+                        .invoiceNumber(existingInvoice.getInvoiceNumber())
+                        .invoiceUrl(existingInvoice.getPdfUrl());
+            }
+
+            return responseBuilder.build();
+        }
+
         // 1. Complete order (CRITICAL)
         order.setStatus(OrderStatus.COMPLETED);
         order.setCompletedAt(LocalDateTime.now());
@@ -517,19 +720,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
         }
 
-        InvoiceResponse invoice = null;
-        try {
-            // 5. Generate invoice (Non-Critical)
-            invoice = invoiceService.generateInvoice(order);
-            
-            // Generate PDF for invoice
-            invoiceService.generateInvoicePdf(invoice.getId());
-            
-            // Reload invoice to get updated PDF URL
-            invoice = invoiceService.getInvoiceById(invoice.getId());
-        } catch (Exception e) {
-            log.error("Failed to generate invoice for order: {}", order.getOrderNumber(), e);
-        }
+        // 5. Generate invoice with limited retries (Non-Critical)
+        InvoiceResponse invoice = generateInvoiceWithRetry(order, 3);
 
         // 6. Publish event (Non-Critical)
         try {
@@ -627,14 +819,56 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         for (OrderItem item : items) {
             try {
-                enrollmentService.enrollStudent(item.getCourseId(),order.getUserId());
-                log.debug("Created enrollment for user {} in course {}",
-                        order.getUserId(), item.getCourseId());
+                // Re-validate enrollment to avoid duplicates in race conditions
+                boolean alreadyEnrolled = enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
+                        item.getCourseId(), order.getUserId(), EnrollmentStatus.DROPPED);
+
+                if (alreadyEnrolled) {
+                    log.debug("Skipping enrollment for user {} in course {} - already enrolled",
+                            order.getUserId(), item.getCourseId());
+                    continue;
+                }
+
+                enrollmentService.enrollStudent(item.getCourseId(), order.getUserId());
+                log.debug("Created enrollment for user {} in course {}", order.getUserId(), item.getCourseId());
             } catch (Exception e) {
                 log.error("Failed to create enrollment for course {}: {}",
                         item.getCourseId(), e.getMessage());
                 throw new PaymentFailedException("Failed to activate enrollment: " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * Generate invoice with a limited number of retry attempts.
+     * Non-critical: returns null if all attempts fail.
+     */
+    private InvoiceResponse generateInvoiceWithRetry(Order order, int maxAttempts) {
+        InvoiceResponse invoice = null;
+        int attempt = 0;
+        while (attempt < maxAttempts) {
+            attempt++;
+            try {
+                log.debug("Generating invoice for order {} (attempt {}/{})",
+                        order.getOrderNumber(), attempt, maxAttempts);
+
+                invoice = invoiceService.generateInvoice(order);
+
+                // Generate PDF for invoice
+                invoiceService.generateInvoicePdf(invoice.getId());
+
+                // Reload invoice to get updated PDF URL
+                invoice = invoiceService.getInvoiceById(invoice.getId());
+
+                return invoice;
+            } catch (Exception e) {
+                log.error("Failed to generate invoice for order {} on attempt {}/{}: {}",
+                        order.getOrderNumber(), attempt, maxAttempts, e.getMessage(), e);
+            }
+        }
+
+        log.error("Giving up invoice generation for order {} after {} attempts",
+                order.getOrderNumber(), maxAttempts);
+        return null;
     }
 }
