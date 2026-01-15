@@ -1289,3 +1289,76 @@ private InvoiceResponse generateInvoiceWithRetry(Order order, int maxAttempts) {
 - Orders now store `ipAddress` and `userAgent` from checkout requests, improving auditability and fraud analysis.
 - Invoice generation is retried up to 3 times before giving up, reducing user-facing issues from transient failures.
 
+
+---
+
+#### Fix 8 – StaleObjectStateException Guard (Reload on Completion)
+
+- **Analysis reference**: _None (Runtime Bug)_
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-fix
+- **Issue summary**:
+  - `StaleObjectStateException` occurred when `handleSuccessfulPayment` tried to update an `Order` that had been modified concurrently by a payment webhook.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+
+**Before**
+
+```java
+private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction transaction, boolean isFromCart) {
+    log.info("Payment successful for order: {}", order.getOrderNumber());
+    // ... use stale order ...
+    orderRepository.save(order); // -> throws StaleObjectStateException
+}
+```
+
+**After**
+
+```java
+private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction transaction, boolean isFromCart) {
+    // Reload order to prevent StaleObjectStateException
+    Long orderId = order.getId();
+    order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+    log.info("Payment successful for order: {}", order.getOrderNumber());
+    // ... use fresh order ...
+}
+```
+
+**Behavior & Notes**
+
+- Eliminates race conditions between synchronous checkout response processing and asynchronous webhook calls.
+- Ensures the final order status update always uses the latest database version (optimistic locking friendly).
+
+#### Fix 9 – Concurrency Recovery (Catch-and-Recover)
+
+- **Analysis reference**: _Refining Fix 8_
+- **Date**: 2026-01-15
+- **Author**: checkout-hardening-fix
+- **Issue summary**:
+  - Even with Fix 8 (Reload), a tiny race condition window existed between "Reload" and "Save". If a webhook completed the order in that window, `StaleObjectStateException` would still occur.
+- **Files touched**:
+  - `src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+
+**Change**
+
+Wrapped the synchronous order completion logic in a `try-catch` block for `OptimisticLockingFailureException`.
+
+```java
+try {
+    return handleSuccessfulPayment(order, transaction, isFromCart);
+} catch (org.springframework.dao.OptimisticLockingFailureException e) {
+    // If we fail to lock, check if someone else (webhook) already finished the job.
+    Order reloaded = orderRepository.findById(order.getId()).orElse(order);
+    if (reloaded.getStatus() == OrderStatus.COMPLETED) {
+         return buildSuccessResponse(reloaded); // Recover gracefully
+    }
+    throw e; // Real failure
+}
+```
+
+**Behavior & Notes**
+
+- Provides a "Success" experience to the user even if they "lost" the race condition to the background webhook.
+- Eliminates the 500 error page for the "Thread A vs Thread B" edge case.

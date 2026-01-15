@@ -103,6 +103,9 @@ class CheckoutServiceTest {
     private PaymentGateway mockPaymentGateway;
 
     @Mock
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
@@ -156,6 +159,9 @@ class CheckoutServiceTest {
         orderItem.setCourseId(courseId);
         orderItem.setFinalPrice(new BigDecimal("80.00"));
         order.getItems().add(orderItem);
+
+        // Mock findById for order reload logic in CheckoutServiceImpl
+        lenient().when(orderRepository.findById(eq(order.getId()))).thenReturn(Optional.of(order));
     }
 
     @Nested
@@ -392,6 +398,73 @@ class CheckoutServiceTest {
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getErrorCode()).isEqualTo("ORDER_EXPIRED");
             verifyNoInteractions(gatewayRegistry);
+        }
+
+        @Test
+        @DisplayName("Should recover from optimistic locking failure if order was completed concurrently")
+        void checkout_OptimisticLockingFailure_RecoversIfCompleted() {
+            // Given
+            CheckoutRequest request = CheckoutRequest.builder()
+                    .paymentMethod(PaymentMethod.PAYPAL)
+                    .build();
+
+            GatewayPaymentResult paymentResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("paypal-txn-race")
+                    .amount(new BigDecimal("80.00"))
+                    .build();
+
+            when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(cartItem));
+            when(orderService.createOrderFromCart(eq(userId), anyList(), any(CheckoutRequest.class))).thenReturn(order);
+            when(gatewayRegistry.getActiveGateway()).thenReturn(mockPaymentGateway);
+            when(mockPaymentGateway.processPayment(any())).thenReturn(paymentResult);
+            // Mock transaction save
+            when(numberGeneratorService.generateTransactionNumber()).thenReturn("TXN-RACE");
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+
+            // First finding (reload logic inside handleSuccessfulPayment)
+            lenient().when(orderRepository.findById(eq(order.getId()))).thenReturn(Optional.of(order));
+
+            // The retry-count SAVE should succeed (PENDING status)
+            when(orderRepository.save(argThat(o -> o.getStatus() != OrderStatus.COMPLETED))).thenReturn(order);
+
+            // The completion SAVE throws OptimisticLockingFailureException
+            doThrow(new org.springframework.dao.OptimisticLockingFailureException("Row updated concurrently"))
+                    .when(orderRepository).save(argThat(o -> o.getStatus() == OrderStatus.COMPLETED));
+            
+            // The RECOVERY logic calls findById AGAIN.
+            // We need findById to return a COMPLETED order this time.
+            Order completedOrder = new Order();
+            ReflectionTestUtils.setField(completedOrder, "id", order.getId());
+            completedOrder.setOrderNumber(order.getOrderNumber());
+            completedOrder.setStatus(OrderStatus.COMPLETED);
+            completedOrder.setCompletedAt(LocalDateTime.now());
+            completedOrder.setTotalAmount(order.getTotalAmount());
+            completedOrder.setCurrency("USD");
+            completedOrder.setPaymentMethod(PaymentMethod.PAYPAL);
+            
+            // Important: Sequential stubbing for findById
+            // 1. First call (inside handleSuccessfulPayment) returns original order
+            // 2. Second call (inside catch block recovery) returns completedOrder
+            when(orderRepository.findById(eq(order.getId())))
+                    .thenReturn(Optional.of(order))
+                    .thenReturn(Optional.of(completedOrder));
+            
+            // Mocks for response building from completedOrder
+            when(orderItemRepository.findByOrderId(eq(order.getId()))).thenReturn(List.of(orderItem));
+
+
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getMessage()).contains("Payment successful");
+            // Verify we tried to save (and failed) + the initial save for retry count
+            verify(orderRepository, times(2)).save(order);
         }
 
         @Test
@@ -646,8 +719,8 @@ class CheckoutServiceTest {
         }
 
         @Test
-        @DisplayName("Should propagate exception when payment gateway throws")
-        void checkout_GatewayException_PropagatesException() {
+        @DisplayName("Should return failure response when payment gateway throws")
+        void checkout_GatewayException_ReturnsFailure() {
             // Given
             CheckoutRequest request = CheckoutRequest.builder()
                     .paymentMethod(PaymentMethod.PAYPAL)
@@ -661,10 +734,13 @@ class CheckoutServiceTest {
             when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
             when(mockPaymentGateway.processPayment(any())).thenThrow(new RuntimeException("Gateway timeout"));
 
-            // When & Then
-            assertThatThrownBy(() -> checkoutService.checkout(userId, request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Gateway timeout");
+            // When
+            CheckoutResultResponse result = checkoutService.checkout(userId, request);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("GATEWAY_ERROR");
+            assertThat(result.getErrorMessage()).contains("unavailable");
         }
 
         @Test
