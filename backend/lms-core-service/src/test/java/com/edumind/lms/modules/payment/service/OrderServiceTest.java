@@ -171,22 +171,32 @@ class OrderServiceTest {
     class GetOrdersByUserTests {
 
         @Test
-        @DisplayName("Should return paginated orders")
-        void getOrdersByUser_ReturnsPage() {
+        @DisplayName("Should return paginated orders and use findFirstItemsByOrderIds to avoid LazyInitializationException (FIX #7)")
+        void getOrdersByUser_ReturnsPageWithoutLazyLoadingIssue() {
             // Given
             Pageable pageable = PageRequest.of(0, 10);
             Page<Order> orderPage = new PageImpl<>(List.of(order));
-            
+
             when(orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)).thenReturn(orderPage);
             List<Object[]> itemCounts = new ArrayList<>();
             itemCounts.add(new Object[]{orderId, 1L});
             when(orderItemRepository.countItemsByOrderIds(any())).thenReturn(itemCounts);
+
+            // FIX #7: Mock findFirstItemsByOrderIds to prevent LazyInitializationException
+            OrderItem firstItem = new OrderItem();
+            firstItem.setId(1L);
+            firstItem.setCourseId(100L);
+            firstItem.setCourseTitle("First Course");
+            firstItem.setOrder(order);
+            when(orderItemRepository.findFirstItemsByOrderIds(any())).thenReturn(List.of(firstItem));
 
             // When
             Page<OrderSummaryResponse> result = orderService.getOrdersByUser(userId, pageable);
 
             // Then
             assertThat(result.getContent()).hasSize(1);
+            // FIX #7: Verify findFirstItemsByOrderIds was called to fetch items separately
+            verify(orderItemRepository).findFirstItemsByOrderIds(any());
         }
     }
 
@@ -316,18 +326,22 @@ class OrderServiceTest {
     class RequestRefundTests {
 
         @Test
-        @DisplayName("Should request refund for completed order")
-        void requestRefund_CompletedOrder_RequestsRefund() {
+        @DisplayName("Should request refund for completed order and set refund fields (FIX #13)")
+        void requestRefund_CompletedOrder_SetsRefundFieldsCorrectly() {
             // Given
             order.setStatus(OrderStatus.COMPLETED);
             when(orderRepository.findWithItemsById(orderId)).thenReturn(Optional.of(order));
             when(orderRepository.save(any(Order.class))).thenReturn(order);
 
             // When
-            orderService.requestRefund(orderId, userId, "Not satisfied");
+            orderService.requestRefund(orderId, userId, "Not satisfied with course quality");
 
             // Then
             assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+            // FIX #13: Verify refundReason and refundedAt are set
+            assertThat(order.getRefundReason()).isEqualTo("Not satisfied with course quality");
+            assertThat(order.getRefundedAt()).isNotNull();
+            assertThat(order.getRefundedAt()).isBeforeOrEqualTo(LocalDateTime.now());
         }
 
         @Test
@@ -486,18 +500,16 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception if all items are skipped")
-        void createOrderFromCart_AllItemsSkipped_ThrowsException() {
+        @DisplayName("Should throw exception if all items are skipped and prevent orphan order (FIX #9)")
+        void createOrderFromCart_AllItemsSkipped_ThrowsExceptionWithoutCreatingOrder() {
             // Given
             CartItem item = new CartItem();
             item.setCourseId(course.getId());
             CheckoutRequest request = new CheckoutRequest();
             request.setPaymentMethod(PaymentMethod.MOCK);
 
-            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
-            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
             when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            
+
             // Simulating already enrolled
             when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(List.of(course.getId()));
 
@@ -505,6 +517,9 @@ class OrderServiceTest {
             assertThatThrownBy(() -> orderService.createOrderFromCart(userId, List.of(item), request))
                     .isInstanceOf(CartEmptyException.class)
                     .hasMessageContaining("No valid items");
+
+            // FIX #9: Verify order was NOT created (no orphan order)
+            verify(orderRepository, never()).save(any(Order.class));
         }
 
         @Test
@@ -539,8 +554,8 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should use fallback if fetching customer details fails")
-        void createOrderFromCart_FetchDetailsFails_UsesFallback() {
+        @DisplayName("Should keep null email if fetching customer details fails (FIX #14)")
+        void createOrderFromCart_FetchDetailsFails_KeepsNullEmail() {
             // Given
             CartItem cartItem = new CartItem();
             cartItem.setCourseId(course.getId());
@@ -551,7 +566,8 @@ class OrderServiceTest {
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
             when(courseRepository.findAllById(any())).thenReturn(List.of(course));
             when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
-            
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
             // Simulate error
             when(userClient.getCurrentUser()).thenThrow(new RuntimeException("Service down"));
 
@@ -559,8 +575,10 @@ class OrderServiceTest {
             Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
 
             // Then
-            assertThat(result.getCustomerName()).isEqualTo("Unknown User");
-            assertThat(result.getCustomerEmail()).isEqualTo("unknown@edumind.com");
+            // FIX #14: Email should be null instead of fake email
+            assertThat(result.getCustomerEmail()).isNull();
+            // Name falls back to "Customer"
+            assertThat(result.getCustomerName()).isEqualTo("Customer");
         }
 
         @Test
@@ -618,13 +636,6 @@ class OrderServiceTest {
             // Given
             CheckoutRequest request = new CheckoutRequest();
             request.setPaymentMethod(PaymentMethod.MOCK);
-
-            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
-            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
-                Order o = inv.getArgument(0);
-                o.setId(orderId);
-                return o;
-            });
 
             // When & Then
             assertThatThrownBy(() -> orderService.createOrderFromCart(userId, Collections.emptyList(), request))

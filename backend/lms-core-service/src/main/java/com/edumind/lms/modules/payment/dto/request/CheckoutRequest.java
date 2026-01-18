@@ -44,4 +44,11 @@ public class CheckoutRequest {
      * matches the previewed state before creating an order.
      */
     private String cartSignature;
+
+    /**
+     * FIX #12: Optional idempotency key to prevent duplicate orders.
+     * Client should generate a unique key (e.g., UUID) per checkout attempt.
+     * If a request with the same key is received, return the existing order.
+     */
+    private String idempotencyKey;
 }

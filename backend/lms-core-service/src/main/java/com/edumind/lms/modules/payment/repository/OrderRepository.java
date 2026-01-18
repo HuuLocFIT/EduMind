@@ -18,6 +18,16 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderNumber(String orderNumber);
 
+    /**
+     * FIX #12: Find order by idempotency key to prevent duplicate orders.
+     */
+    Optional<Order> findByIdempotencyKey(String idempotencyKey);
+
+    /**
+     * FIX #12: Find order by idempotency key for specific user.
+     */
+    Optional<Order> findByIdempotencyKeyAndUserId(String idempotencyKey, Long userId);
+
     @EntityGraph(value = "Order.withItems")
     Optional<Order> findWithItemsById(Long id);
 

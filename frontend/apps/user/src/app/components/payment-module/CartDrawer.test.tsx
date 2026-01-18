@@ -26,19 +26,22 @@ vi.mock('./CartItem', () => ({
   ),
 }));
 
+const mockShowError = vi.fn();
 vi.mock('@edumind/user-ui', () => ({
-  Button: ({ children, onClick, rightIcon }: any) => (
-    <button onClick={onClick}>
+  Button: ({ children, onClick, rightIcon, disabled }: any) => (
+    <button onClick={onClick} disabled={disabled}>
       {children} {rightIcon && <span>ICON</span>}
     </button>
   ),
   Loading: () => <div>Loading...</div>,
+  useToast: () => ({ error: mockShowError }),
 }));
 
 vi.mock('lucide-react', () => ({
   X: () => <span>X</span>,
   ShoppingCart: () => <span>CartIcon</span>,
   ArrowRight: () => <span>ArrowIcon</span>,
+  AlertTriangle: () => <span data-testid="alert-triangle">AlertTriangleIcon</span>,
 }));
 
 describe('CartDrawer', () => {
@@ -48,6 +51,7 @@ describe('CartDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockShowError.mockClear();
 
     (useCartStore as any).mockReturnValue({
       setCart: mockSetCart,
@@ -201,5 +205,112 @@ describe('CartDrawer', () => {
     const { rerender } = render(<CartDrawer {...defaultProps} />);
     rerender(<CartDrawer {...defaultProps} isOpen={false} />);
     expect(document.body.style.overflow).toBe('');
+  });
+
+  // Tests for unavailable items (FIX #15)
+  describe('unavailable items', () => {
+    it('shows warning when cart has unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Available Course', isAvailable: true },
+            { courseId: 2, courseTitle: 'Unavailable Course', isAvailable: false },
+          ],
+          totalAmount: 100,
+          currency: 'USD',
+        },
+        isLoading: false,
+      });
+
+      render(<CartDrawer {...defaultProps} />);
+
+      // Should show alert triangle icon
+      expect(screen.getByTestId('alert-triangle')).toBeInTheDocument();
+
+      // Should show unavailable count
+      expect(screen.getByText(/1 item unavailable/i)).toBeInTheDocument();
+    });
+
+    it('shows correct count for multiple unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable Course 1', isAvailable: false },
+            { courseId: 2, courseTitle: 'Unavailable Course 2', isAvailable: false },
+            { courseId: 3, courseTitle: 'Available Course', isAvailable: true },
+          ],
+          totalAmount: 150,
+          currency: 'USD',
+        },
+        isLoading: false,
+      });
+
+      render(<CartDrawer {...defaultProps} />);
+
+      // Should show count of 2
+      expect(screen.getByText(/2 items unavailable/i)).toBeInTheDocument();
+    });
+
+    it('disables checkout button when there are unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable Course', isAvailable: false },
+          ],
+          totalAmount: 100,
+          currency: 'USD',
+        },
+        isLoading: false,
+      });
+
+      render(<CartDrawer {...defaultProps} />);
+
+      // Checkout button should show different text
+      expect(screen.getByText('Remove unavailable items')).toBeInTheDocument();
+    });
+
+    it('checkout button is disabled when there are unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable Course', isAvailable: false },
+          ],
+          totalAmount: 100,
+          currency: 'USD',
+        },
+        isLoading: false,
+      });
+
+      render(<CartDrawer {...defaultProps} />);
+
+      // Checkout button should be disabled
+      const checkoutBtn = screen.getByText('Remove unavailable items');
+      expect(checkoutBtn).toBeDisabled();
+
+      // Navigation should not have been called
+      expect(mockNavigate).not.toHaveBeenCalledWith(USER_ROUTES.CHECKOUT);
+    });
+
+    it('does not show warning when all items are available', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Course 1', isAvailable: true },
+            { courseId: 2, courseTitle: 'Course 2', isAvailable: true },
+          ],
+          totalAmount: 100,
+          currency: 'USD',
+        },
+        isLoading: false,
+      });
+
+      render(<CartDrawer {...defaultProps} />);
+
+      // Should NOT show alert triangle
+      expect(screen.queryByTestId('alert-triangle')).not.toBeInTheDocument();
+
+      // Checkout button should show normal text
+      expect(screen.getByText('Checkout')).toBeInTheDocument();
+    });
   });
 });

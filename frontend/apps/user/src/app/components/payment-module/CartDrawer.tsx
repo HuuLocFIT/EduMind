@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
-import { X, ShoppingCart, ArrowRight } from "lucide-react";
+import React, { useEffect, useMemo } from "react";
+import { X, ShoppingCart, ArrowRight, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button, Loading } from "@edumind/user-ui";
+import { Button, Loading, useToast } from "@edumind/user-ui";
 import { useCart, useRemoveFromCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
 import { CartItem } from "./CartItem";
@@ -14,6 +14,7 @@ interface CartDrawerProps {
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const { error: showError } = useToast();
   const { data: cart, isLoading } = useCart();
   const removeFromCart = useRemoveFromCart();
   const { setCart, pendingRemovals } = useCartStore();
@@ -46,16 +47,24 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     navigate(USER_ROUTES.CART);
   };
 
-  const handleCheckout = () => {
-    onClose();
-    navigate(USER_ROUTES.CHECKOUT);
-  };
-
   if (!isOpen) return null;
 
   const items = cart?.items || [];
   const totalAmount = cart?.totalAmount || 0;
   const currency = cart?.currency || "USD";
+
+  // Check for unavailable items (FIX #15)
+  const unavailableItems = items.filter((item) => item.isAvailable === false);
+  const hasUnavailableItems = unavailableItems.length > 0;
+
+  const handleCheckout = () => {
+    if (hasUnavailableItems) {
+      showError("Please remove unavailable items before checkout");
+      return;
+    }
+    onClose();
+    navigate(USER_ROUTES.CHECKOUT);
+  };
 
   return (
     <>
@@ -127,6 +136,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         {/* Footer */}
         {items.length > 0 && (
           <div className="border-t p-4 bg-gray-50">
+            {/* Unavailable Items Warning (FIX #15) */}
+            {hasUnavailableItems && (
+              <div className="flex items-center gap-2 p-2 mb-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span className="text-xs text-amber-700">
+                  {unavailableItems.length} {unavailableItems.length === 1 ? "item" : "items"} unavailable
+                </span>
+              </div>
+            )}
+
             {/* Total */}
             <div className="flex items-center justify-between mb-4">
               <span className="text-gray-600">Total:</span>
@@ -141,9 +160,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 variant="primary"
                 className="w-full"
                 onClick={handleCheckout}
+                disabled={hasUnavailableItems}
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
-                Checkout
+                {hasUnavailableItems ? "Remove unavailable items" : "Checkout"}
               </Button>
               <Button
                 variant="secondary"

@@ -14,6 +14,11 @@ import { USER_ROUTES, UserRouteHelpers } from "@edumind/shared-utils";
 import { PaymentMethod } from "@edumind/shared-constants";
 import type { CheckoutRequest, DirectCheckoutRequest } from "@edumind/shared-types";
 
+// Generate a UUID v4 for idempotency key
+const generateIdempotencyKey = (): string => {
+  return crypto.randomUUID();
+};
+
 const PAYMENT_METHODS = [
   {
     id: PaymentMethod.PAYPAL,
@@ -105,10 +110,14 @@ export const CheckoutPage: React.FC = () => {
 
     setStep("processing");
 
+    // Generate idempotency key to prevent duplicate orders (FIX #12)
+    const idempotencyKey = generateIdempotencyKey();
+
     const baseRequest = {
       paymentMethod: selectedPaymentMethod,
       successUrl: `${window.location.origin}${USER_ROUTES.CHECKOUT_SUCCESS}`,
       cancelUrl: `${window.location.origin}${USER_ROUTES.CHECKOUT_FAILED}`,
+      idempotencyKey,
     };
 
     try {
@@ -121,7 +130,11 @@ export const CheckoutPage: React.FC = () => {
         };
         result = await directCheckoutMutation.mutateAsync(directRequest);
       } else {
-        const cartRequest: CheckoutRequest = baseRequest;
+        // Include cart signature from preview for validation
+        const cartRequest: CheckoutRequest = {
+          ...baseRequest,
+          cartSignature: cartPreview?.cartSignature,
+        };
         result = await cartCheckoutMutation.mutateAsync(cartRequest);
       }
 

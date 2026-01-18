@@ -52,6 +52,7 @@ vi.mock('lucide-react', () => ({
   Trash2: () => <span>TrashIcon</span>,
   ArrowRight: () => <span>ArrowRight</span>,
   ArrowLeft: () => <span>ArrowLeft</span>,
+  AlertTriangle: () => <span data-testid="alert-triangle">AlertTriangleIcon</span>,
 }));
 
 describe('CartPage', () => {
@@ -216,29 +217,175 @@ describe('CartPage', () => {
 
   it('handles clear cart flow', async () => {
     const user = userEvent.setup();
-    (useCart as any).mockReturnValue({ 
+    (useCart as any).mockReturnValue({
       data: { items: [{ courseId: 1 }] },
-      isLoading: false 
+      isLoading: false
     });
 
     render(<CartPage />);
 
     // Click "Clear Cart" button
     await user.click(screen.getByText('Clear Cart'));
-    
+
     // Dialog should appear
     expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
-    
+
     // Confirm
     await user.click(screen.getByText('Confirm'));
-    
+
     expect(mockClearCartMutate).toHaveBeenCalled();
-    
+
     // Simulate success
     const mutateCallArgs = mockClearCartMutate.mock.calls[0];
     mutateCallArgs[1].onSuccess();
-    
+
     expect(mockClearLocalCart).toHaveBeenCalled();
     expect(mockShowSuccess).toHaveBeenCalledWith('Cart cleared');
+  });
+
+  // Tests for unavailable items (FIX #15)
+  describe('unavailable items', () => {
+    it('shows warning banner when cart has unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Available Course', isAvailable: true },
+            { courseId: 2, courseTitle: 'Unavailable Course', isAvailable: false },
+          ],
+          subtotal: 100,
+          totalAmount: 100,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      // Should show warning banner with alert icon
+      expect(screen.getByTestId('alert-triangle')).toBeInTheDocument();
+
+      // Should show message about unavailable items
+      expect(screen.getByText(/1 item is no longer available/i)).toBeInTheDocument();
+      expect(screen.getByText(/remove unavailable items before proceeding/i)).toBeInTheDocument();
+    });
+
+    it('shows correct plural form for multiple unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable 1', isAvailable: false },
+            { courseId: 2, courseTitle: 'Unavailable 2', isAvailable: false },
+            { courseId: 3, courseTitle: 'Available', isAvailable: true },
+          ],
+          subtotal: 150,
+          totalAmount: 150,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      expect(screen.getByText(/2 items are no longer available/i)).toBeInTheDocument();
+    });
+
+    it('disables checkout button when there are unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable Course', isAvailable: false },
+          ],
+          subtotal: 50,
+          totalAmount: 50,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      // Button should show different text and be disabled
+      const checkoutBtn = screen.getByText('Remove unavailable items');
+      expect(checkoutBtn).toBeDisabled();
+    });
+
+    it('shows error when trying to checkout with unavailable items', async () => {
+      const user = userEvent.setup();
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable Course', isAvailable: false },
+          ],
+          subtotal: 50,
+          totalAmount: 50,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      const checkoutBtn = screen.getByText('Remove unavailable items');
+      await user.click(checkoutBtn);
+
+      // Should NOT navigate
+      expect(mockNavigate).not.toHaveBeenCalledWith(USER_ROUTES.CHECKOUT);
+    });
+
+    it('enables checkout when all items are available', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Course 1', isAvailable: true },
+            { courseId: 2, courseTitle: 'Course 2', isAvailable: true },
+          ],
+          subtotal: 100,
+          totalAmount: 100,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      // Should NOT show warning
+      expect(screen.queryByTestId('alert-triangle')).not.toBeInTheDocument();
+
+      // Button should be enabled with normal text
+      const checkoutBtn = screen.getByText('Proceed to Checkout');
+      expect(checkoutBtn).not.toBeDisabled();
+    });
+
+    it('does not show warning banner when no unavailable items', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Course 1', isAvailable: true },
+          ],
+          subtotal: 50,
+          totalAmount: 50,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      // Warning banner should not exist
+      expect(screen.queryByText(/no longer available/i)).not.toBeInTheDocument();
+    });
+
+    it('disables checkout when all items are unavailable (zero available)', () => {
+      (useCart as any).mockReturnValue({
+        data: {
+          items: [
+            { courseId: 1, courseTitle: 'Unavailable 1', isAvailable: false },
+            { courseId: 2, courseTitle: 'Unavailable 2', isAvailable: false },
+          ],
+          subtotal: 100,
+          totalAmount: 100,
+        },
+        isLoading: false
+      });
+
+      render(<CartPage />);
+
+      const checkoutBtn = screen.getByText('Remove unavailable items');
+      expect(checkoutBtn).toBeDisabled();
+    });
   });
 });

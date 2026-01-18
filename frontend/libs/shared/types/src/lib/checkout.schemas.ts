@@ -32,6 +32,12 @@ export const CheckoutRequestSchema = z.object({
   // Metadata (auto-filled by controller)
   ipAddress: z.string().optional().nullable(),
   userAgent: z.string().optional().nullable(),
+
+  // Cart signature for validation (prevents cart tampering between preview and checkout)
+  cartSignature: z.string().optional().nullable(),
+
+  // Idempotency key to prevent duplicate orders (FIX #12)
+  idempotencyKey: z.string().optional().nullable(),
 });
 
 export const DirectCheckoutRequestSchema = z.object({
@@ -56,6 +62,9 @@ export const DirectCheckoutRequestSchema = z.object({
   // Metadata
   ipAddress: z.string().optional().nullable(),
   userAgent: z.string().optional().nullable(),
+
+  // Idempotency key to prevent duplicate orders (FIX #12)
+  idempotencyKey: z.string().optional().nullable(),
 });
 
 // ==================== Response Schemas ====================
@@ -97,6 +106,9 @@ export const CheckoutPreviewResponseSchema = z.object({
   isValid: z.boolean(),
   validationErrors: z.array(z.string()).nullable().optional(),
   warnings: z.array(z.string()).nullable().optional(),
+
+  // Cart signature for validation (returned from preview, passed to checkout)
+  cartSignature: z.string().nullable().optional(),
 });
 
 export const CheckoutResultResponseSchema = z.object({

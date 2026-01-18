@@ -21,6 +21,7 @@ vi.mock('@edumind/user-ui', () => ({
 
 vi.mock('lucide-react', () => ({
   Trash2: () => <span>TrashIcon</span>,
+  AlertCircle: () => <span>AlertCircleIcon</span>,
 }));
 
 vi.mock('@edumind/shared-utils', () => ({
@@ -42,6 +43,16 @@ describe('CartItem', () => {
     level: 'Advanced',
     totalLessons: 24,
     averageRating: 4.8,
+    isAvailable: true,
+    unavailableReason: null,
+  };
+
+  const mockUnavailableItem = {
+    ...mockItem,
+    courseId: 102,
+    courseTitle: 'Unavailable Course',
+    isAvailable: false,
+    unavailableReason: 'Course has been unpublished',
   };
 
   beforeEach(() => {
@@ -146,9 +157,110 @@ describe('CartItem', () => {
         compact={true}
       />
     );
-    
+
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     // Should render the fallback div (checking implementation detail or class)
     // Actually best to check simply that it didn't crash and logic path was taken
+  });
+
+  // Tests for unavailable items (FIX #15)
+  describe('unavailable items', () => {
+    it('renders unavailable indicator in compact mode', () => {
+      const { container } = render(
+        <CartItem
+          item={mockUnavailableItem}
+          onRemove={mockOnRemove}
+          compact={true}
+        />
+      );
+
+      // Should show "Unavailable" text instead of price
+      expect(screen.getByText('Unavailable')).toBeInTheDocument();
+
+      // Should show unavailable reason
+      expect(screen.getByText('Course has been unpublished')).toBeInTheDocument();
+
+      // Should have red border styling
+      const topDiv = container.firstChild as HTMLDivElement;
+      expect(topDiv.className).toContain('border-red');
+    });
+
+    it('renders unavailable banner in full mode', () => {
+      render(
+        <CartItem
+          item={mockUnavailableItem}
+          onRemove={mockOnRemove}
+          compact={false}
+        />
+      );
+
+      // Should show unavailable reason in banner
+      expect(screen.getByText('Course has been unpublished')).toBeInTheDocument();
+
+      // Should show "Unavailable" text instead of price (multiple instances for mobile/desktop)
+      const unavailableTexts = screen.getAllByText('Unavailable');
+      expect(unavailableTexts.length).toBeGreaterThan(0);
+    });
+
+    it('does not show price tag for unavailable items in compact mode', () => {
+      render(
+        <CartItem
+          item={mockUnavailableItem}
+          onRemove={mockOnRemove}
+          compact={true}
+        />
+      );
+
+      // Price tag should not be rendered for unavailable items
+      expect(screen.queryByTestId('price-tag')).not.toBeInTheDocument();
+    });
+
+    it('still allows removal of unavailable items', async () => {
+      const user = userEvent.setup();
+      render(
+        <CartItem
+          item={mockUnavailableItem}
+          onRemove={mockOnRemove}
+          compact={true}
+        />
+      );
+
+      const btn = screen.getByTitle('Remove from cart');
+      await user.click(btn);
+
+      expect(mockOnRemove).toHaveBeenCalledWith(102);
+    });
+
+    it('applies grayscale styling to unavailable item thumbnail in full mode', () => {
+      const { container } = render(
+        <CartItem
+          item={mockUnavailableItem}
+          onRemove={mockOnRemove}
+          compact={false}
+        />
+      );
+
+      // Find the thumbnail container - it should have grayscale class
+      const thumbnailContainer = container.querySelector('.grayscale');
+      expect(thumbnailContainer).toBeInTheDocument();
+    });
+
+    it('renders default unavailable message when reason is not provided', () => {
+      const itemWithoutReason = {
+        ...mockUnavailableItem,
+        unavailableReason: null,
+      };
+
+      render(
+        <CartItem
+          item={itemWithoutReason}
+          onRemove={mockOnRemove}
+          compact={false}
+        />
+      );
+
+      // Should show default message
+      expect(screen.getByText('This course is no longer available')).toBeInTheDocument();
+    });
   });
 });

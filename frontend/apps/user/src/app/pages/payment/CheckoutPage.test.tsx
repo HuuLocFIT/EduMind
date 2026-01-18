@@ -10,6 +10,12 @@ import { useSearchParams } from 'react-router-dom';
 import { USER_ROUTES } from '@edumind/shared-utils';
 import { useToast } from '@edumind/user-ui';
 
+// Mock crypto.randomUUID for idempotency key generation
+const mockUUID = 'test-uuid-1234-5678-90ab-cdef';
+vi.stubGlobal('crypto', {
+  randomUUID: vi.fn(() => mockUUID),
+});
+
 // Mock Dependencies
 const mockNavigate = vi.fn();
 let mockSearchParams = new URLSearchParams();
@@ -103,6 +109,7 @@ describe('CheckoutPage', () => {
     subtotal: 100,
     totalAmount: 100,
     itemCount: 1,
+    cartSignature: 'test-cart-signature-abc123',
   };
 
   it('renders loading state', () => {
@@ -254,17 +261,163 @@ describe('CheckoutPage', () => {
 
   it('renders error state on load failure', async () => {
     const user = userEvent.setup();
-    (useCheckoutPreview as any).mockReturnValue({ 
+    (useCheckoutPreview as any).mockReturnValue({
       error: new Error('Load failed'),
-      isLoading: false 
+      isLoading: false
     });
-    
+
     render(<CheckoutPage />);
-    
+
     expect(screen.getByText('Checkout Error')).toBeInTheDocument();
     expect(screen.getByText('Load failed')).toBeInTheDocument();
-    
+
     await user.click(screen.getByText('Return to Cart'));
     expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+  });
+
+  // Tests for idempotencyKey and cartSignature (FIX #12)
+  describe('idempotency and cart signature', () => {
+    it('generates idempotencyKey and includes cartSignature in cart checkout request', async () => {
+      const user = userEvent.setup();
+      (useCheckoutPreview as any).mockReturnValue({
+        data: mockCartPreviewData,
+        isLoading: false
+      });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.PAYPAL,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+
+      mockCheckoutMutate.mockResolvedValue({
+        success: true,
+        orderNumber: 'ORD-123'
+      });
+
+      render(<CheckoutPage />);
+
+      await user.click(screen.getByText('Complete Order'));
+
+      // Verify checkout was called with idempotencyKey and cartSignature
+      expect(mockCheckoutMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethod: PaymentMethod.PAYPAL,
+          idempotencyKey: mockUUID,
+          cartSignature: 'test-cart-signature-abc123',
+        })
+      );
+    });
+
+    it('generates unique idempotencyKey for each checkout attempt', async () => {
+      const user = userEvent.setup();
+      (useCheckoutPreview as any).mockReturnValue({
+        data: mockCartPreviewData,
+        isLoading: false
+      });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.SEPAY,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+
+      mockCheckoutMutate.mockResolvedValue({
+        success: true,
+        orderNumber: 'ORD-456'
+      });
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      // Verify crypto.randomUUID was called
+      expect(crypto.randomUUID).toHaveBeenCalled();
+    });
+
+    it('includes idempotencyKey in direct checkout request', async () => {
+      const user = userEvent.setup();
+      mockSearchParams.set('courseId', '99');
+
+      const directPreviewData = {
+        ...mockCartPreviewData,
+        items: [{ courseId: 99, courseTitle: 'Direct Course', effectivePrice: 50 }],
+      };
+
+      (useDirectCheckoutPreview as any).mockReturnValue({
+        data: directPreviewData,
+        isLoading: false
+      });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.PAYPAL,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+
+      mockDirectCheckoutMutate.mockResolvedValue({
+        success: true,
+        orderNumber: 'ORD-DIRECT-789'
+      });
+
+      render(<CheckoutPage />);
+
+      await user.click(screen.getByText('Complete Order'));
+
+      // Verify direct checkout was called with idempotencyKey
+      expect(mockDirectCheckoutMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          courseId: 99,
+          paymentMethod: PaymentMethod.PAYPAL,
+          idempotencyKey: mockUUID,
+        })
+      );
+
+      // Direct checkout should NOT include cartSignature (only cart checkout does)
+      expect(mockDirectCheckoutMutate).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          cartSignature: expect.anything(),
+        })
+      );
+    });
+
+    it('handles checkout without cartSignature when preview does not include it', async () => {
+      const user = userEvent.setup();
+      const previewWithoutSignature = {
+        ...mockCartPreviewData,
+        cartSignature: undefined,
+      };
+
+      (useCheckoutPreview as any).mockReturnValue({
+        data: previewWithoutSignature,
+        isLoading: false
+      });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.PAYPAL,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+
+      mockCheckoutMutate.mockResolvedValue({
+        success: true,
+        orderNumber: 'ORD-NO-SIG'
+      });
+
+      render(<CheckoutPage />);
+
+      await user.click(screen.getByText('Complete Order'));
+
+      // Should still call checkout with undefined cartSignature
+      expect(mockCheckoutMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          idempotencyKey: mockUUID,
+          cartSignature: undefined,
+        })
+      );
+    });
   });
 });

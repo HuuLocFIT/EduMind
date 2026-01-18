@@ -107,6 +107,17 @@ public class Order extends BaseEntity {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
+    // FIX #12: Idempotency key to prevent duplicate orders on client retry
+    @Column(name = "idempotency_key", length = 64, unique = true)
+    private String idempotencyKey;
+
+    // FIX #13: Proper refund tracking (separate from failureReason)
+    @Column(name = "refund_reason", length = 500)
+    private String refundReason;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
+
     // Relationships
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -159,8 +170,23 @@ public class Order extends BaseEntity {
         this.status = OrderStatus.FAILED;
     }
 
+    /**
+     * Mark order as refunded with reason.
+     * FIX #13: Use dedicated refund fields instead of failureReason.
+     */
+    public void markAsRefunded(String reason) {
+        this.status = OrderStatus.REFUNDED;
+        this.refundReason = reason;
+        this.refundedAt = LocalDateTime.now();
+    }
+
+    /**
+     * @deprecated Use markAsRefunded(String reason) instead
+     */
+    @Deprecated
     public void markAsRefunded() {
         this.status = OrderStatus.REFUNDED;
+        this.refundedAt = LocalDateTime.now();
     }
 
     public void markAsCancelled() {

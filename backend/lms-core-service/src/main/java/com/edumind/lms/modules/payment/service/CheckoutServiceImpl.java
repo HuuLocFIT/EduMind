@@ -223,6 +223,34 @@ public class CheckoutServiceImpl implements CheckoutService {
     public CheckoutResultResponse checkout(Long userId, CheckoutRequest request) {
         log.info("Processing checkout for user: {}", userId);
 
+        // FIX #12: Check idempotency key - return existing order if already created
+        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
+            var existingOrder = orderRepository.findByIdempotencyKeyAndUserId(
+                    request.getIdempotencyKey(), userId);
+            if (existingOrder.isPresent()) {
+                Order order = existingOrder.get();
+                log.info("Found existing order {} for idempotency key {}",
+                        order.getOrderNumber(), request.getIdempotencyKey());
+
+                List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+                return CheckoutResultResponse.builder()
+                        .success(order.isCompleted())
+                        .pending(order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.PROCESSING)
+                        .orderId(order.getId())
+                        .orderNumber(order.getOrderNumber())
+                        .orderStatus(order.getStatus())
+                        .totalAmount(order.getTotalAmount())
+                        .currency(order.getCurrency())
+                        .paymentMethod(order.getPaymentMethod())
+                        .enrolledCourseIds(order.isCompleted() ? orderItems.stream()
+                                .map(OrderItem::getCourseId).collect(Collectors.toList()) : null)
+                        .createdAt(order.getCreatedAt())
+                        .completedAt(order.getCompletedAt())
+                        .message("Order already exists for this request.")
+                        .build();
+            }
+        }
+
         // 1. Validate cart
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new CartEmptyException());
@@ -313,6 +341,10 @@ public class CheckoutServiceImpl implements CheckoutService {
         return processPayment(order, checkoutRequest, false);
     }
 
+    /**
+     * Handle payment callback from payment gateway.
+     * FIX #8: Reload order explicitly to avoid NPE/LazyInitializationException.
+     */
     @Override
     @Transactional
     public void handlePaymentCallback(String gatewayTransactionId, String status, String rawPayload) {
@@ -327,70 +359,88 @@ public class CheckoutServiceImpl implements CheckoutService {
             return;
         }
 
+        // FIX #8: Reload order explicitly to avoid NPE/LazyInitializationException
+        Long orderId = transaction.getOrder().getId();
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found for transaction: " + gatewayTransactionId));
+
         // 2. Update transaction status
         transaction.setGatewayResponse(rawPayload);
-        
+
         if ("SUCCESS".equalsIgnoreCase(status)) {
             transaction.setStatus(TransactionStatus.SUCCESS);
             transaction.setProcessedAt(LocalDateTime.now());
             transactionRepository.save(transaction);
-            
-            Order order = transaction.getOrder();
+
             if (!order.isCompleted()) {
-                handleSuccessfulPayment(order, transaction, false); // Callback usually not from cart flow directly or cart already handled
+                handleSuccessfulPayment(order, transaction, false); // Callback - cart already handled in original checkout
             }
         } else {
             transaction.setStatus(TransactionStatus.FAILED);
             transaction.setFailureReason("Callback reported failure: " + status);
             transactionRepository.save(transaction);
-            
+
             // Fail order
-            Order order = transaction.getOrder();
             order.setStatus(OrderStatus.FAILED);
             order.setFailureReason("Payment failed (callback): " + status);
             orderRepository.save(order);
         }
     }
 
+    /**
+     * Retry payment for a failed/pending order.
+     * FIX #11: Don't clear cart on retry - user's current cart may have changed.
+     * Retry should only process the order's existing items, not touch the cart.
+     */
     @Override
     public CheckoutResultResponse retryPayment(Long userId, Long orderId, CheckoutRequest request) {
         log.info("Retrying payment for order: {}", orderId);
 
         Order order = resetOrderForRetry(userId, orderId);
 
-        // Process payment (outside transaction to avoid holding DB connection during network call)
-        // Note: retry payment clears cart since user might have added items before retrying
-        return processPayment(order, request, true);
+        // FIX #11: Pass false for isFromCart - retry should NOT clear the user's cart
+        // The user's current cart may have different items than the original order
+        return processPayment(order, request, false);
     }
 
-    @Transactional
+    /**
+     * Reset order for retry payment - uses TransactionTemplate since @Transactional
+     * doesn't work on private methods (Spring AOP limitation).
+     */
     private Order resetOrderForRetry(Long userId, Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        return txTemplate.execute(status -> {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new OrderNotFoundException(orderId));
 
-        // Verify user owns the order
-        if (!order.getUserId().equals(userId)) {
-            throw new OrderNotFoundException(orderId);
-        }
+            // Verify user owns the order
+            if (!order.getUserId().equals(userId)) {
+                throw new OrderNotFoundException(orderId);
+            }
 
-        // Can only retry pending/failed orders
-        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.FAILED) {
-            throw new InvalidOrderStateException(orderId, order.getStatus(), "retry payment");
-        }
+            // Can only retry pending/failed orders
+            if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.FAILED) {
+                throw new InvalidOrderStateException(orderId, order.getStatus(), "retry payment");
+            }
 
-        // Reset order status
-        order.setStatus(OrderStatus.PENDING);
-        order.setFailureReason(null);
-        return orderRepository.save(order);
+            // Reset order status
+            order.setStatus(OrderStatus.PENDING);
+            order.setFailureReason(null);
+            return orderRepository.save(order);
+        });
     }
 
     // ===== Private Helpers =====
 
-    @Transactional
+    /**
+     * Complete a free order - uses TransactionTemplate since @Transactional
+     * doesn't work on private methods (Spring AOP limitation).
+     * FIX: Also sets order status to COMPLETED after enrollment (was missing before).
+     */
     private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
         log.info("Completing free order: {}", order.getOrderNumber());
 
-        // Idempotency and status guards
+        // Idempotency and status guards (read-only checks, no transaction needed)
         if (order.getStatus() == OrderStatus.COMPLETED) {
             log.info("Free order {} is already COMPLETED. Skipping duplicate completion.", order.getOrderNumber());
             List<OrderItem> existingItems = orderItemRepository.findByOrderId(order.getId());
@@ -434,48 +484,76 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .build();
         }
 
-        // Mark as processing during completion to reduce race risk
-        order.setStatus(OrderStatus.PROCESSING);
-        order.setPaymentMethod(PaymentMethod.FREE);
-        orderRepository.save(order);
+        // Execute critical operations in a transaction
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        final Long orderId = order.getId();
 
-        // Create enrollments
-        createEnrollmentsForOrder(order);
+        Order completedOrder = txTemplate.execute(status -> {
+            // Reload order to get fresh state
+            Order freshOrder = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+            // Double-check status after reload (another thread may have completed it)
+            if (freshOrder.getStatus() == OrderStatus.COMPLETED) {
+                return freshOrder;
+            }
+
+            // Mark as processing during completion to reduce race risk
+            freshOrder.setStatus(OrderStatus.PROCESSING);
+            freshOrder.setPaymentMethod(PaymentMethod.FREE);
+            orderRepository.save(freshOrder);
+
+            // Create enrollments
+            createEnrollmentsForOrder(freshOrder);
+
+            // FIX: Set order to COMPLETED after successful enrollment (was missing!)
+            freshOrder.setStatus(OrderStatus.COMPLETED);
+            freshOrder.setCompletedAt(LocalDateTime.now());
+            return orderRepository.save(freshOrder);
+        });
 
         // Load order items explicitly (lazy loading issue)
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(completedOrder.getId());
 
-        // Clear cart only if checkout was from cart
+        // Clear cart only if checkout was from cart (non-critical, outside main transaction)
         if (isFromCart) {
-            List<Long> courseIds = orderItems.stream()
-                    .map(OrderItem::getCourseId)
-                    .collect(Collectors.toList());
-            cartService.removeItems(userId, courseIds);
+            try {
+                List<Long> courseIds = orderItems.stream()
+                        .map(OrderItem::getCourseId)
+                        .collect(Collectors.toList());
+                cartService.removeItems(userId, courseIds);
+            } catch (Exception e) {
+                log.error("Failed to clear cart for user {}: {}", userId, e.getMessage());
+            }
         }
 
-        // Generate invoice with limited retries
-        InvoiceResponse invoice = generateInvoiceWithRetry(order, 3);
+        // Generate invoice with limited retries (non-critical)
+        InvoiceResponse invoice = generateInvoiceWithRetry(completedOrder, 3);
 
-        // Publish event
-        eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
+        // Publish event (non-critical)
+        try {
+            eventPublisher.publishEvent(new OrderCompletedEvent(this, completedOrder));
+        } catch (Exception e) {
+            log.error("Failed to publish OrderCompletedEvent for order {}: {}", completedOrder.getOrderNumber(), e.getMessage());
+        }
 
-        log.info("Free order completed: {}", order.getOrderNumber());
+        log.info("Free order completed: {}", completedOrder.getOrderNumber());
 
         return CheckoutResultResponse.builder()
                 .success(true)
-                .orderId(order.getId())
-                .orderNumber(order.getOrderNumber())
-                .orderStatus(order.getStatus())
-                .totalAmount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .paymentMethod(order.getPaymentMethod())
+                .orderId(completedOrder.getId())
+                .orderNumber(completedOrder.getOrderNumber())
+                .orderStatus(completedOrder.getStatus())
+                .totalAmount(completedOrder.getTotalAmount())
+                .currency(completedOrder.getCurrency())
+                .paymentMethod(completedOrder.getPaymentMethod())
                 .invoiceNumber(invoice != null ? invoice.getInvoiceNumber() : null)
                 .invoiceUrl(invoice != null ? invoice.getPdfUrl() : null)
                 .enrolledCourseIds(orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList()))
-                .createdAt(order.getCreatedAt())
-                .completedAt(order.getCompletedAt())
+                .createdAt(completedOrder.getCreatedAt())
+                .completedAt(completedOrder.getCompletedAt())
                 .message("Enrollment successful! You can now access your courses.")
                 .build();
     }
@@ -636,16 +714,34 @@ public class CheckoutServiceImpl implements CheckoutService {
         return null;
     }
 
+    /**
+     * Update retry metadata in a separate transaction.
+     * FIX: Reload order by ID inside the new transaction to avoid detached entity issues,
+     * then sync updated values back to the passed object.
+     */
     private void updateRetryMetadata(Order order) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-        
-        transactionTemplate.execute(status -> {
-            Integer currentRetryCount = order.getRetryCount() != null ? order.getRetryCount() : 0;
-            order.setRetryCount(currentRetryCount + 1);
-            order.setLastPaymentAttemptAt(LocalDateTime.now());
-            return orderRepository.save(order);
+
+        final Long orderId = order.getId();
+
+        Order updatedOrder = transactionTemplate.execute(status -> {
+            // Reload order inside new transaction to avoid detached entity issues
+            Order freshOrder = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+            Integer currentRetryCount = freshOrder.getRetryCount() != null ? freshOrder.getRetryCount() : 0;
+            freshOrder.setRetryCount(currentRetryCount + 1);
+            freshOrder.setLastPaymentAttemptAt(LocalDateTime.now());
+            return orderRepository.save(freshOrder);
         });
+
+        // Sync updated values back to the passed object to avoid stale data in caller
+        if (updatedOrder != null) {
+            order.setRetryCount(updatedOrder.getRetryCount());
+            order.setLastPaymentAttemptAt(updatedOrder.getLastPaymentAttemptAt());
+            order.setVersion(updatedOrder.getVersion());
+        }
     }
 
     private GatewayPaymentRequest prepareGatewayRequest(Order order, CheckoutRequest request) {
@@ -862,69 +958,83 @@ public class CheckoutServiceImpl implements CheckoutService {
                 });
     }
 
-    @Transactional
+    /**
+     * Handle successful payment - uses TransactionTemplate since @Transactional
+     * doesn't work on private methods (Spring AOP limitation).
+     */
     private CheckoutResultResponse handleSuccessfulPayment(Order order, Transaction transaction,
                                                            boolean isFromCart) {
-        // Reload order to prevent StaleObjectStateException if webhook updated it concurrently
-        Long orderId = order.getId();
-        order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
-
         log.info("Payment successful for order: {}", order.getOrderNumber());
 
-        // Idempotency guard: if order is already completed, do not attempt to complete again
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            log.info("Order {} is already COMPLETED. Skipping duplicate completion.", order.getOrderNumber());
+        final Long orderId = order.getId();
 
-            // Load order items explicitly (lazy loading issue)
-            List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+        // Check if already completed (read-only, no transaction needed)
+        Order currentOrder = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+        if (currentOrder.getStatus() == OrderStatus.COMPLETED) {
+            log.info("Order {} is already COMPLETED. Skipping duplicate completion.", currentOrder.getOrderNumber());
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(currentOrder.getId());
 
             CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
                     .success(true)
-                    .orderId(order.getId())
-                    .orderNumber(order.getOrderNumber())
+                    .orderId(currentOrder.getId())
+                    .orderNumber(currentOrder.getOrderNumber())
                     .transactionNumber(transaction.getTransactionNumber())
                     .gatewayTransactionId(transaction.getGatewayTransactionId())
-                    .orderStatus(order.getStatus())
-                    .totalAmount(order.getTotalAmount())
-                    .currency(order.getCurrency())
-                    .paymentMethod(order.getPaymentMethod())
+                    .orderStatus(currentOrder.getStatus())
+                    .totalAmount(currentOrder.getTotalAmount())
+                    .currency(currentOrder.getCurrency())
+                    .paymentMethod(currentOrder.getPaymentMethod())
                     .enrolledCourseIds(orderItems.stream()
                             .map(OrderItem::getCourseId)
                             .collect(Collectors.toList()))
-                    .createdAt(order.getCreatedAt())
-                    .completedAt(order.getCompletedAt())
+                    .createdAt(currentOrder.getCreatedAt())
+                    .completedAt(currentOrder.getCompletedAt())
                     .message("Order was already completed. No additional changes were applied.");
 
-            Invoice existingInvoice = order.getInvoice();
+            Invoice existingInvoice = currentOrder.getInvoice();
             if (existingInvoice != null) {
                 responseBuilder
                         .invoiceNumber(existingInvoice.getInvoiceNumber())
                         .invoiceUrl(existingInvoice.getPdfUrl());
             }
-
             return responseBuilder.build();
         }
 
-        // 1. Complete order (CRITICAL)
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setCompletedAt(LocalDateTime.now());
-        orderRepository.save(order);
+        // Execute critical operations in a transaction
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
 
-        // 2. Create enrollments (CRITICAL)
-        createEnrollmentsForOrder(order);
+        Order completedOrder = txTemplate.execute(status -> {
+            // Reload order to prevent StaleObjectStateException
+            Order freshOrder = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
 
-        // 3. Create earnings (Non-Critical)
+            // Double-check status after reload
+            if (freshOrder.getStatus() == OrderStatus.COMPLETED) {
+                return freshOrder;
+            }
+
+            // 1. Complete order (CRITICAL)
+            freshOrder.setStatus(OrderStatus.COMPLETED);
+            freshOrder.setCompletedAt(LocalDateTime.now());
+            orderRepository.save(freshOrder);
+
+            // 2. Create enrollments (CRITICAL)
+            createEnrollmentsForOrder(freshOrder);
+
+            return freshOrder;
+        });
+
+        // 3. Create earnings (Non-Critical, outside main transaction)
         try {
-            earningService.createEarningsForOrder(order);
+            earningService.createEarningsForOrder(completedOrder);
         } catch (Exception e) {
-            log.error("Failed to create earnings for order: {}", order.getOrderNumber(), e);
-            // Verify if we should throw or just log. For user experience, getting the course is priority.
-            // internal accounting can be fixed later. Keeping it non-blocking.
+            log.error("Failed to create earnings for order: {}", completedOrder.getOrderNumber(), e);
         }
 
-        // Load order items explicitly (lazy loading issue)
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+        // Load order items explicitly
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(completedOrder.getId());
 
         // 4. Clear cart (Non-Critical)
         if (isFromCart) {
@@ -932,37 +1042,37 @@ public class CheckoutServiceImpl implements CheckoutService {
                 List<Long> courseIds = orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList());
-                cartService.removeItems(order.getUserId(), courseIds);
+                cartService.removeItems(completedOrder.getUserId(), courseIds);
             } catch (Exception e) {
-                log.error("Failed to clear cart for user: {}", order.getUserId(), e);
+                log.error("Failed to clear cart for user: {}", completedOrder.getUserId(), e);
             }
         }
 
         // 5. Generate invoice with limited retries (Non-Critical)
-        InvoiceResponse invoice = generateInvoiceWithRetry(order, 3);
+        InvoiceResponse invoice = generateInvoiceWithRetry(completedOrder, 3);
 
         // 6. Publish event (Non-Critical)
         try {
-            eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
+            eventPublisher.publishEvent(new OrderCompletedEvent(this, completedOrder));
         } catch (Exception e) {
-            log.error("Failed to publish OrderCompletedEvent for order: {}", order.getOrderNumber(), e);
+            log.error("Failed to publish OrderCompletedEvent for order: {}", completedOrder.getOrderNumber(), e);
         }
 
         CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
                 .success(true)
-                .orderId(order.getId())
-                .orderNumber(order.getOrderNumber())
+                .orderId(completedOrder.getId())
+                .orderNumber(completedOrder.getOrderNumber())
                 .transactionNumber(transaction.getTransactionNumber())
                 .gatewayTransactionId(transaction.getGatewayTransactionId())
-                .orderStatus(order.getStatus())
-                .totalAmount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .paymentMethod(order.getPaymentMethod())
+                .orderStatus(completedOrder.getStatus())
+                .totalAmount(completedOrder.getTotalAmount())
+                .currency(completedOrder.getCurrency())
+                .paymentMethod(completedOrder.getPaymentMethod())
                 .enrolledCourseIds(orderItems.stream()
                         .map(OrderItem::getCourseId)
                         .collect(Collectors.toList()))
-                .createdAt(order.getCreatedAt())
-                .completedAt(order.getCompletedAt())
+                .createdAt(completedOrder.getCreatedAt())
+                .completedAt(completedOrder.getCompletedAt())
                 .message("Payment successful! You can now access your courses.");
 
         if (invoice != null) {
@@ -970,62 +1080,83 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .invoiceNumber(invoice.getInvoiceNumber())
                 .invoiceUrl(invoice.getPdfUrl());
         }
-        
+
         return responseBuilder.build();
     }
 
-    @Transactional
+    /**
+     * Handle pending payment (requires redirect) - uses TransactionTemplate since @Transactional
+     * doesn't work on private methods (Spring AOP limitation).
+     */
     private CheckoutResultResponse handlePendingPayment(Order order, Transaction transaction,
                                                         GatewayPaymentResult result) {
         log.info("Payment pending for order: {} - redirect required", order.getOrderNumber());
 
-        order.setStatus(OrderStatus.PROCESSING);
-        orderRepository.save(order);
+        final Long orderId = order.getId();
+
+        // Update order status in a transaction
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        Order updatedOrder = txTemplate.execute(status -> {
+            Order freshOrder = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+            freshOrder.setStatus(OrderStatus.PROCESSING);
+            return orderRepository.save(freshOrder);
+        });
 
         return CheckoutResultResponse.builder()
                 .success(false)
                 .pending(true)
-                .orderId(order.getId())
-                .orderNumber(order.getOrderNumber())
+                .orderId(updatedOrder.getId())
+                .orderNumber(updatedOrder.getOrderNumber())
                 .transactionNumber(transaction.getTransactionNumber())
-                .orderStatus(order.getStatus())
-                .totalAmount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .paymentMethod(order.getPaymentMethod())
-                .createdAt(order.getCreatedAt())
+                .orderStatus(updatedOrder.getStatus())
+                .totalAmount(updatedOrder.getTotalAmount())
+                .currency(updatedOrder.getCurrency())
+                .paymentMethod(updatedOrder.getPaymentMethod())
+                .createdAt(updatedOrder.getCreatedAt())
                 .message("Please complete payment on the payment provider's page.")
                 .redirectUrl(result.getRedirectUrl())
                 .requiresRedirect(true)
                 .build();
     }
 
-    @Transactional
+    /**
+     * Handle failed payment - uses TransactionTemplate since @Transactional
+     * doesn't work on private methods (Spring AOP limitation).
+     */
     private CheckoutResultResponse handleFailedPayment(Order order, Transaction transaction,
                                                        GatewayPaymentResult result) {
-        // Reload order to prevent StaleObjectStateException if webhook updated it concurrently
-        Long orderId = order.getId();
-        order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
-
         log.warn("Payment failed for order: {} - {}", order.getOrderNumber(), result.getErrorMessage());
 
-        order.setStatus(OrderStatus.FAILED);
-        order.setFailureReason(result.getErrorMessage());
-        orderRepository.save(order);
+        final Long orderId = order.getId();
 
-        // Publish event
-        eventPublisher.publishEvent(new PaymentFailedEvent(this, order, result.getErrorMessage()));
+        // Update order status in a transaction
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        Order failedOrder = txTemplate.execute(status -> {
+            Order freshOrder = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+            freshOrder.setStatus(OrderStatus.FAILED);
+            freshOrder.setFailureReason(result.getErrorMessage());
+            return orderRepository.save(freshOrder);
+        });
+
+        // Publish event (non-critical, outside transaction)
+        try {
+            eventPublisher.publishEvent(new PaymentFailedEvent(this, failedOrder, result.getErrorMessage()));
+        } catch (Exception e) {
+            log.error("Failed to publish PaymentFailedEvent for order {}: {}", failedOrder.getOrderNumber(), e.getMessage());
+        }
 
         return CheckoutResultResponse.builder()
                 .success(false)
-                .orderId(order.getId())
-                .orderNumber(order.getOrderNumber())
+                .orderId(failedOrder.getId())
+                .orderNumber(failedOrder.getOrderNumber())
                 .transactionNumber(transaction.getTransactionNumber())
-                .orderStatus(order.getStatus())
-                .totalAmount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .paymentMethod(order.getPaymentMethod())
-                .createdAt(order.getCreatedAt())
+                .orderStatus(failedOrder.getStatus())
+                .totalAmount(failedOrder.getTotalAmount())
+                .currency(failedOrder.getCurrency())
+                .paymentMethod(failedOrder.getPaymentMethod())
+                .createdAt(failedOrder.getCreatedAt())
                 .message("Payment failed: " + result.getErrorMessage())
                 .errorCode(result.getErrorCode())
                 .errorMessage(result.getErrorMessage())
