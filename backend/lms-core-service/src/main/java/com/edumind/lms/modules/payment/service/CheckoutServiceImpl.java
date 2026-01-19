@@ -433,8 +433,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     // ===== Private Helpers =====
 
     /**
-     * Complete a free order - uses TransactionTemplate since @Transactional
-     * doesn't work on private methods (Spring AOP limitation).
+     * Complete a free order - uses TransactionTemplate since @Transactional doesn't work on private methods (Spring AOP limitation).
      * FIX: Also sets order status to COMPLETED after enrollment (was missing before).
      */
     private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
