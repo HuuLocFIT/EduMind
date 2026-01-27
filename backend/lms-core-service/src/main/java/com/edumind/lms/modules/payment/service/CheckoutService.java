@@ -40,4 +40,15 @@ public interface CheckoutService {
      * Retry failed payment for pending order
      */
     CheckoutResultResponse retryPayment(Long userId, Long orderId, CheckoutRequest request);
+
+    /**
+     * Capture a pending payment (e.g. PayPal after user approval)
+     */
+    CheckoutResultResponse capturePayment(Long userId, String gatewayOrderId);
+
+    /**
+     * Handle payment cancellation (e.g. user cancelled on PayPal page)
+     * Returns order info so user can retry with same or different payment method
+     */
+    CheckoutResultResponse handlePaymentCancellation(Long userId, Long orderId);
 }

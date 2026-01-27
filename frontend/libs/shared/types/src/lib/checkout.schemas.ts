@@ -146,6 +146,9 @@ export const CheckoutResultResponseSchema = z.object({
   // Error info
   errorCode: z.string().nullable().optional(),
   errorMessage: z.string().nullable().optional(),
+
+  // Retry info (for failed/cancelled payments)
+  canRetry: z.boolean().optional(),
 });
 
 // ==================== Types ====================

@@ -74,3 +74,34 @@ export const useDirectCheckout = () => {
     },
   });
 };
+
+/**
+ * Capture payment mutation (for PayPal after user approval)
+ */
+export const useCapturePayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<CheckoutResultResponse, Error, string>({
+    mutationFn: (token) => checkoutService.capturePayment(token),
+    onSuccess: (result) => {
+      if (result.success) {
+        // Clear cart
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.count });
+        // Refresh orders
+        queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
+        // Refresh enrollments
+        queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+      }
+    },
+  });
+};
+
+/**
+ * Cancel payment mutation (user cancelled on PayPal page)
+ */
+export const useCancelPayment = () => {
+  return useMutation<CheckoutResultResponse, Error, number>({
+    mutationFn: (orderId) => checkoutService.cancelPayment(orderId),
+  });
+};

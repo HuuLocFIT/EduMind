@@ -51,4 +51,7 @@ public class CheckoutResultResponse {
     // Error info (if failed)
     private String errorCode;
     private String errorMessage;
+
+    // Retry info (for failed/cancelled payments)
+    private boolean canRetry;
 }

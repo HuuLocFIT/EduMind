@@ -1,14 +1,105 @@
-import React, { useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Card, Button } from "@edumind/user-ui";
-import { CheckCircle, ArrowRight, BookOpen, Package } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Card, Button, Loading } from "@edumind/user-ui";
+import { CheckCircle, ArrowRight, BookOpen, Package, XCircle, RefreshCw } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { useCapturePayment } from "../../hooks/useCheckout";
+
+type PageState = "loading" | "success" | "error";
 
 export const CheckoutSuccessPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const orderNumber = searchParams.get("order");
+  const capturePaymentMutation = useCapturePayment();
 
+  // PayPal returns ?token=ORDER_ID after user approval
+  const token = searchParams.get("token");
+  // Our backend may also send ?orderId=... for direct success
+  const orderId = searchParams.get("orderId");
+  // For non-redirect payments, order number is passed directly
+  const orderNumberParam = searchParams.get("order");
+
+  const [pageState, setPageState] = useState<PageState>(token ? "loading" : "success");
+  const [orderNumber, setOrderNumber] = useState<string | null>(orderNumberParam);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Handle PayPal capture when token is present
+  useEffect(() => {
+    if (token && pageState === "loading") {
+      capturePaymentMutation.mutate(token, {
+        onSuccess: (result) => {
+          if (result.success) {
+            setOrderNumber(result.orderNumber || null);
+            setPageState("success");
+          } else {
+            setErrorMessage(result.message || "Payment capture failed");
+            setPageState("error");
+          }
+        },
+        onError: (error) => {
+          setErrorMessage(error.message || "Payment capture failed");
+          setPageState("error");
+        },
+      });
+    }
+  }, [token, pageState]);
+
+  // Loading state - capturing payment
+  if (pageState === "loading") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <Loading />
+          <h2 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
+            Completing Your Payment
+          </h2>
+          <p className="text-gray-600">
+            Please wait while we confirm your payment with PayPal...
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state - capture failed
+  if (pageState === "error") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <XCircle className="w-8 h-8 text-red-600" />
+          </div>
+
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Payment Failed
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {errorMessage || "We couldn't complete your payment. Please try again."}
+          </p>
+
+          <div className="space-y-3">
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={() => navigate(USER_ROUTES.CHECKOUT)}
+              leftIcon={<RefreshCw className="w-4 h-4" />}
+            >
+              Try Again
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate(USER_ROUTES.CART)}
+            >
+              Return to Cart
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Success state
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="max-w-md w-full p-8 text-center">
@@ -37,8 +128,8 @@ export const CheckoutSuccessPage: React.FC = () => {
 
         {/* Info */}
         <div className="text-sm text-gray-600 mb-8 space-y-2">
-          <p>✅ A confirmation email has been sent to your email address</p>
-          <p>✅ You can now access your purchased courses</p>
+          <p>A confirmation email has been sent to your email address</p>
+          <p>You can now access your purchased courses</p>
         </div>
 
         {/* Actions */}

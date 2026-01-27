@@ -305,6 +305,8 @@ export const CHECKOUT_ENDPOINTS = {
   PREVIEW: `${API_BASE_PATH}/checkout/preview`,
   DIRECT_PREVIEW: `${API_BASE_PATH}/checkout/direct/preview`,
   DIRECT: `${API_BASE_PATH}/checkout/direct`,
+  CAPTURE: `${API_BASE_PATH}/checkout/capture`,
+  CANCEL: `${API_BASE_PATH}/checkout/cancel`,
 } as const;
 
 /**

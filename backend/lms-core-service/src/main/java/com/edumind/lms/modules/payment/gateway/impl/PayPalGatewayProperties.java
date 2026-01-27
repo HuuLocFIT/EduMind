@@ -14,6 +14,12 @@ public class PayPalGatewayProperties {
     private String mode = "sandbox";  // sandbox | live
     private String webhookId;
 
+    /**
+     * Base URL for return redirects (e.g., https://your-domain.com or http://localhost:3000)
+     * Used to construct successUrl and cancelUrl for PayPal redirects.
+     */
+    private String returnBaseUrl = "http://localhost:3000";
+
     public String getBaseUrl() {
         return "sandbox".equals(mode)
                 ? "https://api-m.sandbox.paypal.com"

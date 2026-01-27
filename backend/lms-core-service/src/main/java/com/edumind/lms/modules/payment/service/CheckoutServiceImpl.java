@@ -17,6 +17,7 @@ import com.edumind.lms.modules.payment.exception.*;
 import com.edumind.lms.modules.payment.enums.TransactionStatus;
 import com.edumind.lms.modules.payment.gateway.*;
 import com.edumind.lms.modules.payment.gateway.config.PaymentGatewayRegistry;
+import com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties;
 import com.edumind.lms.modules.payment.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,6 +70,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final PaymentGatewayRegistry gatewayRegistry;
     private final ApplicationEventPublisher eventPublisher;
     private final PlatformTransactionManager transactionManager;
+    private final PayPalGatewayProperties payPalGatewayProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -401,6 +403,155 @@ public class CheckoutServiceImpl implements CheckoutService {
         // FIX #11: Pass false for isFromCart - retry should NOT clear the user's cart
         // The user's current cart may have different items than the original order
         return processPayment(order, request, false);
+    }
+
+    @Override
+    @Transactional
+    public CheckoutResultResponse capturePayment(Long userId, String gatewayOrderId) {
+        log.info("Capturing payment for gateway order: {}", gatewayOrderId);
+
+        // 1. Find Transaction by Gateway Order ID with pessimistic lock to prevent race conditions
+        // between this endpoint and potential webhook callbacks
+        Transaction transaction = transactionRepository.findByGatewayTransactionIdForUpdate(gatewayOrderId)
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found for Gateway Order ID: " + gatewayOrderId));
+
+        // Check if already processed (idempotency)
+        if (transaction.getStatus() == TransactionStatus.SUCCESS) {
+            log.info("Transaction {} already processed successfully", gatewayOrderId);
+            Order order = transaction.getOrder();
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+            return buildSuccessResponse(order, orderItems).toBuilder()
+                    .transactionNumber(transaction.getTransactionNumber())
+                    .gatewayTransactionId(transaction.getGatewayTransactionId())
+                    .message("Payment already captured.")
+                    .build();
+        }
+
+        Order order = transaction.getOrder();
+        if (!order.getUserId().equals(userId)) {
+            throw new PaymentFailedException("User does not own this order");
+        }
+
+        // Check if order is in valid state for capture
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            log.info("Order {} already completed", order.getOrderNumber());
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+            return buildSuccessResponse(order, orderItems).toBuilder()
+                    .transactionNumber(transaction.getTransactionNumber())
+                    .gatewayTransactionId(transaction.getGatewayTransactionId())
+                    .message("Order already completed.")
+                    .build();
+        }
+
+        if (order.getStatus() == OrderStatus.FAILED || order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("Cannot capture payment for order {} with status {}", order.getOrderNumber(), order.getStatus());
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .message("Cannot capture payment for " + order.getStatus().name().toLowerCase() + " order.")
+                    .errorCode("INVALID_ORDER_STATUS")
+                    .build();
+        }
+
+        // 2. Call Gateway to Capture
+        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        GatewayPaymentResult result;
+        try {
+            result = gateway.capturePayment(gatewayOrderId);
+        } catch (Exception e) {
+            log.error("Capture failed for order {}", gatewayOrderId, e);
+            transaction.setStatus(TransactionStatus.FAILED);
+            transaction.setFailureReason("Capture failed: " + e.getMessage());
+            transactionRepository.save(transaction);
+
+            GatewayPaymentResult errorResult = GatewayPaymentResult.builder()
+                    .success(false)
+                    .errorCode("CAPTURE_FAILED")
+                    .errorMessage(e.getMessage())
+                    .build();
+            return handleFailedPayment(order, transaction, errorResult);
+        }
+
+        // 3. Handle Result
+        if (result.isSuccess()) {
+            // Update Transaction with Capture ID (important for refunds!)
+            transaction.setGatewayTransactionId(result.getGatewayTransactionId());
+            transaction.setGatewayResponse(result.getRawResponse());
+            return finalizePaymentTransaction(order, transaction, result, false);
+        } else {
+            return handleFailedPayment(order, transaction, result);
+        }
+    }
+
+    @Override
+    @Transactional
+    public CheckoutResultResponse handlePaymentCancellation(Long userId, Long orderId) {
+        log.info("Handling payment cancellation for order: {}, user: {}", orderId, userId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // Verify user owns the order
+        if (!order.getUserId().equals(userId)) {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        // If already completed, just return success
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            log.info("Order {} is already completed, ignoring cancellation", order.getOrderNumber());
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+            return buildSuccessResponse(order, orderItems).toBuilder()
+                    .message("Order already completed.")
+                    .build();
+        }
+
+        // If already cancelled or failed, return current state
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .orderId(order.getId())
+                    .orderNumber(order.getOrderNumber())
+                    .orderStatus(order.getStatus())
+                    .totalAmount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(order.getPaymentMethod())
+                    .createdAt(order.getCreatedAt())
+                    .message("Order was already cancelled.")
+                    .build();
+        }
+
+        // Reset order to PENDING so user can retry
+        // We don't mark as CANCELLED because user might want to retry
+        order.setStatus(OrderStatus.PENDING);
+        order.setFailureReason("Payment cancelled by user");
+        orderRepository.save(order);
+
+        // Update any pending transactions
+        transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(order.getId(), TransactionStatus.PENDING)
+                .ifPresent(transaction -> {
+                    transaction.setStatus(TransactionStatus.FAILED);
+                    transaction.setFailureCode("USER_CANCELLED");
+                    transaction.setFailureReason("User cancelled payment on gateway page");
+                    transactionRepository.save(transaction);
+                });
+
+        log.info("Payment cancellation handled for order {}. Order reset to PENDING for retry.", order.getOrderNumber());
+
+        return CheckoutResultResponse.builder()
+                .success(false)
+                .pending(true)
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(order.getPaymentMethod())
+                .createdAt(order.getCreatedAt())
+                .message("Payment cancelled. You can retry payment or choose a different payment method.")
+                .canRetry(true)
+                .build();
     }
 
     /**
@@ -744,6 +895,22 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     private GatewayPaymentRequest prepareGatewayRequest(Order order, CheckoutRequest request) {
+        // Build return URLs for redirect-based payment flows (PayPal, SePay)
+        String successUrl = request.getSuccessUrl();
+        String cancelUrl = request.getCancelUrl();
+
+        // If client didn't provide URLs, use defaults from PayPal config
+        // Note: PayPal appends ?token=ORDER_ID to the success URL automatically
+        if (successUrl == null || successUrl.isBlank()) {
+            String baseUrl = payPalGatewayProperties.getReturnBaseUrl();
+            successUrl = baseUrl + "/checkout/success";
+        }
+        if (cancelUrl == null || cancelUrl.isBlank()) {
+            String baseUrl = payPalGatewayProperties.getReturnBaseUrl();
+            // Redirect to failed page with orderId so FE can call cancel endpoint
+            cancelUrl = baseUrl + "/checkout/failed?orderId=" + order.getId();
+        }
+
         return GatewayPaymentRequest.builder()
                 .orderNumber(order.getOrderNumber())
                 .orderId(order.getId())
@@ -756,6 +923,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .cardHolderName(request.getCardHolderName())
                 .expiryDate(request.getExpiryDate())
                 .cvv(request.getCvv())
+                .successUrl(successUrl)
+                .cancelUrl(cancelUrl)
                 .description("Payment for Order #" + order.getOrderNumber())
                 .build();
     }
