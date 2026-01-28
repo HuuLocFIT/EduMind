@@ -190,21 +190,42 @@ public class PayPalGateway implements PaymentGateway {
      */
     private GatewayPaymentResult extractCaptureResult(Order order) {
         PurchaseUnit purchaseUnit = order.purchaseUnits().get(0);
-        String currency = purchaseUnit.amountWithBreakdown().currencyCode();
-        String value = purchaseUnit.amountWithBreakdown().value();
 
-        // Extract the actual Capture ID from payments.captures
-        // This is CRITICAL for refunds - PayPal refunds require the Capture ID, not the Order ID
+        String currency = null;
+        String value = null;
         String captureId = order.id(); // Fallback to order ID
+
+        // Extract the actual Capture ID and amount from payments.captures
+        // This is CRITICAL for refunds - PayPal refunds require the Capture ID, not the Order ID
         if (purchaseUnit.payments() != null &&
             purchaseUnit.payments().captures() != null &&
             !purchaseUnit.payments().captures().isEmpty()) {
 
             Capture capture = purchaseUnit.payments().captures().get(0);
             captureId = capture.id();
-            log.info("[PAYPAL] Extracted Capture ID: {} for Order ID: {}", captureId, order.id());
+
+            // Get amount from capture (more reliable than purchaseUnit.amountWithBreakdown)
+            if (capture.amount() != null) {
+                currency = capture.amount().currencyCode();
+                value = capture.amount().value();
+            }
+            log.info("[PAYPAL] Extracted Capture ID: {} for Order ID: {}, amount: {} {}",
+                    captureId, order.id(), value, currency);
         } else {
             log.warn("[PAYPAL] Could not extract Capture ID, using Order ID as fallback: {}", order.id());
+        }
+
+        // Fallback to purchaseUnit.amountWithBreakdown if capture amount not available
+        if (currency == null && purchaseUnit.amountWithBreakdown() != null) {
+            currency = purchaseUnit.amountWithBreakdown().currencyCode();
+            value = purchaseUnit.amountWithBreakdown().value();
+        }
+
+        // Final fallback - use defaults if still null
+        if (currency == null) {
+            log.warn("[PAYPAL] Could not extract amount from PayPal response for Order ID: {}", order.id());
+            currency = "USD";
+            value = "0";
         }
 
         return GatewayPaymentResult.success(

@@ -163,7 +163,7 @@ describe('CartItem', () => {
     // Actually best to check simply that it didn't crash and logic path was taken
   });
 
-  // Tests for unavailable items (FIX #15)
+  // Tests for unavailable items
   describe('unavailable items', () => {
     it('renders unavailable indicator in compact mode', () => {
       const { container } = render(

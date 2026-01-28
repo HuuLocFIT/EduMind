@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -225,7 +226,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     public CheckoutResultResponse checkout(Long userId, CheckoutRequest request) {
         log.info("Processing checkout for user: {}", userId);
 
-        // FIX #12: Check idempotency key - return existing order if already created
+        // Check idempotency key - return existing order if already created
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
             var existingOrder = orderRepository.findByIdempotencyKeyAndUserId(
                     request.getIdempotencyKey(), userId);
@@ -278,19 +279,53 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
         }
 
+        // Check for existing active order and handle expiration BEFORE creating new order
+        CheckoutResultResponse existingOrderResponse = handleExistingActiveOrder(userId);
+        if (existingOrderResponse != null) {
+            return existingOrderResponse;
+        }
+
         // 2. Build order (inside transaction via OrderService)
         Order order;
         try {
             order = orderService.createOrderFromCart(userId, cartItems, request);
         } catch (DataIntegrityViolationException ex) {
             // Likely concurrent checkout hitting unique active-order constraint
+            // This is a fallback - handleExistingActiveOrder should have caught this
             log.warn("Active checkout already exists for user {}. Blocking duplicate checkout.", userId, ex);
-            return CheckoutResultResponse.builder()
+
+            // Try to find the existing order to return useful info
+            Order existingOrder = orderRepository.findActiveOrderByUserId(userId).orElse(null);
+
+            CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
                     .success(false)
-                    .message("You already have a checkout in progress. Please complete it or wait a moment.")
+                    .message("You already have a checkout in progress. Please complete it or cancel to start a new one.")
                     .errorCode("CHECKOUT_IN_PROGRESS")
                     .errorMessage("Active checkout already exists for this user")
-                    .build();
+                    .canRetry(false);
+
+            if (existingOrder != null) {
+                responseBuilder
+                        .orderId(existingOrder.getId())
+                        .orderNumber(existingOrder.getOrderNumber())
+                        .orderStatus(existingOrder.getStatus())
+                        .totalAmount(existingOrder.getTotalAmount())
+                        .currency(existingOrder.getCurrency())
+                        .paymentMethod(existingOrder.getPaymentMethod())
+                        .createdAt(existingOrder.getCreatedAt());
+
+                // If the order has a redirect URL from a pending transaction, include it
+                transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                        existingOrder.getId(), TransactionStatus.PENDING)
+                        .ifPresent(tx -> {
+                            if (tx.getRedirectUrl() != null) {
+                                responseBuilder.redirectUrl(tx.getRedirectUrl());
+                                responseBuilder.requiresRedirect(true);
+                            }
+                        });
+            }
+
+            return responseBuilder.build();
         }
 
         // 3. Check if payment required
@@ -306,6 +341,12 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Override
     public CheckoutResultResponse directCheckout(Long userId, DirectCheckoutRequest request) {
         log.info("Processing direct checkout for user: {}, course: {}", userId, request.getCourseId());
+
+        // Check for existing active order before creating new one
+        CheckoutResultResponse existingOrderResponse = handleExistingActiveOrder(userId);
+        if (existingOrderResponse != null) {
+            return existingOrderResponse;
+        }
 
         // Validate course
         Course course = courseRepository.findById(request.getCourseId())
@@ -345,7 +386,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     /**
      * Handle payment callback from payment gateway.
-     * FIX #8: Reload order explicitly to avoid NPE/LazyInitializationException.
+     * Reload order explicitly to avoid NPE/LazyInitializationException.
      */
     @Override
     @Transactional
@@ -361,7 +402,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             return;
         }
 
-        // FIX #8: Reload order explicitly to avoid NPE/LazyInitializationException
+        // Reload order explicitly to avoid NPE/LazyInitializationException
         Long orderId = transaction.getOrder().getId();
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found for transaction: " + gatewayTransactionId));
@@ -391,7 +432,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     /**
      * Retry payment for a failed/pending order.
-     * FIX #11: Don't clear cart on retry - user's current cart may have changed.
+     * Don't clear cart on retry - user's current cart may have changed.
      * Retry should only process the order's existing items, not touch the cart.
      */
     @Override
@@ -400,7 +441,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         Order order = resetOrderForRetry(userId, orderId);
 
-        // FIX #11: Pass false for isFromCart - retry should NOT clear the user's cart
+        // Pass false for isFromCart - retry should NOT clear the user's cart
         // The user's current cart may have different items than the original order
         return processPayment(order, request, false);
     }
@@ -411,8 +452,10 @@ public class CheckoutServiceImpl implements CheckoutService {
         log.info("Capturing payment for gateway order: {}", gatewayOrderId);
 
         // 1. Find Transaction by Gateway Order ID with pessimistic lock to prevent race conditions
-        // between this endpoint and potential webhook callbacks
-        Transaction transaction = transactionRepository.findByGatewayTransactionIdForUpdate(gatewayOrderId)
+        // between this endpoint and potential webhook callbacks.
+        // Use findByGatewayIdForUpdate which checks both gatewayTransactionId and gatewayOrderId
+        // This handles retries where gatewayTransactionId was already updated to Capture ID
+        Transaction transaction = transactionRepository.findByGatewayIdForUpdate(gatewayOrderId)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found for Gateway Order ID: " + gatewayOrderId));
 
         // Check if already processed (idempotency)
@@ -443,16 +486,28 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .build();
         }
 
-        if (order.getStatus() == OrderStatus.FAILED || order.getStatus() == OrderStatus.CANCELLED) {
-            log.warn("Cannot capture payment for order {} with status {}", order.getOrderNumber(), order.getStatus());
+        // For CANCELLED orders, reject capture
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("Cannot capture payment for cancelled order {}", order.getOrderNumber());
             return CheckoutResultResponse.builder()
                     .success(false)
                     .orderId(order.getId())
                     .orderNumber(order.getOrderNumber())
                     .orderStatus(order.getStatus())
-                    .message("Cannot capture payment for " + order.getStatus().name().toLowerCase() + " order.")
+                    .message("Cannot capture payment for cancelled order.")
                     .errorCode("INVALID_ORDER_STATUS")
                     .build();
+        }
+
+        // For FAILED orders (e.g., expired), we'll still attempt capture
+        // If the user completed payment on PayPal before expiration, we should honor it
+        boolean wasFailedOrder = order.getStatus() == OrderStatus.FAILED;
+        if (wasFailedOrder) {
+            log.info("Attempting capture for failed order {} - user may have completed PayPal payment before expiration",
+                    order.getOrderNumber());
+            // Reset to PROCESSING for the capture attempt
+            order.setStatus(OrderStatus.PROCESSING);
+            orderRepository.save(order);
         }
 
         // 2. Call Gateway to Capture
@@ -476,7 +531,12 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         // 3. Handle Result
         if (result.isSuccess()) {
+            // Preserve original gateway order ID if not already set (for retry lookups)
+            if (transaction.getGatewayOrderId() == null) {
+                transaction.setGatewayOrderId(gatewayOrderId);
+            }
             // Update Transaction with Capture ID (important for refunds!)
+            // Note: gatewayTransactionId changes from PayPal Order ID to Capture ID here
             transaction.setGatewayTransactionId(result.getGatewayTransactionId());
             transaction.setGatewayResponse(result.getRawResponse());
             return finalizePaymentTransaction(order, transaction, result, false);
@@ -584,8 +644,86 @@ public class CheckoutServiceImpl implements CheckoutService {
     // ===== Private Helpers =====
 
     /**
+     * Check for existing active order and handle expiration.
+     * Returns null if no blocking order exists (caller should proceed).
+     * Returns a response if there's a non-expired active order (caller should return this).
+     */
+    private CheckoutResultResponse handleExistingActiveOrder(Long userId) {
+        Optional<Order> existingOrderOpt = orderRepository.findActiveOrderByUserId(userId);
+
+        if (existingOrderOpt.isEmpty()) {
+            return null; // No active order, proceed with new checkout
+        }
+
+        Order existingOrder = existingOrderOpt.get();
+        LocalDateTime now = LocalDateTime.now();
+
+        // Check if the existing order has expired
+        if (existingOrder.getExpiresAt() != null && now.isAfter(existingOrder.getExpiresAt())) {
+            log.info("Found expired active order {} for user {}. Marking as FAILED to allow new checkout.",
+                    existingOrder.getOrderNumber(), userId);
+
+            // Mark expired order as FAILED in a separate transaction
+            TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+            txTemplate.execute(status -> {
+                Order freshOrder = orderRepository.findById(existingOrder.getId())
+                        .orElse(null);
+                if (freshOrder != null &&
+                    (freshOrder.getStatus() == OrderStatus.PENDING || freshOrder.getStatus() == OrderStatus.PROCESSING)) {
+                    freshOrder.setStatus(OrderStatus.FAILED);
+                    freshOrder.setFailureReason("Order expired - payment not completed within time limit");
+                    orderRepository.save(freshOrder);
+
+                    // Also fail any pending transactions
+                    transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                            freshOrder.getId(), TransactionStatus.PENDING)
+                            .ifPresent(tx -> {
+                                tx.setStatus(TransactionStatus.FAILED);
+                                tx.setFailureReason("Order expired");
+                                transactionRepository.save(tx);
+                            });
+                }
+                return null;
+            });
+
+            return null; // Order expired and marked as FAILED, proceed with new checkout
+        }
+
+        // Order exists and is NOT expired - user must complete or cancel it
+        log.info("User {} has active non-expired order {}. Blocking new checkout.",
+                userId, existingOrder.getOrderNumber());
+
+        CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
+                .success(false)
+                .pending(true)
+                .orderId(existingOrder.getId())
+                .orderNumber(existingOrder.getOrderNumber())
+                .orderStatus(existingOrder.getStatus())
+                .totalAmount(existingOrder.getTotalAmount())
+                .currency(existingOrder.getCurrency())
+                .paymentMethod(existingOrder.getPaymentMethod())
+                .createdAt(existingOrder.getCreatedAt())
+                .message("You have an active checkout in progress. Please complete it or cancel to start a new one.")
+                .errorCode("CHECKOUT_IN_PROGRESS")
+                .errorMessage("Active checkout already exists - complete or cancel it first")
+                .canRetry(false);
+
+        // If the order has a redirect URL, include it so frontend can redirect user
+        transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                existingOrder.getId(), TransactionStatus.PENDING)
+                .ifPresent(tx -> {
+                    if (tx.getRedirectUrl() != null) {
+                        responseBuilder.redirectUrl(tx.getRedirectUrl());
+                        responseBuilder.requiresRedirect(true);
+                    }
+                });
+
+        return responseBuilder.build();
+    }
+
+    /**
      * Complete a free order - uses TransactionTemplate since @Transactional doesn't work on private methods (Spring AOP limitation).
-     * FIX: Also sets order status to COMPLETED after enrollment (was missing before).
+     * Also sets order status to COMPLETED after enrollment
      */
     private CheckoutResultResponse completeFreeOrder(Order order, Long userId, boolean isFromCart) {
         log.info("Completing free order: {}", order.getOrderNumber());
@@ -656,7 +794,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             // Create enrollments
             createEnrollmentsForOrder(freshOrder);
 
-            // FIX: Set order to COMPLETED after successful enrollment (was missing!)
+            // Set order to COMPLETED after successful enrollment
             freshOrder.setStatus(OrderStatus.COMPLETED);
             freshOrder.setCompletedAt(LocalDateTime.now());
             return orderRepository.save(freshOrder);
@@ -810,6 +948,29 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         if (order.getStatus() == OrderStatus.PROCESSING) {
+            // Check if this PROCESSING order has expired - if so, reset to PENDING for retry
+            if (order.getExpiresAt() != null && LocalDateTime.now().isAfter(order.getExpiresAt())) {
+                log.info("Order {} was PROCESSING but has expired. Resetting to PENDING for retry.",
+                        order.getOrderNumber());
+
+                // Mark any pending transactions as FAILED
+                List<Transaction> pendingTransactions = transactionRepository.findByOrderIdAndStatus(
+                        order.getId(), TransactionStatus.PENDING);
+                for (Transaction tx : pendingTransactions) {
+                    tx.setStatus(TransactionStatus.FAILED);
+                    tx.setFailureReason("Payment abandoned - order expired while processing");
+                    transactionRepository.save(tx);
+                }
+
+                // Reset order to PENDING and extend expiration
+                order.setStatus(OrderStatus.PENDING);
+                order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+                orderRepository.save(order);
+
+                // Return null to allow payment processing to continue
+                return null;
+            }
+
             log.warn("Order {} is currently PROCESSING. Skipping new payment request.", order.getOrderNumber());
             Transaction latestTx = transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
                     .orElse(null);
@@ -866,7 +1027,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     /**
      * Update retry metadata in a separate transaction.
-     * FIX: Reload order by ID inside the new transaction to avoid detached entity issues,
+     * Reload order by ID inside the new transaction to avoid detached entity issues,
      * then sync updated values back to the passed object.
      */
     private void updateRetryMetadata(Order order) {
@@ -948,6 +1109,11 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         // Update Transaction with Result
+        // Store the original gateway order ID (e.g., PayPal Order ID) for later lookups
+        // This is important because gatewayTransactionId will be overwritten with Capture ID after capture
+        if (transaction.getGatewayOrderId() == null && result.getGatewayTransactionId() != null) {
+            transaction.setGatewayOrderId(result.getGatewayTransactionId());
+        }
         transaction.setGatewayTransactionId(result.getGatewayTransactionId());
         transaction.setGatewayResponse(result.getRawResponse());
 
@@ -1029,23 +1195,11 @@ public class CheckoutServiceImpl implements CheckoutService {
                     throw e;
                 }
             } catch (Exception e) {
-                log.error("CRITICAL: Payment successful but order completion failed for Order: {}", order.getOrderNumber(), e);
+                log.error("CRITICAL: Payment successful but order completion failed for Order: {}. Attempting auto-refund.",
+                        order.getOrderNumber(), e);
 
-                // We cannot rollback the payment gateway charge here.
-                // We must mark the order in a state that indicates manual intervention is needed.
-                order.setStatus(OrderStatus.FAILED);
-                order.setFailureReason("CRITICAL: Payment Succeeded but Enrollment Failed: " + e.getMessage());
-                orderRepository.save(order);
-
-                return CheckoutResultResponse.builder()
-                        .success(false)
-                        .orderId(order.getId())
-                        .orderNumber(order.getOrderNumber())
-                        .transactionNumber(transaction.getTransactionNumber())
-                        .message("Payment successful, but there was an error activating your course. Please contact support immediately.")
-                        .errorCode("ENROLLMENT_ERROR")
-                        .errorMessage(e.getMessage())
-                        .build();
+                // Payment was captured but enrollment failed - attempt automatic refund
+                return handlePaymentSuccessEnrollmentFailure(order, transaction, e.getMessage());
             }
 
         } else if (result.isRequiresRedirect()) {
@@ -1328,6 +1482,133 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .message("Payment failed: " + result.getErrorMessage())
                 .errorCode(result.getErrorCode())
                 .errorMessage(result.getErrorMessage())
+                .build();
+    }
+
+    /**
+     * Handle the critical case where payment was captured successfully but enrollment failed.
+     * This attempts an automatic refund to maintain data consistency.
+     * If refund fails, marks the order for manual intervention.
+     */
+    private CheckoutResultResponse handlePaymentSuccessEnrollmentFailure(Order order, Transaction transaction, String enrollmentError) {
+        log.warn("CRITICAL: Payment captured but enrollment failed for order {}. Attempting automatic refund.",
+                order.getOrderNumber());
+
+        // The gatewayTransactionId at this point should be the Capture ID (needed for refunds)
+        String captureId = transaction.getGatewayTransactionId();
+
+        if (captureId == null || captureId.isBlank()) {
+            log.error("Cannot refund order {} - no capture ID available", order.getOrderNumber());
+            return markOrderForManualIntervention(order, transaction, enrollmentError, "No capture ID for refund");
+        }
+
+        // Attempt automatic refund
+        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        GatewayRefundResult refundResult;
+
+        try {
+            refundResult = gateway.refund(captureId, order.getTotalAmount(), order.getCurrency());
+        } catch (Exception refundEx) {
+            log.error("Refund attempt threw exception for order {}: {}", order.getOrderNumber(), refundEx.getMessage(), refundEx);
+            return markOrderForManualIntervention(order, transaction, enrollmentError,
+                    "Refund exception: " + refundEx.getMessage());
+        }
+
+        if (refundResult != null && refundResult.isSuccess()) {
+            log.info("Auto-refund successful for order {}. Refund ID: {}",
+                    order.getOrderNumber(), refundResult.getRefundTransactionId());
+
+            // Update transaction and order status to REFUNDED
+            TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+            final Long orderId = order.getId();
+
+            Order refundedOrder = txTemplate.execute(status -> {
+                Order freshOrder = orderRepository.findById(orderId)
+                        .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+                // Mark order as refunded
+                freshOrder.setStatus(OrderStatus.REFUNDED);
+                freshOrder.setFailureReason("Auto-refunded: Enrollment failed after payment capture. " + enrollmentError);
+                Order saved = orderRepository.save(freshOrder);
+
+                // Mark transaction as refunded
+                transaction.setStatus(TransactionStatus.REFUNDED);
+                transaction.setFailureReason("Auto-refunded due to enrollment failure: " + enrollmentError);
+                transactionRepository.save(transaction);
+
+                return saved;
+            });
+
+            return CheckoutResultResponse.builder()
+                    .success(false)
+                    .orderId(refundedOrder.getId())
+                    .orderNumber(refundedOrder.getOrderNumber())
+                    .transactionNumber(transaction.getTransactionNumber())
+                    .orderStatus(refundedOrder.getStatus())
+                    .totalAmount(refundedOrder.getTotalAmount())
+                    .currency(refundedOrder.getCurrency())
+                    .paymentMethod(refundedOrder.getPaymentMethod())
+                    .createdAt(refundedOrder.getCreatedAt())
+                    .message("Your payment has been automatically refunded due to a system error. Please try again or contact support.")
+                    .errorCode("ENROLLMENT_FAILED_REFUNDED")
+                    .errorMessage("Enrollment failed after payment. Full refund issued automatically.")
+                    .build();
+        } else {
+            // Refund failed - mark for manual intervention
+            String refundError = refundResult != null ? refundResult.getErrorMessage() : "Refund returned null";
+            log.error("Auto-refund FAILED for order {}. Refund error: {}", order.getOrderNumber(), refundError);
+            return markOrderForManualIntervention(order, transaction, enrollmentError, refundError);
+        }
+    }
+
+    /**
+     * Mark order for manual intervention when auto-refund fails.
+     * This creates a clearly searchable state for support staff.
+     */
+    private CheckoutResultResponse markOrderForManualIntervention(Order order, Transaction transaction,
+                                                                   String enrollmentError, String refundError) {
+        log.error("MANUAL INTERVENTION REQUIRED: Order {} - Payment captured, enrollment failed, refund failed. " +
+                        "Enrollment error: {}. Refund error: {}",
+                order.getOrderNumber(), enrollmentError, refundError);
+
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+        final Long orderId = order.getId();
+
+        Order failedOrder = txTemplate.execute(status -> {
+            Order freshOrder = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+            // Only update if not already completed (could have been completed by webhook)
+            if (freshOrder.getStatus() != OrderStatus.COMPLETED) {
+                freshOrder.setStatus(OrderStatus.FAILED);
+                // Use a searchable prefix so support can easily find these cases
+                freshOrder.setFailureReason("MANUAL_REFUND_REQUIRED: Payment captured but enrollment failed. " +
+                        "Enrollment error: " + enrollmentError + ". Refund error: " + refundError);
+            }
+            return orderRepository.save(freshOrder);
+        });
+
+        // Publish event for alerting/monitoring
+        try {
+            eventPublisher.publishEvent(new PaymentFailedEvent(this, failedOrder,
+                    "CRITICAL: Manual refund required - " + enrollmentError));
+        } catch (Exception e) {
+            log.error("Failed to publish PaymentFailedEvent for order {}: {}", failedOrder.getOrderNumber(), e.getMessage());
+        }
+
+        return CheckoutResultResponse.builder()
+                .success(false)
+                .orderId(failedOrder.getId())
+                .orderNumber(failedOrder.getOrderNumber())
+                .transactionNumber(transaction.getTransactionNumber())
+                .orderStatus(failedOrder.getStatus())
+                .totalAmount(failedOrder.getTotalAmount())
+                .currency(failedOrder.getCurrency())
+                .paymentMethod(failedOrder.getPaymentMethod())
+                .createdAt(failedOrder.getCreatedAt())
+                .message("Payment was processed but there was a system error. Our support team has been notified and will process your refund within 24-48 hours. Please contact support with order number: " + failedOrder.getOrderNumber())
+                .errorCode("ENROLLMENT_FAILED_MANUAL_REFUND")
+                .errorMessage("Enrollment failed after payment. Manual refund required.")
                 .build();
     }
 

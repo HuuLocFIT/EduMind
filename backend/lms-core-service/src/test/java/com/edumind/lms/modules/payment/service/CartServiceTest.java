@@ -134,7 +134,7 @@ class CartServiceTest {
             request.setCourseId(courseId);
 
             when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            // FIX #3: Updated to use correct enrollment check method
+            // Updated to use correct enrollment check method
             when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
                     eq(courseId), eq(userId), any())).thenReturn(false);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
@@ -185,14 +185,14 @@ class CartServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception if user already enrolled (excluding DROPPED) (FIX #3)")
+        @DisplayName("Should throw exception if user already enrolled (excluding DROPPED)")
         void addToCart_AlreadyEnrolled_ThrowsException() {
             // Given
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
             when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            // FIX #3: Changed to use existsByCourseIdAndStudentIdAndStatusNot to exclude DROPPED
+            // Changed to use existsByCourseIdAndStudentIdAndStatusNot to exclude DROPPED
             when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
                     eq(courseId), eq(userId), any())).thenReturn(true);
 
@@ -202,7 +202,7 @@ class CartServiceTest {
         }
 
         @Test
-        @DisplayName("Should allow adding course if previous enrollment was DROPPED (FIX #3)")
+        @DisplayName("Should allow adding course if previous enrollment was DROPPED")
         void addToCart_PreviouslyDropped_AllowsReEnrollment() {
             // Given
             AddToCartRequest request = new AddToCartRequest();
@@ -223,7 +223,7 @@ class CartServiceTest {
 
             // Then
             assertThat(response).isNotNull();
-            // FIX #3: Should allow re-enrollment after DROPPED status
+            // Should allow re-enrollment after DROPPED status
             verify(cartItemRepository).save(any(CartItem.class));
         }
 
@@ -246,7 +246,7 @@ class CartServiceTest {
         }
 
         @Test
-        @DisplayName("Should handle race condition when adding duplicate cart item concurrently (FIX #5)")
+        @DisplayName("Should handle race condition when adding duplicate cart item concurrently")
         void addToCart_ConcurrentDuplicateItem_ThrowsCourseAlreadyInCartException() {
             // Given
             AddToCartRequest request = new AddToCartRequest();
@@ -257,7 +257,7 @@ class CartServiceTest {
                     eq(courseId), eq(userId), any())).thenReturn(false);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(false);
-            // FIX #5: Simulate concurrent insert - DataIntegrityViolationException from unique constraint
+            // Simulate concurrent insert - DataIntegrityViolationException from unique constraint
             when(cartItemRepository.save(any(CartItem.class)))
                     .thenThrow(new org.springframework.dao.DataIntegrityViolationException(
                             "Duplicate entry for cart_id and course_id"));
@@ -273,14 +273,14 @@ class CartServiceTest {
     class GetOrCreateCartRaceConditionTests {
 
         @Test
-        @DisplayName("Should handle race condition when creating cart concurrently (FIX #4)")
+        @DisplayName("Should handle race condition when creating cart concurrently")
         void getCart_ConcurrentCartCreation_HandlesDataIntegrityViolation() {
             // Given - First findByUserId returns empty (cart doesn't exist yet)
             when(cartRepository.findByUserId(userId))
                     .thenReturn(Optional.empty())
                     // After catching DataIntegrityViolationException, second findByUserId succeeds
                     .thenReturn(Optional.of(cart));
-            // FIX #4: Simulate concurrent cart creation - unique constraint violation
+            // Simulate concurrent cart creation - unique constraint violation
             when(cartRepository.save(any(Cart.class)))
                     .thenThrow(new org.springframework.dao.DataIntegrityViolationException(
                             "Duplicate entry for user_id"));
@@ -291,7 +291,7 @@ class CartServiceTest {
 
             // Then
             assertThat(response).isNotNull();
-            // FIX #4: Should fetch existing cart after catching exception
+            // Should fetch existing cart after catching exception
             verify(cartRepository, times(2)).findByUserId(userId);
         }
     }
@@ -301,7 +301,7 @@ class CartServiceTest {
     class RemoveFromCartTests {
 
         @Test
-        @DisplayName("Should remove course from cart successfully and update cart timestamp (FIX #16)")
+        @DisplayName("Should remove course from cart successfully and update cart timestamp")
         void removeFromCart_ExistingItem_RemovesItemAndUpdatesTimestamp() {
             // Given
             CartItem item = new CartItem();
@@ -324,7 +324,7 @@ class CartServiceTest {
             // Then
             assertThat(response).isNotNull();
             verify(cartItemRepository).delete(item);
-            // FIX #16: Verify cart's updatedAt timestamp was updated
+            // Verify cart's updatedAt timestamp was updated
             verify(cartRepository).save(argThat(c -> c.getUpdatedAt().isAfter(oldUpdatedAt)));
         }
 
@@ -553,11 +553,11 @@ class CartServiceTest {
     }
 
     @Nested
-    @DisplayName("Course Availability Tests (FIX #15)")
+    @DisplayName("Course Availability Tests")
     class CourseAvailabilityTests {
 
         @Test
-        @DisplayName("Should mark unpublished courses as unavailable in cart response (FIX #15)")
+        @DisplayName("Should mark unpublished courses as unavailable in cart response")
         void getCart_UnpublishedCourse_MarkedUnavailable() {
             // Given
             Long unpublishedCourseId = 102L;
@@ -592,26 +592,26 @@ class CartServiceTest {
             // Then
             assertThat(response.getItems()).hasSize(2);
 
-            // FIX #15: Verify published course is marked as available
+            // Verify published course is marked as available
             CartItemResponse publishedItemResp = response.getItems().stream()
                     .filter(item -> item.getCourseId().equals(courseId))
                     .findFirst().orElseThrow();
             assertThat(publishedItemResp.getIsAvailable()).isTrue();
             assertThat(publishedItemResp.getUnavailableReason()).isNull();
 
-            // FIX #15: Verify unpublished course is marked as unavailable
+            // Verify unpublished course is marked as unavailable
             CartItemResponse unpublishedItemResp = response.getItems().stream()
                     .filter(item -> item.getCourseId().equals(unpublishedCourseId))
                     .findFirst().orElseThrow();
             assertThat(unpublishedItemResp.getIsAvailable()).isFalse();
             assertThat(unpublishedItemResp.getUnavailableReason()).contains("no longer published");
 
-            // FIX #15: Only available items should be included in totals
+            // Only available items should be included in totals
             assertThat(response.getItemCount()).isEqualTo(1);  // Only published course counts
         }
 
         @Test
-        @DisplayName("Should handle deleted/missing courses in cart response (FIX #15)")
+        @DisplayName("Should handle deleted/missing courses in cart response")
         void getCart_DeletedCourse_MarkedUnavailable() {
             // Given
             Long deletedCourseId = 999L;
@@ -638,7 +638,7 @@ class CartServiceTest {
             // Then
             assertThat(response.getItems()).hasSize(2);
 
-            // FIX #15: Verify deleted course is marked as unavailable
+            // Verify deleted course is marked as unavailable
             CartItemResponse deletedItemResp = response.getItems().stream()
                     .filter(item -> item.getCourseId().equals(deletedCourseId))
                     .findFirst().orElseThrow();
@@ -646,7 +646,7 @@ class CartServiceTest {
             assertThat(deletedItemResp.getUnavailableReason()).contains("has been removed");
             assertThat(deletedItemResp.getCourseTitle()).contains("no longer available");
 
-            // FIX #15: Only available items in totals
+            // Only available items in totals
             assertThat(response.getItemCount()).isEqualTo(1);
         }
     }

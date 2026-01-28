@@ -36,7 +36,7 @@ export const CheckoutRequestSchema = z.object({
   // Cart signature for validation (prevents cart tampering between preview and checkout)
   cartSignature: z.string().optional().nullable(),
 
-  // Idempotency key to prevent duplicate orders (FIX #12)
+  // Idempotency key to prevent duplicate orders
   idempotencyKey: z.string().optional().nullable(),
 });
 
@@ -63,7 +63,7 @@ export const DirectCheckoutRequestSchema = z.object({
   ipAddress: z.string().optional().nullable(),
   userAgent: z.string().optional().nullable(),
 
-  // Idempotency key to prevent duplicate orders (FIX #12)
+  // Idempotency key to prevent duplicate orders
   idempotencyKey: z.string().optional().nullable(),
 });
 
@@ -129,7 +129,9 @@ export const CheckoutResultResponseSchema = z.object({
   gatewayTransactionId: z.string().nullable().optional(),
 
   // Enrolled courses
-  enrolledCourseIds: z.array(z.number()).optional(),
+  // NOTE: For pending/redirect flows (e.g. PayPal), backend returns null here
+  // so we allow null to avoid Zod errors when payment is not yet completed.
+  enrolledCourseIds: z.array(z.number()).nullable().optional(),
 
   // Invoice
   invoiceNumber: z.string().nullable().optional(),

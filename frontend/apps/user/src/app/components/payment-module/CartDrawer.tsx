@@ -53,7 +53,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const totalAmount = cart?.totalAmount || 0;
   const currency = cart?.currency || "USD";
 
-  // Check for unavailable items (FIX #15)
+  // Check for unavailable items
   const unavailableItems = items.filter((item) => item.isAvailable === false);
   const hasUnavailableItems = unavailableItems.length > 0;
 
@@ -136,7 +136,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         {/* Footer */}
         {items.length > 0 && (
           <div className="border-t p-4 bg-gray-50">
-            {/* Unavailable Items Warning (FIX #15) */}
+            {/* Unavailable Items Warning */}
             {hasUnavailableItems && (
               <div className="flex items-center gap-2 p-2 mb-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />

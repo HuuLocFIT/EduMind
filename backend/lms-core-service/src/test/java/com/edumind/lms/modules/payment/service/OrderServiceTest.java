@@ -171,7 +171,7 @@ class OrderServiceTest {
     class GetOrdersByUserTests {
 
         @Test
-        @DisplayName("Should return paginated orders and use findFirstItemsByOrderIds to avoid LazyInitializationException (FIX #7)")
+        @DisplayName("Should return paginated orders and use findFirstItemsByOrderIds to avoid LazyInitializationException")
         void getOrdersByUser_ReturnsPageWithoutLazyLoadingIssue() {
             // Given
             Pageable pageable = PageRequest.of(0, 10);
@@ -182,7 +182,7 @@ class OrderServiceTest {
             itemCounts.add(new Object[]{orderId, 1L});
             when(orderItemRepository.countItemsByOrderIds(any())).thenReturn(itemCounts);
 
-            // FIX #7: Mock findFirstItemsByOrderIds to prevent LazyInitializationException
+            // Mock findFirstItemsByOrderIds to prevent LazyInitializationException
             OrderItem firstItem = new OrderItem();
             firstItem.setId(1L);
             firstItem.setCourseId(100L);
@@ -195,7 +195,7 @@ class OrderServiceTest {
 
             // Then
             assertThat(result.getContent()).hasSize(1);
-            // FIX #7: Verify findFirstItemsByOrderIds was called to fetch items separately
+            // Verify findFirstItemsByOrderIds was called to fetch items separately
             verify(orderItemRepository).findFirstItemsByOrderIds(any());
         }
     }
@@ -326,7 +326,7 @@ class OrderServiceTest {
     class RequestRefundTests {
 
         @Test
-        @DisplayName("Should request refund for completed order and set refund fields (FIX #13)")
+        @DisplayName("Should request refund for completed order and set refund fields")
         void requestRefund_CompletedOrder_SetsRefundFieldsCorrectly() {
             // Given
             order.setStatus(OrderStatus.COMPLETED);
@@ -338,7 +338,7 @@ class OrderServiceTest {
 
             // Then
             assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
-            // FIX #13: Verify refundReason and refundedAt are set
+            // Verify refundReason and refundedAt are set
             assertThat(order.getRefundReason()).isEqualTo("Not satisfied with course quality");
             assertThat(order.getRefundedAt()).isNotNull();
             assertThat(order.getRefundedAt()).isBeforeOrEqualTo(LocalDateTime.now());
@@ -500,7 +500,7 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception if all items are skipped and prevent orphan order (FIX #9)")
+        @DisplayName("Should throw exception if all items are skipped and prevent orphan order")
         void createOrderFromCart_AllItemsSkipped_ThrowsExceptionWithoutCreatingOrder() {
             // Given
             CartItem item = new CartItem();
@@ -518,7 +518,7 @@ class OrderServiceTest {
                     .isInstanceOf(CartEmptyException.class)
                     .hasMessageContaining("No valid items");
 
-            // FIX #9: Verify order was NOT created (no orphan order)
+            // Verify order was NOT created (no orphan order)
             verify(orderRepository, never()).save(any(Order.class));
         }
 
@@ -554,7 +554,7 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should keep null email if fetching customer details fails (FIX #14)")
+        @DisplayName("Should keep null email if fetching customer details fails")
         void createOrderFromCart_FetchDetailsFails_KeepsNullEmail() {
             // Given
             CartItem cartItem = new CartItem();
@@ -575,7 +575,7 @@ class OrderServiceTest {
             Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
 
             // Then
-            // FIX #14: Email should be null instead of fake email
+            // Email should be null instead of fake email
             assertThat(result.getCustomerEmail()).isNull();
             // Name falls back to "Customer"
             assertThat(result.getCustomerName()).isEqualTo("Customer");

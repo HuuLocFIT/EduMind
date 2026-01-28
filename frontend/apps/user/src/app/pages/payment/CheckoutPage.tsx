@@ -110,7 +110,7 @@ export const CheckoutPage: React.FC = () => {
 
     setStep("processing");
 
-    // Generate idempotency key to prevent duplicate orders (FIX #12)
+    // Generate idempotency key to prevent duplicate orders
     const idempotencyKey = generateIdempotencyKey();
 
     const baseRequest = {
@@ -138,6 +138,18 @@ export const CheckoutPage: React.FC = () => {
         result = await cartCheckoutMutation.mutateAsync(cartRequest);
       }
 
+      // Check for redirect FIRST (PayPal returns success=false, pending=true, requiresRedirect=true)
+      // This must be checked before the success check to handle external payment redirects
+      if (result.requiresRedirect && result.redirectUrl) {
+        setResult({
+          orderNumber: result.orderNumber || undefined,
+          redirectUrl: result.redirectUrl,
+        });
+        // Redirect to external payment provider (PayPal, SePay, etc.)
+        window.location.href = result.redirectUrl;
+        return; // Exit early - browser will navigate away
+      }
+
       if (result.success) {
         setResult({
           orderNumber: result.orderNumber || undefined,
@@ -145,20 +157,16 @@ export const CheckoutPage: React.FC = () => {
         });
 
         // Clear cart on success ONLY if it was a cart checkout
-        // (Direct checkout doesn't affect cart items necessarily, 
+        // (Direct checkout doesn't affect cart items necessarily,
         // though the backend might have logic for it if duplicates exist)
         if (!isDirectCheckout) {
           clearCart();
         }
 
-        // If there's a redirect URL (external payment), go there
-        if (result.redirectUrl) {
-          window.location.href = result.redirectUrl;
-        } else {
-          // Otherwise go to success page
-          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${result.orderNumber}`);
-        }
+        // Go to success page for immediate success (Mock gateway, free checkout)
+        navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${result.orderNumber}`);
       } else {
+        // Actual payment failure (not a pending redirect)
         setStep("failed");
         setResult({ errorMessage: result.message || "Payment failed" });
         navigate(

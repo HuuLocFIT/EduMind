@@ -39,14 +39,14 @@ public class CartItemResponse {
     private LocalDateTime addedAt;
 
     /**
-     * FIX #15: Flag to indicate if course is still available for purchase.
+     * Flag to indicate if course is still available for purchase.
      * Course may become unavailable if unpublished after being added to cart.
      */
     @Builder.Default
     private Boolean isAvailable = true;
 
     /**
-     * FIX #15: Reason why course is unavailable (if isAvailable=false).
+     * Reason why course is unavailable (if isAvailable=false).
      */
     private String unavailableReason;
 }

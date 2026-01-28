@@ -33,7 +33,7 @@ export const CartItemResponseSchema = z.object({
 
   addedAt: z.string(),
 
-  // Availability status (FIX #15: Cart shows unavailable courses)
+  // Availability status
   isAvailable: z.boolean().default(true),
   unavailableReason: z.string().nullable().optional(),
 });

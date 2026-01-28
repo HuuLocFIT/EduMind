@@ -83,7 +83,7 @@ export const CartPage: React.FC = () => {
   const totalAmount = cart?.totalAmount || 0;
   const currency = cart?.currency || "USD";
 
-  // Check for unavailable items (FIX #15)
+  // Check for unavailable items
   const unavailableItems = useMemo(
     () => items.filter((item) => item.isAvailable === false),
     [items]
@@ -144,7 +144,7 @@ export const CartPage: React.FC = () => {
             </div>
           )}
 
-          {/* Unavailable Items Warning (FIX #15) */}
+          {/* Unavailable Items Warning */}
           {hasUnavailableItems && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
               <div className="flex items-start gap-3">

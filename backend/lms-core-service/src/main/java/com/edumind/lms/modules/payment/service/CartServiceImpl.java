@@ -64,7 +64,7 @@ public class CartServiceImpl implements CartService {
             throw new CourseNotAvailableException(courseId);
         }
 
-        // FIX #3: Use existsByCourseIdAndStudentIdAndStatusNot to exclude DROPPED enrollments
+        // Use existsByCourseIdAndStudentIdAndStatusNot to exclude DROPPED enrollments
         // This makes the check consistent with checkout flow, allowing re-enrollment after drop
         if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(courseId, userId, EnrollmentStatus.DROPPED)) {
             throw new CourseAlreadyPurchasedException(courseId);
@@ -87,7 +87,7 @@ public class CartServiceImpl implements CartService {
         // Snapshot price at time of adding (in case price changes later)
         item.setPriceSnapshot(course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO);
 
-        // FIX #5: Handle race condition - if another request added the same item concurrently,
+        // Handle race condition - if another request added the same item concurrently,
         // the unique constraint (cart_id, course_id) will throw DataIntegrityViolationException
         try {
             cartItemRepository.save(item);
@@ -121,7 +121,7 @@ public class CartServiceImpl implements CartService {
 
         cartItemRepository.delete(item);
 
-        // FIX #16: Update cart timestamp when items are removed
+        // Update cart timestamp when items are removed
         cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
 
@@ -179,7 +179,7 @@ public class CartServiceImpl implements CartService {
 
     /**
      * Get existing cart or create a new one for the user.
-     * FIX #4: Handle race condition where two concurrent requests both try to create a cart.
+     * Handle race condition where two concurrent requests both try to create a cart.
      * Requires unique constraint on user_id in carts table.
      */
     private Cart getOrCreateCart(Long userId) {
@@ -203,7 +203,7 @@ public class CartServiceImpl implements CartService {
 
     /**
      * Build cart response with course details and availability checks.
-     * FIX #15: Include isAvailable flag for courses that become unavailable after adding to cart.
+     * Include isAvailable flag for courses that become unavailable after adding to cart.
      */
     private CartResponse buildCartResponse(Cart cart) {
         List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
@@ -238,7 +238,7 @@ public class CartServiceImpl implements CartService {
         for (CartItem item : items) {
             Course course = courseMap.get(item.getCourseId());
 
-            // FIX #15: Handle case where course was deleted or not found
+            // Handle case where course was deleted or not found
             if (course == null) {
                 CartItemResponse itemResponse = CartItemResponse.builder()
                         .courseId(item.getCourseId())
@@ -255,7 +255,7 @@ public class CartServiceImpl implements CartService {
             BigDecimal finalPrice = course.getEffectivePrice();
             BigDecimal discount = originalPrice.subtract(finalPrice);
 
-            // FIX #15: Check if course is still published/available
+            // Check if course is still published/available
             boolean isAvailable = course.isPublished();
             String unavailableReason = null;
             if (!isAvailable) {

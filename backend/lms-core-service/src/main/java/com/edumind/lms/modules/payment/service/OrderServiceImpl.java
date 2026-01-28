@@ -103,7 +103,7 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Build order summary page with item counts and first item info.
-     * FIX #7: Fetch first items separately to avoid LazyInitializationException
+     * Fetch first items separately to avoid LazyInitializationException
      * when accessing order.getItems() on detached entities from pagination.
      */
     private Page<OrderSummaryResponse> buildOrderSummaryPage(Page<Order> ordersPage) {
@@ -123,7 +123,7 @@ public class OrderServiceImpl implements OrderService {
                 itemCounts.put(orderId, count.intValue());
             }
 
-            // FIX #7: Fetch first items separately to avoid LazyInitializationException
+            // Fetch first items separately to avoid LazyInitializationException
             List<OrderItem> firstItemsList = orderItemRepository.findFirstItemsByOrderIds(orderIds);
             for (OrderItem item : firstItemsList) {
                 firstItems.put(item.getOrder().getId(), item);
@@ -210,7 +210,7 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Request refund for a completed order.
-     * FIX #13: Use dedicated refund fields instead of misusing failureReason.
+     * Use dedicated refund fields instead of misusing failureReason.
      * Note: This marks the order as REFUNDED immediately. In production,
      * you would integrate with payment gateway refund API and possibly
      * use a REFUND_REQUESTED status for manual approval workflow.
@@ -235,7 +235,7 @@ public class OrderServiceImpl implements OrderService {
         // TODO: Check refund window logic (e.g. 30 days) if needed
         // TODO: Integrate with payment gateway refund API
 
-        // FIX #13: Use the new markAsRefunded(reason) method with dedicated fields
+        // Use the new markAsRefunded(reason) method with dedicated fields
         order.markAsRefunded(reason);
         order.setUpdatedAt(LocalDateTime.now());
 
@@ -285,14 +285,14 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Create order from cart items.
-     * FIX #9: Validate items BEFORE creating order to avoid orphan orders in database.
+     * Validate items BEFORE creating order to avoid orphan orders in database.
      */
     @Override
     @Transactional
     public Order createOrderFromCart(Long userId, List<CartItem> cartItems, CheckoutRequest request) {
         log.debug("Creating order from cart for user: {}", userId);
 
-        // FIX #9: Validate items BEFORE creating order to avoid orphan orders
+        // Validate items BEFORE creating order to avoid orphan orders in database.
         List<Long> courseIds = cartItems.stream()
                 .map(CartItem::getCourseId)
                 .collect(Collectors.toList());
@@ -337,7 +337,7 @@ public class OrderServiceImpl implements OrderService {
         fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
         order.setBillingAddress(request.getBillingAddress());
 
-        // FIX #12: Set idempotency key if provided
+        // Set idempotency key if provided
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
             order.setIdempotencyKey(request.getIdempotencyKey());
         }
@@ -382,7 +382,7 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Create order from a single course (direct checkout).
-     * FIX #10: Use getOriginalPrice() consistently with createOrderFromCart.
+     * Use getOriginalPrice() consistently with createOrderFromCart.
      */
     @Override
     @Transactional
@@ -407,7 +407,7 @@ public class OrderServiceImpl implements OrderService {
 
         order = orderRepository.save(order);
 
-        // FIX #10: Use getOriginalPrice() consistently with createOrderFromCart
+        // Use getOriginalPrice() consistently with createOrderFromCart
         BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : BigDecimal.ZERO;
         BigDecimal effectivePrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
         BigDecimal discount = originalPrice.subtract(effectivePrice);
@@ -485,7 +485,7 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Build order summary response.
-     * FIX #7: Accept firstItem as parameter instead of accessing lazy collection.
+     * Accept firstItem as parameter instead of accessing lazy collection.
      */
     private OrderSummaryResponse buildOrderSummary(Order order, int itemCount, OrderItem firstItem) {
         return OrderSummaryResponse.builder()
@@ -504,7 +504,7 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Fill customer details from request or fetch from UserClient.
-     * FIX #14: Don't use fake fallback email - log warning instead.
+     * Don't use fake fallback email - log warning instead.
      * The order can still be created but invoicing may fail if email is invalid.
      */
     private void fillCustomerDetails(Order order, String reqName, String reqEmail) {
@@ -529,7 +529,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // FIX #14: Log warning for missing email instead of using fake fallback
+        // Log warning for missing email instead of using fake fallback
         // This preserves data integrity - better to have null than invalid email
         if (email == null || email.isBlank()) {
             log.warn("Order created without valid customer email. Invoice generation may fail.");

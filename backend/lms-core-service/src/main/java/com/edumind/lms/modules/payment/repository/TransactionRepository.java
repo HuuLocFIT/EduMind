@@ -31,6 +31,22 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query("SELECT t FROM Transaction t WHERE t.gatewayTransactionId = :gatewayTransactionId")
     Optional<Transaction> findByGatewayTransactionIdForUpdate(@Param("gatewayTransactionId") String gatewayTransactionId);
 
+    /**
+     * Find transaction by gateway order ID (original PayPal Order ID) with pessimistic write lock.
+     * This is used for capture operations when the gatewayTransactionId has been updated to Capture ID.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Transaction t WHERE t.gatewayOrderId = :gatewayOrderId")
+    Optional<Transaction> findByGatewayOrderIdForUpdate(@Param("gatewayOrderId") String gatewayOrderId);
+
+    /**
+     * Find transaction by either gateway transaction ID or gateway order ID with pessimistic write lock.
+     * Handles both initial lookup (by Order ID) and retry lookup (after Capture ID overwrite).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Transaction t WHERE t.gatewayTransactionId = :id OR t.gatewayOrderId = :id")
+    Optional<Transaction> findByGatewayIdForUpdate(@Param("id") String id);
+
     List<Transaction> findByOrderId(Long orderId);
 
     List<Transaction> findByOrderIdOrderByCreatedAtDesc(Long orderId);
@@ -38,6 +54,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     Optional<Transaction> findFirstByOrderIdOrderByCreatedAtDesc(Long orderId);
 
     Optional<Transaction> findFirstByOrderIdAndStatusOrderByCreatedAtDesc(Long orderId, TransactionStatus status);
+
+    List<Transaction> findByOrderIdAndStatus(Long orderId, TransactionStatus status);
 
     // By status
     Page<Transaction> findByStatus(TransactionStatus status, Pageable pageable);

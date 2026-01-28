@@ -243,7 +243,7 @@ describe('CartPage', () => {
     expect(mockShowSuccess).toHaveBeenCalledWith('Cart cleared');
   });
 
-  // Tests for unavailable items (FIX #15)
+  // Tests for unavailable items
   describe('unavailable items', () => {
     it('shows warning banner when cart has unavailable items', () => {
       (useCart as any).mockReturnValue({

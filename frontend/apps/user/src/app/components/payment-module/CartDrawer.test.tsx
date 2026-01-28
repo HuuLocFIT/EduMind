@@ -207,7 +207,7 @@ describe('CartDrawer', () => {
     expect(document.body.style.overflow).toBe('');
   });
 
-  // Tests for unavailable items (FIX #15)
+  // Tests for unavailable items
   describe('unavailable items', () => {
     it('shows warning when cart has unavailable items', () => {
       (useCart as any).mockReturnValue({

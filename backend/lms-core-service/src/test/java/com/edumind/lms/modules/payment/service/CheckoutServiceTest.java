@@ -570,7 +570,7 @@ class CheckoutServiceTest {
         }
 
         @Test
-        @DisplayName("Should process checkout for free course and set status to COMPLETED (FIX #2)")
+        @DisplayName("Should process checkout for free course and set status to COMPLETED")
         void checkout_FreeCourse_CompletesImmediatelyWithCompletedStatus() {
             // Given
             course = Course.builder()
@@ -619,7 +619,7 @@ class CheckoutServiceTest {
 
             // Then
             assertThat(result).isNotNull();
-            // FIX #2: Verify free order is set to COMPLETED status after enrollment
+            // Verify free order is set to COMPLETED status after enrollment
             assertThat(freeOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
             assertThat(freeOrder.getCompletedAt()).isNotNull();
             verify(cartService).removeItems(eq(userId), eq(List.of(courseId)));
@@ -704,7 +704,7 @@ class CheckoutServiceTest {
         }
 
         @Test
-        @DisplayName("Should return existing order when idempotency key matches (FIX #12)")
+        @DisplayName("Should return existing order when idempotency key matches")
         void checkout_IdempotencyKeyMatches_ReturnsExistingOrder() {
             // Given
             String idempotencyKey = "client-generated-key-12345";
@@ -739,7 +739,7 @@ class CheckoutServiceTest {
         }
 
         @Test
-        @DisplayName("Should create new order when idempotency key is different (FIX #12)")
+        @DisplayName("Should create new order when idempotency key is different")
         void checkout_IdempotencyKeyDifferent_CreatesNewOrder() {
             // Given
             String idempotencyKey = "new-unique-key-67890";
@@ -781,7 +781,7 @@ class CheckoutServiceTest {
         }
 
         @Test
-        @DisplayName("Should handle null/blank idempotency key gracefully (FIX #12)")
+        @DisplayName("Should handle null/blank idempotency key gracefully")
         void checkout_NullIdempotencyKey_ProcessesNormally() {
             // Given
             CheckoutRequest request = CheckoutRequest.builder()
@@ -912,7 +912,7 @@ class CheckoutServiceTest {
     class HandlePaymentCallbackTests {
         
         @Test
-        @DisplayName("Should process successful callback and reload order to avoid NPE (FIX #8)")
+        @DisplayName("Should process successful callback and reload order to avoid NPE")
         void handlePaymentCallback_Success_CompletesOrderWithReload() {
             // Given
             String txnId = "gateway-txn-123";
@@ -922,7 +922,7 @@ class CheckoutServiceTest {
             transaction.setOrder(order);
 
             when(transactionRepository.findByGatewayTransactionId(txnId)).thenReturn(Optional.of(transaction));
-            // FIX #8: Mock order reload explicitly to prevent NPE
+            // Mock order reload explicitly to prevent NPE
             when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
             when(orderRepository.save(any(Order.class))).thenReturn(order);
             // Mock lazy loading
@@ -933,7 +933,7 @@ class CheckoutServiceTest {
 
             // Then
             assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
-            // FIX #8: Verify order was reloaded to avoid working with detached entity (may be called multiple times)
+            // Verify order was reloaded to avoid working with detached entity (may be called multiple times)
             verify(orderRepository, atLeast(1)).findById(order.getId());
             verify(orderRepository, atLeastOnce()).save(order);
             verify(enrollmentService).enrollStudent(any(), any());
@@ -1161,7 +1161,7 @@ class CheckoutServiceTest {
     class RetryPaymentTests {
 
         @Test
-        @DisplayName("Should retry payment successfully on failed order and NOT clear cart (FIX #11)")
+        @DisplayName("Should retry payment successfully on failed order and NOT clear cart")
         void retryPayment_FailedOrder_SuccessWithoutClearingCart() {
             // Given
             order.setStatus(OrderStatus.FAILED);
@@ -1195,7 +1195,7 @@ class CheckoutServiceTest {
             assertThat(result.isSuccess()).isTrue();
             // Order may be saved multiple times (reset + retry metadata + complete), we just assert it was saved at least twice
             verify(orderRepository, atLeast(2)).save(any(Order.class));
-            // FIX #11: Verify cart is NOT cleared on retry payment (isFromCart=false)
+            // Verify cart is NOT cleared on retry payment (isFromCart=false)
             verify(cartService, never()).removeItems(any(), any());
         }
 

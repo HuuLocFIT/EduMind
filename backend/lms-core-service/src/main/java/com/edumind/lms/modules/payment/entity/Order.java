@@ -107,11 +107,11 @@ public class Order extends BaseEntity {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
-    // FIX #12: Idempotency key to prevent duplicate orders on client retry
+    // Idempotency key to prevent duplicate orders on client retry
     @Column(name = "idempotency_key", length = 64, unique = true)
     private String idempotencyKey;
 
-    // FIX #13: Proper refund tracking (separate from failureReason)
+    // Proper refund tracking (separate from failureReason)
     @Column(name = "refund_reason", length = 500)
     private String refundReason;
 
@@ -172,7 +172,7 @@ public class Order extends BaseEntity {
 
     /**
      * Mark order as refunded with reason.
-     * FIX #13: Use dedicated refund fields instead of failureReason.
+     * Use dedicated refund fields instead of failureReason.
      */
     public void markAsRefunded(String reason) {
         this.status = OrderStatus.REFUNDED;

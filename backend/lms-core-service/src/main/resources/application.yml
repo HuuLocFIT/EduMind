@@ -104,7 +104,7 @@ app:
 
 # Payment Gateway Configuration
 payment:
-  gateway: ${PAYMENT_GATEWAY:mock}  # mock | paypal | sepay
+  gateway: ${PAYMENT_GATEWAY}  # mock | paypal | sepay
 
   # Mock Gateway (for development/testing)
   mock:
@@ -118,10 +118,11 @@ payment:
 
   # PayPal Configuration (future)
   paypal:
-    client-id: ${PAYPAL_CLIENT_ID:}
-    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    client-id: ${PAYPAL_CLIENT_ID}
+    client-secret: ${PAYPAL_CLIENT_SECRET}
     mode: ${PAYPAL_MODE:sandbox}    # sandbox | live
     webhook-id: ${PAYPAL_WEBHOOK_ID:}
+    return-base-url: ${PAYPAL_RETURN_BASE_URL}
 
   # SePay Configuration (future - Vietnam)
   sepay:

@@ -1,7 +1,7 @@
 -- =============================================
 -- V15: Add idempotency key and refund tracking to orders
--- FIX #12: Idempotency key to prevent duplicate orders
--- FIX #13: Proper refund tracking fields
+-- Idempotency key to prevent duplicate orders
+-- Proper refund tracking fields
 -- =============================================
 
 -- Add idempotency key column with unique constraint
