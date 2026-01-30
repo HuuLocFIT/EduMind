@@ -29,6 +29,10 @@ public class CheckoutResultResponse {
     private PaymentMethod paymentMethod;
     private boolean pending;  // For pending payments
 
+    // Local currency info (for SePay VND conversion)
+    private BigDecimal localAmount;
+    private String localCurrency;
+
     // Transaction info (if payment processed)
     private String transactionNumber;
     private String gatewayTransactionId;

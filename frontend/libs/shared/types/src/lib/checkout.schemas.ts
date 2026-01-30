@@ -124,6 +124,10 @@ export const CheckoutResultResponseSchema = z.object({
   paymentMethod: PaymentMethodSchema.nullable().optional(),
   pending: z.boolean().optional(),
 
+  // Local currency info (for SePay VND conversion)
+  localAmount: z.number().nullable().optional(),
+  localCurrency: z.string().nullable().optional(),
+
   // Transaction info
   transactionNumber: z.string().nullable().optional(),
   gatewayTransactionId: z.string().nullable().optional(),

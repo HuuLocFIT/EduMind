@@ -21,7 +21,7 @@ import java.util.Set;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "payment.gateway", havingValue = "paypal")
+@ConditionalOnProperty(name = "payment.paypal.enabled", havingValue = "true", matchIfMissing = false)
 public class PayPalGateway implements PaymentGateway {
 
     private static final String GATEWAY_NAME = "PAYPAL";

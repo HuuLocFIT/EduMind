@@ -8,9 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +25,16 @@ public class PaymentMethodPolicyServiceImpl implements PaymentMethodPolicyServic
             return;
         }
 
-        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        // Get the gateway for this specific payment method
+        String gatewayName = getGatewayNameForMethod(paymentMethod);
+        PaymentGateway gateway = gatewayRegistry.getGateway(gatewayName).orElse(null);
+
+        if (gateway == null) {
+            log.warn("Gateway {} for payment method {} is not available",
+                    gatewayName, paymentMethod);
+            throw new PaymentFailedException(
+                    "Selected payment method is not available. Please choose another payment method.");
+        }
 
         if (!gateway.supportsCurrency(currency)) {
             log.warn("Payment method {} via gateway {} does not support currency {}",
@@ -38,19 +46,41 @@ public class PaymentMethodPolicyServiceImpl implements PaymentMethodPolicyServic
 
     @Override
     public List<PaymentMethod> getAvailableMethods(String currency) {
-        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        List<PaymentMethod> availableMethods = new ArrayList<>();
 
-        if (!gateway.supportsCurrency(currency)) {
-            // Only FREE is always allowed regardless of gateway configuration
-            return List.of(PaymentMethod.FREE);
-        }
+        // Always include FREE for free courses
+        availableMethods.add(PaymentMethod.FREE);
 
-        // For now, all non-FREE methods are considered available if the active gateway
-        // supports the currency. This can be refined per-gateway in the future.
-        return Arrays.stream(PaymentMethod.values())
-                .filter(method -> method != PaymentMethod.FREE)
-                .collect(Collectors.toList());
+        // Check each payment method's gateway availability and currency support
+        checkAndAddMethod(availableMethods, PaymentMethod.PAYPAL, "PAYPAL", currency);
+        checkAndAddMethod(availableMethods, PaymentMethod.SEPAY, "SEPAY", currency);
+        checkAndAddMethod(availableMethods, PaymentMethod.MOCK, "MOCK", currency);
+
+        return availableMethods;
+    }
+
+    /**
+     * Check if a payment method's gateway is available and supports the currency.
+     */
+    private void checkAndAddMethod(List<PaymentMethod> methods, PaymentMethod method,
+                                   String gatewayName, String currency) {
+        gatewayRegistry.getGateway(gatewayName).ifPresent(gateway -> {
+            if (gateway.supportsCurrency(currency)) {
+                methods.add(method);
+                log.debug("Payment method {} available for currency {}", method, currency);
+            }
+        });
+    }
+
+    /**
+     * Map payment method to gateway name.
+     */
+    private String getGatewayNameForMethod(PaymentMethod method) {
+        return switch (method) {
+            case PAYPAL -> "PAYPAL";
+            case SEPAY -> "SEPAY";
+            case MOCK -> "MOCK";
+            case FREE -> "MOCK"; // Fallback, not actually used for FREE
+        };
     }
 }
-
-

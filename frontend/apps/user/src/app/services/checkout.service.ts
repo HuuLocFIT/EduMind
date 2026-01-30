@@ -85,6 +85,17 @@ export const checkoutService = {
     );
     return parseCheckoutResult(response.data);
   },
+
+  /**
+   * Check payment status (for polling Sepay QR payments)
+   * Returns current order status to detect webhook completion
+   */
+  async checkPaymentStatus(orderId: number): Promise<CheckoutResultResponse> {
+    const response = await apiClient.get<CheckoutResultResponse>(
+      CHECKOUT_ENDPOINTS.STATUS(orderId)
+    );
+    return parseCheckoutResult(response.data);
+  },
 };
 
 export type CheckoutService = typeof checkoutService;

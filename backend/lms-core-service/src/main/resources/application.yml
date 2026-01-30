@@ -104,11 +104,12 @@ app:
 
 # Payment Gateway Configuration
 payment:
-  gateway: ${PAYMENT_GATEWAY}  # mock | paypal | sepay
+  # Default gateway used when payment method not specified
+  gateway: ${PAYMENT_GATEWAY:mock}  # mock | paypal | sepay
 
   # Mock Gateway (for development/testing)
   mock:
-    enabled: true
+    enabled: ${PAYMENT_MOCK_ENABLED:true}  # Enable Mock gateway
     delay-ms: 1500                  # Simulate processing delay
     success-rate: 0.95              # 95% success rate for testing
     # Test card numbers:
@@ -116,18 +117,25 @@ payment:
     # - Ends with 1111: Always fail
     # - Others: Based on success-rate
 
-  # PayPal Configuration (future)
+  # PayPal Configuration
   paypal:
-    client-id: ${PAYPAL_CLIENT_ID}
-    client-secret: ${PAYPAL_CLIENT_SECRET}
+    enabled: ${PAYMENT_PAYPAL_ENABLED:false}  # Enable PayPal gateway
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
     mode: ${PAYPAL_MODE:sandbox}    # sandbox | live
     webhook-id: ${PAYPAL_WEBHOOK_ID:}
-    return-base-url: ${PAYPAL_RETURN_BASE_URL}
+    return-base-url: ${PAYPAL_RETURN_BASE_URL:}
 
-  # SePay Configuration (future - Vietnam)
+  # SePay Configuration (Vietnam QR Payment)
   sepay:
+    enabled: ${PAYMENT_SEPAY_ENABLED:false}  # Enable SePay gateway
     api-key: ${SEPAY_API_KEY:}
     merchant-id: ${SEPAY_MERCHANT_ID:}
     secret-key: ${SEPAY_SECRET_KEY:}
     base-url: ${SEPAY_BASE_URL:https://my.sepay.vn}
     webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+    bank-code: ${SEPAY_BANK_CODE:}
+    bank-account: ${SEPAY_BANK_ACCOUNT:}
+    account-name: ${SEPAY_ACCOUNT_NAME:}
+    qr-expire-minutes: 15
+    template: compact2

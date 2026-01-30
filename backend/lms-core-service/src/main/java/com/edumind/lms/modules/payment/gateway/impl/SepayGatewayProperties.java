@@ -14,4 +14,13 @@ public class SepayGatewayProperties {
     private String secretKey;
     private String baseUrl = "https://my.sepay.vn";
     private String webhookSecret;
+
+    // Bank account info for QR code generation
+    private String bankCode;        // Bank code (e.g., MB, VCB, TCB)
+    private String bankAccount;     // Bank account number
+    private String accountName;     // Account holder name
+
+    // Optional settings
+    private int qrExpireMinutes = 15;  // QR code expiration time
+    private String template = "compact2";  // QR template style
 }

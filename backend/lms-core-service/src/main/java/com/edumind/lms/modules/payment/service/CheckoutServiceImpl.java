@@ -510,8 +510,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             orderRepository.save(order);
         }
 
-        // 2. Call Gateway to Capture
-        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        // 2. Call Gateway to Capture (use order's payment method)
+        PaymentGateway gateway = getGatewayForPaymentMethod(order.getPaymentMethod());
         GatewayPaymentResult result;
         try {
             result = gateway.capturePayment(gatewayOrderId);
@@ -866,7 +866,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             paymentMethodPolicyService.validatePaymentMethod(order.getPaymentMethod(), order.getCurrency());
         }
 
-        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        // Select gateway based on payment method (supports multiple gateways)
+        PaymentGateway gateway = getGatewayForPaymentMethod(order.getPaymentMethod());
 
         // 1. Ensure we don't create duplicate PENDING transactions for the same order
         Transaction transaction = createOrReusePendingTransaction(order);
@@ -1434,6 +1435,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .orderStatus(updatedOrder.getStatus())
                 .totalAmount(updatedOrder.getTotalAmount())
                 .currency(updatedOrder.getCurrency())
+                .localAmount(result.getLocalAmount())
+                .localCurrency(result.getLocalCurrency())
                 .paymentMethod(updatedOrder.getPaymentMethod())
                 .createdAt(updatedOrder.getCreatedAt())
                 .message("Please complete payment on the payment provider's page.")
@@ -1502,8 +1505,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             return markOrderForManualIntervention(order, transaction, enrollmentError, "No capture ID for refund");
         }
 
-        // Attempt automatic refund
-        PaymentGateway gateway = gatewayRegistry.getActiveGateway();
+        // Attempt automatic refund (use order's payment method)
+        PaymentGateway gateway = getGatewayForPaymentMethod(order.getPaymentMethod());
         GatewayRefundResult refundResult;
 
         try {
@@ -1684,6 +1687,128 @@ public class CheckoutServiceImpl implements CheckoutService {
                 throw new PaymentFailedException("Failed to activate enrollment: " + e.getMessage());
             }
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CheckoutResultResponse getOrderStatus(Long userId, Long orderId) {
+        log.debug("Checking order status for user: {}, order: {}", userId, orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // Verify user owns the order
+        if (!order.getUserId().equals(userId)) {
+            throw new OrderNotFoundException(orderId);
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
+
+        // Get the latest transaction for additional info
+        Transaction latestTx = transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+                .orElse(null);
+
+        CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getStatus())
+                .totalAmount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(order.getPaymentMethod())
+                .createdAt(order.getCreatedAt())
+                .completedAt(order.getCompletedAt());
+
+        if (latestTx != null) {
+            responseBuilder
+                    .transactionNumber(latestTx.getTransactionNumber())
+                    .gatewayTransactionId(latestTx.getGatewayTransactionId())
+                    .localAmount(latestTx.getLocalAmount())
+                    .localCurrency(latestTx.getLocalCurrency());
+
+            if (latestTx.getRedirectUrl() != null) {
+                responseBuilder
+                        .redirectUrl(latestTx.getRedirectUrl())
+                        .requiresRedirect(true);
+            }
+        }
+
+        switch (order.getStatus()) {
+            case COMPLETED -> {
+                responseBuilder
+                        .success(true)
+                        .pending(false)
+                        .enrolledCourseIds(orderItems.stream()
+                                .map(OrderItem::getCourseId)
+                                .collect(Collectors.toList()))
+                        .message("Payment confirmed! You can now access your courses.");
+
+                Invoice invoice = order.getInvoice();
+                if (invoice != null) {
+                    responseBuilder
+                            .invoiceNumber(invoice.getInvoiceNumber())
+                            .invoiceUrl(invoice.getPdfUrl());
+                }
+            }
+            case PENDING, PROCESSING -> {
+                responseBuilder
+                        .success(false)
+                        .pending(true)
+                        .message("Waiting for payment confirmation. Please complete the payment.");
+            }
+            case FAILED -> {
+                responseBuilder
+                        .success(false)
+                        .pending(false)
+                        .message(order.getFailureReason() != null
+                                ? order.getFailureReason()
+                                : "Payment failed. Please try again.")
+                        .errorCode("PAYMENT_FAILED")
+                        .errorMessage(order.getFailureReason())
+                        .canRetry(true);
+            }
+            case CANCELLED -> {
+                responseBuilder
+                        .success(false)
+                        .pending(false)
+                        .message("Order was cancelled.")
+                        .errorCode("ORDER_CANCELLED")
+                        .canRetry(false);
+            }
+            case REFUNDED -> {
+                responseBuilder
+                        .success(false)
+                        .pending(false)
+                        .message("Order was refunded.")
+                        .errorCode("ORDER_REFUNDED")
+                        .canRetry(false);
+            }
+        }
+
+        return responseBuilder.build();
+    }
+
+    /**
+     * Get the appropriate payment gateway based on the payment method.
+     * Supports multiple gateways simultaneously.
+     */
+    private PaymentGateway getGatewayForPaymentMethod(PaymentMethod paymentMethod) {
+        if (paymentMethod == null) {
+            log.warn("Payment method is null, using default active gateway");
+            return gatewayRegistry.getActiveGateway();
+        }
+
+        String gatewayName = switch (paymentMethod) {
+            case PAYPAL -> "PAYPAL";
+            case SEPAY -> "SEPAY";
+            case MOCK -> "MOCK";
+            case FREE -> "MOCK"; // Free orders don't need a real gateway
+        };
+
+        return gatewayRegistry.getGateway(gatewayName)
+                .orElseGet(() -> {
+                    log.warn("Gateway {} not available, falling back to active gateway", gatewayName);
+                    return gatewayRegistry.getActiveGateway();
+                });
     }
 
     /**

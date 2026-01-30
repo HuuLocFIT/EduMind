@@ -104,6 +104,9 @@ const CheckoutSuccessPage = createLazyRoute(
 const CheckoutFailedPage = createLazyRoute(
   () => import("./pages/payment/CheckoutFailedPage")
 );
+const SepayQrPage = createLazyRoute(
+  () => import("./pages/payment/SepayQrPage")
+);
 const OrdersPage = createLazyRoute(
   () => import("./pages/payment/OrdersPage")
 );
@@ -348,6 +351,14 @@ function AppContent() {
                 element={
                   <Suspense fallback={<FullPageLoading message="Loading..." />}>
                     <CheckoutFailedPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.CHECKOUT_SEPAY_QR}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading payment..." />}>
+                    <SepayQrPage />
                   </Suspense>
                 }
               />

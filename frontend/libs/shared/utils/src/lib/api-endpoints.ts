@@ -307,6 +307,7 @@ export const CHECKOUT_ENDPOINTS = {
   DIRECT: `${API_BASE_PATH}/checkout/direct`,
   CAPTURE: `${API_BASE_PATH}/checkout/capture`,
   CANCEL: `${API_BASE_PATH}/checkout/cancel`,
+  STATUS: (orderId: string | number) => `${API_BASE_PATH}/checkout/status/${orderId}`,
 } as const;
 
 /**

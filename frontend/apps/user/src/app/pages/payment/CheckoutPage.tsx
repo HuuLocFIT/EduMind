@@ -145,7 +145,25 @@ export const CheckoutPage: React.FC = () => {
           orderNumber: result.orderNumber || undefined,
           redirectUrl: result.redirectUrl,
         });
-        // Redirect to external payment provider (PayPal, SePay, etc.)
+
+        // For SePay, redirect to our QR display page instead of directly to the QR image
+        if (selectedPaymentMethod === PaymentMethod.SEPAY) {
+          // Use localAmount (VND) if available, otherwise fallback to totalAmount
+          const displayAmount = result.localAmount ?? result.totalAmount;
+          const displayCurrency = result.localCurrency ?? result.currency ?? 'VND';
+
+          const qrPageParams = new URLSearchParams({
+            qrUrl: result.redirectUrl,
+            orderId: String(result.orderId || ''),
+            orderNumber: result.orderNumber || '',
+            amount: String(displayAmount || ''),
+            currency: displayCurrency,
+          });
+          navigate(`${USER_ROUTES.CHECKOUT_SEPAY_QR}?${qrPageParams.toString()}`);
+          return;
+        }
+
+        // For other providers (PayPal), redirect to external payment page
         window.location.href = result.redirectUrl;
         return; // Exit early - browser will navigate away
       }

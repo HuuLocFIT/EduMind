@@ -110,6 +110,32 @@ public class CheckoutController {
         return ResponseEntity.ok(ApiResponse.success("Payment cancelled. You can retry or choose a different payment method.", result));
     }
 
+    /**
+     * Check payment status for an order (polling endpoint for SePay QR payments)
+     * GET /checkout/status/{orderId}
+     *
+     * Frontend should poll this endpoint after displaying QR code to check
+     * if the payment has been confirmed via webhook.
+     */
+    @GetMapping("/status/{orderId}")
+    public ResponseEntity<ApiResponse<CheckoutResultResponse>> checkPaymentStatus(
+            @PathVariable("orderId") Long orderId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.debug("User {} checking payment status for order {}", userId, orderId);
+
+        CheckoutResultResponse result = checkoutService.getOrderStatus(userId, orderId);
+
+        String message = result.isSuccess()
+                ? "Payment confirmed"
+                : result.isPending()
+                        ? "Waiting for payment confirmation"
+                        : "Payment failed";
+
+        return ResponseEntity.ok(ApiResponse.success(message, result));
+    }
+
     // ==================== Direct Checkout (Buy Now) ====================
 
     /**
