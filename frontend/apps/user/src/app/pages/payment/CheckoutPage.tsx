@@ -14,6 +14,11 @@ import { USER_ROUTES, UserRouteHelpers } from "@edumind/shared-utils";
 import { PaymentMethod } from "@edumind/shared-constants";
 import type { CheckoutRequest, DirectCheckoutRequest } from "@edumind/shared-types";
 
+// Generate a UUID v4 for idempotency key
+const generateIdempotencyKey = (): string => {
+  return crypto.randomUUID();
+};
+
 const PAYMENT_METHODS = [
   {
     id: PaymentMethod.PAYPAL,
@@ -105,10 +110,14 @@ export const CheckoutPage: React.FC = () => {
 
     setStep("processing");
 
+    // Generate idempotency key to prevent duplicate orders
+    const idempotencyKey = generateIdempotencyKey();
+
     const baseRequest = {
       paymentMethod: selectedPaymentMethod,
       successUrl: `${window.location.origin}${USER_ROUTES.CHECKOUT_SUCCESS}`,
       cancelUrl: `${window.location.origin}${USER_ROUTES.CHECKOUT_FAILED}`,
+      idempotencyKey,
     };
 
     try {
@@ -121,8 +130,42 @@ export const CheckoutPage: React.FC = () => {
         };
         result = await directCheckoutMutation.mutateAsync(directRequest);
       } else {
-        const cartRequest: CheckoutRequest = baseRequest;
+        // Include cart signature from preview for validation
+        const cartRequest: CheckoutRequest = {
+          ...baseRequest,
+          cartSignature: cartPreview?.cartSignature,
+        };
         result = await cartCheckoutMutation.mutateAsync(cartRequest);
+      }
+
+      // Check for redirect FIRST (PayPal returns success=false, pending=true, requiresRedirect=true)
+      // This must be checked before the success check to handle external payment redirects
+      if (result.requiresRedirect && result.redirectUrl) {
+        setResult({
+          orderNumber: result.orderNumber || undefined,
+          redirectUrl: result.redirectUrl,
+        });
+
+        // For SePay, redirect to our QR display page instead of directly to the QR image
+        if (selectedPaymentMethod === PaymentMethod.SEPAY) {
+          // Use localAmount (VND) if available, otherwise fallback to totalAmount
+          const displayAmount = result.localAmount ?? result.totalAmount;
+          const displayCurrency = result.localCurrency ?? result.currency ?? 'VND';
+
+          const qrPageParams = new URLSearchParams({
+            qrUrl: result.redirectUrl,
+            orderId: String(result.orderId || ''),
+            orderNumber: result.orderNumber || '',
+            amount: String(displayAmount || ''),
+            currency: displayCurrency,
+          });
+          navigate(`${USER_ROUTES.CHECKOUT_SEPAY_QR}?${qrPageParams.toString()}`);
+          return;
+        }
+
+        // For other providers (PayPal), redirect to external payment page
+        window.location.href = result.redirectUrl;
+        return; // Exit early - browser will navigate away
       }
 
       if (result.success) {
@@ -132,20 +175,16 @@ export const CheckoutPage: React.FC = () => {
         });
 
         // Clear cart on success ONLY if it was a cart checkout
-        // (Direct checkout doesn't affect cart items necessarily, 
+        // (Direct checkout doesn't affect cart items necessarily,
         // though the backend might have logic for it if duplicates exist)
         if (!isDirectCheckout) {
           clearCart();
         }
 
-        // If there's a redirect URL (external payment), go there
-        if (result.redirectUrl) {
-          window.location.href = result.redirectUrl;
-        } else {
-          // Otherwise go to success page
-          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${result.orderNumber}`);
-        }
+        // Go to success page for immediate success (Mock gateway, free checkout)
+        navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${result.orderNumber}`);
       } else {
+        // Actual payment failure (not a pending redirect)
         setStep("failed");
         setResult({ errorMessage: result.message || "Payment failed" });
         navigate(

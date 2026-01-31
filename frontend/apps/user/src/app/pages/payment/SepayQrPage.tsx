@@ -1,0 +1,343 @@
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Card, Button, Loading } from "@edumind/user-ui";
+import {
+  QrCode,
+  Clock,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  ArrowLeft,
+  Smartphone,
+  Copy,
+  Check,
+} from "lucide-react";
+import { USER_ROUTES } from "@edumind/shared-utils";
+import { usePaymentStatus, useCancelPayment } from "../../hooks/useCheckout";
+
+type PageState = "scanning" | "success" | "expired" | "error";
+
+// Default QR expiration time in minutes
+const QR_EXPIRATION_MINUTES = 15;
+
+export const SepayQrPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const cancelPaymentMutation = useCancelPayment();
+
+  // Get params from URL
+  const qrUrl = searchParams.get("qrUrl");
+  const orderIdParam = searchParams.get("orderId");
+  const orderNumber = searchParams.get("orderNumber");
+  const amount = searchParams.get("amount");
+  const currency = searchParams.get("currency") || "VND";
+
+  const orderId = orderIdParam ? Number(orderIdParam) : null;
+
+  const [pageState, setPageState] = useState<PageState>("scanning");
+  const [timeRemaining, setTimeRemaining] = useState(QR_EXPIRATION_MINUTES * 60);
+  const [copied, setCopied] = useState(false);
+
+  // Poll for payment status
+  const { data: statusData, isError } = usePaymentStatus(orderId, {
+    enabled: pageState === "scanning" && orderId !== null,
+    refetchInterval: 3000, // Poll every 3 seconds
+  });
+
+  // Handle status updates
+  useEffect(() => {
+    if (statusData) {
+      if (statusData.success && statusData.orderStatus === "COMPLETED") {
+        setPageState("success");
+        // Auto-redirect to success page after short delay
+        setTimeout(() => {
+          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${statusData.orderNumber || orderNumber}`);
+        }, 2000);
+      }
+    }
+  }, [statusData, navigate, orderNumber]);
+
+  // Handle polling errors
+  useEffect(() => {
+    if (isError) {
+      // Don't immediately fail - could be temporary network issue
+      console.error("Error checking payment status");
+    }
+  }, [isError]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (pageState !== "scanning") return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          setPageState("expired");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [pageState]);
+
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Format amount with thousand separators
+  const formatAmount = (value: string | null) => {
+    if (!value) return "N/A";
+    const num = parseFloat(value);
+    return new Intl.NumberFormat("vi-VN").format(num);
+  };
+
+  // Copy order number to clipboard
+  const handleCopyOrderNumber = useCallback(() => {
+    if (orderNumber) {
+      navigator.clipboard.writeText(orderNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [orderNumber]);
+
+  // Handle cancel
+  const handleCancel = () => {
+    if (orderId) {
+      cancelPaymentMutation.mutate(orderId);
+    }
+    navigate(`${USER_ROUTES.CHECKOUT_FAILED}?orderId=${orderId}`);
+  };
+
+  // Handle retry (go back to checkout)
+  const handleRetry = () => {
+    navigate(USER_ROUTES.CHECKOUT);
+  };
+
+  // Validate required params
+  if (!qrUrl || !orderId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <XCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Payment Session</h1>
+          <p className="text-gray-600 mb-6">
+            The payment session is invalid or has expired. Please start a new checkout.
+          </p>
+          <Button variant="primary" className="w-full" onClick={handleRetry}>
+            Return to Checkout
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Success state - brief confirmation before redirect
+  if (pageState === "success") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Received!</h1>
+          <p className="text-gray-600 mb-4">
+            Your payment has been confirmed. Redirecting to order details...
+          </p>
+          <Loading />
+        </Card>
+      </div>
+    );
+  }
+
+  // Expired state
+  if (pageState === "expired") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Clock className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">QR Code Expired</h1>
+          <p className="text-gray-600 mb-6">
+            The QR code has expired. Please start a new checkout to generate a fresh QR code.
+          </p>
+          <div className="space-y-3">
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={handleRetry}
+              leftIcon={<RefreshCw className="w-4 h-4" />}
+            >
+              Try Again
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate(USER_ROUTES.CART)}
+              leftIcon={<ArrowLeft className="w-4 h-4" />}
+            >
+              Return to Cart
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Main scanning state - show QR code
+  return (
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-lg mx-auto">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <QrCode className="w-8 h-8 text-blue-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Scan to Pay with SePay</h1>
+          <p className="text-gray-600">
+            Use your banking app to scan the QR code and complete the payment
+          </p>
+        </div>
+
+        {/* QR Code Card */}
+        <Card className="p-6 mb-6">
+          {/* Timer */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-gray-500" />
+            <span className="text-gray-600">Time remaining:</span>
+            <span
+              className={`font-mono font-bold text-lg ${
+                timeRemaining < 60 ? "text-red-600" : "text-blue-600"
+              }`}
+            >
+              {formatTime(timeRemaining)}
+            </span>
+          </div>
+
+          {/* QR Code Image */}
+          <div className="bg-white p-4 rounded-lg border-2 border-gray-100 mb-6">
+            <img
+              src={qrUrl}
+              alt="SePay QR Code"
+              className="w-full max-w-[280px] mx-auto aspect-square object-contain"
+              onError={(e) => {
+                // Handle image load error
+                (e.target as HTMLImageElement).src =
+                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' fill='%239ca3af' font-size='14'%3EQR Load Error%3C/text%3E%3C/svg%3E";
+              }}
+            />
+          </div>
+
+          {/* Order Details */}
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            {/* Amount */}
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Amount:</span>
+              <span className="text-xl font-bold text-gray-900">
+                {formatAmount(amount)} {currency}
+              </span>
+            </div>
+
+            {/* Order Number */}
+            {orderNumber && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Order:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm text-gray-900">{orderNumber}</span>
+                  <button
+                    onClick={handleCopyOrderNumber}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    title="Copy order number"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Status indicator */}
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            <span>Waiting for payment confirmation...</span>
+          </div>
+        </Card>
+
+        {/* Instructions */}
+        <Card className="p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-blue-600" />
+            How to pay
+          </h3>
+          <ol className="space-y-3 text-sm text-gray-600">
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                1
+              </span>
+              <span>Open your banking app (MB Bank, Vietcombank, etc.)</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                2
+              </span>
+              <span>Select "Scan QR" or "Transfer" feature</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                3
+              </span>
+              <span>Scan the QR code above</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                4
+              </span>
+              <span>
+                Confirm the transfer amount and <strong>do not modify</strong> the transfer content
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                5
+              </span>
+              <span>Complete the payment - this page will update automatically</span>
+            </li>
+          </ol>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleCancel}
+            leftIcon={<ArrowLeft className="w-4 h-4" />}
+            disabled={cancelPaymentMutation.isPending}
+            isLoading={cancelPaymentMutation.isPending}
+          >
+            Cancel Payment
+          </Button>
+        </div>
+
+        {/* Note */}
+        <p className="text-xs text-gray-500 text-center mt-6">
+          Payment will be confirmed automatically within a few seconds after you complete the
+          transfer. Do not close this page until the payment is confirmed.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default SepayQrPage;

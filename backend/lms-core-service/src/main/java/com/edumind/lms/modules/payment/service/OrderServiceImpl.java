@@ -101,22 +101,38 @@ public class OrderServiceImpl implements OrderService {
         return buildOrderSummaryPage(ordersPage);
     }
 
+    /**
+     * Build order summary page with item counts and first item info.
+     * Fetch first items separately to avoid LazyInitializationException
+     * when accessing order.getItems() on detached entities from pagination.
+     */
     private Page<OrderSummaryResponse> buildOrderSummaryPage(Page<Order> ordersPage) {
         List<Long> orderIds = ordersPage.getContent().stream()
                 .map(Order::getId)
                 .collect(Collectors.toList());
 
         Map<Long, Integer> itemCounts = new java.util.HashMap<>();
+        Map<Long, OrderItem> firstItems = new java.util.HashMap<>();
+
         if (!orderIds.isEmpty()) {
+            // Fetch item counts
             List<Object[]> counts = orderItemRepository.countItemsByOrderIds(orderIds);
             for (Object[] row : counts) {
                 Long orderId = (Long) row[0];
                 Long count = (Long) row[1];
                 itemCounts.put(orderId, count.intValue());
             }
+
+            // Fetch first items separately to avoid LazyInitializationException
+            List<OrderItem> firstItemsList = orderItemRepository.findFirstItemsByOrderIds(orderIds);
+            for (OrderItem item : firstItemsList) {
+                firstItems.put(item.getOrder().getId(), item);
+            }
         }
 
-        return ordersPage.map(order -> buildOrderSummary(order, itemCounts.getOrDefault(order.getId(), 0)));
+        return ordersPage.map(order -> buildOrderSummary(order,
+                itemCounts.getOrDefault(order.getId(), 0),
+                firstItems.get(order.getId())));
     }
 
     @Override
@@ -192,6 +208,13 @@ public class OrderServiceImpl implements OrderService {
         return buildOrderResponse(order);
     }
 
+    /**
+     * Request refund for a completed order.
+     * Use dedicated refund fields instead of misusing failureReason.
+     * Note: This marks the order as REFUNDED immediately. In production,
+     * you would integrate with payment gateway refund API and possibly
+     * use a REFUND_REQUESTED status for manual approval workflow.
+     */
     @Override
     @Transactional
     public OrderResponse requestRefund(Long orderId, Long userId, String reason) {
@@ -210,16 +233,16 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // TODO: Check refund window logic (e.g. 30 days) if needed
+        // TODO: Integrate with payment gateway refund API
 
-        order.setStatus(OrderStatus.REFUNDED); // Or REFUND_REQUESTED if manual approval needed
-        // For now simplifying to refunded state as per requirement or maybe PROCESSING_REFUND
-        // Assuming immediate refund or request marking:
-        order.setFailureReason("Refund requested: " + reason); // Using failure reason to store refund reason for now
+        // Use the new markAsRefunded(reason) method with dedicated fields
+        order.markAsRefunded(reason);
         order.setUpdatedAt(LocalDateTime.now());
 
         orderRepository.save(order);
-        
-        log.info("Refund requested for order {} by user {}", order.getOrderNumber(), userId);
+
+        log.info("Refund requested for order {} by user {}. Reason: {}",
+                order.getOrderNumber(), userId, reason);
         return buildOrderResponse(order);
     }
 
@@ -260,30 +283,16 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    /**
+     * Create order from cart items.
+     * Validate items BEFORE creating order to avoid orphan orders in database.
+     */
     @Override
     @Transactional
     public Order createOrderFromCart(Long userId, List<CartItem> cartItems, CheckoutRequest request) {
         log.debug("Creating order from cart for user: {}", userId);
 
-        Order order = new Order();
-        order.setOrderNumber(numberGeneratorService.generateOrderNumber());
-        order.setUserId(userId);
-        order.setStatus(OrderStatus.PENDING);
-        order.setPaymentMethod(request.getPaymentMethod());
-        order.setCurrency("USD");
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-
-        // Customer info
-        fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
-        order.setBillingAddress(request.getBillingAddress());
-
-        order = orderRepository.save(order);
-
-        BigDecimal subtotal = BigDecimal.ZERO;
-        BigDecimal totalDiscount = BigDecimal.ZERO;
-        int validItemsCount = 0;
-
+        // Validate items BEFORE creating order to avoid orphan orders in database.
         List<Long> courseIds = cartItems.stream()
                 .map(CartItem::getCourseId)
                 .collect(Collectors.toList());
@@ -294,10 +303,52 @@ public class OrderServiceImpl implements OrderService {
         Set<Long> enrolledCourseIds = new HashSet<>(
                 enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
 
-        for (CartItem cartItem : cartItems) {
+        // Pre-validate: count valid items before creating order
+        List<CartItem> validCartItems = cartItems.stream()
+                .filter(cartItem -> {
+                    Course course = coursesMap.get(cartItem.getCourseId());
+                    return course != null
+                            && course.isPublished()
+                            && !enrolledCourseIds.contains(course.getId());
+                })
+                .collect(Collectors.toList());
+
+        if (validCartItems.isEmpty()) {
+            throw new CartEmptyException("No valid items to checkout (Courses may have been unpublished or already purchased)");
+        }
+
+        // Now safe to create order
+        Order order = new Order();
+        order.setOrderNumber(numberGeneratorService.generateOrderNumber());
+        order.setUserId(userId);
+        order.setStatus(OrderStatus.PENDING);
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setCurrency("USD");
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+        // Set a reasonable expiration window for payment (e.g., 30 minutes)
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+
+        // Audit: client metadata
+        order.setIpAddress(request.getIpAddress());
+        order.setUserAgent(request.getUserAgent());
+
+        // Customer info
+        fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
+        order.setBillingAddress(request.getBillingAddress());
+
+        // Set idempotency key if provided
+        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
+            order.setIdempotencyKey(request.getIdempotencyKey());
+        }
+
+        order = orderRepository.save(order);
+
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal totalDiscount = BigDecimal.ZERO;
+
+        for (CartItem cartItem : validCartItems) {
             Course course = coursesMap.get(cartItem.getCourseId());
-            if (course == null || !course.isPublished()) continue;
-            if (enrolledCourseIds.contains(course.getId())) continue;
 
             BigDecimal originalPrice = course.getOriginalPrice();
             BigDecimal finalPrice = course.getEffectivePrice();
@@ -320,11 +371,6 @@ public class OrderServiceImpl implements OrderService {
 
             subtotal = subtotal.add(originalPrice);
             totalDiscount = totalDiscount.add(discount);
-            validItemsCount++;
-        }
-
-        if (validItemsCount == 0) {
-            throw new CartEmptyException("No valid items to checkout (Courses may have been unpublished or already purchased)");
         }
 
         order.setSubtotal(subtotal);
@@ -334,6 +380,10 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.save(order);
     }
 
+    /**
+     * Create order from a single course (direct checkout).
+     * Use getOriginalPrice() consistently with createOrderFromCart.
+     */
     @Override
     @Transactional
     public Order createOrderFromSingleCourse(Long userId, Course course, DirectCheckoutRequest request) {
@@ -347,12 +397,18 @@ public class OrderServiceImpl implements OrderService {
         order.setCurrency("USD");
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+
+        // Audit: client metadata
+        order.setIpAddress(request.getIpAddress());
+        order.setUserAgent(request.getUserAgent());
 
         fillCustomerDetails(order, request.getCustomerName(), request.getCustomerEmail());
 
         order = orderRepository.save(order);
 
-        BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+        // Use getOriginalPrice() consistently with createOrderFromCart
+        BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : BigDecimal.ZERO;
         BigDecimal effectivePrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
         BigDecimal discount = originalPrice.subtract(effectivePrice);
 
@@ -427,9 +483,11 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    private OrderSummaryResponse buildOrderSummary(Order order, int itemCount) {
-        OrderItem firstItem = order.getItems().isEmpty() ? null : order.getItems().iterator().next();
-
+    /**
+     * Build order summary response.
+     * Accept firstItem as parameter instead of accessing lazy collection.
+     */
+    private OrderSummaryResponse buildOrderSummary(Order order, int itemCount, OrderItem firstItem) {
         return OrderSummaryResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -444,6 +502,11 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    /**
+     * Fill customer details from request or fetch from UserClient.
+     * Don't use fake fallback email - log warning instead.
+     * The order can still be created but invoicing may fail if email is invalid.
+     */
     private void fillCustomerDetails(Order order, String reqName, String reqEmail) {
         String name = reqName;
         String email = reqEmail;
@@ -465,10 +528,19 @@ public class OrderServiceImpl implements OrderService {
                 log.warn("Failed to fetch user details for order creation: {}", e.getMessage());
             }
         }
-        
-        // Fallback if still null to prevent Invoice crash
-        if (email == null) email = "unknown@edumind.com";
-        if (name == null || name.isEmpty()) name = "Unknown User";
+
+        // Log warning for missing email instead of using fake fallback
+        // This preserves data integrity - better to have null than invalid email
+        if (email == null || email.isBlank()) {
+            log.warn("Order created without valid customer email. Invoice generation may fail.");
+            // Still set a placeholder so order creation doesn't fail,
+            // but mark it clearly as missing for admin attention
+            email = null; // Keep as null - invoice service should handle this gracefully
+        }
+
+        if (name == null || name.isBlank()) {
+            name = "Customer"; // Generic but not fake like "Unknown User"
+        }
 
         order.setCustomerName(name);
         order.setCustomerEmail(email);

@@ -32,6 +32,12 @@ export const CheckoutRequestSchema = z.object({
   // Metadata (auto-filled by controller)
   ipAddress: z.string().optional().nullable(),
   userAgent: z.string().optional().nullable(),
+
+  // Cart signature for validation (prevents cart tampering between preview and checkout)
+  cartSignature: z.string().optional().nullable(),
+
+  // Idempotency key to prevent duplicate orders
+  idempotencyKey: z.string().optional().nullable(),
 });
 
 export const DirectCheckoutRequestSchema = z.object({
@@ -56,6 +62,9 @@ export const DirectCheckoutRequestSchema = z.object({
   // Metadata
   ipAddress: z.string().optional().nullable(),
   userAgent: z.string().optional().nullable(),
+
+  // Idempotency key to prevent duplicate orders
+  idempotencyKey: z.string().optional().nullable(),
 });
 
 // ==================== Response Schemas ====================
@@ -97,6 +106,9 @@ export const CheckoutPreviewResponseSchema = z.object({
   isValid: z.boolean(),
   validationErrors: z.array(z.string()).nullable().optional(),
   warnings: z.array(z.string()).nullable().optional(),
+
+  // Cart signature for validation (returned from preview, passed to checkout)
+  cartSignature: z.string().nullable().optional(),
 });
 
 export const CheckoutResultResponseSchema = z.object({
@@ -112,12 +124,18 @@ export const CheckoutResultResponseSchema = z.object({
   paymentMethod: PaymentMethodSchema.nullable().optional(),
   pending: z.boolean().optional(),
 
+  // Local currency info (for SePay VND conversion)
+  localAmount: z.number().nullable().optional(),
+  localCurrency: z.string().nullable().optional(),
+
   // Transaction info
   transactionNumber: z.string().nullable().optional(),
   gatewayTransactionId: z.string().nullable().optional(),
 
   // Enrolled courses
-  enrolledCourseIds: z.array(z.number()).optional(),
+  // NOTE: For pending/redirect flows (e.g. PayPal), backend returns null here
+  // so we allow null to avoid Zod errors when payment is not yet completed.
+  enrolledCourseIds: z.array(z.number()).nullable().optional(),
 
   // Invoice
   invoiceNumber: z.string().nullable().optional(),
@@ -134,6 +152,9 @@ export const CheckoutResultResponseSchema = z.object({
   // Error info
   errorCode: z.string().nullable().optional(),
   errorMessage: z.string().nullable().optional(),
+
+  // Retry info (for failed/cancelled payments)
+  canRetry: z.boolean().optional(),
 });
 
 // ==================== Types ====================

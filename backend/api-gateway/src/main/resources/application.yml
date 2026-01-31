@@ -16,379 +16,377 @@ spring:
   # Gateway Configuration
   cloud:
     gateway:
-      server:
-        webflux:
-          discovery:
-            locator:
-              enabled: true
-              lower-case-service-id: true
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
 
-          globalcors:
-            cors-configurations:
-              '[/**]':
-                allowedOrigins:
-                  - "http://localhost:3000"
-                  - "http://localhost:4200"
-                allowedMethods:
-                  - GET
-                  - POST
-                  - PUT
-                  - DELETE
-                  - PATCH
-                  - OPTIONS
-                allowedHeaders: "*"
-                allowCredentials: true
-                # Expose headers that frontend might need
-                exposed-headers:
-                  - "Set-Cookie"
-                maxAge: 3600
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            # Expose headers that frontend might need
+            exposed-headers:
+              - "Set-Cookie"
+            maxAge: 3600
 
-          routes:
-            # OAuth2 Authorization Endpoints (must be before general auth routes)
-            # Spring Security OAuth2 creates: /oauth2/authorization/{registrationId}
-            - id: oauth2-authorization
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/auth/oauth2/**
-              filters:
-                - RewritePath=/api/auth/oauth2(?<segment>/?.*), /oauth2/authorization${segment}
-            
-            # OAuth2 Callback Endpoints (must be before general auth routes)
-            # Spring Security OAuth2 callback: /login/oauth2/code/{registrationId}
-            - id: oauth2-callback
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/auth/login/oauth2/**
-              filters:
-                - RewritePath=/api/auth/login/oauth2(?<segment>/?.*), /login/oauth2${segment}
-            
-            # Auth Service Routes
-            - id: auth-service
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/auth/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/auth(?<segment>/?.*), /auth${segment} 
-            
-            # Admin Service Routes (also in AUTH-SERVICE)
-            - id: admin-service
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/admin/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/admin(?<segment>/?.*), /admin${segment}
+      routes:
+        # OAuth2 Authorization Endpoints (must be before general auth routes)
+        # Spring Security OAuth2 creates: /oauth2/authorization/{registrationId}
+        - id: oauth2-authorization
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/auth/oauth2/**
+          filters:
+            - RewritePath=/api/auth/oauth2(?<segment>/?.*), /oauth2/authorization${segment}
+        
+        # OAuth2 Callback Endpoints (must be before general auth routes)
+        # Spring Security OAuth2 callback: /login/oauth2/code/{registrationId}
+        - id: oauth2-callback
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/auth/login/oauth2/**
+          filters:
+            - RewritePath=/api/auth/login/oauth2(?<segment>/?.*), /login/oauth2${segment}
+        
+        # Auth Service Routes
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/auth(?<segment>/?.*), /auth${segment} 
+        
+        # Admin Service Routes (also in AUTH-SERVICE)
+        - id: admin-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/admin/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/admin(?<segment>/?.*), /admin${segment}
 
-            # User Service Routes (also in AUTH-SERVICE)
-            - id: user-service
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/users/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/users(?<segment>/?.*), /users${segment}
+        # User Service Routes (also in AUTH-SERVICE)
+        - id: user-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/users(?<segment>/?.*), /users${segment}
 
-            # Upload Service Routes (also in AUTH-SERVICE)
-            - id: upload-service
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/upload/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/upload(?<segment>/?.*), /upload${segment}
+        # Upload Service Routes (also in AUTH-SERVICE)
+        - id: upload-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/upload/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/upload(?<segment>/?.*), /upload${segment}
 
-            # Teacher Application Service Routes (also in AUTH-SERVICE)
-            - id: teacher-application-service
-              uri: lb://AUTH-SERVICE
-              predicates:
-                - Path=/api/teacher-application/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/teacher-application(?<segment>/?.*), /teacher-application${segment}
+        # Teacher Application Service Routes (also in AUTH-SERVICE)
+        - id: teacher-application-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/api/teacher-application/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/teacher-application(?<segment>/?.*), /teacher-application${segment}
 
-            # ============================================
-            # LMS CORE SERVICE ROUTES (CONSISTENT PATTERN)
-            # ============================================
-            
-            # Course Routes (17 endpoints)
-            # PUBLIC: search, filter, browse, view details
-            # TEACHER: create, update, publish, delete
-            # External: /api/courses/** → Internal: /courses/**
-            - id: course-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/courses/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 20
-                      burstCapacity: 40
-                      requestedTokens: 1
-                - RewritePath=/api/courses(?<segment>/?.*), /courses${segment}
-            
-            # Category Routes (8 endpoints)
-            # PUBLIC: browse categories
-            # ADMIN: create, update, delete, toggle status
-            # External: /api/categories/** → Internal: /categories/**
-            - id: category-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/categories/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 20
-                      burstCapacity: 40
-                      requestedTokens: 1
-                - RewritePath=/api/categories(?<segment>/?.*), /categories${segment}
+        # ============================================
+        # LMS CORE SERVICE ROUTES (CONSISTENT PATTERN)
+        # ============================================
+        
+        # Course Routes (17 endpoints)
+        # PUBLIC: search, filter, browse, view details
+        # TEACHER: create, update, publish, delete
+        # External: /api/courses/** → Internal: /courses/**
+        - id: course-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/courses/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 20
+                  burstCapacity: 40
+                  requestedTokens: 1
+            - RewritePath=/api/courses(?<segment>/?.*), /courses${segment}
+        
+        # Category Routes (8 endpoints)
+        # PUBLIC: browse categories
+        # ADMIN: create, update, delete, toggle status
+        # External: /api/categories/** → Internal: /categories/**
+        - id: category-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/categories/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 20
+                  burstCapacity: 40
+                  requestedTokens: 1
+            - RewritePath=/api/categories(?<segment>/?.*), /categories${segment}
 
-            # Section Routes (6 endpoints)
-            # PUBLIC: browse sections
-            # TEACHER: create, update, delete
-            # External: /api/sections/** → Internal: /sections/**
-            - id: section-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/sections/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 20
-                      burstCapacity: 40
-                      requestedTokens: 1
-                - RewritePath=/api/sections(?<segment>/?.*), /sections${segment}
+        # Section Routes (6 endpoints)
+        # PUBLIC: browse sections
+        # TEACHER: create, update, delete
+        # External: /api/sections/** → Internal: /sections/**
+        - id: section-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/sections/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 20
+                  burstCapacity: 40
+                  requestedTokens: 1
+            - RewritePath=/api/sections(?<segment>/?.*), /sections${segment}
 
-            # Lesson Routes (12 endpoints)
-            # PUBLIC: browse lessons
-            # TEACHER: create, update, delete
-            # External: /api/lessons/** → Internal: /lessons/**
-            - id: lesson-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/lessons/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 20
-                      burstCapacity: 40
-                      requestedTokens: 1
-                - RewritePath=/api/lessons(?<segment>/?.*), /lessons${segment}
+        # Lesson Routes (12 endpoints)
+        # PUBLIC: browse lessons
+        # TEACHER: create, update, delete
+        # External: /api/lessons/** → Internal: /lessons/**
+        - id: lesson-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/lessons/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 20
+                  burstCapacity: 40
+                  requestedTokens: 1
+            - RewritePath=/api/lessons(?<segment>/?.*), /lessons${segment}
 
-            # Enrollment Routes (10 endpoints)
-            # STUDENT: enroll, view my enrollments, check status
-            # TEACHER/ADMIN: view course enrollments
-            # External: /api/enrollments/** → Internal: /enrollments/**
-            - id: enrollment-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/enrollments/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 15
-                      burstCapacity: 30
-                      requestedTokens: 1
-                - RewritePath=/api/enrollments(?<segment>/?.*), /enrollments${segment}
-            
-            # Progress Routes (6 endpoints)
-            # STUDENT: start lesson, update watch progress, mark complete
-            # External: /api/progress/** → Internal: /progress/**
-            - id: progress-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/progress/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 15
-                      burstCapacity: 30
-                      requestedTokens: 1
-                - RewritePath=/api/progress(?<segment>/?.*), /progress${segment}
-            
-            # Review Routes (12 endpoints)
-            # PUBLIC: view reviews, ratings, distribution
-            # STUDENT: create, update, delete own reviews
-            # ADMIN: approve, flag reviews
-            # External: /api/reviews/** → Internal: /reviews/**
-            - id: review-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/reviews/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/reviews(?<segment>/?.*), /reviews${segment}
-            
-            # Wishlist Routes (6 endpoints)
-            # STUDENT: add, remove, view wishlist, check if course in wishlist
-            # External: /api/wishlist/** → Internal: /wishlist/**
-            - id: wishlist-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/wishlist/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/wishlist(?<segment>/?.*), /wishlist${segment}
-            
-            # ============================================
-            # PAYMENT MODULE ROUTES
-            # ============================================
-            
-            # Cart Routes (7 endpoints)
-            # STUDENT: add, remove, view cart, check if course in cart
-            # External: /api/cart/** → Internal: /cart/**
-            - id: cart-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/cart/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 15
-                      burstCapacity: 30
-                      requestedTokens: 1
-                - RewritePath=/api/cart(?<segment>/?.*), /cart${segment}
-            
-            # Checkout Routes (4 endpoints)
-            # STUDENT: preview checkout, create order, direct checkout
-            # External: /api/checkout/** → Internal: /checkout/**
-            - id: checkout-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/checkout/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 10
-                      burstCapacity: 20
-                      requestedTokens: 1
-                - RewritePath=/api/checkout(?<segment>/?.*), /checkout${segment}
-            
-            # Order Routes (7 endpoints)
-            # STUDENT/TEACHER: view orders, cancel, refund, get order count
-            # External: /api/orders/** → Internal: /orders/**
-            - id: order-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/orders/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 15
-                      burstCapacity: 30
-                      requestedTokens: 1
-                - RewritePath=/api/orders(?<segment>/?.*), /orders${segment}
-            
-            # Invoice Routes (7 endpoints)
-            # STUDENT/TEACHER: view invoices, download/view PDF
-            # External: /api/invoices/** → Internal: /invoices/**
-            - id: invoice-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/invoices/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 15
-                      burstCapacity: 30
-                      requestedTokens: 1
-                - RewritePath=/api/invoices(?<segment>/?.*), /invoices${segment}
-            
-            # Earnings Routes (6 endpoints)
-            # TEACHER: view earnings, summary, monthly breakdown, by course, export CSV
-            # External: /api/teacher/earnings/** → Internal: /teacher/earnings/**
-            - id: earning-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/teacher/earnings/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 15
-                      burstCapacity: 30
-                      requestedTokens: 1
-                - RewritePath=/api/teacher/earnings(?<segment>/?.*), /teacher/earnings${segment}
-            
-            # Payment Webhook Routes (4 endpoints)
-            # PUBLIC: receive webhooks from payment gateways (PayPal, SePay, Mock)
-            # External: /api/payments/webhook/** → Internal: /payments/webhook/**
-            - id: payment-webhook-service
-              uri: lb://LMS-CORE-SERVICE
-              predicates:
-                - Path=/api/payments/webhook/**
-              filters:
-                - name: RequestRateLimiter
-                  args:
-                    key-resolver: "#{@ipKeyResolver}"
-                    redis-rate-limiter:
-                      replenishRate: 50
-                      burstCapacity: 100
-                      requestedTokens: 1
-                - RewritePath=/api/payments/webhook(?<segment>/?.*), /payments/webhook${segment}
+        # Enrollment Routes (10 endpoints)
+        # STUDENT: enroll, view my enrollments, check status
+        # TEACHER/ADMIN: view course enrollments
+        # External: /api/enrollments/** → Internal: /enrollments/**
+        - id: enrollment-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/enrollments/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/enrollments(?<segment>/?.*), /enrollments${segment}
+        
+        # Progress Routes (6 endpoints)
+        # STUDENT: start lesson, update watch progress, mark complete
+        # External: /api/progress/** → Internal: /progress/**
+        - id: progress-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/progress/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/progress(?<segment>/?.*), /progress${segment}
+        
+        # Review Routes (12 endpoints)
+        # PUBLIC: view reviews, ratings, distribution
+        # STUDENT: create, update, delete own reviews
+        # ADMIN: approve, flag reviews
+        # External: /api/reviews/** → Internal: /reviews/**
+        - id: review-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/reviews/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/reviews(?<segment>/?.*), /reviews${segment}
+        
+        # Wishlist Routes (6 endpoints)
+        # STUDENT: add, remove, view wishlist, check if course in wishlist
+        # External: /api/wishlist/** → Internal: /wishlist/**
+        - id: wishlist-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/wishlist/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/wishlist(?<segment>/?.*), /wishlist${segment}
+        
+        # ============================================
+        # PAYMENT MODULE ROUTES
+        # ============================================
+        
+        # Cart Routes (7 endpoints)
+        # STUDENT: add, remove, view cart, check if course in cart
+        # External: /api/cart/** → Internal: /cart/**
+        - id: cart-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/cart/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/cart(?<segment>/?.*), /cart${segment}
+        
+        # Checkout Routes (4 endpoints)
+        # STUDENT: preview checkout, create order, direct checkout
+        # External: /api/checkout/** → Internal: /checkout/**
+        - id: checkout-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/checkout/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/checkout(?<segment>/?.*), /checkout${segment}
+        
+        # Order Routes (7 endpoints)
+        # STUDENT/TEACHER: view orders, cancel, refund, get order count
+        # External: /api/orders/** → Internal: /orders/**
+        - id: order-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/orders(?<segment>/?.*), /orders${segment}
+        
+        # Invoice Routes (7 endpoints)
+        # STUDENT/TEACHER: view invoices, download/view PDF
+        # External: /api/invoices/** → Internal: /invoices/**
+        - id: invoice-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/invoices/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/invoices(?<segment>/?.*), /invoices${segment}
+        
+        # Earnings Routes (6 endpoints)
+        # TEACHER: view earnings, summary, monthly breakdown, by course, export CSV
+        # External: /api/teacher/earnings/** → Internal: /teacher/earnings/**
+        - id: earning-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/teacher/earnings/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/teacher/earnings(?<segment>/?.*), /teacher/earnings${segment}
+        
+        # Payment Webhook Routes (4 endpoints)
+        # PUBLIC: receive webhooks from payment gateways (PayPal, SePay, Mock)
+        # External: /api/payments/webhook/** → Internal: /payments/webhook/**
+        - id: payment-webhook-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/payments/webhook/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 50
+                  burstCapacity: 100
+                  requestedTokens: 1
+            - RewritePath=/api/payments/webhook(?<segment>/?.*), /payments/webhook${segment}
 
 eureka:
   client:

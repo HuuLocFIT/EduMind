@@ -36,5 +36,7 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     @Query("SELECT COUNT(ci) FROM CartItem ci WHERE ci.cart.id = :cartId")
     int countByCartId(@Param("cartId") Long cartId);
 
-    // findByCartIdWithCourse was redundant and replaced by findByCartId
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM CartItem ci WHERE ci.cart.id = :cartId AND ci.courseId IN :courseIds")
+    int deleteByCartIdAndCourseIds(@Param("cartId") Long cartId, @Param("courseIds") List<Long> courseIds);
 }

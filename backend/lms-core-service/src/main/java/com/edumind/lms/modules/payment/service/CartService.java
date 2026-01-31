@@ -2,6 +2,7 @@ package com.edumind.lms.modules.payment.service;
 
 import com.edumind.lms.modules.payment.dto.request.AddToCartRequest;
 import com.edumind.lms.modules.payment.dto.response.CartResponse;
+import java.util.List;
 
 /**
  * Service to manage user shopping cart.
@@ -37,4 +38,14 @@ public interface CartService {
      * Check if course is in cart
      */
     boolean isInCart(Long userId, Long courseId);
+
+    /**
+     * Remove specific courses from cart (used after successful checkout)
+     */
+    void removeItems(Long userId, List<Long> courseIds);
+
+    /**
+     * Remove items in a separate transaction (for webhooks)
+     */
+    void removeItemsInNewTransaction(Long userId, List<Long> courseIds);
 }

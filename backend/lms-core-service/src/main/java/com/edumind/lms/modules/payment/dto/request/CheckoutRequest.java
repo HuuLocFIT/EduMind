@@ -37,4 +37,18 @@ public class CheckoutRequest {
     // Metadata (optional - for logging/fraud detection)
     private String ipAddress;
     private String userAgent;
+
+    /**
+     * Optional cart signature returned from preview.
+     * When provided, checkout() will validate that the current cart state
+     * matches the previewed state before creating an order.
+     */
+    private String cartSignature;
+
+    /**
+     * Optional idempotency key to prevent duplicate orders.
+     * Client should generate a unique key (e.g., UUID) per checkout attempt.
+     * If a request with the same key is received, return the existing order.
+     */
+    private String idempotencyKey;
 }

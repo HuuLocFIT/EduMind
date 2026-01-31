@@ -18,6 +18,16 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderNumber(String orderNumber);
 
+    /**
+     * Find order by idempotency key to prevent duplicate orders.
+     */
+    Optional<Order> findByIdempotencyKey(String idempotencyKey);
+
+    /**
+     * Find order by idempotency key for specific user.
+     */
+    Optional<Order> findByIdempotencyKeyAndUserId(String idempotencyKey, Long userId);
+
     @EntityGraph(value = "Order.withItems")
     Optional<Order> findWithItemsById(Long id);
 
@@ -55,6 +65,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     java.math.BigDecimal getTotalRevenueByDateRange(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * Find active (PENDING or PROCESSING) order for a user.
+     * Used to check for existing checkout before creating a new one.
+     */
+    @Query("SELECT o FROM Order o WHERE o.userId = :userId AND o.status IN ('PENDING', 'PROCESSING') ORDER BY o.createdAt DESC")
+    Optional<Order> findActiveOrderByUserId(@Param("userId") Long userId);
+
+    /**
+     * Find all expired active orders (for cleanup).
+     */
+    @Query("SELECT o FROM Order o WHERE o.status IN ('PENDING', 'PROCESSING') AND o.expiresAt < :now")
+    List<Order> findExpiredActiveOrders(@Param("now") LocalDateTime now);
 
     // Admin queries
     Page<Order> findByStatus(OrderStatus status, Pageable pageable);

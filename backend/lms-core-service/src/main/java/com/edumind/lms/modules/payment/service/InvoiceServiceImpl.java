@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
@@ -59,7 +60,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private static final String SELLER_PHONE = "+1 (555) 123-4567";
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public InvoiceResponse generateInvoice(Order order) {
         log.info("Generating invoice for order: {}", order.getOrderNumber());
 
@@ -75,9 +76,21 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setOrder(order);
         invoice.setUserId(order.getUserId());
 
-        // Buyer info
-        invoice.setBuyerName(order.getCustomerName());
-        invoice.setBuyerEmail(order.getCustomerEmail());
+        // Buyer info - handle null email by fetching from user service
+        String buyerName = order.getCustomerName() != null && !order.getCustomerName().isBlank() 
+                ? order.getCustomerName() 
+                : "Customer";
+        String buyerEmail = order.getCustomerEmail();
+        
+        // Final fallback - use a placeholder email if still null
+        if (buyerEmail == null || buyerEmail.isBlank()) {
+            buyerEmail = "user-" + order.getUserId() + "@edumind.com";
+            log.warn("Order {} has no customer email - using fallback email: {}", 
+                    order.getOrderNumber(), buyerEmail);
+        }
+        
+        invoice.setBuyerName(buyerName);
+        invoice.setBuyerEmail(buyerEmail);
 
         // Amounts
         invoice.setSubtotal(order.getSubtotal());

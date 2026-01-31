@@ -93,6 +93,7 @@ export const USER_ROUTES = {
   CHECKOUT: '/checkout',
   CHECKOUT_SUCCESS: '/checkout/success',
   CHECKOUT_FAILED: '/checkout/failed',
+  CHECKOUT_SEPAY_QR: '/checkout/sepay-qr',
 
   // Orders
   ORDERS: '/orders',

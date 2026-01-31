@@ -33,4 +33,12 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     @Query("SELECT oi.order.id, COUNT(oi) FROM OrderItem oi WHERE oi.order.id IN :orderIds GROUP BY oi.order.id")
     List<Object[]> countItemsByOrderIds(@Param("orderIds") List<Long> orderIds);
+
+    /**
+     * Get first item for each order (for summary display).
+     * Uses a subquery to get the minimum id per order, avoiding N+1 queries.
+     */
+    @Query("SELECT oi FROM OrderItem oi WHERE oi.id IN " +
+            "(SELECT MIN(oi2.id) FROM OrderItem oi2 WHERE oi2.order.id IN :orderIds GROUP BY oi2.order.id)")
+    List<OrderItem> findFirstItemsByOrderIds(@Param("orderIds") List<Long> orderIds);
 }

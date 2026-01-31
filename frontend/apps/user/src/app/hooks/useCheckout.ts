@@ -74,3 +74,67 @@ export const useDirectCheckout = () => {
     },
   });
 };
+
+/**
+ * Capture payment mutation (for PayPal after user approval)
+ */
+export const useCapturePayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<CheckoutResultResponse, Error, string>({
+    mutationFn: (token) => checkoutService.capturePayment(token),
+    onSuccess: (result) => {
+      if (result.success) {
+        // Clear cart
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.count });
+        // Refresh orders
+        queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
+        // Refresh enrollments
+        queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+      }
+    },
+  });
+};
+
+/**
+ * Cancel payment mutation (user cancelled on PayPal page)
+ */
+export const useCancelPayment = () => {
+  return useMutation<CheckoutResultResponse, Error, number>({
+    mutationFn: (orderId) => checkoutService.cancelPayment(orderId),
+  });
+};
+
+/**
+ * Check payment status query (for polling Sepay QR payments)
+ * Polls every interval until payment is confirmed via webhook
+ */
+export const usePaymentStatus = (
+  orderId: number | null,
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false;
+    onSuccess?: (data: CheckoutResultResponse) => void;
+  }
+) => {
+  const queryClient = useQueryClient();
+
+  return useQuery<CheckoutResultResponse>({
+    queryKey: ['checkout', 'status', orderId],
+    queryFn: () => checkoutService.checkPaymentStatus(orderId!),
+    enabled: options?.enabled !== false && orderId !== null && orderId > 0,
+    refetchInterval: options?.refetchInterval ?? 3000, // Default 3 seconds polling
+    refetchIntervalInBackground: false, // Stop polling when tab is not active
+    select: (data) => {
+      // When payment is successful, invalidate relevant queries
+      if (data.success && data.orderStatus === 'COMPLETED') {
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.cart.count });
+        queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+      }
+      return data;
+    },
+  });
+};

@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.payment.service;
 
 import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.payment.dto.request.AddToCartRequest;
@@ -14,19 +15,21 @@ import com.edumind.lms.modules.payment.exception.CourseAlreadyPurchasedException
 import com.edumind.lms.modules.payment.exception.CourseNotAvailableException;
 import com.edumind.lms.modules.payment.repository.CartItemRepository;
 import com.edumind.lms.modules.payment.repository.CartRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -39,7 +42,7 @@ public class CartServiceImpl implements CartService {
     private final EnrollmentRepository enrollmentRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CartResponse getCart(Long userId) {
         log.debug("Getting cart for user: {}", userId);
 
@@ -62,8 +65,8 @@ public class CartServiceImpl implements CartService {
             throw new CourseNotAvailableException(courseId);
         }
 
-        // Check if user already enrolled
-        if (enrollmentRepository.existsByUserIdAndCourseId(userId, courseId)) {
+        // This makes the check consistent with checkout flow, allowing re-enrollment after drop
+        if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(courseId, userId, EnrollmentStatus.DROPPED)) {
             throw new CourseAlreadyPurchasedException(courseId);
         }
 
@@ -84,7 +87,18 @@ public class CartServiceImpl implements CartService {
         // Snapshot price at time of adding (in case price changes later)
         item.setPriceSnapshot(course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO);
 
-        cartItemRepository.save(item);
+        // Handle race condition - if another request added the same item concurrently,
+        // the unique constraint (cart_id, course_id) will throw DataIntegrityViolationException
+        try {
+            cartItemRepository.save(item);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Concurrent add to cart detected for user {} and course {}", userId, courseId);
+            throw new CourseAlreadyInCartException(courseId);
+        }
+
+        // Update cart timestamp
+        cart.setUpdatedAt(LocalDateTime.now());
+        cartRepository.save(cart);
 
         // Refresh cart
         cart = cartRepository.findByIdWithItems(cart.getId()).orElse(cart);
@@ -106,6 +120,10 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new CartItemNotFoundException(courseId));
 
         cartItemRepository.delete(item);
+
+        // Update cart timestamp when items are removed
+        cart.setUpdatedAt(LocalDateTime.now());
+        cartRepository.save(cart);
 
         // Refresh cart
         cart = cartRepository.findByIdWithItems(cart.getId()).orElse(cart);
@@ -142,8 +160,62 @@ public class CartServiceImpl implements CartService {
                 .orElse(false);
     }
 
+    @Override
+    @Transactional
+    public void removeItems(Long userId, List<Long> courseIds) {
+        removeItemsInNewTransaction(userId, courseIds);
+    }
+
+    /**
+     * Remove items in a separate transaction to ensure it commits even if parent transaction fails.
+     * Used by webhook handlers to ensure cart is cleared even if invoice generation fails.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void removeItemsInNewTransaction(Long userId, List<Long> courseIds) {
+        if (courseIds == null || courseIds.isEmpty()) {
+            log.debug("No course IDs provided for removal - skipping");
+            return;
+        }
+
+        log.info("Removing {} course(s) from cart for user {}: {}", courseIds.size(), userId, courseIds);
+
+        Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
+        if (cartOpt.isEmpty()) {
+            log.warn("Cart not found for user {} - cannot remove items. This may be expected if cart was already cleared.", userId);
+            return;
+        }
+
+        Cart cart = cartOpt.get();
+        
+        // Use explicit fetch and delete to ensure reliability and correct handling
+        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
+        List<CartItem> itemsToRemove = items.stream()
+                .filter(item -> courseIds.contains(item.getCourseId()))
+                .collect(Collectors.toList());
+
+        if (itemsToRemove.isEmpty()) {
+            log.warn("No matching cart items found for user {} with course IDs: {}. Current cart items: {}", 
+                    userId, courseIds, items.size());
+            return;
+        }
+
+        cartItemRepository.deleteAll(itemsToRemove);
+        
+        // Update cart timestamp
+        cart.setUpdatedAt(LocalDateTime.now());
+        cartRepository.save(cart);
+
+        log.info("Successfully removed {} course(s) from cart for user {} (requested: {})", 
+                itemsToRemove.size(), userId, courseIds.size());
+    }
+
     // ===== Private Helpers =====
 
+    /**
+     * Get existing cart or create a new one for the user.
+     * Handle race condition where two concurrent requests both try to create a cart.
+     * Requires unique constraint on user_id in carts table.
+     */
     private Cart getOrCreateCart(Long userId) {
         return cartRepository.findByUserId(userId)
                 .orElseGet(() -> {
@@ -151,10 +223,22 @@ public class CartServiceImpl implements CartService {
                     newCart.setUserId(userId);
                     newCart.setCreatedAt(LocalDateTime.now());
                     newCart.setUpdatedAt(LocalDateTime.now());
-                    return cartRepository.save(newCart);
+                    try {
+                        return cartRepository.save(newCart);
+                    } catch (DataIntegrityViolationException e) {
+                        // Another thread created the cart concurrently, fetch it
+                        log.debug("Concurrent cart creation detected for user {}, fetching existing cart", userId);
+                        return cartRepository.findByUserId(userId)
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "Failed to create or find cart for user: " + userId));
+                    }
                 });
     }
 
+    /**
+     * Build cart response with course details and availability checks.
+     * Include isAvailable flag for courses that become unavailable after adding to cart.
+     */
     private CartResponse buildCartResponse(Cart cart) {
         List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
 
@@ -183,32 +267,58 @@ public class CartServiceImpl implements CartService {
         List<CartItemResponse> itemResponses = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal totalDiscount = BigDecimal.ZERO;
+        int availableItemCount = 0;
 
         for (CartItem item : items) {
             Course course = courseMap.get(item.getCourseId());
 
-            if (course != null) {
-                BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-                BigDecimal finalPrice = course.getEffectivePrice();
-                BigDecimal discount = originalPrice.subtract(finalPrice);
-
+            // Handle case where course was deleted or not found
+            if (course == null) {
                 CartItemResponse itemResponse = CartItemResponse.builder()
-                        .courseId(course.getId())
-                        .courseTitle(course.getTitle())
-                        .courseSlug(course.getSlug())
-                        .courseThumbnailUrl(course.getThumbnailUrl())
-                        .instructorId(course.getInstructorId())
-                        .instructorName(course.getInstructorName())
-                        .originalPrice(originalPrice)
-                        .discountAmount(discount)
-                        .effectivePrice(finalPrice)
-                        .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                        .courseId(item.getCourseId())
+                        .courseTitle("Course no longer available")
                         .addedAt(item.getAddedAt())
+                        .isAvailable(false)
+                        .unavailableReason("Course has been removed")
                         .build();
-
                 itemResponses.add(itemResponse);
+                continue;
+            }
+
+            BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
+            BigDecimal finalPrice = course.getEffectivePrice();
+            BigDecimal discount = originalPrice.subtract(finalPrice);
+
+            // Check if course is still published/available
+            boolean isAvailable = course.isPublished();
+            String unavailableReason = null;
+            if (!isAvailable) {
+                unavailableReason = "Course is no longer published";
+            }
+
+            CartItemResponse itemResponse = CartItemResponse.builder()
+                    .courseId(course.getId())
+                    .courseTitle(course.getTitle())
+                    .courseSlug(course.getSlug())
+                    .courseThumbnailUrl(course.getThumbnailUrl())
+                    .instructorId(course.getInstructorId())
+                    .instructorName(course.getInstructorName())
+                    .originalPrice(originalPrice)
+                    .discountAmount(discount)
+                    .effectivePrice(finalPrice)
+                    .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                    .addedAt(item.getAddedAt())
+                    .isAvailable(isAvailable)
+                    .unavailableReason(unavailableReason)
+                    .build();
+
+            itemResponses.add(itemResponse);
+
+            // Only include available items in totals
+            if (isAvailable) {
                 subtotal = subtotal.add(originalPrice);
                 totalDiscount = totalDiscount.add(discount);
+                availableItemCount++;
             }
         }
 
@@ -218,11 +328,11 @@ public class CartServiceImpl implements CartService {
                 .id(cart.getId())
                 .userId(cart.getUserId())
                 .items(itemResponses)
-                .itemCount(itemResponses.size())
+                .itemCount(availableItemCount) // Only count available items
                 .subtotal(subtotal)
                 .discountTotal(totalDiscount)
                 .totalAmount(totalAmount)
-                .currency("USD")    
+                .currency("USD")
                 .createdAt(cart.getCreatedAt())
                 .updatedAt(cart.getUpdatedAt())
                 .build();

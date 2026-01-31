@@ -32,6 +32,11 @@ public class Transaction extends BaseEntity {
     @Column(name = "gateway_transaction_id", length = 100)
     private String gatewayTransactionId;
 
+    // Original gateway order ID (e.g., PayPal Order ID) - preserved for lookups after capture
+    // gatewayTransactionId gets updated to Capture ID after capture, but we need the original for retries
+    @Column(name = "gateway_order_id", length = 100)
+    private String gatewayOrderId;
+
     @Column(name = "gateway_response", columnDefinition = "TEXT")
     private String gatewayResponse;
 

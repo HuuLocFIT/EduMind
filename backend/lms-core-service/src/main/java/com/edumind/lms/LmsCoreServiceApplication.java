@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
 		"com.edumind.lms",
@@ -15,6 +16,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 		"com.edumind.lms.shared.client"
 })
 @EnableAsync
+@EnableScheduling
 public class LmsCoreServiceApplication {
 
 	public static void main(String[] args) {

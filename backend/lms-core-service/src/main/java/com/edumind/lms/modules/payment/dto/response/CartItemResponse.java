@@ -37,4 +37,16 @@ public class CartItemResponse {
     private Integer totalReviews;
 
     private LocalDateTime addedAt;
+
+    /**
+     * Flag to indicate if course is still available for purchase.
+     * Course may become unavailable if unpublished after being added to cart.
+     */
+    @Builder.Default
+    private Boolean isAvailable = true;
+
+    /**
+     * Reason why course is unavailable (if isAvailable=false).
+     */
+    private String unavailableReason;
 }

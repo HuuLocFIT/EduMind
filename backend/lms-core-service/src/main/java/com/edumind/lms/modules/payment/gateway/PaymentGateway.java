@@ -48,4 +48,15 @@ public interface PaymentGateway {
      * @return true if supported
      */
     boolean supportsCurrency(String currency);
+
+    /**
+     * Capture a previously authorized payment.
+     * Required for two-step payments (like PayPal) where user approves first, then we capture.
+     *
+     * @param gatewayTransactionId The Order ID from the gateway (returned in processPayment)
+     * @return Result of the capture operation
+     */
+    default GatewayPaymentResult capturePayment(String gatewayTransactionId) {
+        throw new UnsupportedOperationException("This gateway does not support manual capture");
+    }
 }

@@ -32,6 +32,12 @@ public class CheckoutPreviewResponse {
     private boolean requiresPayment;       // !allFree
     private List<String> availablePaymentMethods;
 
+    /**
+     * Opaque cart signature returned to the client during preview and
+     * echoed back on checkout to detect cart changes between preview and checkout.
+     */
+    private String cartSignature;
+
     // Validation
     @JsonProperty("isValid")
     private boolean isValid;

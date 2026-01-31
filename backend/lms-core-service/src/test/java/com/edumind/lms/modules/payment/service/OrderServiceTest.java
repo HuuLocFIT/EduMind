@@ -171,22 +171,32 @@ class OrderServiceTest {
     class GetOrdersByUserTests {
 
         @Test
-        @DisplayName("Should return paginated orders")
-        void getOrdersByUser_ReturnsPage() {
+        @DisplayName("Should return paginated orders and use findFirstItemsByOrderIds to avoid LazyInitializationException")
+        void getOrdersByUser_ReturnsPageWithoutLazyLoadingIssue() {
             // Given
             Pageable pageable = PageRequest.of(0, 10);
             Page<Order> orderPage = new PageImpl<>(List.of(order));
-            
+
             when(orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)).thenReturn(orderPage);
             List<Object[]> itemCounts = new ArrayList<>();
             itemCounts.add(new Object[]{orderId, 1L});
             when(orderItemRepository.countItemsByOrderIds(any())).thenReturn(itemCounts);
+
+            // Mock findFirstItemsByOrderIds to prevent LazyInitializationException
+            OrderItem firstItem = new OrderItem();
+            firstItem.setId(1L);
+            firstItem.setCourseId(100L);
+            firstItem.setCourseTitle("First Course");
+            firstItem.setOrder(order);
+            when(orderItemRepository.findFirstItemsByOrderIds(any())).thenReturn(List.of(firstItem));
 
             // When
             Page<OrderSummaryResponse> result = orderService.getOrdersByUser(userId, pageable);
 
             // Then
             assertThat(result.getContent()).hasSize(1);
+            // Verify findFirstItemsByOrderIds was called to fetch items separately
+            verify(orderItemRepository).findFirstItemsByOrderIds(any());
         }
     }
 
@@ -316,18 +326,22 @@ class OrderServiceTest {
     class RequestRefundTests {
 
         @Test
-        @DisplayName("Should request refund for completed order")
-        void requestRefund_CompletedOrder_RequestsRefund() {
+        @DisplayName("Should request refund for completed order and set refund fields")
+        void requestRefund_CompletedOrder_SetsRefundFieldsCorrectly() {
             // Given
             order.setStatus(OrderStatus.COMPLETED);
             when(orderRepository.findWithItemsById(orderId)).thenReturn(Optional.of(order));
             when(orderRepository.save(any(Order.class))).thenReturn(order);
 
             // When
-            orderService.requestRefund(orderId, userId, "Not satisfied");
+            orderService.requestRefund(orderId, userId, "Not satisfied with course quality");
 
             // Then
             assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+            // Verify refundReason and refundedAt are set
+            assertThat(order.getRefundReason()).isEqualTo("Not satisfied with course quality");
+            assertThat(order.getRefundedAt()).isNotNull();
+            assertThat(order.getRefundedAt()).isBeforeOrEqualTo(LocalDateTime.now());
         }
 
         @Test
@@ -486,18 +500,16 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw exception if all items are skipped")
-        void createOrderFromCart_AllItemsSkipped_ThrowsException() {
+        @DisplayName("Should throw exception if all items are skipped and prevent orphan order")
+        void createOrderFromCart_AllItemsSkipped_ThrowsExceptionWithoutCreatingOrder() {
             // Given
             CartItem item = new CartItem();
             item.setCourseId(course.getId());
             CheckoutRequest request = new CheckoutRequest();
             request.setPaymentMethod(PaymentMethod.MOCK);
 
-            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
-            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
             when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            
+
             // Simulating already enrolled
             when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(List.of(course.getId()));
 
@@ -505,6 +517,9 @@ class OrderServiceTest {
             assertThatThrownBy(() -> orderService.createOrderFromCart(userId, List.of(item), request))
                     .isInstanceOf(CartEmptyException.class)
                     .hasMessageContaining("No valid items");
+
+            // Verify order was NOT created (no orphan order)
+            verify(orderRepository, never()).save(any(Order.class));
         }
 
         @Test
@@ -539,8 +554,8 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should use fallback if fetching customer details fails")
-        void createOrderFromCart_FetchDetailsFails_UsesFallback() {
+        @DisplayName("Should keep null email if fetching customer details fails")
+        void createOrderFromCart_FetchDetailsFails_KeepsNullEmail() {
             // Given
             CartItem cartItem = new CartItem();
             cartItem.setCourseId(course.getId());
@@ -551,7 +566,8 @@ class OrderServiceTest {
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
             when(courseRepository.findAllById(any())).thenReturn(List.of(course));
             when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
-            
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
             // Simulate error
             when(userClient.getCurrentUser()).thenThrow(new RuntimeException("Service down"));
 
@@ -559,8 +575,10 @@ class OrderServiceTest {
             Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
 
             // Then
-            assertThat(result.getCustomerName()).isEqualTo("Unknown User");
-            assertThat(result.getCustomerEmail()).isEqualTo("unknown@edumind.com");
+            // Email should be null instead of fake email
+            assertThat(result.getCustomerEmail()).isNull();
+            // Name falls back to "Customer"
+            assertThat(result.getCustomerName()).isEqualTo("Customer");
         }
 
         @Test
@@ -618,13 +636,6 @@ class OrderServiceTest {
             // Given
             CheckoutRequest request = new CheckoutRequest();
             request.setPaymentMethod(PaymentMethod.MOCK);
-
-            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
-            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
-                Order o = inv.getArgument(0);
-                o.setId(orderId);
-                return o;
-            });
 
             // When & Then
             assertThatThrownBy(() -> orderService.createOrderFromCart(userId, Collections.emptyList(), request))
@@ -689,6 +700,173 @@ class OrderServiceTest {
             // Then
             assertThat(result.getSubtotal()).isEqualByComparingTo(BigDecimal.ZERO);
             assertThat(result.getTotalAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        }
+
+        @Test
+        @DisplayName("Should set expiration time to 30 minutes from now")
+        void createOrderFromSingleCourse_ShouldSetExpirationTime() {
+            // Given
+            DirectCheckoutRequest request = new DirectCheckoutRequest();
+            request.setCourseId(course.getId());
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+
+            LocalDateTime beforeCreation = LocalDateTime.now();
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+
+            // Then
+            assertThat(result.getExpiresAt()).isNotNull();
+            LocalDateTime afterCreation = LocalDateTime.now();
+            LocalDateTime expectedMin = beforeCreation.plusMinutes(30);
+            LocalDateTime expectedMax = afterCreation.plusMinutes(30);
+            assertThat(result.getExpiresAt()).isAfterOrEqualTo(expectedMin);
+            assertThat(result.getExpiresAt()).isBeforeOrEqualTo(expectedMax);
+        }
+
+        @Test
+        @DisplayName("Should set audit metadata (ipAddress, userAgent) from request")
+        void createOrderFromSingleCourse_ShouldSetAuditMetadata() {
+            // Given
+            DirectCheckoutRequest request = new DirectCheckoutRequest();
+            request.setCourseId(course.getId());
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+            request.setIpAddress("192.168.1.100");
+            request.setUserAgent("Mozilla/5.0 Test Browser");
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+
+            // Then
+            assertThat(result.getIpAddress()).isEqualTo("192.168.1.100");
+            assertThat(result.getUserAgent()).isEqualTo("Mozilla/5.0 Test Browser");
+        }
+    }
+
+    @Nested
+    @DisplayName("createOrderFromCart Audit & Expiration Tests")
+    class CreateOrderFromCartAuditTests {
+
+        @Test
+        @DisplayName("Should set expiration time to 30 minutes from now")
+        void createOrderFromCart_ShouldSetExpirationTime() {
+            // Given
+            CartItem cartItem = new CartItem();
+            cartItem.setCourseId(course.getId());
+            cartItem.setPriceSnapshot(course.getPrice());
+
+            CheckoutRequest request = new CheckoutRequest();
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+
+            LocalDateTime beforeCreation = LocalDateTime.now();
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
+
+            // Then
+            assertThat(result.getExpiresAt()).isNotNull();
+            LocalDateTime afterCreation = LocalDateTime.now();
+            LocalDateTime expectedMin = beforeCreation.plusMinutes(30);
+            LocalDateTime expectedMax = afterCreation.plusMinutes(30);
+            assertThat(result.getExpiresAt()).isAfterOrEqualTo(expectedMin);
+            assertThat(result.getExpiresAt()).isBeforeOrEqualTo(expectedMax);
+        }
+
+        @Test
+        @DisplayName("Should set audit metadata (ipAddress, userAgent) from request")
+        void createOrderFromCart_ShouldSetAuditMetadata() {
+            // Given
+            CartItem cartItem = new CartItem();
+            cartItem.setCourseId(course.getId());
+            cartItem.setPriceSnapshot(course.getPrice());
+
+            CheckoutRequest request = new CheckoutRequest();
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+            request.setIpAddress("10.0.0.1");
+            request.setUserAgent("Chrome/120.0");
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
+
+            // Then
+            assertThat(result.getIpAddress()).isEqualTo("10.0.0.1");
+            assertThat(result.getUserAgent()).isEqualTo("Chrome/120.0");
+        }
+
+        @Test
+        @DisplayName("Should handle null audit metadata gracefully")
+        void createOrderFromCart_NullAuditMetadata_HandledGracefully() {
+            // Given
+            CartItem cartItem = new CartItem();
+            cartItem.setCourseId(course.getId());
+            cartItem.setPriceSnapshot(course.getPrice());
+
+            CheckoutRequest request = new CheckoutRequest();
+            request.setPaymentMethod(PaymentMethod.MOCK);
+            request.setCustomerName("Test User");
+            request.setCustomerEmail("test@example.com");
+            // ipAddress and userAgent are null
+
+            when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
+            when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+                Order o = inv.getArgument(0);
+                o.setId(orderId);
+                return o;
+            });
+            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
+
+            // Then
+            assertThat(result.getIpAddress()).isNull();
+            assertThat(result.getUserAgent()).isNull();
         }
     }
 }

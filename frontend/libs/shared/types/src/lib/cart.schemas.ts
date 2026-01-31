@@ -32,6 +32,10 @@ export const CartItemResponseSchema = z.object({
   totalReviews: z.number().nullable().optional(),
 
   addedAt: z.string(),
+
+  // Availability status
+  isAvailable: z.boolean().default(true),
+  unavailableReason: z.string().nullable().optional(),
 });
 
 export const CartResponseSchema = z.object({

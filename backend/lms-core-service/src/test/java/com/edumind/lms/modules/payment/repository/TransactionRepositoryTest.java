@@ -301,4 +301,91 @@ class TransactionRepositoryTest {
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().get(0).getGateway()).isEqualTo(PaymentMethod.MOCK);
     }
+
+    @Test
+    @DisplayName("Should find first PENDING transaction by order ID and status")
+    void findFirstByOrderIdAndStatusOrderByCreatedAtDesc_WithPendingStatus_ShouldReturnLatestPending() throws InterruptedException {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        // Older PENDING transaction
+        Transaction pending1 = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        pending1.setStatus(TransactionStatus.PENDING);
+        entityManager.persist(pending1);
+        
+        Thread.sleep(10);
+
+        // Newer SUCCESS transaction (should be ignored)
+        Transaction success = PaymentTestHelper.createSuccessfulTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        entityManager.persist(success);
+        
+        Thread.sleep(10);
+
+        // Newest PENDING transaction (should be returned)
+        Transaction pending2 = PaymentTestHelper.createTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"));
+        pending2.setStatus(TransactionStatus.PENDING);
+        entityManager.persist(pending2);
+        
+        entityManager.flush();
+
+        // When
+        Optional<Transaction> found = transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                order.getId(), TransactionStatus.PENDING);
+
+        // Then
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(pending2.getId());
+        assertThat(found.get().getStatus()).isEqualTo(TransactionStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("Should return empty when no PENDING transaction exists")
+    void findFirstByOrderIdAndStatusOrderByCreatedAtDesc_NoPending_ShouldReturnEmpty() {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        // Only SUCCESS transaction
+        Transaction success = PaymentTestHelper.createSuccessfulTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("100.00"));
+        entityManager.persist(success);
+        entityManager.flush();
+
+        // When
+        Optional<Transaction> found = transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                order.getId(), TransactionStatus.PENDING);
+
+        // Then
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should find first FAILED transaction by order ID and status")
+    void findFirstByOrderIdAndStatusOrderByCreatedAtDesc_WithFailedStatus_ShouldReturnLatestFailed() throws InterruptedException {
+        // Given
+        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        entityManager.persist(order);
+
+        // Older FAILED transaction
+        Transaction failed1 = PaymentTestHelper.createFailedTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"), "Error 1");
+        entityManager.persist(failed1);
+        
+        Thread.sleep(10);
+
+        // Newer FAILED transaction (should be returned)
+        Transaction failed2 = PaymentTestHelper.createFailedTransaction(order, PaymentTestHelper.generateTransactionNumber(), new BigDecimal("50.00"), "Error 2");
+        entityManager.persist(failed2);
+        
+        entityManager.flush();
+
+        // When
+        Optional<Transaction> found = transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                order.getId(), TransactionStatus.FAILED);
+
+        // Then
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(failed2.getId());
+        assertThat(found.get().getStatus()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(found.get().getFailureReason()).isEqualTo("Error 2");
+    }
 }

@@ -34,6 +34,11 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 public class Order extends BaseEntity {
+
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
 
@@ -72,6 +77,16 @@ public class Order extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    @Column(name = "retry_count")
+    @Builder.Default
+    private Integer retryCount = 0;
+
+    @Column(name = "last_payment_attempt_at")
+    private LocalDateTime lastPaymentAttemptAt;
+
     // Customer info
     @Column(name = "customer_email", length = 255)
     private String customerEmail;
@@ -91,6 +106,17 @@ public class Order extends BaseEntity {
 
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
+
+    // Idempotency key to prevent duplicate orders on client retry
+    @Column(name = "idempotency_key", length = 64, unique = true)
+    private String idempotencyKey;
+
+    // Proper refund tracking (separate from failureReason)
+    @Column(name = "refund_reason", length = 500)
+    private String refundReason;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
 
     // Relationships
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -144,8 +170,23 @@ public class Order extends BaseEntity {
         this.status = OrderStatus.FAILED;
     }
 
+    /**
+     * Mark order as refunded with reason.
+     * Use dedicated refund fields instead of failureReason.
+     */
+    public void markAsRefunded(String reason) {
+        this.status = OrderStatus.REFUNDED;
+        this.refundReason = reason;
+        this.refundedAt = LocalDateTime.now();
+    }
+
+    /**
+     * @deprecated Use markAsRefunded(String reason) instead
+     */
+    @Deprecated
     public void markAsRefunded() {
         this.status = OrderStatus.REFUNDED;
+        this.refundedAt = LocalDateTime.now();
     }
 
     public void markAsCancelled() {

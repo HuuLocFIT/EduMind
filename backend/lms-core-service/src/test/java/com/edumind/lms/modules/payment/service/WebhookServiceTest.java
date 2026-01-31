@@ -165,5 +165,52 @@ class WebhookServiceTest {
             // Then
             assertThat(result).isTrue();
         }
+
+        @Test
+        @DisplayName("Should validate SePay signature with HMAC")
+        void verifySignature_Sepay_HmacValidation() {
+            // Given
+            WebhookPayloadRequest request = WebhookPayloadRequest.builder()
+                    .orderNumber(orderNumber)
+                    .amount(new BigDecimal("100.00"))
+                    .status("SUCCESS")
+                    .build();
+
+            // Configure secret via reflection
+            org.springframework.test.util.ReflectionTestUtils.setField(
+                    webhookService, "sepayWebhookSecret", "test-secret");
+
+            // Pre-compute expected signature using same logic
+            String dataToSign = orderNumber + "|" + request.getAmount() + "|" + request.getStatus();
+            String signature = computeHmacSha256Hex("test-secret", dataToSign);
+
+            // When
+            boolean result = webhookService.verifySignature(PaymentMethod.SEPAY, request, signature);
+
+            // Then
+            assertThat(result).isTrue();
+        }
+
+        private String computeHmacSha256Hex(String secret, String data) {
+            try {
+                javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+                javax.crypto.spec.SecretKeySpec keySpec =
+                        new javax.crypto.spec.SecretKeySpec(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                                "HmacSHA256");
+                mac.init(keySpec);
+                byte[] rawHmac = mac.doFinal(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder hex = new StringBuilder(rawHmac.length * 2);
+                for (byte b : rawHmac) {
+                    String h = Integer.toHexString(0xff & b);
+                    if (h.length() == 1) {
+                        hex.append('0');
+                    }
+                    hex.append(h);
+                }
+                return hex.toString();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

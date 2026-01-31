@@ -59,6 +59,43 @@ export const checkoutService = {
     );
     return parseCheckoutResult(response.data);
   },
+
+  /**
+   * Capture payment after PayPal approval
+   * Called when user is redirected back from PayPal with token
+   */
+  async capturePayment(token: string): Promise<CheckoutResultResponse> {
+    const response = await apiClient.post<CheckoutResultResponse>(
+      CHECKOUT_ENDPOINTS.CAPTURE,
+      null,
+      { params: { token } }
+    );
+    return parseCheckoutResult(response.data);
+  },
+
+  /**
+   * Handle payment cancellation (user cancelled on PayPal)
+   * Resets order to pending so user can retry
+   */
+  async cancelPayment(orderId: number): Promise<CheckoutResultResponse> {
+    const response = await apiClient.post<CheckoutResultResponse>(
+      CHECKOUT_ENDPOINTS.CANCEL,
+      null,
+      { params: { orderId } }
+    );
+    return parseCheckoutResult(response.data);
+  },
+
+  /**
+   * Check payment status (for polling Sepay QR payments)
+   * Returns current order status to detect webhook completion
+   */
+  async checkPaymentStatus(orderId: number): Promise<CheckoutResultResponse> {
+    const response = await apiClient.get<CheckoutResultResponse>(
+      CHECKOUT_ENDPOINTS.STATUS(orderId)
+    );
+    return parseCheckoutResult(response.data);
+  },
 };
 
 export type CheckoutService = typeof checkoutService;

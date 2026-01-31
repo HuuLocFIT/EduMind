@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "payment.gateway", havingValue = "mock", matchIfMissing = true)
+@ConditionalOnProperty(name = "payment.mock.enabled", havingValue = "true", matchIfMissing = true)
 public class MockPaymentGateway implements PaymentGateway {
 
     private static final String GATEWAY_NAME = "MOCK";

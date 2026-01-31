@@ -69,6 +69,73 @@ public class CheckoutController {
         return ResponseEntity.ok(ApiResponse.success(message, result));
     }
 
+    /**
+     * Capture payment (e.g. for PayPal after approval)
+     * POST /checkout/capture?token=...
+     */
+    @PostMapping("/capture")
+    public ResponseEntity<ApiResponse<CheckoutResultResponse>> capturePayment(
+            @RequestParam("token") String token,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} capturing payment for token {}", userId, token);
+
+        CheckoutResultResponse result = checkoutService.capturePayment(userId, token);
+
+        String message = result.isSuccess()
+                ? "Payment captured successfully"
+                : "Payment capture failed";
+
+        return ResponseEntity.ok(ApiResponse.success(message, result));
+    }
+
+    /**
+     * Handle payment cancellation (e.g. user cancelled on PayPal)
+     * POST /checkout/cancel?orderId=...
+     *
+     * This endpoint is called when user cancels payment on the gateway page.
+     * The order remains in PENDING/PROCESSING state and can be retried.
+     */
+    @PostMapping("/cancel")
+    public ResponseEntity<ApiResponse<CheckoutResultResponse>> handleCancellation(
+            @RequestParam("orderId") Long orderId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} cancelled payment for order {}", userId, orderId);
+
+        CheckoutResultResponse result = checkoutService.handlePaymentCancellation(userId, orderId);
+
+        return ResponseEntity.ok(ApiResponse.success("Payment cancelled. You can retry or choose a different payment method.", result));
+    }
+
+    /**
+     * Check payment status for an order (polling endpoint for SePay QR payments)
+     * GET /checkout/status/{orderId}
+     *
+     * Frontend should poll this endpoint after displaying QR code to check
+     * if the payment has been confirmed via webhook.
+     */
+    @GetMapping("/status/{orderId}")
+    public ResponseEntity<ApiResponse<CheckoutResultResponse>> checkPaymentStatus(
+            @PathVariable("orderId") Long orderId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.debug("User {} checking payment status for order {}", userId, orderId);
+
+        CheckoutResultResponse result = checkoutService.getOrderStatus(userId, orderId);
+
+        String message = result.isSuccess()
+                ? "Payment confirmed"
+                : result.isPending()
+                        ? "Waiting for payment confirmation"
+                        : "Payment failed";
+
+        return ResponseEntity.ok(ApiResponse.success(message, result));
+    }
+
     // ==================== Direct Checkout (Buy Now) ====================
 
     /**

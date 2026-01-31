@@ -4,8 +4,9 @@ import { Card, Button, Loading, PriceTag, ConfirmDialog, useToast } from "@edumi
 import { useCart, useRemoveFromCart, useClearCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
 import { CartItem } from "../../components/payment-module";
-import { ShoppingCart, Trash2, ArrowRight, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Trash2, ArrowRight, ArrowLeft, AlertTriangle } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { useMemo } from "react";
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -60,6 +61,10 @@ export const CartPage: React.FC = () => {
       showError("Your cart is empty");
       return;
     }
+    if (hasUnavailableItems) {
+      showError("Please remove unavailable items before checkout");
+      return;
+    }
     navigate(USER_ROUTES.CHECKOUT);
   };
 
@@ -77,6 +82,14 @@ export const CartPage: React.FC = () => {
   const discount = cart?.discountTotal || 0;
   const totalAmount = cart?.totalAmount || 0;
   const currency = cart?.currency || "USD";
+
+  // Check for unavailable items
+  const unavailableItems = useMemo(
+    () => items.filter((item) => item.isAvailable === false),
+    [items]
+  );
+  const hasUnavailableItems = unavailableItems.length > 0;
+  const availableItemsCount = items.length - unavailableItems.length;
 
   return (
     <>
@@ -128,6 +141,23 @@ export const CartPage: React.FC = () => {
               <Button variant="secondary" size="sm" onClick={() => refetch()} className="mt-2">
                 Try Again
               </Button>
+            </div>
+          )}
+
+          {/* Unavailable Items Warning */}
+          {hasUnavailableItems && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm sm:text-base font-medium text-amber-800">
+                    {unavailableItems.length} {unavailableItems.length === 1 ? "item is" : "items are"} no longer available
+                  </p>
+                  <p className="text-xs sm:text-sm text-amber-700 mt-1">
+                    Please remove unavailable items before proceeding to checkout.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -191,12 +221,19 @@ export const CartPage: React.FC = () => {
                   <Button
                     variant="primary"
                     onClick={handleCheckout}
+                    disabled={hasUnavailableItems || availableItemsCount === 0}
                     className="w-full"
                     size="lg"
                     rightIcon={<ArrowRight className="w-4 h-4" />}
                   >
-                    <span className="hidden sm:inline">Proceed to Checkout</span>
-                    <span className="sm:hidden">Checkout</span>
+                    {hasUnavailableItems ? (
+                      "Remove unavailable items"
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">Proceed to Checkout</span>
+                        <span className="sm:hidden">Checkout</span>
+                      </>
+                    )}
                   </Button>
 
                   {/* Security Note */}

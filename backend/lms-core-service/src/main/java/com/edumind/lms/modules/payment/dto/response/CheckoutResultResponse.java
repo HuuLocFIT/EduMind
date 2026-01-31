@@ -14,7 +14,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class CheckoutResultResponse {
 
     private boolean success;
@@ -28,6 +28,10 @@ public class CheckoutResultResponse {
     private String currency;
     private PaymentMethod paymentMethod;
     private boolean pending;  // For pending payments
+
+    // Local currency info (for SePay VND conversion)
+    private BigDecimal localAmount;
+    private String localCurrency;
 
     // Transaction info (if payment processed)
     private String transactionNumber;
@@ -51,4 +55,7 @@ public class CheckoutResultResponse {
     // Error info (if failed)
     private String errorCode;
     private String errorMessage;
+
+    // Retry info (for failed/cancelled payments)
+    private boolean canRetry;
 }
