@@ -1,44 +1,44 @@
-# Hướng Dẫn Viết Test cho Spring Boot 🧪
+# Spring Boot Testing Guide 🧪
 
-> Hướng dẫn chi tiết từ cơ bản đến nâng cao, dành cho người mới bắt đầu.
+> A detailed guide from basics to advanced, designed for beginners.
 
 ---
 
-## Mục Lục
+## Table of Contents
 
-1. [Giới thiệu về Testing](#1-giới-thiệu-về-testing)
-2. [Các loại Test trong Spring Boot](#2-các-loại-test-trong-spring-boot)
-3. [Cấu trúc một Test cơ bản](#3-cấu-trúc-một-test-cơ-bản)
-4. [JUnit 5 - Framework Testing](#4-junit-5---framework-testing)
-5. [Mockito - Giả lập Dependencies](#5-mockito---giả-lập-dependencies)
-6. [Unit Test cho Service](#6-unit-test-cho-service)
-7. [Repository Test với @DataJpaTest](#7-repository-test-với-datajpatest)
-8. [Controller Test với @WebMvcTest](#8-controller-test-với-webmvctest)
-9. [Integration Test với @SpringBootTest](#9-integration-test-với-springboottest)
+1. [Introduction to Testing](#1-introduction-to-testing)
+2. [Types of Tests in Spring Boot](#2-types-of-tests-in-spring-boot)
+3. [Basic Test Structure](#3-basic-test-structure)
+4. [JUnit 5 - Testing Framework](#4-junit-5---testing-framework)
+5. [Mockito - Mocking Dependencies](#5-mockito---mocking-dependencies)
+6. [Unit Test for Service](#6-unit-test-for-service)
+7. [Repository Test with @DataJpaTest](#7-repository-test-with-datajpatest)
+8. [Controller Test with @WebMvcTest](#8-controller-test-with-webmvctest)
+9. [Integration Test with @SpringBootTest](#9-integration-test-with-springboottest)
 10. [Best Practices](#10-best-practices)
 
 ---
 
-## 1. Giới thiệu về Testing
+## 1. Introduction to Testing
 
-### Tại sao cần viết Test?
+### Why Write Tests?
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Không có Test              │  Có Test                  │
+│  Without Tests              │  With Tests               │
 ├─────────────────────────────────────────────────────────┤
-│  ❌ Sợ thay đổi code        │  ✅ Tự tin refactor       │
-│  ❌ Bug phát hiện muộn      │  ✅ Phát hiện bug sớm     │
-│  ❌ Debug thủ công          │  ✅ Tự động kiểm tra      │
-│  ❌ Khó bảo trì             │  ✅ Code dễ maintain      │
+│  ❌ Afraid to change code    │  ✅ Confident to refactor │
+│  ❌ Bugs found late          │  ✅ Bugs found early      │
+│  ❌ Manual debugging         │  ✅ Automated checking    │
+│  ❌ Hard to maintain         │  ✅ Easy to maintain      │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Test Pyramid (Kim tự tháp Test)
+### Test Pyramid
 
 ```
           ┌───────────┐
-          │Integration│  ← Ít test, chạy chậm, test toàn bộ flow
+          │Integration│  ← Few tests, slow, test entire flow
           │   Tests   │
          ─┴───────────┴─
         ┌───────────────┐
@@ -50,69 +50,69 @@
       │     Tests         │
      ─┴───────────────────┴─
     ┌───────────────────────┐
-    │      Unit Tests       │  ← Nhiều test, chạy nhanh, test logic
+    │      Unit Tests       │  ← Many tests, fast, test logic
     │   (Service layer)     │
     └───────────────────────┘
 ```
 
 ---
 
-## 2. Các loại Test trong Spring Boot
+## 2. Types of Tests in Spring Boot
 
-| Loại Test | Annotation | Mục đích | Tốc độ |
+| Test Type | Annotation | Purpose | Speed |
 |-----------|------------|----------|--------|
-| Unit Test | `@ExtendWith(MockitoExtension.class)` | Test business logic riêng lẻ | ⚡ Rất nhanh |
-| Repository Test | `@DataJpaTest` | Test database queries | 🚀 Nhanh |
-| Controller Test | `@WebMvcTest` | Test REST endpoints | 🚀 Nhanh |
-| Integration Test | `@SpringBootTest` | Test toàn bộ flow | 🐢 Chậm |
+| Unit Test | `@ExtendWith(MockitoExtension.class)` | Test individual business logic | ⚡ Very fast |
+| Repository Test | `@DataJpaTest` | Test database queries | 🚀 Fast |
+| Controller Test | `@WebMvcTest` | Test REST endpoints | 🚀 Fast |
+| Integration Test | `@SpringBootTest` | Test entire flow | 🐢 Slow |
 
 ---
 
-## 3. Cấu trúc một Test cơ bản
+## 3. Basic Test Structure
 
-### Pattern AAA (Arrange - Act - Assert)
+### AAA Pattern (Arrange - Act - Assert)
 
-Mọi test đều tuân theo 3 bước:
+Every test follows 3 steps:
 
 ```java
 @Test
 void testMethodName_WhenCondition_ShouldExpectedResult() {
     // ========== ARRANGE (Given) ==========
-    // Chuẩn bị dữ liệu đầu vào và mock
+    // Prepare input data and mocks
     String input = "test data";
     when(mockRepository.findById(1L)).thenReturn(Optional.of(testUser));
     
     // ========== ACT (When) ==========
-    // Thực hiện hành động cần test
+    // Execute the action to test
     String result = serviceUnderTest.processData(input);
     
     // ========== ASSERT (Then) ==========
-    // Kiểm tra kết quả
+    // Verify the result
     assertEquals("expected result", result);
     verify(mockRepository).findById(1L);
 }
 ```
 
-### Cấu trúc file Test
+### Test File Structure
 
 ```
 src/
 ├── main/java/com/edumind/auth/
 │   └── service/
-│       └── AuthService.java          ← Code chính
+│       └── AuthService.java          ← Main code
 │
 └── test/java/com/edumind/auth/
     └── service/
-        └── AuthServiceTest.java      ← Test cho AuthService
+        └── AuthServiceTest.java      ← Test for AuthService
 ```
 
-> **Quy tắc đặt tên**: `[TênClass]Test.java` - Ví dụ: `AuthService.java` → `AuthServiceTest.java`
+> **Naming rule**: `[ClassName]Test.java` - Example: `AuthService.java` → `AuthServiceTest.java`
 
 ---
 
-## 4. JUnit 5 - Framework Testing
+## 4. JUnit 5 - Testing Framework
 
-### Các Annotation quan trọng
+### Important Annotations
 
 ```java
 import org.junit.jupiter.api.*;  // Import JUnit 5
@@ -121,69 +121,69 @@ class MyServiceTest {
 
     @BeforeAll
     static void setupOnce() {
-        // Chạy 1 lần TRƯỚC TẤT CẢ tests
-        // Dùng cho setup tốn kém (database connection, etc.)
+        // Runs ONCE BEFORE ALL tests
+        // Used for expensive setup (database connection, etc.)
     }
 
     @BeforeEach
     void setupEachTest() {
-        // Chạy TRƯỚC MỖI test
-        // Dùng để reset trạng thái, tạo test data mới
+        // Runs BEFORE EACH test
+        // Used to reset state, create new test data
     }
 
     @Test
-    @DisplayName("Mô tả dễ đọc cho test này")
+    @DisplayName("Readable description for this test")
     void myTest() {
-        // Code test ở đây
+        // Test code here
     }
 
     @AfterEach
     void cleanupEachTest() {
-        // Chạy SAU MỖI test
-        // Dùng để dọn dẹp resources
+        // Runs AFTER EACH test
+        // Used to clean up resources
     }
 
     @AfterAll
     static void cleanupOnce() {
-        // Chạy 1 lần SAU TẤT CẢ tests
+        // Runs ONCE AFTER ALL tests
     }
 }
 ```
 
-### Các Assertion phổ biến
+### Common Assertions
 
 ```java
 import static org.junit.jupiter.api.Assertions.*;
 
-// ===== So sánh giá trị =====
-assertEquals(expected, actual);           // Kiểm tra bằng nhau
-assertEquals("msg", expected, actual);    // Với message tùy chỉnh
-assertNotEquals(unexpected, actual);      // Kiểm tra khác nhau
+// ===== Value comparison =====
+assertEquals(expected, actual);           // Check equality
+assertEquals("msg", expected, actual);    // With custom message
+assertNotEquals(unexpected, actual);      // Check inequality
 
 // ===== Boolean =====
-assertTrue(condition);                    // Kiểm tra true
-assertFalse(condition);                   // Kiểm tra false
+assertTrue(condition);                    // Check true
+assertFalse(condition);                   // Check false
 
 // ===== Null check =====
-assertNull(object);                       // Kiểm tra null
-assertNotNull(object);                    // Kiểm tra không null
+assertNull(object);                       // Check null
+assertNotNull(object);                    // Check not null
 
 // ===== Exception =====
 assertThrows(ExceptionClass.class, () -> {
-    // Code sẽ throw exception
+    // Code that will throw exception
     service.methodThatThrows();
 });
 
 // ===== Instance check =====
 assertInstanceOf(ExpectedClass.class, object);
 
-// ===== Không throw exception =====
+// ===== No exception thrown =====
 assertDoesNotThrow(() -> {
     service.safeMethod();
 });
 ```
 
-### Tổ chức Tests với @Nested
+### Organizing Tests with @Nested
 
 ```java
 @ExtendWith(MockitoExtension.class)
@@ -194,13 +194,13 @@ class UserServiceTest {
     class GetCurrentUserTests {
         
         @Test
-        @DisplayName("Trả về user khi đã xác thực")
+        @DisplayName("Returns user when authenticated")
         void getCurrentUser_WhenAuthenticated_ShouldReturnUser() {
             // test code
         }
 
         @Test
-        @DisplayName("Throw exception khi user không tồn tại")
+        @DisplayName("Throws exception when user not found")
         void getCurrentUser_WhenUserNotFound_ShouldThrowException() {
             // test code
         }
@@ -209,25 +209,25 @@ class UserServiceTest {
     @Nested
     @DisplayName("updateProfile Tests")
     class UpdateProfileTests {
-        // Các tests cho updateProfile
+        // Tests for updateProfile
     }
 }
 ```
 
-> `@Nested` giúp nhóm các tests liên quan lại với nhau, dễ đọc và maintain hơn.
+> `@Nested` helps group related tests together, making them easier to read and maintain.
 
 ---
 
-## 5. Mockito - Giả lập Dependencies
+## 5. Mockito - Mocking Dependencies
 
-### Tại sao cần Mock?
+### Why Do We Need Mocks?
 
-Khi test `AuthService`, ta KHÔNG muốn:
-- Kết nối database thật
-- Gửi email thật
-- Gọi API bên ngoài
+When testing `AuthService`, we DON'T want to:
+- Connect to a real database
+- Send real emails
+- Call external APIs
 
-→ Ta dùng **Mock** để giả lập các dependencies này.
+→ We use **Mocks** to simulate these dependencies.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -239,36 +239,36 @@ Khi test `AuthService`, ta KHÔNG muốn:
 └──────────────────────────────────────────────────────────┘
 ```
 
-### Các Annotation của Mockito
+### Mockito Annotations
 
 ```java
-@ExtendWith(MockitoExtension.class)  // Kích hoạt Mockito
+@ExtendWith(MockitoExtension.class)  // Activate Mockito
 class AuthServiceTest {
 
     @Mock
-    private UserRepository userRepository;    // Tạo mock object
+    private UserRepository userRepository;    // Create mock object
 
     @Mock
-    private PasswordEncoder passwordEncoder;  // Tạo mock object
+    private PasswordEncoder passwordEncoder;  // Create mock object
 
     @InjectMocks
-    private AuthService authService;          // Inject các mocks vào đây
+    private AuthService authService;          // Inject mocks here
 }
 ```
 
-### Cú pháp `when().thenReturn()`
+### `when().thenReturn()` Syntax
 
 ```java
-// ===== Trả về giá trị =====
+// ===== Return a value =====
 when(userRepository.findById(1L))
     .thenReturn(Optional.of(testUser));
 
-// ===== Trả về giá trị khác nhau mỗi lần gọi =====
+// ===== Return different values on each call =====
 when(tokenProvider.generateToken())
     .thenReturn("token1")
     .thenReturn("token2");
 
-// ===== Trả về giá trị dựa trên input =====
+// ===== Return value based on input =====
 when(passwordEncoder.encode(anyString()))
     .thenAnswer(invocation -> {
         String input = invocation.getArgument(0);
@@ -279,7 +279,7 @@ when(passwordEncoder.encode(anyString()))
 when(userRepository.findById(999L))
     .thenThrow(new ResourceNotFoundException("User not found"));
 
-// ===== Cho void method =====
+// ===== For void methods =====
 doNothing().when(emailService).sendEmail(any());
 doThrow(new RuntimeException()).when(emailService).sendEmail(any());
 ```
@@ -289,31 +289,31 @@ doThrow(new RuntimeException()).when(emailService).sendEmail(any());
 ```java
 import static org.mockito.ArgumentMatchers.*;
 
-// ===== Bất kỳ giá trị nào =====
+// ===== Any value =====
 when(repo.findByEmail(anyString())).thenReturn(Optional.empty());
 when(repo.findById(anyLong())).thenReturn(Optional.of(user));
 
-// ===== Bất kỳ object nào =====
+// ===== Any object =====
 when(repo.save(any(User.class))).thenReturn(savedUser);
 
-// ===== Kiểm tra argument cụ thể =====
+// ===== Check specific argument =====
 when(repo.save(argThat(user -> 
     user.getEmail().endsWith("@example.com")
 ))).thenReturn(savedUser);
 ```
 
-### Verify - Kiểm tra method có được gọi không
+### Verify - Check if Method Was Called
 
 ```java
-// ===== Verify method được gọi =====
+// ===== Verify method was called =====
 verify(emailService).sendEmail(any());
 
-// ===== Verify gọi đúng số lần =====
+// ===== Verify called correct number of times =====
 verify(repository, times(2)).save(any());
 verify(repository, never()).delete(any());
 verify(repository, atLeastOnce()).findById(anyLong());
 
-// ===== Verify với argument cụ thể =====
+// ===== Verify with specific argument =====
 verify(repository).save(argThat(user -> 
     "newuser".equals(user.getUsername())
 ));
@@ -321,9 +321,9 @@ verify(repository).save(argThat(user ->
 
 ---
 
-## 6. Unit Test cho Service
+## 6. Unit Test for Service
 
-### Ví dụ đầy đủ: Test registerUser
+### Complete Example: Testing registerUser
 
 ```java
 package com.edumind.auth.service;
@@ -337,10 +337,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)  // ① Kích hoạt Mockito
+@ExtendWith(MockitoExtension.class)  // ① Activate Mockito
 class AuthServiceTest {
 
-    // ② Tạo các mock objects
+    // ② Create mock objects
     @Mock
     private UserRepository userRepository;
 
@@ -353,7 +353,7 @@ class AuthServiceTest {
     @Mock
     private EmailVerificationService emailVerificationService;
 
-    // ③ Inject mocks vào service cần test
+    // ③ Inject mocks into service under test
     @InjectMocks
     private AuthService authService;
 
@@ -363,7 +363,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        // ⑤ Chuẩn bị test data trước mỗi test
+        // ⑤ Prepare test data before each test
         signupRequest = new SignupRequest();
         signupRequest.setUsername("newuser");
         signupRequest.setEmail("newuser@example.com");
@@ -375,24 +375,24 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Đăng ký thành công với dữ liệu hợp lệ")
+    @DisplayName("Register successfully with valid data")
     void registerUser_WithValidData_ShouldCreateUser() {
         // ========== ARRANGE ==========
-        // Giả lập: username và email chưa tồn tại
+        // Mock: username and email don't exist yet
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.existsByEmail("newuser@example.com")).thenReturn(false);
         
-        // Giả lập: encode password
+        // Mock: encode password
         when(passwordEncoder.encode("Password123!")).thenReturn("encoded_password");
         
-        // Giả lập: tìm role STUDENT
+        // Mock: find STUDENT role
         when(roleRepository.findByName(RoleName.ROLE_STUDENT))
             .thenReturn(Optional.of(studentRole));
         
-        // Giả lập: save user và trả về user với ID
+        // Mock: save user and return user with ID
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User user = inv.getArgument(0);
-            user.setId(1L);  // Giả lập database tạo ID
+            user.setId(1L);  // Mock database creating ID
             return user;
         });
 
@@ -400,7 +400,7 @@ class AuthServiceTest {
         authService.registerUser(signupRequest);
 
         // ========== ASSERT ==========
-        // Verify user được lưu
+        // Verify user was saved
         verify(userRepository).save(argThat(user -> {
             assertEquals("newuser", user.getUsername());
             assertEquals("newuser@example.com", user.getEmail());
@@ -408,12 +408,12 @@ class AuthServiceTest {
             return true;
         }));
         
-        // Verify email được gửi
+        // Verify email was sent
         verify(emailVerificationService).sendVerificationEmail(any(User.class));
     }
 
     @Test
-    @DisplayName("Throw exception khi username đã tồn tại")
+    @DisplayName("Throw exception when username already exists")
     void registerUser_WithExistingUsername_ShouldThrowException() {
         // ========== ARRANGE ==========
         when(userRepository.existsByUsername("newuser")).thenReturn(true);
@@ -426,53 +426,53 @@ class AuthServiceTest {
 
         assertEquals("Username is already taken!", exception.getMessage());
         
-        // Verify: KHÔNG gọi save
+        // Verify: save was NOT called
         verify(userRepository, never()).save(any(User.class));
     }
 }
 ```
 
-### Giải thích từng phần
+### Explanation of Each Part
 
 ```java
 @ExtendWith(MockitoExtension.class)
 ```
-> Kích hoạt Mockito cho test class này. Tương đương câu "Tôi muốn dùng mock trong class này".
+> Activates Mockito for this test class. Equivalent to saying "I want to use mocks in this class".
 
 ```java
 @Mock
 private UserRepository userRepository;
 ```
-> Tạo một object giả của `UserRepository`. Object này không kết nối database thật, mà ta phải định nghĩa behavior cho nó.
+> Creates a fake object of `UserRepository`. This object doesn't connect to a real database; we must define its behavior.
 
 ```java
 @InjectMocks
 private AuthService authService;
 ```
-> Tạo `AuthService` thật và tự động inject các `@Mock` objects vào các fields của nó.
+> Creates a real `AuthService` and automatically injects the `@Mock` objects into its fields.
 
 ```java
 when(userRepository.existsByUsername("newuser")).thenReturn(false);
 ```
-> "Khi ai đó gọi `existsByUsername("newuser")`, hãy trả về `false`"
+> "When someone calls `existsByUsername("newuser")`, return `false`"
 
 ```java
 verify(userRepository).save(any(User.class));
 ```
-> "Kiểm tra xem `save()` có được gọi đúng 1 lần với User nào đó không"
+> "Check if `save()` was called exactly once with any User"
 
 ---
 
-## 7. Repository Test với @DataJpaTest
+## 7. Repository Test with @DataJpaTest
 
-### Đặc điểm của @DataJpaTest
+### Characteristics of @DataJpaTest
 
-- Chỉ load các components liên quan đến JPA
-- Tự động dùng H2 in-memory database
-- Mỗi test chạy trong transaction và rollback sau khi xong
-- Nhanh hơn `@SpringBootTest`
+- Only loads JPA-related components
+- Automatically uses H2 in-memory database
+- Each test runs in a transaction and rolls back after completion
+- Faster than `@SpringBootTest`
 
-### Ví dụ đầy đủ
+### Complete Example
 
 ```java
 package com.edumind.auth.repository;
@@ -483,20 +483,20 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest  // ① Load JPA components
-@ActiveProfiles("test")  // ② Dùng application-test.yaml
+@ActiveProfiles("test")  // ② Use application-test.yaml
 class UserRepositoryTest {
 
     @Autowired
-    private UserRepository userRepository;  // ③ Repository thật
+    private UserRepository userRepository;  // ③ Real repository
 
     @Autowired
-    private TestEntityManager entityManager;  // ④ Để setup test data
+    private TestEntityManager entityManager;  // ④ For setting up test data
 
     private User testUser;
 
     @BeforeEach
     void setUp() {
-        // ⑤ Tạo user trong database
+        // ⑤ Create user in database
         testUser = User.builder()
                 .username("testuser")
                 .email("test@example.com")
@@ -507,14 +507,14 @@ class UserRepositoryTest {
                 .provider(AuthProvider.LOCAL)
                 .build();
         
-        entityManager.persistAndFlush(testUser);  // Lưu vào DB
-        entityManager.clear();  // Xóa cache để đảm bảo query DB thật
+        entityManager.persistAndFlush(testUser);  // Save to DB
+        entityManager.clear();  // Clear cache to ensure real DB query
     }
 
     @Test
-    @DisplayName("Tìm user theo username")
+    @DisplayName("Find user by username")
     void findByUsername_WhenExists_ShouldReturnUser() {
-        // ACT - Query thực sự vào H2 database
+        // ACT - Real query to H2 database
         Optional<User> result = userRepository.findByUsername("testuser");
 
         // ASSERT
@@ -524,7 +524,7 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("Trả về empty khi username không tồn tại")
+    @DisplayName("Return empty when username doesn't exist")
     void findByUsername_WhenNotExists_ShouldReturnEmpty() {
         Optional<User> result = userRepository.findByUsername("nonexistent");
         
@@ -532,9 +532,9 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("Không trả về user đã bị xóa (soft delete)")
+    @DisplayName("Don't return deleted users (soft delete)")
     void findByUsername_ShouldExcludeDeletedUsers() {
-        // ARRANGE - Đánh dấu user đã xóa
+        // ARRANGE - Mark user as deleted
         User fetchedUser = entityManager.find(User.class, testUser.getId());
         fetchedUser.setDeletedAt(LocalDateTime.now());
         entityManager.persistAndFlush(fetchedUser);
@@ -543,7 +543,7 @@ class UserRepositoryTest {
         // ACT
         Optional<User> result = userRepository.findByUsername("testuser");
 
-        // ASSERT - Không tìm thấy user đã xóa
+        // ASSERT - Deleted user not found
         assertTrue(result.isEmpty());
     }
 }
@@ -553,21 +553,21 @@ class UserRepositoryTest {
 
 | TestEntityManager | Repository |
 |-------------------|------------|
-| Dùng để **setup** test data | Dùng để **test** queries |
+| Used to **setup** test data | Used to **test** queries |
 | `persistAndFlush()` | `save()`, `findById()`, etc. |
-| Đảm bảo data có trong DB trước khi test | Đây là thứ ta đang test |
+| Ensures data exists in DB before test | This is what we're testing |
 
 ---
 
-## 8. Controller Test với @WebMvcTest
+## 8. Controller Test with @WebMvcTest
 
-### Đặc điểm của @WebMvcTest
+### Characteristics of @WebMvcTest
 
-- Chỉ load Web layer (Controllers, Filters, etc.)
-- Dùng `MockMvc` để gửi HTTP requests giả
-- Service dependencies phải mock bằng `@MockBean`
+- Only loads Web layer (Controllers, Filters, etc.)
+- Uses `MockMvc` to send fake HTTP requests
+- Service dependencies must be mocked with `@MockBean`
 
-### Ví dụ đầy đủ
+### Complete Example
 
 ```java
 package com.edumind.auth.controller;
@@ -581,11 +581,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AuthController.class)  // ① Chỉ test AuthController
+@WebMvcTest(AuthController.class)  // ① Only test AuthController
 class AuthControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;  // ② Dùng để gửi HTTP requests
+    private MockMvc mockMvc;  // ② Used to send HTTP requests
 
     @Autowired
     private ObjectMapper objectMapper;  // ③ Convert object ↔ JSON
@@ -594,7 +594,7 @@ class AuthControllerTest {
     private AuthService authService;  // ④ Mock service dependency
 
     @Test
-    @DisplayName("POST /auth/signup - Đăng ký thành công")
+    @DisplayName("POST /auth/signup - Register successfully")
     void signup_WithValidData_Returns201() throws Exception {
         // ARRANGE
         SignupRequest request = new SignupRequest();
@@ -602,7 +602,7 @@ class AuthControllerTest {
         request.setEmail("newuser@example.com");
         request.setPassword("Password123!");
 
-        // Giả lập service không throw exception
+        // Mock service doesn't throw exception
         doNothing().when(authService).registerUser(any(SignupRequest.class));
 
         // ACT & ASSERT
@@ -616,7 +616,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /auth/signup - Username trống → 400")
+    @DisplayName("POST /auth/signup - Blank username → 400")
     void signup_WithBlankUsername_Returns400() throws Exception {
         SignupRequest request = new SignupRequest();
         request.setUsername("");  // Invalid!
@@ -632,7 +632,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /auth/login - Đăng nhập thành công")
+    @DisplayName("POST /auth/login - Login successfully")
     void login_WithValidCredentials_ReturnsJwt() throws Exception {
         // ARRANGE
         LoginRequest request = new LoginRequest("testuser", "password123");
@@ -691,36 +691,36 @@ mockMvc.perform(delete("/users/1"))
 
 ---
 
-## 9. Integration Test với @SpringBootTest
+## 9. Integration Test with @SpringBootTest
 
-### Đặc điểm
+### Characteristics
 
-- Load **toàn bộ** application context
+- Loads **entire** application context
 - Test end-to-end flow
-- Chạy chậm nhất nhưng đảm bảo mọi thứ hoạt động cùng nhau
+- Slowest but ensures everything works together
 
-### Ví dụ
+### Example
 
 ```java
 @SpringBootTest  // ① Load full context
-@AutoConfigureMockMvc  // ② Vẫn dùng MockMvc
+@AutoConfigureMockMvc  // ② Still use MockMvc
 @ActiveProfiles("test")
-@Transactional  // ③ Rollback sau mỗi test
+@Transactional  // ③ Rollback after each test
 class AuthIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
-    private UserRepository userRepository;  // Repository THẬT
+    private UserRepository userRepository;  // Real Repository
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Test
-    @DisplayName("Full flow: Đăng ký → Đăng nhập")
+    @DisplayName("Full flow: Register → Login")
     void fullAuthenticationFlow() throws Exception {
-        // 1. ĐĂNG KÝ
+        // 1. REGISTER
         SignupRequest signup = new SignupRequest();
         signup.setUsername("integrationuser");
         signup.setEmail("integration@example.com");
@@ -731,16 +731,16 @@ class AuthIntegrationTest {
                 .content(objectMapper.writeValueAsString(signup)))
             .andExpect(status().isCreated());
 
-        // 2. VERIFY USER TRONG DATABASE
+        // 2. VERIFY USER IN DATABASE
         Optional<User> savedUser = userRepository.findByUsername("integrationuser");
         assertTrue(savedUser.isPresent());
         
-        // 3. GIẢ LẬP XÁC THỰC EMAIL (bình thường qua email link)
+        // 3. SIMULATE EMAIL VERIFICATION (normally via email link)
         User user = savedUser.get();
         user.setIsEmailVerified(true);
         userRepository.save(user);
 
-        // 4. ĐĂNG NHẬP
+        // 4. LOGIN
         LoginRequest login = new LoginRequest("integrationuser", "Password123!");
 
         mockMvc.perform(post("/auth/login")
@@ -756,20 +756,20 @@ class AuthIntegrationTest {
 
 ## 10. Best Practices
 
-### ✅ Nên làm
+### ✅ Should Do
 
 ```java
-// 1. Tên test mô tả rõ ràng
+// 1. Descriptive test names
 void registerUser_WithExistingEmail_ShouldThrowBadRequestException()
 
-// 2. Mỗi test chỉ test 1 thứ
+// 2. Each test tests only one thing
 @Test void shouldReturnUserWhenUsernameExists() { ... }
 @Test void shouldReturnEmptyWhenUsernameNotExists() { ... }
 
-// 3. Dùng @DisplayName cho dễ đọc
-@DisplayName("Trả về 400 khi email không hợp lệ")
+// 3. Use @DisplayName for readability
+@DisplayName("Returns 400 when email is invalid")
 
-// 4. Arrange-Act-Assert rõ ràng
+// 4. Clear Arrange-Act-Assert
 // ARRANGE
 User user = createTestUser();
 when(repo.findById(1L)).thenReturn(Optional.of(user));
@@ -778,57 +778,57 @@ UserResponse result = service.getUserById(1L);
 // ASSERT
 assertEquals("testuser", result.getUsername());
 
-// 5. Test cả happy path và error cases
+// 5. Test both happy path and error cases
 @Test void login_Success() { ... }
 @Test void login_WrongPassword_ThrowsException() { ... }
 @Test void login_UserNotFound_ThrowsException() { ... }
 ```
 
-### ❌ Không nên làm
+### ❌ Should Not Do
 
 ```java
-// 1. Test quá nhiều thứ trong 1 test
+// 1. Test too many things in one test
 @Test void testEverything() {
-    // 100 dòng code...
+    // 100 lines of code...
 }
 
-// 2. Phụ thuộc vào thứ tự tests
+// 2. Depend on test execution order
 @Test void step1_CreateUser() { ... }
-@Test void step2_LoginUser() { ... }  // Fail nếu step1 không chạy trước
+@Test void step2_LoginUser() { ... }  // Fails if step1 doesn't run first
 
-// 3. Hardcode dữ liệu nhạy cảm
+// 3. Hardcode sensitive data
 when(service.authenticate("admin", "realPassword123")).thenReturn(user);
 
-// 4. Không verify side effects
+// 4. Don't verify side effects
 authService.registerUser(request);
-// Thiếu: verify(emailService).sendEmail(any());
+// Missing: verify(emailService).sendEmail(any());
 ```
 
 ---
 
-## Chạy Tests
+## Running Tests
 
 ```bash
-# Chạy tất cả tests
+# Run all tests
 ./mvnw test
 
-# Chạy test class cụ thể
+# Run specific test class
 ./mvnw test -Dtest=AuthServiceTest
 
-# Chạy nhiều test classes
+# Run multiple test classes
 ./mvnw test -Dtest=AuthServiceTest,UserServiceTest
 
-# Chạy test method cụ thể
+# Run specific test method
 ./mvnw test -Dtest=AuthServiceTest#registerUser_WithValidData_ShouldCreateUser
 
-# Chạy với coverage report
+# Run with coverage report
 ./mvnw test jacoco:report
-# Report ở: target/site/jacoco/index.html
+# Report at: target/site/jacoco/index.html
 ```
 
 ---
 
-## Tài liệu tham khảo
+## References
 
 - [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/)
 - [Mockito Documentation](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html)
