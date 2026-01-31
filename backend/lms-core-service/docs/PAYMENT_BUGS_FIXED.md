@@ -967,6 +967,56 @@ const directCourseId = useMemo(() => {
 
 ---
 
+## Bug #23: Cart Not Clearing After Successful Payment
+
+### Issue Description
+Users reported that after a successful checkout (via PayPal or SePay), the purchased items remained in their shopping cart. This occurred despite the order status being correctly updated to `COMPLETED`.
+
+### Root Causes
+Investigation revealed three distinct issues contributing to this bug:
+
+1.  **Transaction Configuration Error**:
+    *   The `getCart(userId)` method was annotated with `@Transactional(readOnly = true)`.
+    *   However, it internally called `getOrCreateCart(userId)`, which attempts an `INSERT` (write operation) if the cart doesn't exist.
+    *   This caused a `JpaSystemException: cannot execute INSERT in a read-only transaction` when the system tried to access the cart during the clearing process.
+
+2.  **JPQL Cache/Persistence Issue**:
+    *   The `removeItemsInNewTransaction` method used a custom JPQL query (`deleteByCartIdAndCourseIds`).
+    *   Bulk delete queries in Hibernate/JPA bypass the persistence context. This meant that although the database *might* have been updated, the application's entity manager or second-level cache (if used) wasn't aware of the changes, and the `Cart` entity itself wasn't updated (specifically its `updatedAt` timestamp), causing stale data to potentially be served.
+
+3.  **Race Condition (Webhook vs. UI Capture)**:
+    *   The payment flow involved two parallel "completion" triggers:
+        *   **Webhook**: Asynchronous callback from the payment gateway.
+        *   **Capture (UI)**: Synchronous call when the user returns to the "Success" page.
+    *   Both flows implemented an **Idempotency Check**: `if (order.getStatus() == OrderStatus.COMPLETED) return;`.
+    *   **The Bug**: If the Webhook finished *just* before the UI Capture (or vice versa), the second process would see the order as `COMPLETED` and return immediately.
+    *   **Consequence**: The logic to "Clear Cart" was located *after* the main completion logic. The "loser" of the race would skip the cart clearing step, assuming the "winner" had done it. However, if the "winner" failed silently (e.g., due to cause #1 or #2 above), the "loser" would not retry, leaving the cart populated.
+
+### Fixes Applied
+
+1.  **Transactional Fix**:
+    *   Removed `readOnly = true` from `CartServiceImpl.getCart()` to allow write operations (creation of missing carts).
+
+2.  **Cart Removal Refactoring**:
+    *   Rewrote `CartServiceImpl.removeItemsInNewTransaction` to:
+        1. Fetch all cart items.
+        2. Filter matching items in Java.
+        3. Use `cartItemRepository.deleteAll(items)` (standard JPA delete).
+        4. Explicitly update `cart.setUpdatedAt(now())` and save the cart.
+    *   This ensures proper Hibernate lifecycle management and cache invalidation.
+
+3.  **Race Condition Resolution**:
+    *   Updated **`CheckoutServiceImpl.handleSuccessfulPayment`** and **`WebhookServiceImpl.handlePaymentSuccess`**.
+    *   Added defensive logic inside the Idempotency block (`if status == COMPLETED`):
+    *   **Logic**: "Even if the order is *already* completed, check if it was from a cart, and if so, attempt to clear the items again."
+    *   This ensures that whichever thread acts last acts as a "safety net" to ensure the side effects (cart clearing) are finalized.
+
+### Files Modified
+*   `backend/lms-core-service/src/main/java/com/edumind/lms/modules/payment/service/CartServiceImpl.java`
+*   `backend/lms-core-service/src/main/java/com/edumind/lms/modules/payment/service/CheckoutServiceImpl.java`
+*   `backend/lms-core-service/src/main/java/com/edumind/lms/modules/payment/service/WebhookServiceImpl.java`
+*   `backend/lms-core-service/src/main/java/com/edumind/lms/modules/payment/service/CartService.java`
+
 # Summary of New Bugs
 
 | Bug # | Title | Severity | Type | Status |

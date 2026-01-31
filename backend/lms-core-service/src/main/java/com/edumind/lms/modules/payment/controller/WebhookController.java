@@ -2,12 +2,15 @@ package com.edumind.lms.modules.payment.controller;
 
 import com.edumind.lms.modules.payment.dto.request.WebhookPayloadRequest;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
+import com.edumind.lms.modules.payment.exception.DuplicateWebhookException;
 import com.edumind.lms.modules.payment.gateway.impl.paypal.PayPalWebhookPayload;
 import com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload;
+import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
 import com.edumind.lms.modules.payment.service.WebhookService;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,11 +28,19 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/payments/webhook")
-@RequiredArgsConstructor
 @Slf4j
 public class WebhookController {
 
     private final WebhookService webhookService;
+    private final SepayGatewayProperties sepayProperties;
+
+    @Autowired
+    public WebhookController(
+            WebhookService webhookService,
+            @Autowired(required = false) SepayGatewayProperties sepayProperties) {
+        this.webhookService = webhookService;
+        this.sepayProperties = sepayProperties;
+    }
 
     // ==================== Mock Gateway (Development) ====================
 
@@ -155,7 +166,7 @@ public class WebhookController {
                 .amount(amount)
                 .currency(currency)
                 .status(status)
-                .rawPayload(payload.getRawResource())
+                .rawPayload(payload.getRawWebhookEvent())  // Full webhook event for signature verification
                 .build();
     }
 
@@ -194,26 +205,53 @@ public class WebhookController {
      * SePay sends webhook when a bank transfer is detected matching our account.
      * Payload contains: id, gateway, transactionDate, accountNumber, code, content,
      * transferType, transferAmount, accumulated, subAccount, referenceCode, description
+     *
+     * Validates account number, transfer type, and signature before processing.
      */
     @PostMapping("/sepay")
     public ResponseEntity<Map<String, Object>> handleSepayWebhook(
             @RequestBody SepayWebhookPayload sepayPayload,
-            @RequestHeader(value = "X-Sepay-Signature", required = false) String signature,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             HttpServletRequest httpRequest) {
 
-        log.info("Received SePay webhook: id={}, code={}, amount={}, content={}",
+        log.info("Received SePay webhook: id={}, code={}, amount={}, content={}, accountNumber={}",
                 sepayPayload.getId(),
                 sepayPayload.getCode(),
                 sepayPayload.getTransferAmount(),
-                sepayPayload.getContent());
+                sepayPayload.getContent(),
+                maskAccountNumber(sepayPayload.getAccountNumber()));
 
         try {
+            // Validate account number matches our configured account
+            if (sepayProperties != null && sepayProperties.getBankAccount() != null) {
+                if (!sepayProperties.getBankAccount().equals(sepayPayload.getAccountNumber())) {
+                    log.error("Account number mismatch in SePay webhook! Expected: {}, Got: {}",
+                            maskAccountNumber(sepayProperties.getBankAccount()),
+                            maskAccountNumber(sepayPayload.getAccountNumber()));
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "success", false,
+                            "error", "Invalid account number"
+                    ));
+                }
+            } else {
+                log.warn("SePay properties not configured - skipping account validation");
+            }
+
+            // Only process incoming transfers
+            if (!"in".equalsIgnoreCase(sepayPayload.getTransferType())) {
+                log.debug("Ignoring non-incoming SePay transfer: type={}", sepayPayload.getTransferType());
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Ignored - not an incoming transfer"
+                ));
+            }
+
             // Convert SePay payload to our standard format
             WebhookPayloadRequest request = convertSepayPayload(sepayPayload);
 
-            // Verify webhook signature
-            if (!webhookService.verifySignature(PaymentMethod.SEPAY, request, signature)) {
-                log.warn("Invalid SePay webhook signature for transaction: {}", sepayPayload.getId());
+            // Verify webhook authorization (SePay sends: "Authorization: Apikey <YOUR_TOKEN>")
+            if (!webhookService.verifySignature(PaymentMethod.SEPAY, request, authorization)) {
+                log.error("Invalid SePay webhook authorization for transaction: {}", sepayPayload.getId());
                 return ResponseEntity.badRequest().body(Map.of(
                         "success", false,
                         "error", "Invalid signature"
@@ -227,15 +265,38 @@ public class WebhookController {
                     "success", true,
                     "message", "OK"
             ));
-        } catch (Exception e) {
-            log.error("Error processing SePay webhook: {}", e.getMessage(), e);
-
-            // Return success to prevent SePay from retrying (we've logged the error)
+        } catch (DuplicateWebhookException e) {
+            // Duplicate/already processed - return 200 to prevent retry (not an error)
+            log.info("SePay webhook already processed: {}", e.getMessage());
             return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Already processed"
+            ));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Client error (bad data, invalid state) - return 400, don't retry
+            log.warn("SePay webhook validation failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "error", e.getMessage()
             ));
+        } catch (Exception e) {
+            // Server error - return 500 so SePay can retry
+            log.error("Error processing SePay webhook: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "error", "Internal server error"
+            ));
         }
+    }
+
+    /**
+     * Mask account number for logging (show only last 4 digits).
+     */
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.length() < 4) {
+            return "****";
+        }
+        return "****" + accountNumber.substring(accountNumber.length() - 4);
     }
 
     /**

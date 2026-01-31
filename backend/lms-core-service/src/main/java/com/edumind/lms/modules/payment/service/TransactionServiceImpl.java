@@ -145,7 +145,7 @@ public class TransactionServiceImpl implements TransactionService {
         return switch (gatewayStatus) {
             case SUCCESS -> TransactionStatus.SUCCESS;
             case FAILED -> TransactionStatus.FAILED;
-            case PENDING, REQUIRES_ACTION -> TransactionStatus.PENDING;
+            case PENDING, REQUIRES_ACTION, UNKNOWN -> TransactionStatus.PENDING;
             case CANCELLED -> TransactionStatus.CANCELLED;
             case EXPIRED -> TransactionStatus.EXPIRED;
         };

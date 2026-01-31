@@ -43,4 +43,9 @@ public interface CartService {
      * Remove specific courses from cart (used after successful checkout)
      */
     void removeItems(Long userId, List<Long> courseIds);
+
+    /**
+     * Remove items in a separate transaction (for webhooks)
+     */
+    void removeItemsInNewTransaction(Long userId, List<Long> courseIds);
 }

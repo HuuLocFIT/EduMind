@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -41,7 +42,7 @@ public class CartServiceImpl implements CartService {
     private final EnrollmentRepository enrollmentRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CartResponse getCart(Long userId) {
         log.debug("Getting cart for user: {}", userId);
 
@@ -64,7 +65,6 @@ public class CartServiceImpl implements CartService {
             throw new CourseNotAvailableException(courseId);
         }
 
-        // Use existsByCourseIdAndStudentIdAndStatusNot to exclude DROPPED enrollments
         // This makes the check consistent with checkout flow, allowing re-enrollment after drop
         if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(courseId, userId, EnrollmentStatus.DROPPED)) {
             throw new CourseAlreadyPurchasedException(courseId);
@@ -163,16 +163,50 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void removeItems(Long userId, List<Long> courseIds) {
+        removeItemsInNewTransaction(userId, courseIds);
+    }
+
+    /**
+     * Remove items in a separate transaction to ensure it commits even if parent transaction fails.
+     * Used by webhook handlers to ensure cart is cleared even if invoice generation fails.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void removeItemsInNewTransaction(Long userId, List<Long> courseIds) {
         if (courseIds == null || courseIds.isEmpty()) {
+            log.debug("No course IDs provided for removal - skipping");
             return;
         }
 
-        log.info("Removing {} course(s) from cart for user {}", courseIds.size(), userId);
+        log.info("Removing {} course(s) from cart for user {}: {}", courseIds.size(), userId, courseIds);
 
-        cartRepository.findByUserId(userId).ifPresent(cart -> {
-            cartItemRepository.deleteByCartIdAndCourseIds(cart.getId(), courseIds);
-            log.info("Removed {} course(s) from cart for user {}", courseIds.size(), userId);
-        });
+        Optional<Cart> cartOpt = cartRepository.findByUserId(userId);
+        if (cartOpt.isEmpty()) {
+            log.warn("Cart not found for user {} - cannot remove items. This may be expected if cart was already cleared.", userId);
+            return;
+        }
+
+        Cart cart = cartOpt.get();
+        
+        // Use explicit fetch and delete to ensure reliability and correct handling
+        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
+        List<CartItem> itemsToRemove = items.stream()
+                .filter(item -> courseIds.contains(item.getCourseId()))
+                .collect(Collectors.toList());
+
+        if (itemsToRemove.isEmpty()) {
+            log.warn("No matching cart items found for user {} with course IDs: {}. Current cart items: {}", 
+                    userId, courseIds, items.size());
+            return;
+        }
+
+        cartItemRepository.deleteAll(itemsToRemove);
+        
+        // Update cart timestamp
+        cart.setUpdatedAt(LocalDateTime.now());
+        cartRepository.save(cart);
+
+        log.info("Successfully removed {} course(s) from cart for user {} (requested: {})", 
+                itemsToRemove.size(), userId, courseIds.size());
     }
 
     // ===== Private Helpers =====

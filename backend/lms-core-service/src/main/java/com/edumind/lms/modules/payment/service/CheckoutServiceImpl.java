@@ -539,7 +539,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             // Note: gatewayTransactionId changes from PayPal Order ID to Capture ID here
             transaction.setGatewayTransactionId(result.getGatewayTransactionId());
             transaction.setGatewayResponse(result.getRawResponse());
-            return finalizePaymentTransaction(order, transaction, result, false);
+            return finalizePaymentTransaction(order, transaction, result, true);
         } else {
             return handleFailedPayment(order, transaction, result);
         }
@@ -582,9 +582,10 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .build();
         }
 
-        // Reset order to PENDING so user can retry
-        // We don't mark as CANCELLED because user might want to retry
-        order.setStatus(OrderStatus.PENDING);
+        // Mark order as CANCELLED so user can start a fresh checkout
+        // SePay doesn't have a capture step like PayPal, so explicit cancel should
+        // allow user to checkout again without being blocked by existing order
+        order.setStatus(OrderStatus.CANCELLED);
         order.setFailureReason("Payment cancelled by user");
         orderRepository.save(order);
 
@@ -597,11 +598,11 @@ public class CheckoutServiceImpl implements CheckoutService {
                     transactionRepository.save(transaction);
                 });
 
-        log.info("Payment cancellation handled for order {}. Order reset to PENDING for retry.", order.getOrderNumber());
+        log.info("Payment cancellation handled for order {}. Order marked as CANCELLED.", order.getOrderNumber());
 
         return CheckoutResultResponse.builder()
                 .success(false)
-                .pending(true)
+                .pending(false)
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
                 .orderStatus(order.getStatus())
@@ -609,8 +610,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .currency(order.getCurrency())
                 .paymentMethod(order.getPaymentMethod())
                 .createdAt(order.getCreatedAt())
-                .message("Payment cancelled. You can retry payment or choose a different payment method.")
-                .canRetry(true)
+                .message("Payment cancelled. You can start a new checkout.")
+                .canRetry(false)
                 .build();
     }
 
@@ -1316,6 +1317,19 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .completedAt(currentOrder.getCompletedAt())
                     .message("Order was already completed. No additional changes were applied.");
 
+            // Attempt to clear cart even if order is already completed
+            // This handles the race condition where Webhook completed the order but failed/skipped clearing cart
+            if (isFromCart) {
+                try {
+                    List<Long> courseIds = orderItems.stream()
+                            .map(OrderItem::getCourseId)
+                            .collect(Collectors.toList());
+                    cartService.removeItems(currentOrder.getUserId(), courseIds);
+                } catch (Exception e) {
+                    log.error("Failed to clear cart for user {} (idempotency check): {}", currentOrder.getUserId(), e.getMessage());
+                }
+            }
+
             Invoice existingInvoice = currentOrder.getInvoice();
             if (existingInvoice != null) {
                 responseBuilder
@@ -1323,6 +1337,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                         .invoiceUrl(existingInvoice.getPdfUrl());
             }
             return responseBuilder.build();
+
+
         }
 
         // Execute critical operations in a transaction
@@ -1338,18 +1354,18 @@ public class CheckoutServiceImpl implements CheckoutService {
                 return freshOrder;
             }
 
-            // 1. Complete order (CRITICAL)
+            // 1. Complete order
             freshOrder.setStatus(OrderStatus.COMPLETED);
             freshOrder.setCompletedAt(LocalDateTime.now());
             orderRepository.save(freshOrder);
 
-            // 2. Create enrollments (CRITICAL)
+            // 2. Create enrollments
             createEnrollmentsForOrder(freshOrder);
 
             return freshOrder;
         });
 
-        // 3. Create earnings (Non-Critical, outside main transaction)
+        // 3. Create earnings
         try {
             earningService.createEarningsForOrder(completedOrder);
         } catch (Exception e) {
@@ -1359,7 +1375,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         // Load order items explicitly
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(completedOrder.getId());
 
-        // 4. Clear cart (Non-Critical)
+        // 4. Clear cart
         if (isFromCart) {
             try {
                 List<Long> courseIds = orderItems.stream()
@@ -1371,10 +1387,10 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
         }
 
-        // 5. Generate invoice with limited retries (Non-Critical)
+        // 5. Generate invoice with limited retries
         InvoiceResponse invoice = generateInvoiceWithRetry(completedOrder, 3);
 
-        // 6. Publish event (Non-Critical)
+        // 6. Publish event
         try {
             eventPublisher.publishEvent(new OrderCompletedEvent(this, completedOrder));
         } catch (Exception e) {
@@ -1813,7 +1829,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     /**
      * Generate invoice with a limited number of retry attempts.
-     * Non-critical: returns null if all attempts fail.
+     * Returns null if all attempts fail.
      */
     private InvoiceResponse generateInvoiceWithRetry(Order order, int maxAttempts) {
         InvoiceResponse invoice = null;

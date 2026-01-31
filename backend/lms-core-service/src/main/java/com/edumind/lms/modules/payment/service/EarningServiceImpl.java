@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
@@ -44,7 +45,7 @@ public class EarningServiceImpl implements EarningService {
     private final EarningMapper earningMapper;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void createEarningsForOrder(Order order) {
         log.info("Creating earnings for order: {}", order.getOrderNumber());
 

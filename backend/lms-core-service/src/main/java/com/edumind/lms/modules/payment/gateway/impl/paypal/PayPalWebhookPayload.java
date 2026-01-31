@@ -1,9 +1,12 @@
 package com.edumind.lms.modules.payment.gateway.impl.paypal;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -29,24 +32,24 @@ public class PayPalWebhookPayload {
     /**
      * Event type (e.g., "PAYMENT.CAPTURE.COMPLETED")
      */
-    @JsonProperty("event_type")
     private String eventType;
 
     /**
      * Time the event was created (ISO 8601 format)
      */
-    @JsonProperty("create_time")
     private String createTime;
 
     /**
      * Resource type (e.g., "capture", "order")
      */
-    @JsonProperty("resource_type")
     private String resourceType;
 
     /**
-     * The resource object containing payment details
+     * The resource object containing payment details.
+     * Note: This is populated from rawResource during deserialization,
+     * not directly from JSON (to avoid Jackson conflicts).
      */
+    @JsonIgnore
     private PayPalWebhookResource resource;
 
     /**
@@ -57,26 +60,83 @@ public class PayPalWebhookPayload {
     /**
      * Additional event info
      */
-    @JsonProperty("event_version")
     private String eventVersion;
 
     /**
      * Raw resource as Map for flexible access
      */
-    @JsonProperty("resource")
+    @JsonIgnore
     private Map<String, Object> rawResource;
 
-    public void setResource(PayPalWebhookResource resource) {
-        this.resource = resource;
+    /**
+     * Complete raw webhook event for signature verification.
+     * PayPal requires the full original JSON for verification.
+     * Uses LinkedHashMap to preserve field order (important for signature).
+     */
+    @JsonIgnore
+    private final Map<String, Object> rawWebhookEvent = new LinkedHashMap<>();
+
+    // Custom setters to populate both field and rawWebhookEvent
+
+    @JsonProperty("id")
+    public void setId(String id) {
+        this.id = id;
+        this.rawWebhookEvent.put("id", id);
+    }
+
+    @JsonProperty("event_type")
+    public void setEventType(String eventType) {
+        this.eventType = eventType;
+        this.rawWebhookEvent.put("event_type", eventType);
+    }
+
+    @JsonProperty("create_time")
+    public void setCreateTime(String createTime) {
+        this.createTime = createTime;
+        this.rawWebhookEvent.put("create_time", createTime);
+    }
+
+    @JsonProperty("resource_type")
+    public void setResourceType(String resourceType) {
+        this.resourceType = resourceType;
+        this.rawWebhookEvent.put("resource_type", resourceType);
+    }
+
+    @JsonProperty("summary")
+    public void setSummary(String summary) {
+        this.summary = summary;
+        this.rawWebhookEvent.put("summary", summary);
+    }
+
+    @JsonProperty("event_version")
+    public void setEventVersion(String eventVersion) {
+        this.eventVersion = eventVersion;
+        this.rawWebhookEvent.put("event_version", eventVersion);
     }
 
     @JsonProperty("resource")
     public void setRawResource(Map<String, Object> rawResource) {
         this.rawResource = rawResource;
+        this.rawWebhookEvent.put("resource", rawResource);
         // Also parse into structured resource
         if (rawResource != null) {
             this.resource = parseResource(rawResource);
         }
+    }
+
+    /**
+     * Capture any additional JSON fields for signature verification.
+     */
+    @JsonAnySetter
+    public void setAnyField(String name, Object value) {
+        this.rawWebhookEvent.put(name, value);
+    }
+
+    /**
+     * Get the complete raw webhook event for signature verification.
+     */
+    public Map<String, Object> getRawWebhookEvent() {
+        return rawWebhookEvent;
     }
 
     private PayPalWebhookResource parseResource(Map<String, Object> raw) {

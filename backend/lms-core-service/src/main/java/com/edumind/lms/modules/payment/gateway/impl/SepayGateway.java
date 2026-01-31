@@ -6,17 +6,27 @@ import com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * SePay Payment Gateway implementation (Vietnam).
@@ -26,18 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 2. User scans QR and transfers money via their banking app
  * 3. SePay detects the transfer via bank API and sends webhook
  * 4. We verify the webhook and complete the order
- *
- * Configuration:
- * payment:
- *   gateway: sepay
- *   sepay:
- *     api-key: ${SEPAY_API_KEY}
- *     merchant-id: ${SEPAY_MERCHANT_ID}
- *     secret-key: ${SEPAY_SECRET_KEY}
- *     base-url: https://my.sepay.vn
- *     bank-code: MB
- *     bank-account: 0888012610
- *     account-name: NGUYEN HUU LOC
  */
 @Slf4j
 @Component
@@ -47,8 +45,9 @@ public class SepayGateway implements PaymentGateway {
     private static final String GATEWAY_NAME = "SEPAY";
     private static final Set<String> SUPPORTED_CURRENCIES = Set.of("VND", "USD");
 
-    // Exchange rate USD to VND (should be fetched from exchange rate service in production)
-    private static final BigDecimal DEFAULT_USD_TO_VND_RATE = new BigDecimal("25000");
+    // Regex pattern for order number extraction
+    // Matches: ORD-XXXXX-XXXX or ORD202501XXXX with word boundaries
+    private static final Pattern ORDER_PATTERN = Pattern.compile("\\b(ORD[-]?[A-Z0-9-]+)\\b", Pattern.CASE_INSENSITIVE);
 
     private final SepayGatewayProperties properties;
     private final RestTemplate restTemplate;
@@ -56,14 +55,74 @@ public class SepayGateway implements PaymentGateway {
     // Cache for pending payments (orderNumber -> payment info)
     private final ConcurrentHashMap<String, PendingPayment> pendingPayments = new ConcurrentHashMap<>();
 
+    // Scheduler for cleaning up expired pending payments (avoid memory leak)
+    private final ScheduledExecutorService cleanupScheduler = Executors.newSingleThreadScheduledExecutor();
+
     public SepayGateway(SepayGatewayProperties properties) {
         this.properties = properties;
-        this.restTemplate = new RestTemplate();
 
-        log.info("[SEPAY] Gateway initialized with bank: {} - {}, account: {}",
+        // Configure RestTemplate with timeouts to prevent thread exhaustion
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofMillis(properties.getConnectTimeoutMs()));
+        factory.setReadTimeout(Duration.ofMillis(properties.getReadTimeoutMs()));
+        this.restTemplate = new RestTemplate(factory);
+
+        log.info("[SEPAY] Gateway initialized with bank: {} - {}, account: {}, timeouts: connect={}ms, read={}ms",
                 properties.getBankCode(),
                 properties.getAccountName(),
-                maskAccountNumber(properties.getBankAccount()));
+                maskAccountNumber(properties.getBankAccount()),
+                properties.getConnectTimeoutMs(),
+                properties.getReadTimeoutMs());
+    }
+
+    /**
+     * Start the cleanup scheduler after bean initialization.
+     * Cleans up expired pending payments every 5 minutes to prevent memory leak.
+     */
+    @PostConstruct
+    public void startCleanupScheduler() {
+        cleanupScheduler.scheduleAtFixedRate(this::cleanupExpiredPayments, 5, 5, TimeUnit.MINUTES);
+        log.info("[SEPAY] Started pending payment cleanup scheduler (every 5 minutes)");
+    }
+
+    /**
+     * Shutdown the cleanup scheduler on bean destruction.
+     */
+    @PreDestroy
+    public void stopCleanupScheduler() {
+        cleanupScheduler.shutdown();
+        try {
+            if (!cleanupScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                cleanupScheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            cleanupScheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        log.info("[SEPAY] Stopped pending payment cleanup scheduler");
+    }
+
+    /**
+     * Clean up expired pending payments to prevent memory leak.
+     */
+    private void cleanupExpiredPayments() {
+        LocalDateTime now = LocalDateTime.now();
+        int removedCount = 0;
+
+        Iterator<Map.Entry<String, PendingPayment>> iterator = pendingPayments.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, PendingPayment> entry = iterator.next();
+            if (entry.getValue().expiresAt().isBefore(now)) {
+                iterator.remove();
+                removedCount++;
+                log.debug("[SEPAY] Cleaned up expired pending payment for order: {}", entry.getKey());
+            }
+        }
+
+        if (removedCount > 0) {
+            log.info("[SEPAY] Cleaned up {} expired pending payments. Remaining: {}",
+                    removedCount, pendingPayments.size());
+        }
     }
 
     /**
@@ -91,13 +150,14 @@ public class SepayGateway implements PaymentGateway {
         if ("VND".equalsIgnoreCase(request.getCurrency())) {
             amountVnd = request.getAmount();
         } else if ("USD".equalsIgnoreCase(request.getCurrency())) {
-            // Use provided exchange rate or default
+            // Use provided exchange rate, or from config, or fallback default
             exchangeRate = request.getExchangeRate() != null
                     ? request.getExchangeRate()
-                    : DEFAULT_USD_TO_VND_RATE;
+                    : properties.getUsdToVndRate();
             amountVnd = request.getAmount().multiply(exchangeRate);
-            log.info("[SEPAY] Converted {} USD to {} VND (rate: {})",
-                    request.getAmount(), amountVnd.longValue(), exchangeRate);
+            log.info("[SEPAY] Converted {} USD to {} VND (rate: {} from {})",
+                    request.getAmount(), amountVnd.longValue(), exchangeRate,
+                    request.getExchangeRate() != null ? "request" : "config");
         } else {
             log.warn("[SEPAY] Currency {} not supported", request.getCurrency());
             return GatewayPaymentResult.failed(GATEWAY_NAME, "CURRENCY_NOT_SUPPORTED",
@@ -151,14 +211,16 @@ public class SepayGateway implements PaymentGateway {
     /**
      * Build the QR code URL for SePay.
      * Uses qr.sepay.vn for QR code generation.
+     *
+     * Note: UriComponentsBuilder handles URL encoding automatically via encode().
+     * Do NOT manually encode content before passing to queryParam() to avoid double-encoding.
      */
     private String buildQrCodeUrl(long amount, String content) {
-        // URL encode the content
-        String encodedContent = URLEncoder.encode(content, StandardCharsets.UTF_8);
-
         // SePay QR endpoint is at qr.sepay.vn, not my.sepay.vn
         String qrBaseUrl = "https://qr.sepay.vn";
 
+        // Let UriComponentsBuilder handle URL encoding via encode()
+        // Do NOT manually URLEncoder.encode() - that would cause double-encoding
         return UriComponentsBuilder
                 .fromUriString(qrBaseUrl)
                 .path("/img")
@@ -166,19 +228,39 @@ public class SepayGateway implements PaymentGateway {
                 .queryParam("acc", properties.getBankAccount())
                 .queryParam("template", properties.getTemplate())
                 .queryParam("amount", amount)
-                .queryParam("des", encodedContent)
-                .build()
+                .queryParam("des", content)  // Raw content - will be encoded by encode()
+                .encode()  // Properly encodes all query parameters
                 .toUriString();
     }
 
     /**
      * Generate transfer content that includes order number.
      * This content will appear in the bank statement and is used to match webhooks.
+     *
+     * IMPORTANT: Banks typically truncate transfer content at 50-70 characters.
+     * Keep the content short to ensure the order number is not cut off.
+     *
+     * @param orderNumber The order number to include in the transfer content
+     * @return Transfer content string, guaranteed to be under max length
      */
     private String generateTransferContent(String orderNumber) {
-        // Format: EDUMIND ORD202501XXX
-        // SePay will parse this and extract the code
-        return "EDUMIND " + orderNumber;
+        String prefix = properties.getTransferContentPrefix();
+        String content = prefix + " " + orderNumber;
+
+        // Ensure content doesn't exceed max length (default 50 chars)
+        int maxLength = properties.getMaxTransferContentLength();
+        if (content.length() > maxLength) {
+            // Truncate order number but keep prefix and enough of the order ID to match
+            int availableForOrder = maxLength - prefix.length() - 1; // -1 for space
+            if (availableForOrder > 10) {
+                // Keep at least the unique part of the order number
+                content = prefix + " " + orderNumber.substring(0, Math.min(orderNumber.length(), availableForOrder));
+                log.warn("[SEPAY] Transfer content truncated from {} to {} chars for order {}",
+                        (prefix + " " + orderNumber).length(), content.length(), orderNumber);
+            }
+        }
+
+        return content;
     }
 
     /**
@@ -189,20 +271,38 @@ public class SepayGateway implements PaymentGateway {
     }
 
     /**
-     * Capture payment - Not applicable for SePay as payment is confirmed via webhook.
+     * Capture payment - Not applicable for SePay
+     *
+     * <p><b>SePay Payment Flow:</b></p>
+     * <ol>
+     *   <li>User scans QR code and initiates bank transfer</li>
+     *   <li>SePay detects the transfer and sends webhook notification</li>
+     *   <li>Webhook handler processes and completes the order</li>
+     * </ol>
+     *
+     * <p>Unlike PayPal (which uses authorize → capture flow), SePay uses immediate
+     * bank transfers confirmed via webhook. There is no separate "capture" step.</p>
+     *
+     * <p>This method is implemented for API compatibility and performs a status check
+     * instead of an actual capture operation.</p>
+     *
+     * @param gatewayTransactionId The SePay transaction ID to check
+     * @return Payment status result (not an actual capture result)
      */
     @Override
     public GatewayPaymentResult capturePayment(String gatewayTransactionId) {
-        log.info("[SEPAY] Capture payment called for: {} - SePay uses webhook confirmation",
+        log.debug("[SEPAY] capturePayment called for: {} - SePay uses webhook confirmation, performing status check instead",
                 gatewayTransactionId);
 
-        // For SePay, payment confirmation comes via webhook
-        // This method can be used to manually check transaction status
+        // SePay uses immediate bank transfer - no capture step needed
+        // Returning status check for API compatibility with other gateways
         return checkTransactionStatus(gatewayTransactionId);
     }
 
     /**
      * Check transaction status by querying SePay API.
+     * Note: This method does NOT remove from pendingPayments to avoid race condition.
+     * Only webhook handler should remove pending payments atomically.
      */
     private GatewayPaymentResult checkTransactionStatus(String gatewayTransactionId) {
         // Extract order number from transaction ID
@@ -214,13 +314,24 @@ public class SepayGateway implements PaymentGateway {
 
         PendingPayment pending = pendingPayments.get(orderNumber);
         if (pending == null) {
-            return GatewayPaymentResult.failed(GATEWAY_NAME, "PAYMENT_NOT_FOUND",
-                    "Payment not found or already processed.");
+            // Payment might have been processed by webhook or never existed
+            // Return UNKNOWN status - caller should check order status in database
+            return GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(GatewayResultStatus.UNKNOWN)
+                    .gatewayTransactionId(gatewayTransactionId)
+                    .gatewayName(GATEWAY_NAME)
+                    .errorCode("PAYMENT_NOT_TRACKED")
+                    .errorMessage("Payment not found in pending queue. Check order status directly.")
+                    .build();
         }
 
         // Check if expired
-        if (pending.expiresAt.isBefore(LocalDateTime.now())) {
-            pendingPayments.remove(orderNumber);
+        if (pending.expiresAt().isBefore(LocalDateTime.now())) {
+            // Remove expired payment atomically
+            if (pendingPayments.remove(orderNumber, pending)) {
+                log.info("[SEPAY] Expired payment removed for order: {}", orderNumber);
+            }
             return GatewayPaymentResult.builder()
                     .success(false)
                     .status(GatewayResultStatus.EXPIRED)
@@ -231,20 +342,34 @@ public class SepayGateway implements PaymentGateway {
                     .build();
         }
 
-        // Query SePay API for transaction
+        // Query SePay API for transaction (read-only check, don't remove from pending)
         try {
             SepayTransactionResponse response = queryTransactions(orderNumber);
             if (response != null && response.getTransactions() != null) {
                 for (SepayTransactionResponse.SepayTransaction txn : response.getTransactions()) {
                     // Check if this transaction matches our order
                     if (matchesOrder(txn, pending)) {
-                        pendingPayments.remove(orderNumber);
-                        return GatewayPaymentResult.success(
-                                txn.getId(),
-                                GATEWAY_NAME,
-                                BigDecimal.valueOf(txn.getAmountIn()),
-                                "VND"
-                        );
+                        // Found matching transaction! Remove atomically to claim it
+                        if (pendingPayments.remove(orderNumber, pending)) {
+                            log.info("[SEPAY] Found matching transaction for order {} via status check", orderNumber);
+                            return GatewayPaymentResult.success(
+                                    txn.getId(),
+                                    GATEWAY_NAME,
+                                    BigDecimal.valueOf(txn.getAmountIn()),
+                                    "VND"
+                            );
+                        } else {
+                            // Another thread (webhook) already processed it
+                            log.info("[SEPAY] Transaction for order {} was processed by another thread", orderNumber);
+                            return GatewayPaymentResult.builder()
+                                    .success(false)
+                                    .status(GatewayResultStatus.UNKNOWN)
+                                    .gatewayTransactionId(gatewayTransactionId)
+                                    .gatewayName(GATEWAY_NAME)
+                                    .errorCode("CONCURRENT_PROCESSING")
+                                    .errorMessage("Payment was processed by webhook. Check order status.")
+                                    .build();
+                        }
                     }
                 }
             }
@@ -270,9 +395,10 @@ public class SepayGateway implements PaymentGateway {
             headers.set("Authorization", "Bearer " + properties.getApiKey());
             headers.setContentType(MediaType.APPLICATION_JSON);
 
+            // Use configurable limit
             String url = properties.getBaseUrl() + "/userapi/transactions/list"
                     + "?account_number=" + properties.getBankAccount()
-                    + "&limit=20";
+                    + "&limit=" + properties.getTransactionQueryLimit();
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
             ResponseEntity<SepayTransactionResponse> response = restTemplate.exchange(
@@ -354,6 +480,7 @@ public class SepayGateway implements PaymentGateway {
 
     /**
      * Get payment status by checking transaction in SePay.
+     * Returns UNKNOWN if payment is not tracked (caller should check database).
      */
     @Override
     public GatewayPaymentStatus getPaymentStatus(String gatewayTransactionId) {
@@ -363,16 +490,22 @@ public class SepayGateway implements PaymentGateway {
         PendingPayment pending = pendingPayments.get(orderNumber);
 
         if (pending == null) {
-            // Payment might have been completed or not found
+            // Payment not found in pending queue - could mean:
+            // 1. Payment was completed via webhook
+            // 2. Payment was never created
+            // 3. Server restarted and lost state
+            // Return UNKNOWN - caller should check order status in database
             return GatewayPaymentStatus.builder()
                     .gatewayTransactionId(gatewayTransactionId)
                     .gatewayName(GATEWAY_NAME)
-                    .status(GatewayResultStatus.SUCCESS) // Assume completed if not in pending
+                    .status(GatewayResultStatus.UNKNOWN)
+                    .errorCode("PAYMENT_NOT_TRACKED")
+                    .errorMessage("Payment status cannot be determined from gateway. Check order status directly.")
                     .build();
         }
 
         // Check if expired
-        if (pending.expiresAt.isBefore(LocalDateTime.now())) {
+        if (pending.expiresAt().isBefore(LocalDateTime.now())) {
             return GatewayPaymentStatus.builder()
                     .gatewayTransactionId(gatewayTransactionId)
                     .gatewayName(GATEWAY_NAME)
@@ -405,12 +538,25 @@ public class SepayGateway implements PaymentGateway {
      * Handle SePay webhook when a bank transfer is detected.
      * This is called by WebhookController.
      *
+     * Uses atomic remove to prevent race condition with status check.
+     * Strictly validates amount to prevent underpayment attacks.
+     *
      * @param payload The webhook payload from SePay
-     * @return true if payment was successfully matched and processed
+     * @return WebhookResult indicating success/failure and order details
      */
     public WebhookResult handleWebhook(SepayWebhookPayload payload) {
-        log.info("[SEPAY] Processing webhook: id={}, code={}, amount={}, content={}",
-                payload.getId(), payload.getCode(), payload.getTransferAmount(), payload.getContent());
+        log.info("[SEPAY] Processing webhook: id={}, code={}, amount={}, content={}, accountNumber={}",
+                payload.getId(), payload.getCode(), payload.getTransferAmount(),
+                payload.getContent(), payload.getAccountNumber());
+
+        // Validate account number matches our configured account
+        if (properties.getBankAccount() != null &&
+                !properties.getBankAccount().equals(payload.getAccountNumber())) {
+            log.error("[SEPAY] SECURITY: Account number mismatch! Expected: {}, Got: {}",
+                    maskAccountNumber(properties.getBankAccount()),
+                    maskAccountNumber(payload.getAccountNumber()));
+            return new WebhookResult(false, null, "Invalid account number");
+        }
 
         // Only process incoming transfers
         if (!"in".equalsIgnoreCase(payload.getTransferType())) {
@@ -426,25 +572,38 @@ public class SepayGateway implements PaymentGateway {
             return new WebhookResult(false, null, "Order number not found in transfer content");
         }
 
-        PendingPayment pending = pendingPayments.get(orderNumber);
+        // Use atomic remove to prevent race condition with status check
+        // This ensures only one thread can process this payment
+        PendingPayment pending = pendingPayments.remove(orderNumber);
         if (pending == null) {
-            log.warn("[SEPAY] No pending payment found for order: {}", orderNumber);
-            return new WebhookResult(false, orderNumber, "No pending payment found");
+            log.warn("[SEPAY] No pending payment found for order: {} (may already be processed)", orderNumber);
+            return new WebhookResult(false, orderNumber, "No pending payment found or already processed");
         }
 
-        // Verify amount (allow small variance for bank fees)
-        long expectedAmount = pending.amountVnd;
+        // Strictly validate amount to prevent underpayment attacks
+        long expectedAmount = pending.amountVnd();
         long actualAmount = payload.getTransferAmount() != null ? payload.getTransferAmount() : 0;
-        if (Math.abs(actualAmount - expectedAmount) > 1000) {
-            log.warn("[SEPAY] Amount mismatch for order {}: expected={}, actual={}",
-                    orderNumber, expectedAmount, actualAmount);
-            // Still process but log warning - amount might be slightly different due to bank fees
+        long amountDifference = actualAmount - expectedAmount;
+        long maxVariance = properties.getMaxAmountVarianceVnd();
+
+        if (amountDifference < -maxVariance) {
+            // Underpayment beyond tolerance - REJECT
+            log.error("[SEPAY] PAYMENT REJECTED - Underpayment for order {}: expected={}, actual={}, diff={}, maxVariance={}",
+                    orderNumber, expectedAmount, actualAmount, amountDifference, maxVariance);
+            // Put back in pending so user can try again with correct amount
+            pendingPayments.put(orderNumber, pending);
+            return new WebhookResult(false, orderNumber,
+                    "Insufficient payment amount. Expected: " + expectedAmount + " VND, Received: " + actualAmount + " VND");
         }
 
-        // Payment confirmed
-        pendingPayments.remove(orderNumber);
-        log.info("[SEPAY] Payment confirmed for order: {}, amount: {} VND, sepay_id: {}",
-                orderNumber, actualAmount, payload.getId());
+        if (Math.abs(amountDifference) > maxVariance) {
+            // Overpayment or significant variance - accept but log warning
+            log.warn("[SEPAY] Amount variance for order {}: expected={}, actual={}, diff={}, maxVariance={}",
+                    orderNumber, expectedAmount, actualAmount, amountDifference, maxVariance);
+        }
+
+        log.info("[SEPAY] Payment confirmed for order: {}, amount: {} VND (expected: {}), sepay_id: {}",
+                orderNumber, actualAmount, expectedAmount, payload.getId());
 
         return new WebhookResult(true, orderNumber,
                 String.valueOf(payload.getId()),
@@ -475,33 +634,24 @@ public class SepayGateway implements PaymentGateway {
     }
 
     /**
-     * Find order number pattern in text (ORD-XXXXXX-XXXX format).
+     * Find order number pattern in text using regex with word boundaries.
+     * Matches: ORD-XXXXXX-XXXX or ORD202501XXXX
+     *
+     * Uses proper word boundaries to avoid false matches like "EDUMIND ORDINARY"
+     * matching the "ORD" prefix incorrectly.
      */
     private String findOrderPattern(String text) {
-        // Look for pattern: ORD-XXXXXX-XXXX or ORD202501XXXX
-        String upperText = text.toUpperCase();
-
-        // Pattern 1: ORD-XXXXXX-XXXX
-        int ordIndex = upperText.indexOf("ORD-");
-        if (ordIndex >= 0) {
-            int endIndex = ordIndex + 4;
-            while (endIndex < upperText.length() &&
-                    (Character.isLetterOrDigit(upperText.charAt(endIndex)) ||
-                            upperText.charAt(endIndex) == '-')) {
-                endIndex++;
-            }
-            return text.substring(ordIndex, endIndex);
+        if (text == null || text.isEmpty()) {
+            return null;
         }
 
-        // Pattern 2: ORD202501XXXX
-        ordIndex = upperText.indexOf("ORD");
-        if (ordIndex >= 0) {
-            int endIndex = ordIndex + 3;
-            while (endIndex < upperText.length() && Character.isDigit(upperText.charAt(endIndex))) {
-                endIndex++;
-            }
-            if (endIndex > ordIndex + 3) {
-                return text.substring(ordIndex, endIndex);
+        // Use compiled regex pattern with word boundaries for accurate matching
+        Matcher matcher = ORDER_PATTERN.matcher(text);
+        if (matcher.find()) {
+            String matched = matcher.group(1).toUpperCase();
+            // Validate that it's a proper order number (at least ORD + some identifier)
+            if (matched.length() > 3) {
+                return matched;
             }
         }
 

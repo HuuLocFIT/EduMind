@@ -19,7 +19,7 @@ public class SepayWebhookPayload {
     private Long id;                       // SePay internal ID
 
     @JsonProperty("gateway")
-    private String gateway;                // Bank gateway code
+    private String gateway;                // Bank gateway code (Brand Name Bank)
 
     @JsonProperty("transactionDate")
     private String transactionDate;        // Transaction date

@@ -88,6 +88,7 @@ public class PayPalGateway implements PaymentGateway {
         List<PurchaseUnitRequest> purchaseUnits = new ArrayList<>();
         PurchaseUnitRequest purchaseUnit = new PurchaseUnitRequest()
                 .referenceId(request.getOrderNumber())
+                .customId(request.getOrderNumber())  // custom_id is passed through to capture webhooks
                 .description("Payment for Order " + request.getOrderNumber())
                 .amountWithBreakdown(new AmountWithBreakdown()
                         .currencyCode(request.getCurrency())
