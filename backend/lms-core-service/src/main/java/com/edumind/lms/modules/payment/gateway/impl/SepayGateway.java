@@ -612,25 +612,31 @@ public class SepayGateway implements PaymentGateway {
 
     /**
      * Extract order number from transfer content or code.
+     *
+     * IMPORTANT: Banks often strip special characters (dashes, spaces) from transfer content.
+     * So "ORD-202602-0002" may arrive as "ORD2026020002". We normalize it after extraction.
      */
     private String extractOrderNumberFromContent(String content, String code) {
+        String extracted = null;
+
         // First try the code field (SePay extracts this automatically)
         if (code != null && !code.isEmpty()) {
             // Code might contain just the order number or "EDUMIND ORD-XXX"
-            if (code.startsWith("ORD")) {
-                return code;
+            if (code.toUpperCase().startsWith("ORD")) {
+                extracted = code;
+            } else {
+                // Check if code contains order pattern
+                extracted = findOrderPattern(code);
             }
-            // Check if code contains order pattern
-            String extracted = findOrderPattern(code);
-            if (extracted != null) return extracted;
         }
 
-        // Try to extract from full content
-        if (content != null && !content.isEmpty()) {
-            return findOrderPattern(content);
+        // Try to extract from full content if not found in code
+        if (extracted == null && content != null && !content.isEmpty()) {
+            extracted = findOrderPattern(content);
         }
 
-        return null;
+        // Normalize the order number format (add dashes if missing)
+        return normalizeOrderNumber(extracted);
     }
 
     /**
@@ -656,6 +662,42 @@ public class SepayGateway implements PaymentGateway {
         }
 
         return null;
+    }
+
+    /**
+     * Normalize order number to expected format: ORD-YYYYMM-NNNN
+     *
+     * Banks often strip dashes from transfer content, so:
+     * - "ORD2026020002" -> "ORD-202602-0002"
+     * - "ORD-202602-0002" -> "ORD-202602-0002" (unchanged)
+     */
+    private String normalizeOrderNumber(String orderNumber) {
+        if (orderNumber == null || orderNumber.isEmpty()) {
+            return null;
+        }
+
+        String upper = orderNumber.toUpperCase();
+
+        // If already has dashes in correct positions, return as-is
+        if (upper.matches("ORD-\\d{6}-\\d{4}")) {
+            return upper;
+        }
+
+        // If it's a compact format without dashes (ORD + 10 digits = 13 chars)
+        // Format: ORD2026020002 -> ORD-202602-0002
+        if (upper.matches("ORD\\d{10}")) {
+            // Extract parts: ORD (3) + YYYYMM (6) + NNNN (4)
+            String prefix = upper.substring(0, 3);   // ORD
+            String yearMonth = upper.substring(3, 9); // 202602
+            String sequence = upper.substring(9);     // 0002
+            String normalized = prefix + "-" + yearMonth + "-" + sequence;
+            log.info("[SEPAY] Normalized order number from {} to {}", orderNumber, normalized);
+            return normalized;
+        }
+
+        // Return as-is if doesn't match expected patterns
+        log.debug("[SEPAY] Order number {} doesn't match expected patterns, returning as-is", orderNumber);
+        return upper;
     }
 
     /**
