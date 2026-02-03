@@ -1,6 +1,6 @@
 package com.edumind.lms.modules.payment.repository;
 
-import com.edumind.lms.config.JpaAuditingConfig;
+import com.edumind.lms.config.BaseRepositoryTest;
 import com.edumind.lms.modules.payment.PaymentTestHelper;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.Transaction;
@@ -10,12 +10,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,11 +21,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@Import(JpaAuditingConfig.class)
+/**
+ * Repository tests for TransactionRepository.
+ * Uses Testcontainers with real PostgreSQL.
+ */
 @DisplayName("TransactionRepository Tests")
-class TransactionRepositoryTest {
+class TransactionRepositoryTest extends BaseRepositoryTest {
 
     @Autowired
     private TransactionRepository transactionRepository;

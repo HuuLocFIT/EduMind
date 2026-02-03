@@ -102,7 +102,10 @@ class OrderIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(userId, request);
+        entityManager.flush();
+        entityManager.clear();
 
         mockMvc.perform(get("/orders"))
                 .andExpect(status().isOk())

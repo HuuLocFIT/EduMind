@@ -1,5 +1,6 @@
 package com.edumind.auth.integration;
 
+import com.edumind.auth.config.BaseIntegrationTest;
 import com.edumind.auth.dto.request.LoginRequest;
 import com.edumind.auth.dto.request.SignupRequest;
 import com.edumind.auth.entity.Role;
@@ -8,20 +9,13 @@ import com.edumind.auth.enums.AuthProvider;
 import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.Set;
@@ -31,18 +25,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Integration tests for Auth functionality
- * Uses @SpringBootTest to load full application context with H2 database
+ * Integration tests for Auth functionality.
+ * Uses Testcontainers with real PostgreSQL.
+ * Default roles are available via Flyway migrations.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@ActiveProfiles("test")
-@Transactional
-class AuthIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
@@ -53,27 +40,10 @@ class AuthIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @BeforeEach
     void setUp() {
-        // Ensure required roles exist
-        if (roleRepository.findByName(RoleName.ROLE_STUDENT).isEmpty()) {
-            Role studentRole = Role.builder()
-                    .name(RoleName.ROLE_STUDENT)
-                    .description("Student role")
-                    .build();
-            roleRepository.save(studentRole);
-        }
-
-        if (roleRepository.findByName(RoleName.ROLE_ADMIN).isEmpty()) {
-            Role adminRole = Role.builder()
-                    .name(RoleName.ROLE_ADMIN)
-                    .description("Admin role")
-                    .build();
-            roleRepository.save(adminRole);
-        }
+        // Roles are already created via Flyway migrations (V5__Insert_default_roles.sql)
+        // No need to manually create roles
     }
 
     // ==================== REGISTRATION INTEGRATION TESTS ====================
@@ -132,11 +102,11 @@ class AuthIntegrationTest {
         @DisplayName("Should reject duplicate email")
         void registration_WithDuplicateEmail_ShouldFail() throws Exception {
             // Given - Create existing user
-            createTestUser("existinguser", "existing@example.com");
+            createTestUser("existinguser2", "existing2@example.com");
 
             SignupRequest request = new SignupRequest();
             request.setUsername("newuser");
-            request.setEmail("existing@example.com"); // Same email
+            request.setEmail("existing2@example.com"); // Same email
             request.setPassword("Password123!");
 
             // When/Then
@@ -267,7 +237,8 @@ class AuthIntegrationTest {
     // ==================== HELPER METHODS ====================
 
     private User createTestUser(String username, String email) {
-        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT).get();
+        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
+                .orElseThrow(() -> new IllegalStateException("ROLE_STUDENT not found - check Flyway migrations"));
 
         User user = User.builder()
                 .username(username)

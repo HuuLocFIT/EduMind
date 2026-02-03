@@ -6,6 +6,7 @@ import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.CheckoutPreviewResponse;
 import com.edumind.lms.modules.payment.dto.response.CheckoutResultResponse;
 import com.edumind.lms.modules.payment.service.CheckoutService;
+import com.edumind.lms.config.security.JwtUserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -184,7 +185,15 @@ public class CheckoutController {
     // ==================== Helper Methods ====================
 
     private Long extractUserId(Authentication authentication) {
-        return Long.valueOf(authentication.getPrincipal().toString());
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new IllegalStateException("Authentication or principal is null");
+        }
+        Object principal = authentication.getPrincipal();
+        // Use JwtUserPrincipal if available, otherwise fallback to toString()
+        if (principal instanceof JwtUserPrincipal) {
+            return ((JwtUserPrincipal) principal).userId();
+        }
+        return Long.valueOf(principal.toString());
     }
 
     private void enrichRequestMetadata(CheckoutRequest request) {

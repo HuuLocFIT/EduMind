@@ -145,7 +145,10 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
+        entityManager.flush();
+        entityManager.clear();
 
         // Now get summary as teacher
         setupTeacherSecurityContext();
@@ -163,7 +166,10 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
+        entityManager.flush();
+        entityManager.clear();
 
         // Now get earnings by course as teacher
         setupTeacherSecurityContext();

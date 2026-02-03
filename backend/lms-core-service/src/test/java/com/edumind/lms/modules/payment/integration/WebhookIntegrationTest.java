@@ -45,6 +45,9 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private CheckoutService checkoutService;
 
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
     private Course course;
     private Long userId = 1L;
 
@@ -104,7 +107,10 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         var result = checkoutService.directCheckout(userId, request);
+        entityManager.flush();
+        entityManager.clear();
         String orderNumber = result.getOrderNumber();
 
         WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();
@@ -125,7 +131,10 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         var result = checkoutService.directCheckout(userId, request);
+        entityManager.flush();
+        entityManager.clear();
         String orderNumber = result.getOrderNumber();
 
         WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();

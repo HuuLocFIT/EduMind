@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
@@ -45,7 +44,7 @@ public class EarningServiceImpl implements EarningService {
     private final EarningMapper earningMapper;
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void createEarningsForOrder(Order order) {
         log.info("Creating earnings for order: {}", order.getOrderNumber());
 
@@ -85,25 +84,26 @@ public class EarningServiceImpl implements EarningService {
         log.debug("Getting earnings summary for instructor: {}", instructorId);
 
         // Total earnings
-        BigDecimal totalGross = earningRepository.sumTotalGrossAmountByInstructorId(instructorId);
-        BigDecimal totalNet = earningRepository.sumTotalNetAmountByInstructorId(instructorId);
+        // Total earnings
+        BigDecimal totalGross = safeBigDecimal(earningRepository.sumTotalGrossAmountByInstructorId(instructorId));
+        BigDecimal totalNet = safeBigDecimal(earningRepository.sumTotalNetAmountByInstructorId(instructorId));
         BigDecimal totalPlatformFees = totalGross.subtract(totalNet);
 
         // By status
-        BigDecimal pending = earningRepository.sumNetAmountByInstructorIdAndStatus(
-                instructorId, EarningStatus.PENDING);
-        BigDecimal available = earningRepository.sumNetAmountByInstructorIdAndStatus(
-                instructorId, EarningStatus.AVAILABLE);
-        BigDecimal paid = earningRepository.sumNetAmountByInstructorIdAndStatus(
-                instructorId, EarningStatus.PAID);
+        BigDecimal pending = safeBigDecimal(earningRepository.sumNetAmountByInstructorIdAndStatus(
+                instructorId, EarningStatus.PENDING));
+        BigDecimal available = safeBigDecimal(earningRepository.sumNetAmountByInstructorIdAndStatus(
+                instructorId, EarningStatus.AVAILABLE));
+        BigDecimal paid = safeBigDecimal(earningRepository.sumNetAmountByInstructorIdAndStatus(
+                instructorId, EarningStatus.PAID));
 
         // Current month
         YearMonth currentMonth = YearMonth.now();
         LocalDateTime currentMonthStart = currentMonth.atDay(1).atStartOfDay();
         LocalDateTime currentMonthEnd = currentMonth.atEndOfMonth().atTime(23, 59, 59);
 
-        BigDecimal currentMonthNet = earningRepository.sumNetAmountByInstructorIdAndDateRange(
-                instructorId, currentMonthStart, currentMonthEnd);
+        BigDecimal currentMonthNet = safeBigDecimal(earningRepository.sumNetAmountByInstructorIdAndDateRange(
+                instructorId, currentMonthStart, currentMonthEnd));
         long currentMonthSales = earningRepository.findByInstructorIdAndDateRange(
                 instructorId, currentMonthStart, currentMonthEnd).size();
 
@@ -112,8 +112,8 @@ public class EarningServiceImpl implements EarningService {
         LocalDateTime previousMonthStart = previousMonth.atDay(1).atStartOfDay();
         LocalDateTime previousMonthEnd = previousMonth.atEndOfMonth().atTime(23, 59, 59);
 
-        BigDecimal previousMonthNet = earningRepository.sumNetAmountByInstructorIdAndDateRange(
-                instructorId, previousMonthStart, previousMonthEnd);
+        BigDecimal previousMonthNet = safeBigDecimal(earningRepository.sumNetAmountByInstructorIdAndDateRange(
+                instructorId, previousMonthStart, previousMonthEnd));
         long previousMonthSales = earningRepository.findByInstructorIdAndDateRange(
                 instructorId, previousMonthStart, previousMonthEnd).size();
 
@@ -244,7 +244,7 @@ public class EarningServiceImpl implements EarningService {
             LocalDateTime end = endDate.atTime(23, 59, 59);
 
             // Get filtered summary
-            BigDecimal totalNet = earningRepository.sumNetAmountByInstructorIdAndDateRange(instructorId, start, end);
+            BigDecimal totalNet = safeBigDecimal(earningRepository.sumNetAmountByInstructorIdAndDateRange(instructorId, start, end));
             List<InstructorEarning> earnings = earningRepository.findByInstructorIdAndDateRange(instructorId, start, end);
             BigDecimal totalGross = earnings.stream()
                     .map(InstructorEarning::getGrossAmount)
@@ -507,6 +507,10 @@ public class EarningServiceImpl implements EarningService {
         }
 
         return earningMapper.toResponse(earning);
+    }
+
+    private BigDecimal safeBigDecimal(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 }
 

@@ -26,9 +26,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
+
 import org.springframework.transaction.support.TransactionTemplate;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -72,6 +74,9 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final ApplicationEventPublisher eventPublisher;
     private final PlatformTransactionManager transactionManager;
     private final PayPalGatewayProperties payPalGatewayProperties;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     @Transactional(readOnly = true)
@@ -369,6 +374,12 @@ public class CheckoutServiceImpl implements CheckoutService {
         if (order.getTotalAmount().compareTo(BigDecimal.ZERO) == 0) {
             return completeFreeOrder(order, userId, false);
         }
+
+        // Ensure order is in persistence context and flushed before processPayment
+        if (!entityManager.contains(order)) {
+            order = entityManager.merge(order);
+        }
+        entityManager.flush();
 
         // Process payment (outside transaction to avoid holding DB connection during network call)
         CheckoutRequest checkoutRequest = CheckoutRequest.builder()
@@ -860,6 +871,13 @@ public class CheckoutServiceImpl implements CheckoutService {
             return retryResponse;
         }
 
+        // Ensure order is in persistence context and flushed before updateRetryMetadata (which uses REQUIRES_NEW)
+        // This ensures the order is visible to the new transaction
+        if (!entityManager.contains(order)) {
+            order = entityManager.merge(order);
+        }
+        entityManager.flush();
+
         updateRetryMetadata(order);
 
         // Validate payment method capabilities for this currency before contacting gateway
@@ -1028,33 +1046,16 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     /**
-     * Update retry metadata in a separate transaction.
-     * Reload order by ID inside the new transaction to avoid detached entity issues,
-     * then sync updated values back to the passed object.
+     * Update retry metadata on the order.
+     * Simply updates the order object and saves it through the repository.
+     * The order was already persisted in createOrderFromCart/createOrderFromSingleCourse,
+     * so this save will work within the same transaction.
      */
     private void updateRetryMetadata(Order order) {
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-
-        final Long orderId = order.getId();
-
-        Order updatedOrder = transactionTemplate.execute(status -> {
-            // Reload order inside new transaction to avoid detached entity issues
-            Order freshOrder = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
-
-            Integer currentRetryCount = freshOrder.getRetryCount() != null ? freshOrder.getRetryCount() : 0;
-            freshOrder.setRetryCount(currentRetryCount + 1);
-            freshOrder.setLastPaymentAttemptAt(LocalDateTime.now());
-            return orderRepository.save(freshOrder);
-        });
-
-        // Sync updated values back to the passed object to avoid stale data in caller
-        if (updatedOrder != null) {
-            order.setRetryCount(updatedOrder.getRetryCount());
-            order.setLastPaymentAttemptAt(updatedOrder.getLastPaymentAttemptAt());
-            order.setVersion(updatedOrder.getVersion());
-        }
+        Integer currentRetryCount = order.getRetryCount() != null ? order.getRetryCount() : 0;
+        order.setRetryCount(currentRetryCount + 1);
+        order.setLastPaymentAttemptAt(LocalDateTime.now());
+        orderRepository.save(order);
     }
 
     private GatewayPaymentRequest prepareGatewayRequest(Order order, CheckoutRequest request) {

@@ -47,6 +47,9 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private CartService cartService;
 
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
     private Course course;
     private Long userId = 1L;
 
@@ -133,6 +136,9 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.orderNumber").exists())
                 .andExpect(jsonPath("$.data.totalAmount").value(49.99));
+        
+        entityManager.flush();
+        entityManager.clear();
     }
 
     @Test
@@ -159,6 +165,9 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.orderNumber").exists())
                 .andExpect(jsonPath("$.data.totalAmount").value(49.99));
+        
+        entityManager.flush();
+        entityManager.clear();
     }
 
     // ==================== Error Handling Tests ====================
@@ -261,6 +270,7 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(freeCourse.getId());
         request.setPaymentMethod(PaymentMethod.FREE);
+        request.setCustomerEmail("student@example.com");
 
         mockMvc.perform(post("/checkout/direct")
                 .contentType(MediaType.APPLICATION_JSON)

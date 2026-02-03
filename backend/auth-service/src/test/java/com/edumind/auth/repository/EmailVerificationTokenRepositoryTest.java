@@ -1,5 +1,6 @@
 package com.edumind.auth.repository;
 
+import com.edumind.auth.config.BaseRepositoryTest;
 import com.edumind.auth.entity.EmailVerificationToken;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.entity.User;
@@ -10,10 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -23,16 +21,17 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Repository tests for EmailVerificationTokenRepository
- * Uses @DataJpaTest with H2 in-memory database
+ * Repository tests for EmailVerificationTokenRepository.
+ * Uses Testcontainers with real PostgreSQL.
+ * Default roles are available via Flyway migrations.
  */
-@DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@ActiveProfiles("test")
-class EmailVerificationTokenRepositoryTest {
+class EmailVerificationTokenRepositoryTest extends BaseRepositoryTest {
 
     @Autowired
     private EmailVerificationTokenRepository tokenRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Autowired
     private TestEntityManager entityManager;
@@ -44,12 +43,9 @@ class EmailVerificationTokenRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // Create and persist role
-        Role studentRole = Role.builder()
-                .name(RoleName.ROLE_STUDENT)
-                .description("Student role")
-                .build();
-        entityManager.persistAndFlush(studentRole);
+        // Get role from Flyway migrations
+        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
+                .orElseThrow(() -> new IllegalStateException("ROLE_STUDENT not found - check Flyway migrations"));
 
         // Create and persist test user
         testUser = User.builder()

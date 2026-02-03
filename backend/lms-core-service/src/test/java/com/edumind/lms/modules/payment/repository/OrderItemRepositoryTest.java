@@ -1,6 +1,6 @@
 package com.edumind.lms.modules.payment.repository;
 
-import com.edumind.lms.config.JpaAuditingConfig;
+import com.edumind.lms.config.BaseRepositoryTest;
 import com.edumind.lms.modules.payment.PaymentTestHelper;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.OrderItem;
@@ -8,10 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -21,11 +18,8 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@Import(JpaAuditingConfig.class)
 @DisplayName("OrderItemRepository Tests")
-class OrderItemRepositoryTest {
+class OrderItemRepositoryTest extends BaseRepositoryTest {
 
     @Autowired
     private OrderItemRepository orderItemRepository;
@@ -40,6 +34,7 @@ class OrderItemRepositoryTest {
 
     @BeforeEach
     void setUp() {
+        cleanupActiveOrders(); // Clean up any existing PENDING/PROCESSING orders to prevent unique constraint violations
         entityManager.clear();
     }
 
@@ -165,7 +160,8 @@ class OrderItemRepositoryTest {
     @DisplayName("Should count items by multiple order IDs")
     void countItemsByOrderIds_ShouldReturnGroupedCounts() {
         // Given
-        Order order1 = PaymentTestHelper.createOrder(userId, "ORD-001", new BigDecimal("200.00"));
+        // Use COMPLETED order to avoid unique constraint violation (only one PENDING per user allowed)
+        Order order1 = PaymentTestHelper.createCompletedOrder(userId, "ORD-001", new BigDecimal("200.00"));
         entityManager.persist(order1);
         OrderItem item1a = PaymentTestHelper.createOrderItem(courseId1, instructorId, new BigDecimal("100.00"), new BigDecimal("100.00"));
         OrderItem item1b = PaymentTestHelper.createOrderItem(courseId2, instructorId, new BigDecimal("100.00"), new BigDecimal("100.00"));
@@ -174,6 +170,7 @@ class OrderItemRepositoryTest {
         entityManager.persist(item1a);
         entityManager.persist(item1b);
 
+        // Use PENDING order for second order (now safe since first is COMPLETED)
         Order order2 = PaymentTestHelper.createOrder(userId, "ORD-002", new BigDecimal("100.00"));
         entityManager.persist(order2);
         OrderItem item2 = PaymentTestHelper.createOrderItem(courseId1, instructorId, new BigDecimal("100.00"), new BigDecimal("100.00"));

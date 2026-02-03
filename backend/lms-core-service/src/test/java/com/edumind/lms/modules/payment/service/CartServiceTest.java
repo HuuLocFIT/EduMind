@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CartService Unit Tests")
@@ -458,13 +459,36 @@ class CartServiceTest {
         @DisplayName("Should remove specific items from cart when cart exists")
         void removeItems_CartExists_RemovesItems() {
             // Given
+            CartItem item1 = new CartItem();
+            item1.setId(1L);
+            item1.setCourseId(100L);
+            item1.setCart(cart);
+            
+            CartItem item2 = new CartItem();
+            item2.setId(2L);
+            item2.setCourseId(101L);
+            item2.setCart(cart);
+            
+            CartItem item3 = new CartItem();
+            item3.setId(3L);
+            item3.setCourseId(102L);
+            item3.setCart(cart);
+
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+            when(cartItemRepository.findByCartId(cart.getId())).thenReturn(List.of(item1, item2, item3));
+            when(cartRepository.save(any(Cart.class))).thenReturn(cart);
 
             // When
             cartService.removeItems(userId, List.of(100L, 101L));
 
             // Then
-            verify(cartItemRepository).deleteByCartIdAndCourseIds(eq(cart.getId()), eq(List.of(100L, 101L)));
+            verify(cartItemRepository).findByCartId(cart.getId());
+            ArgumentCaptor<Iterable<CartItem>> captor = ArgumentCaptor.forClass(Iterable.class);
+            verify(cartItemRepository).deleteAll(captor.capture());
+            List<CartItem> deletedItems = (List<CartItem>) captor.getValue();
+            assertThat(deletedItems).hasSize(2);
+            assertThat(deletedItems).extracting(CartItem::getCourseId).containsExactlyInAnyOrder(100L, 101L);
+            verify(cartRepository).save(any(Cart.class));
         }
 
         @Test

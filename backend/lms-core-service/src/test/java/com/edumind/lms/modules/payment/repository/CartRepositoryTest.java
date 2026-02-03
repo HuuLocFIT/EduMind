@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.payment.repository;
 
+import com.edumind.lms.config.BaseRepositoryTest;
 import com.edumind.lms.modules.payment.PaymentTestHelper;
 import com.edumind.lms.modules.payment.entity.Cart;
 import com.edumind.lms.modules.payment.entity.CartItem;
@@ -9,23 +10,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.edumind.lms.config.JpaAuditingConfig;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@Import(JpaAuditingConfig.class)
+/**
+ * Repository tests for CartRepository.
+ * Uses Testcontainers with real PostgreSQL.
+ */
 @DisplayName("CartRepository Tests")
-class CartRepositoryTest {
+class CartRepositoryTest extends BaseRepositoryTest {
 
     @Autowired
     private CartRepository cartRepository;
@@ -88,7 +86,7 @@ class CartRepositoryTest {
 
         CartItem item1 = PaymentTestHelper.createCartItem(201L, new BigDecimal("49.99"));
         cart.addItem(item1); // Helper sets bidirectional relationship
-        
+
         CartItem item2 = PaymentTestHelper.createCartItem(202L, new BigDecimal("29.99"));
         cart.addItem(item2);
 
@@ -153,7 +151,7 @@ class CartRepositoryTest {
         Cart cart = PaymentTestHelper.createCart(userId);
         CartItem item = PaymentTestHelper.createCartItem(201L, new BigDecimal("99.00"));
         cart.addItem(item);
-        
+
         cart = entityManager.persist(cart);
         entityManager.flush();
         entityManager.clear();

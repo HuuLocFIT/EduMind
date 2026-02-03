@@ -169,7 +169,7 @@ public final class PaymentTestHelper {
     public static Transaction createSuccessfulTransaction(Order order, String transactionNumber, BigDecimal amount) {
         Transaction txn = createTransaction(order, transactionNumber, amount);
         txn.setStatus(TransactionStatus.SUCCESS);
-        txn.setGatewayTransactionId("MOCK_" + System.currentTimeMillis());
+        txn.setGatewayTransactionId(generateGatewayTransactionId());
         txn.setProcessedAt(LocalDateTime.now());
         return txn;
     }
@@ -256,6 +256,7 @@ public final class PaymentTestHelper {
     private static long orderCounter = 1;
     private static long transactionCounter = 1;
     private static long invoiceCounter = 1;
+    private static long gatewayTransactionIdCounter = 1;
 
     public static String generateOrderNumber() {
         return String.format("ORD-TEST-%06d", orderCounter++);
@@ -269,9 +270,14 @@ public final class PaymentTestHelper {
         return String.format("INV-TEST-%06d", invoiceCounter++);
     }
 
+    public static String generateGatewayTransactionId() {
+        return String.format("MOCK_%d_%d", System.currentTimeMillis(), gatewayTransactionIdCounter++);
+    }
+
     public static void resetCounters() {
         orderCounter = 1;
         transactionCounter = 1;
         invoiceCounter = 1;
+        gatewayTransactionIdCounter = 1;
     }
 }

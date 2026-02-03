@@ -51,6 +51,15 @@ class WebhookServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private CartServiceImpl cartServiceImpl;
+
+    @Mock
+    private NumberGeneratorService numberGeneratorService;
+
+    @Mock
+    private com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties payPalProperties;
+
     @InjectMocks
     private WebhookServiceImpl webhookService;
 
@@ -92,7 +101,7 @@ class WebhookServiceTest {
                     .transactionId("gateway-txn-123")
                     .build();
 
-            when(orderRepository.findByOrderNumber(orderNumber)).thenReturn(Optional.of(order));
+            when(orderRepository.findWithItemsByOrderNumber(orderNumber)).thenReturn(Optional.of(order));
             when(transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(transaction));
             when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
             when(orderRepository.save(any(Order.class))).thenReturn(order);
@@ -116,7 +125,7 @@ class WebhookServiceTest {
                     .failureReason("Insufficient funds")
                     .build();
 
-            when(orderRepository.findByOrderNumber(orderNumber)).thenReturn(Optional.of(order));
+            when(orderRepository.findWithItemsByOrderNumber(orderNumber)).thenReturn(Optional.of(order));
             when(transactionRepository.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(transaction));
             when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
             when(orderRepository.save(any(Order.class))).thenReturn(order);
@@ -138,7 +147,7 @@ class WebhookServiceTest {
                     .status("SUCCESS")
                     .build();
 
-            when(orderRepository.findByOrderNumber("UNKNOWN-ORDER")).thenReturn(Optional.empty());
+            when(orderRepository.findWithItemsByOrderNumber("UNKNOWN-ORDER")).thenReturn(Optional.empty());
 
             // When & Then
             assertThatThrownBy(() -> webhookService.handleWebhook(PaymentMethod.MOCK, request))
@@ -167,8 +176,8 @@ class WebhookServiceTest {
         }
 
         @Test
-        @DisplayName("Should validate SePay signature with HMAC")
-        void verifySignature_Sepay_HmacValidation() {
+        @DisplayName("Should validate SePay authorization with API key")
+        void verifySignature_Sepay_ApiKeyValidation() {
             // Given
             WebhookPayloadRequest request = WebhookPayloadRequest.builder()
                     .orderNumber(orderNumber)
@@ -179,38 +188,17 @@ class WebhookServiceTest {
             // Configure secret via reflection
             org.springframework.test.util.ReflectionTestUtils.setField(
                     webhookService, "sepayWebhookSecret", "test-secret");
+            org.springframework.test.util.ReflectionTestUtils.setField(
+                    webhookService, "sepayEnforceSignature", false);
 
-            // Pre-compute expected signature using same logic
-            String dataToSign = orderNumber + "|" + request.getAmount() + "|" + request.getStatus();
-            String signature = computeHmacSha256Hex("test-secret", dataToSign);
+            // SePay uses API key format: "Apikey <SECRET>"
+            String authorization = "Apikey test-secret";
 
             // When
-            boolean result = webhookService.verifySignature(PaymentMethod.SEPAY, request, signature);
+            boolean result = webhookService.verifySignature(PaymentMethod.SEPAY, request, authorization);
 
             // Then
             assertThat(result).isTrue();
-        }
-
-        private String computeHmacSha256Hex(String secret, String data) {
-            try {
-                javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
-                javax.crypto.spec.SecretKeySpec keySpec =
-                        new javax.crypto.spec.SecretKeySpec(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                                "HmacSHA256");
-                mac.init(keySpec);
-                byte[] rawHmac = mac.doFinal(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                StringBuilder hex = new StringBuilder(rawHmac.length * 2);
-                for (byte b : rawHmac) {
-                    String h = Integer.toHexString(0xff & b);
-                    if (h.length() == 1) {
-                        hex.append('0');
-                    }
-                    hex.append(h);
-                }
-                return hex.toString();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
         }
     }
 }
