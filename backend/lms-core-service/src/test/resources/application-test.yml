@@ -70,6 +70,10 @@ payment:
     mode: sandbox
   sepay:
     enabled: false
+    api-key: test-api-key
+    bank-code: MB
+    bank-account: 1234567890
+    account-name: Test Account
 
 # Logging Configuration for tests
 logging:

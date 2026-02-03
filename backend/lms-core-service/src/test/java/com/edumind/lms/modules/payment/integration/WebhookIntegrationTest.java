@@ -3,14 +3,10 @@ package com.edumind.lms.modules.payment.integration;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseStatus;
-import com.edumind.lms.modules.course.repository.CategoryRepository;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.payment.BaseIntegrationTest;
+import com.edumind.lms.modules.payment.BasePaymentIntegrationTest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.WebhookPayloadRequest;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
-import com.edumind.lms.modules.payment.repository.OrderRepository;
-import com.edumind.lms.modules.payment.repository.TransactionRepository;
 import com.edumind.lms.modules.payment.service.CheckoutService;
 import com.edumind.lms.config.security.JwtUserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,35 +24,22 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class WebhookIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private CourseRepository courseRepository;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
+/**
+ * Integration tests for webhook functionality.
+ * Extends BasePaymentIntegrationTest (non-transactional) to allow REQUIRES_NEW transactions
+ * to see committed order data during payment processing.
+ */
+class WebhookIntegrationTest extends BasePaymentIntegrationTest {
 
     @Autowired
     private CheckoutService checkoutService;
-
-    @Autowired
-    private jakarta.persistence.EntityManager entityManager;
 
     private Course course;
     private Long userId = 1L;
 
     @BeforeEach
     void setUp() {
-        transactionRepository.deleteAll();
-        orderRepository.deleteAll();
-        courseRepository.deleteAll();
-        categoryRepository.deleteAll();
+        // Note: cleanup is handled by BasePaymentIntegrationTest.cleanupTestData() in @AfterEach
 
         Category category = Category.builder()
                 .name("Test Category")
@@ -109,8 +92,6 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         var result = checkoutService.directCheckout(userId, request);
-        entityManager.flush();
-        entityManager.clear();
         String orderNumber = result.getOrderNumber();
 
         WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();
@@ -133,8 +114,6 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         var result = checkoutService.directCheckout(userId, request);
-        entityManager.flush();
-        entityManager.clear();
         String orderNumber = result.getOrderNumber();
 
         WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();

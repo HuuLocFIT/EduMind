@@ -3,16 +3,11 @@ package com.edumind.lms.modules.payment.integration;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseStatus;
-import com.edumind.lms.modules.course.repository.CategoryRepository;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.payment.BaseIntegrationTest;
+import com.edumind.lms.modules.payment.BasePaymentIntegrationTest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
-import com.edumind.lms.modules.payment.repository.InstructorEarningRepository;
-import com.edumind.lms.modules.payment.repository.OrderRepository;
 import com.edumind.lms.modules.payment.service.CheckoutService;
 import com.edumind.lms.config.security.JwtUserPrincipal;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,25 +23,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
 
-class EarningIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private CourseRepository courseRepository;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private InstructorEarningRepository earningRepository;
+/**
+ * Integration tests for instructor earnings functionality.
+ * Extends BasePaymentIntegrationTest (non-transactional) to allow REQUIRES_NEW transactions
+ * to see committed order data during payment processing.
+ */
+class EarningIntegrationTest extends BasePaymentIntegrationTest {
 
     @Autowired
     private CheckoutService checkoutService;
-
-    @Autowired
-    private EntityManager entityManager;
 
     private Course course;
     private Long instructorId = 101L;
@@ -54,10 +39,7 @@ class EarningIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        earningRepository.deleteAll();
-        orderRepository.deleteAll();
-        courseRepository.deleteAll();
-        categoryRepository.deleteAll();
+        // Note: cleanup is handled by BasePaymentIntegrationTest.cleanupTestData() in @AfterEach
 
         Category category = Category.builder()
                 .name("Test Category")
@@ -127,8 +109,6 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
-        entityManager.flush();
-        entityManager.clear();
 
         // Now get earnings as teacher
         setupTeacherSecurityContext();
@@ -147,8 +127,6 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
-        entityManager.flush();
-        entityManager.clear();
 
         // Now get summary as teacher
         setupTeacherSecurityContext();
@@ -168,8 +146,6 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
-        entityManager.flush();
-        entityManager.clear();
 
         // Now get earnings by course as teacher
         setupTeacherSecurityContext();
@@ -200,8 +176,6 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
-        entityManager.flush();
-        entityManager.clear();
 
         // Now get monthly earnings as teacher
         setupTeacherSecurityContext();
@@ -221,8 +195,6 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
-        entityManager.flush();
-        entityManager.clear();
 
         // Get the earning ID
         var earnings = earningRepository.findAll();
@@ -246,8 +218,6 @@ class EarningIntegrationTest extends BaseIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
-        entityManager.flush();
-        entityManager.clear();
 
         // Export as teacher
         setupTeacherSecurityContext();

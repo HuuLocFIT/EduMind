@@ -113,9 +113,6 @@ class CheckoutServiceTest {
     @Mock
     private com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties payPalGatewayProperties;
 
-    @Mock
-    private jakarta.persistence.EntityManager entityManager;
-
     @InjectMocks
     private CheckoutServiceImpl checkoutService;
 
@@ -173,16 +170,6 @@ class CheckoutServiceTest {
 
         // Mock PayPalGatewayProperties for prepareGatewayRequest()
         lenient().when(payPalGatewayProperties.getReturnBaseUrl()).thenReturn("http://localhost:3000");
-        
-        // Mock EntityManager - inject it manually since @PersistenceContext fields aren't auto-injected by Mockito
-        ReflectionTestUtils.setField(checkoutService, "entityManager", entityManager);
-        
-        // Mock EntityManager.contains() to return false by default (entity not in persistence context)
-        lenient().when(entityManager.contains(any())).thenReturn(false);
-        // Mock EntityManager.merge() to return the same object
-        lenient().when(entityManager.merge(any())).thenAnswer(i -> i.getArguments()[0]);
-        // Mock EntityManager.flush() to do nothing
-        lenient().doNothing().when(entityManager).flush();
     }
 
     @Nested

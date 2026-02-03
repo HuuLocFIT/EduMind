@@ -3,15 +3,11 @@ package com.edumind.lms.modules.payment.integration;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseStatus;
-import com.edumind.lms.modules.course.repository.CategoryRepository;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.payment.BaseIntegrationTest;
+import com.edumind.lms.modules.payment.BasePaymentIntegrationTest;
 import com.edumind.lms.modules.payment.dto.request.AddToCartRequest;
 import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
-import com.edumind.lms.modules.payment.repository.CartRepository;
-import com.edumind.lms.modules.payment.repository.OrderRepository;
 import com.edumind.lms.modules.payment.service.CartService;
 import com.edumind.lms.config.security.JwtUserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,35 +26,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
 
-class CheckoutIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private CourseRepository courseRepository;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private CartRepository cartRepository;
-
-    @Autowired
-    private OrderRepository orderRepository;
+/**
+ * Integration tests for checkout functionality.
+ * Extends BasePaymentIntegrationTest (non-transactional) to allow REQUIRES_NEW transactions
+ * to see committed order data during payment processing.
+ */
+class CheckoutIntegrationTest extends BasePaymentIntegrationTest {
 
     @Autowired
     private CartService cartService;
-
-    @Autowired
-    private jakarta.persistence.EntityManager entityManager;
 
     private Course course;
     private Long userId = 1L;
 
     @BeforeEach
     void setUp() {
-        orderRepository.deleteAll();
-        cartRepository.deleteAll();
-        courseRepository.deleteAll();
-        categoryRepository.deleteAll();
+        // Note: cleanup is handled by BasePaymentIntegrationTest.cleanupTestData() in @AfterEach
 
         Category category = Category.builder()
                 .name("Test Category")
@@ -136,9 +119,6 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.orderNumber").exists())
                 .andExpect(jsonPath("$.data.totalAmount").value(49.99));
-        
-        entityManager.flush();
-        entityManager.clear();
     }
 
     @Test
@@ -165,9 +145,6 @@ class CheckoutIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.orderNumber").exists())
                 .andExpect(jsonPath("$.data.totalAmount").value(49.99));
-        
-        entityManager.flush();
-        entityManager.clear();
     }
 
     // ==================== Error Handling Tests ====================
