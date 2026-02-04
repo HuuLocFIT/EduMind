@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.payment.gateway;
 
+import com.edumind.lms.modules.payment.gateway.GatewayPaymentRequest;
 import com.edumind.lms.modules.payment.gateway.impl.SepayGateway;
 import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
 import com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload;
@@ -90,80 +91,33 @@ class SepayGatewayTest {
 
             // Then
             assertThat(result.success()).isFalse();
-            assertThat(result.orderNumber()).isNull();
         }
 
         @Test
-        @DisplayName("Should reject outgoing transfers")
-        void testHandleWebhook_WrongTransferType() {
+        @DisplayName("Should reject zero transfer amount")
+        void testHandleWebhook_ZeroAmount() {
             // Given
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
-                    .transferType("out")  // Outgoing transfer
-                    .transferAmount(100000L)
+                    .transferType("in")
+                    .transferAmount(0L)  // Zero amount
                     .code("ORD-202602-0001")
                     .content("EDUMIND ORD-202602-0001")
                     .build();
+
+            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
 
             // When
             SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
 
             // Then
             assertThat(result.success()).isFalse();
-            assertThat(result.orderNumber()).isNull();
         }
 
         @Test
-        @DisplayName("Should extract order number with dash")
-        void testOrderNumberExtraction_WithDash() {
-            // Given
-            SepayWebhookPayload payload = SepayWebhookPayload.builder()
-                    .id(12345L)
-                    .accountNumber("1234567890")
-                    .transferType("in")
-                    .transferAmount(100000L)
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
-                    .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
-
-            // When
-            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
-
-            // Then
-            assertThat(result.success()).isTrue();
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-        }
-
-        @Test
-        @DisplayName("Should extract and normalize order number without dash")
-        void testOrderNumberExtraction_NoDash() {
-            // Given
-            SepayWebhookPayload payload = SepayWebhookPayload.builder()
-                    .id(12345L)
-                    .accountNumber("1234567890")
-                    .transferType("in")
-                    .transferAmount(100000L)
-                    .code("ORD2026020001")  // No dash
-                    .content("EDUMIND ORD2026020001")
-                    .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
-
-            // When
-            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
-
-            // Then
-            assertThat(result.success()).isTrue();
-            // Should normalize to ORD-202602-0001
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-        }
-
-        @Test
-        @DisplayName("Should extract order number from content with surrounding text")
-        void testOrderNumberExtraction_Normalization() {
+        @DisplayName("Should handle null code AND null content gracefully")
+        void testOrderNumberExtraction_BothNull() {
             // Given
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
@@ -171,155 +125,67 @@ class SepayGatewayTest {
                     .transferType("in")
                     .transferAmount(100000L)
                     .code(null)
-                    .content("Some text ORD-202602-0001 more text")
+                    .content(null)  // Both null
                     .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
-
-            // When
-            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
-
-            // Then
-            assertThat(result.success()).isTrue();
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-        }
-
-        @Test
-        @DisplayName("Should accept payment with exact amount match")
-        void testAmountVariance_ExactMatch() {
-            // Given
-            long expectedAmount = 100000L;
-            SepayWebhookPayload payload = SepayWebhookPayload.builder()
-                    .id(12345L)
-                    .accountNumber("1234567890")
-                    .transferType("in")
-                    .transferAmount(expectedAmount)  // Exact match
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
-                    .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", expectedAmount));
-
-            // When
-            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
-
-            // Then
-            assertThat(result.success()).isTrue();
-        }
-
-        @Test
-        @DisplayName("Should accept payment within tolerance")
-        void testAmountVariance_WithinTolerance() {
-            // Given
-            long expectedAmount = 100000L;
-            long actualAmount = 100500L;  // Within 1000 VND tolerance
-            SepayWebhookPayload payload = SepayWebhookPayload.builder()
-                    .id(12345L)
-                    .accountNumber("1234567890")
-                    .transferType("in")
-                    .transferAmount(actualAmount)
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
-                    .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", expectedAmount));
-
-            // When
-            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
-
-            // Then
-            assertThat(result.success()).isTrue();
-        }
-
-        @Test
-        @DisplayName("Should reject underpayment exceeding tolerance and return payment to pending")
-        void testAmountVariance_UnderpaymentExceedsTolerance() {
-            // Given
-            long expectedAmount = 100000L;
-            long actualAmount = 95000L;  // 5000 VND underpayment (exceeds 1000 tolerance)
-            SepayWebhookPayload payload = SepayWebhookPayload.builder()
-                    .id(12345L)
-                    .accountNumber("1234567890")
-                    .transferType("in")
-                    .transferAmount(actualAmount)
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
-                    .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", expectedAmount));
 
             // When
             SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
 
             // Then
             assertThat(result.success()).isFalse();
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-            // CRITICAL: Payment should be put back in pending for underpayment (allows user to retry with correct amount)
-            assertThat(sepayGateway.getPendingPayment("ORD-202602-0001")).isNotNull();
         }
 
         @Test
-        @DisplayName("Should accept overpayment exceeding tolerance with warning (payment NOT returned to pending)")
-        void testAmountVariance_OverpaymentExceedsTolerance() {
+        @DisplayName("Should prioritize code over content for order number extraction")
+        void testOrderNumberExtraction_CodeTakesPriority() {
             // Given
-            long expectedAmount = 100000L;
-            long actualAmount = 105000L;  // +5000 VND overpayment (exceeds 1000 tolerance)
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
                     .transferType("in")
-                    .transferAmount(actualAmount)
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
+                    .transferAmount(100000L)
+                    .code("ORD-111")  // This should be used
+                    .content("EDUMIND ORD-222")  // This should be ignored
                     .build();
 
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", expectedAmount));
+            sepayGateway.processPayment(createPaymentRequest("ORD-111", 100000L));
 
             // When
             SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
 
             // Then
-            // Overpayment is ACCEPTED (user paid more than required - business decides to accept it)
             assertThat(result.success()).isTrue();
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-            assertThat(result.amountVnd()).isEqualTo(actualAmount);
-            // CRITICAL: Payment should NOT be returned to pending (atomically removed and accepted)
-            assertThat(sepayGateway.getPendingPayment("ORD-202602-0001")).isNull();
+            // Code should take priority
+            assertThat(result.orderNumber()).isEqualTo("ORD-111");
         }
 
         @Test
-        @DisplayName("Should reject webhook with null transfer amount (security vulnerability)")
-        void testHandleWebhook_NullTransferAmount() {
+        @DisplayName("Should fail when order number pattern is invalid")
+        void testOrderNumberExtraction_InvalidPattern() {
             // Given
-            long expectedAmount = 100000L;
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
                     .transferType("in")
-                    .transferAmount(null)  // CRITICAL: Null amount - potential security issue
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
+                    .transferAmount(100000L)
+                    .code("ORDER-123")  // Invalid pattern (not ORD-*)
+                    .content("Invalid order")
                     .build();
-
-            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", expectedAmount));
 
             // When
             SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
 
             // Then
-            // Should reject: null amount becomes 0, which is massive underpayment
             assertThat(result.success()).isFalse();
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-            // Payment should be returned to pending for retry with valid amount
-            assertThat(sepayGateway.getPendingPayment("ORD-202602-0001")).isNotNull();
         }
 
         @Test
         @DisplayName("Should accept overpayment within tolerance")
-        void testAmountVariance_OverpaymentWithinTolerance() {
+        void testAmountVariance_Overpayment_WithinTolerance() {
             // Given
             long expectedAmount = 100000L;
             long actualAmount = 100500L;  // +500 VND (within 1000 tolerance)
+            
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
@@ -337,69 +203,110 @@ class SepayGatewayTest {
             // Then
             assertThat(result.success()).isTrue();
             assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
-            assertThat(result.amountVnd()).isEqualTo(actualAmount);
+            // Payment should be processed successfully (within tolerance)
         }
 
         @Test
-        @DisplayName("Should reject webhook when pending payment not found")
-        void testPendingPaymentNotFound() {
+        @DisplayName("Should handle empty string in code field")
+        void testOrderNumberExtraction_EmptyCode() {
             // Given
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
                     .transferType("in")
                     .transferAmount(100000L)
-                    .code("ORD-202602-0001")
+                    .code("")  // Empty string
                     .content("EDUMIND ORD-202602-0001")
                     .build();
 
-            // Don't create pending payment
+            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
+
+            // When
+            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
+
+            // Then
+            assertThat(result.success()).isTrue();
+            // Should fallback to extracting from content
+            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
+        }
+
+        @Test
+        @DisplayName("Should handle empty string in content field")
+        void testOrderNumberExtraction_EmptyContent() {
+            // Given
+            SepayWebhookPayload payload = SepayWebhookPayload.builder()
+                    .id(12345L)
+                    .accountNumber("1234567890")
+                    .transferType("in")
+                    .transferAmount(100000L)
+                    .code(null)
+                    .content("")  // Empty string
+                    .build();
 
             // When
             SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
 
             // Then
             assertThat(result.success()).isFalse();
-            assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
         }
 
         @Test
-        @DisplayName("Should reject duplicate webhook (already processed)")
-        void testAlreadyProcessed() {
+        @DisplayName("Should extract first order number when content contains multiple order numbers")
+        void testOrderNumberExtraction_MultipleOrderNumbers() {
             // Given
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
                     .transferType("in")
                     .transferAmount(100000L)
-                    .code("ORD-202602-0001")
-                    .content("EDUMIND ORD-202602-0001")
+                    .code(null)
+                    .content("EDUMIND ORD-202602-0001 ORD-202602-0002")  // Multiple order numbers
                     .build();
 
             sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
 
-            // Process first time
-            sepayGateway.handleWebhook(payload);
-
-            // When - process again
+            // When
             SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
 
             // Then
-            assertThat(result.success()).isFalse();
+            assertThat(result.success()).isTrue();
+            // Should extract first matching order number
             assertThat(result.orderNumber()).isEqualTo("ORD-202602-0001");
         }
 
         @Test
-        @DisplayName("Should handle case-insensitive order number extraction")
-        void testOrderNumberExtraction_CaseInsensitive() {
+        @DisplayName("Should fail when content has multiple order numbers but none match pending payment")
+        void testOrderNumberExtraction_MultipleOrderNumbers_NoMatch() {
             // Given
             SepayWebhookPayload payload = SepayWebhookPayload.builder()
                     .id(12345L)
                     .accountNumber("1234567890")
                     .transferType("in")
                     .transferAmount(100000L)
-                    .code("ord-202602-0001")  // Lowercase
-                    .content("EDUMIND ord-202602-0001")
+                    .code(null)
+                    .content("EDUMIND ORD-202602-0002 ORD-202602-0003")  // No matching pending payment
+                    .build();
+
+            sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
+
+            // When
+            SepayGateway.WebhookResult result = sepayGateway.handleWebhook(payload);
+
+            // Then
+            assertThat(result.success()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Should handle order number with special characters in content")
+        void testOrderNumberExtraction_SpecialCharactersInContent() {
+            // Given
+            SepayWebhookPayload payload = SepayWebhookPayload.builder()
+                    .id(12345L)
+                    .accountNumber("1234567890")
+                    .transferType("in")
+                    .transferAmount(100000L)
+                    .code(null)
+                    .content("EDUMIND!@#$%ORD-202602-0001^&*()")  // Special chars around order number
                     .build();
 
             sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));

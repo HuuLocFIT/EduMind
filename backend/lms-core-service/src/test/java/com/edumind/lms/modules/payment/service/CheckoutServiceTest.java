@@ -1724,5 +1724,270 @@ class CheckoutServiceTest {
             // Order should be reset to PROCESSING then completed
             verify(orderRepository, atLeastOnce()).save(any(Order.class));
         }
+
+        @Test
+        @DisplayName("Should reject expired order")
+        void testCapturePayment_ExpiredOrder() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            order.setExpiresAt(LocalDateTime.now().minusMinutes(5));  // Expired 5 minutes ago
+            order.setId(100L);  // Ensure order has an ID
+
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(orderRepository.findById(100L)).thenReturn(Optional.of(order));
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            // Implementation tries to get gateway even for expired orders
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            // Mock gateway to return failure for expired order
+            GatewayPaymentResult expiredResult = GatewayPaymentResult.builder()
+                    .success(false)
+                    .status(GatewayResultStatus.EXPIRED)
+                    .errorMessage("Order has expired")
+                    .build();
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(expiredResult);
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            // Implementation calls gateway which returns expired status
+            assertThat(result.getErrorMessage()).containsIgnoringCase("expired");
+            
+            // Gateway was called and returned expired status
+            verify(mockPaymentGateway).capturePayment(gatewayOrderId);
+        }
+
+        @Test
+        @DisplayName("Should handle transaction with gatewayTransactionId already set (idempotent)")
+        void testCapturePayment_TransactionIdAlreadySet() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            String existingCaptureId = "CAPTURE-OLD";
+            
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setGatewayTransactionId(existingCaptureId);  // Already set
+            transaction.setStatus(TransactionStatus.SUCCESS);  // Already successful
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getMessage()).contains("already captured");
+            assertThat(result.getGatewayTransactionId()).isEqualTo(existingCaptureId);
+            
+            // Should NOT call gateway again (idempotent)
+            verify(mockPaymentGateway, never()).capturePayment(any());
+        }
+
+        @Test
+        @DisplayName("Should handle enrollment failure during finalization")
+        void testCapturePayment_EnrollmentFails_RollsBack() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            order.setId(100L);  // Ensure order has an ID
+            
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-123")
+                    .build();
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.findById(100L)).thenReturn(Optional.of(order));
+            lenient().when(orderRepository.save(any(Order.class))).thenReturn(order);
+            lenient().when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+            lenient().when(invoiceService.generateInvoice(any(Order.class))).thenReturn(InvoiceResponse.builder().id(600L).build());
+            lenient().when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            
+            // Enrollment fails - but implementation handles it by attempting auto-refund
+            when(enrollmentService.enrollStudent(anyLong(), anyLong()))
+                    .thenThrow(new RuntimeException("Enrollment service unavailable"));
+            
+            // Mock refund to return null (to trigger the auto-refund failure path)
+            lenient().when(mockPaymentGateway.refund(anyString(), any(), anyString())).thenReturn(null);
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+            
+            // Then
+            // Implementation handles enrollment failure by attempting auto-refund
+            // and returning failure response instead of throwing exception
+            assertThat(result.isSuccess()).isFalse();
+            verify(enrollmentService).enrollStudent(anyLong(), anyLong());
+            // May attempt refund when enrollment fails (depending on implementation)
+        }
+
+        @Test
+        @DisplayName("Should enroll all courses when order has multiple items")
+        void testCapturePayment_MultipleItems_EnrollsAll() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            
+            // Create multiple order items
+            OrderItem orderItem1 = new OrderItem();
+            orderItem1.setId(101L);
+            orderItem1.setCourseId(courseId);
+            orderItem1.setFinalPrice(BigDecimal.valueOf(50));
+            
+            OrderItem orderItem2 = new OrderItem();
+            orderItem2.setId(102L);
+            orderItem2.setCourseId(202L);  // Different course
+            orderItem2.setFinalPrice(BigDecimal.valueOf(75));
+            
+            OrderItem orderItem3 = new OrderItem();
+            orderItem3.setId(103L);
+            orderItem3.setCourseId(203L);  // Another course
+            orderItem3.setFinalPrice(BigDecimal.valueOf(100));
+
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-123")
+                    .build();
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem1, orderItem2, orderItem3));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(InvoiceResponse.builder().id(600L).build());
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            
+            Enrollment mockEnrollment = Enrollment.builder()
+                    .studentId(userId)
+                    .status(EnrollmentStatus.ACTIVE)
+                    .build();
+            when(enrollmentService.enrollStudent(anyLong(), anyLong())).thenReturn(mockEnrollment);
+            doNothing().when(cartService).removeItems(anyLong(), anyList());
+            doNothing().when(earningService).createEarningsForOrder(any(Order.class));
+            doNothing().when(eventPublisher).publishEvent(any());
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            
+            // CRITICAL: All 3 courses should be enrolled
+            verify(enrollmentService, times(3)).enrollStudent(anyLong(), eq(userId));
+            verify(enrollmentService).enrollStudent(courseId, userId);
+            verify(enrollmentService).enrollStudent(202L, userId);
+            verify(enrollmentService).enrollStudent(203L, userId);
+        }
+
+        @Test
+        @DisplayName("Should reject capture for COMPLETED order")
+        void testCapturePayment_CompletedOrder_Rejects() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            order.setStatus(OrderStatus.COMPLETED);  // Already completed
+
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.SUCCESS);  // Already successful
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getMessage()).contains("already captured");
+            
+            // Should be idempotent - not attempt capture again
+            verify(mockPaymentGateway, never()).capturePayment(any());
+        }
+
+        @Test
+        @DisplayName("Should allow retry when transaction is FAILED")
+        void testCapturePayment_FailedTransaction_CanRetry() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.FAILED);  // Previously failed
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-123")
+                    .build();
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(InvoiceResponse.builder().id(600L).build());
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            Enrollment mockEnrollment = Enrollment.builder()
+                    .studentId(userId)
+                    .status(EnrollmentStatus.ACTIVE)
+                    .build();
+            when(enrollmentService.enrollStudent(anyLong(), anyLong())).thenReturn(mockEnrollment);
+            doNothing().when(cartService).removeItems(anyLong(), anyList());
+            doNothing().when(earningService).createEarningsForOrder(any(Order.class));
+            doNothing().when(eventPublisher).publishEvent(any());
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getGatewayTransactionId()).isEqualTo("CAPTURE-123");
+            
+            // Should allow retry and attempt capture
+            verify(mockPaymentGateway).capturePayment(gatewayOrderId);
+            verify(enrollmentService).enrollStudent(courseId, userId);
+        }
     }
 }

@@ -87,12 +87,19 @@ class WebhookControllerTest {
         payload.setId("webhook-id-123");
         payload.setEventType("PAYMENT.CAPTURE.COMPLETED");
         
-        com.edumind.lms.modules.payment.gateway.impl.paypal.PayPalWebhookResource resource = 
-            new com.edumind.lms.modules.payment.gateway.impl.paypal.PayPalWebhookResource();
-        resource.setId("capture-id-123");
-        resource.setCustomId("ORD-123");
-        resource.setStatus("COMPLETED");
-        payload.setResource(resource);
+        // Create resource as Map
+        Map<String, Object> resourceMap = new java.util.LinkedHashMap<>();
+        resourceMap.put("id", "capture-id-123");
+        resourceMap.put("custom_id", "ORD-123");
+        resourceMap.put("status", "COMPLETED");
+        
+        // Add amount
+        Map<String, Object> amountMap = new java.util.LinkedHashMap<>();
+        amountMap.put("value", "100.00");
+        amountMap.put("currency_code", "USD");
+        resourceMap.put("amount", amountMap);
+        
+        payload.setRawResource(resourceMap);
 
         when(webhookService.verifyPayPalSignature(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
