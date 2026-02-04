@@ -1,7 +1,9 @@
 package com.edumind.lms.modules.payment.service;
 
 import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.CourseStatus;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.EnrollmentService;
@@ -1264,6 +1266,463 @@ class CheckoutServiceTest {
             // When & Then
             assertThatThrownBy(() -> checkoutService.retryPayment(userId, order.getId(), request))
                     .isInstanceOf(InvalidOrderStateException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("capturePayment Tests")
+    class CapturePaymentTests {
+
+        @Test
+        @DisplayName("Should successfully capture payment for approved order")
+        void testCapturePayment_Success() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setTransactionNumber("TXN-2026-001");
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-123")
+                    .gatewayName("PAYPAL")
+                    .amount(new BigDecimal("80.00"))
+                    .currency("USD")
+                    .build();
+
+            InvoiceResponse invoiceResponse = InvoiceResponse.builder().id(600L).invoiceNumber("INV-123").build();
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(invoiceResponse);
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            Enrollment mockEnrollment = Enrollment.builder()
+                    .studentId(userId)
+                    .status(EnrollmentStatus.ACTIVE)
+                    .build();
+            when(enrollmentService.enrollStudent(anyLong(), anyLong())).thenReturn(mockEnrollment);
+            doNothing().when(cartService).removeItems(anyLong(), anyList());
+            doNothing().when(earningService).createEarningsForOrder(any(Order.class));
+            doNothing().when(eventPublisher).publishEvent(any());
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getGatewayTransactionId()).isEqualTo("CAPTURE-123");
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+            verify(mockPaymentGateway).capturePayment(gatewayOrderId);
+            verify(enrollmentService).enrollStudent(courseId, userId);
+        }
+
+        @Test
+        @DisplayName("Should handle sequential duplicate capture calls (idempotency)")
+        void testCapturePayment_SequentialIdempotency() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setTransactionNumber("TXN-2026-001");
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            // First call finds transaction
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+
+            // Simulate second concurrent call - transaction already processed
+            Transaction completedTransaction = new Transaction();
+            completedTransaction.setId(500L);
+            completedTransaction.setStatus(TransactionStatus.SUCCESS);
+            completedTransaction.setOrder(order);
+
+            // When first call completes, second call should see SUCCESS status
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-123")
+                    .build();
+
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
+                Transaction tx = (Transaction) i.getArguments()[0];
+                tx.setStatus(TransactionStatus.SUCCESS);
+                return tx;
+            });
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(InvoiceResponse.builder().id(600L).build());
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            Enrollment mockEnrollment = Enrollment.builder()
+                    .studentId(userId)
+                    .status(EnrollmentStatus.ACTIVE)
+                    .build();
+            when(enrollmentService.enrollStudent(anyLong(), anyLong())).thenReturn(mockEnrollment);
+            doNothing().when(cartService).removeItems(anyLong(), anyList());
+            doNothing().when(earningService).createEarningsForOrder(any(Order.class));
+            doNothing().when(eventPublisher).publishEvent(any());
+
+            // First capture succeeds
+            CheckoutResultResponse firstResult = checkoutService.capturePayment(userId, gatewayOrderId);
+            assertThat(firstResult.isSuccess()).isTrue();
+
+            // Second concurrent call - transaction already SUCCESS
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(completedTransaction));
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+
+            CheckoutResultResponse secondResult = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then - second call should return success without re-capturing (idempotent)
+            assertThat(secondResult.isSuccess()).isTrue();
+            assertThat(secondResult.getMessage()).contains("already captured");
+            // Should not call gateway again
+            verify(mockPaymentGateway, times(1)).capturePayment(gatewayOrderId);
+        }
+
+        @Test
+        @DisplayName("Should handle REAL concurrent capture attempts (pessimistic locking)")
+        void testCapturePayment_ConcurrentPessimisticLocking() throws Exception {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-CONCURRENT";
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setTransactionNumber("TXN-2026-CONCURRENT");
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-CONCURRENT")
+                    .gatewayName("PAYPAL")
+                    .amount(new BigDecimal("80.00"))
+                    .currency("USD")
+                    .build();
+
+            InvoiceResponse invoiceResponse = InvoiceResponse.builder().id(600L).invoiceNumber("INV-CONCURRENT").build();
+
+            // Mock repository to simulate pessimistic locking behavior
+            // First thread gets PENDING transaction, subsequent threads get SUCCESS transaction
+            java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger(0);
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenAnswer(invocation -> {
+                        int count = callCount.incrementAndGet();
+                        if (count == 1) {
+                            // First thread gets PENDING transaction and will perform actual capture
+                            return Optional.of(transaction);
+                        } else {
+                            // Subsequent threads see it as already SUCCESS (simulates pessimistic lock released)
+                            Transaction completedTx = new Transaction();
+                            completedTx.setId(500L);
+                            completedTx.setTransactionNumber("TXN-2026-CONCURRENT");
+                            completedTx.setOrder(order);
+                            completedTx.setGatewayOrderId(gatewayOrderId);
+                            completedTx.setStatus(TransactionStatus.SUCCESS);
+                            completedTx.setGatewayTransactionId("CAPTURE-CONCURRENT");
+                            completedTx.setGateway(PaymentMethod.PAYPAL);
+                            return Optional.of(completedTx);
+                        }
+                    });
+
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
+                Transaction tx = (Transaction) i.getArguments()[0];
+                tx.setStatus(TransactionStatus.SUCCESS);
+                return tx;
+            });
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(invoiceResponse);
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            Enrollment mockEnrollment = Enrollment.builder()
+                    .studentId(userId)
+                    .status(EnrollmentStatus.ACTIVE)
+                    .build();
+            when(enrollmentService.enrollStudent(anyLong(), anyLong())).thenReturn(mockEnrollment);
+            doNothing().when(cartService).removeItems(anyLong(), anyList());
+            doNothing().when(earningService).createEarningsForOrder(any(Order.class));
+            doNothing().when(eventPublisher).publishEvent(any());
+
+            // When - Simulate concurrent execution with 3 threads
+            int numberOfThreads = 3;
+            java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.CountDownLatch doneLatch = new java.util.concurrent.CountDownLatch(numberOfThreads);
+            java.util.concurrent.ConcurrentHashMap<Integer, CheckoutResultResponse> results = new java.util.concurrent.ConcurrentHashMap<>();
+            java.util.concurrent.ConcurrentHashMap<Integer, Throwable> exceptions = new java.util.concurrent.ConcurrentHashMap<>();
+            java.util.concurrent.atomic.AtomicInteger successCount = new java.util.concurrent.atomic.AtomicInteger(0);
+            java.util.concurrent.atomic.AtomicInteger idempotentCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+            for (int i = 0; i < numberOfThreads; i++) {
+                final int threadId = i;
+                new Thread(() -> {
+                    try {
+                        startLatch.await(); // Wait for all threads to be ready
+                        CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+                        results.put(threadId, result);
+                        
+                        if (result.isSuccess()) {
+                            successCount.incrementAndGet();
+                            // Check if this is an idempotent response (threads 2, 3 should get this)
+                            if (result.getMessage() != null && result.getMessage().toLowerCase().contains("already captured")) {
+                                idempotentCount.incrementAndGet();
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Capture exception for verification - should NOT happen in this test
+                        exceptions.put(threadId, e);
+                        // Store exception as failure
+                        CheckoutResultResponse errorResult = CheckoutResultResponse.builder()
+                                .success(false)
+                                .errorCode("THREAD_EXCEPTION")
+                                .errorMessage(e.getClass().getSimpleName() + ": " + e.getMessage())
+                                .build();
+                        results.put(threadId, errorResult);
+                    } finally {
+                        doneLatch.countDown();
+                    }
+                }, "CaptureThread-" + threadId).start();
+            }
+
+            startLatch.countDown(); // Start all threads simultaneously
+            boolean completedInTime = doneLatch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+
+            // Then - Comprehensive assertions
+            
+            // 1. All threads must complete (no hanging threads)
+            assertThat(completedInTime)
+                    .as("All threads should complete within timeout")
+                    .isTrue();
+            
+            // 2. All threads must return a result (no crashes)
+            assertThat(results)
+                    .as("All threads should return results")
+                    .hasSize(numberOfThreads);
+            
+            // 3. No thread should throw unexpected exceptions (e.g., lock timeout, NPE)
+            assertThat(exceptions)
+                    .as("No threads should throw exceptions - pessimistic locking should handle concurrency gracefully")
+                    .isEmpty();
+            
+            // 4. All threads see success (first captures, others get idempotent response)
+            assertThat(successCount.get())
+                    .as("All threads should see success")
+                    .isEqualTo(numberOfThreads);
+            
+            // 5. At least 2 threads should get idempotent response (threads 2, 3)
+            assertThat(idempotentCount.get())
+                    .as("Subsequent threads should get 'already captured' idempotent message")
+                    .isGreaterThanOrEqualTo(numberOfThreads - 1); // All except first thread
+            
+            // 6. CRITICAL: Gateway capture called ONLY ONCE (prevents double billing)
+            verify(mockPaymentGateway, times(1))
+                    .capturePayment(gatewayOrderId);
+            
+            // 7. CRITICAL: Enrollment happens ONLY ONCE (prevents double enrollment)
+            verify(enrollmentService, times(1))
+                    .enrollStudent(anyLong(), anyLong());
+            
+            // 8. CRITICAL: Order saved at least once (first thread) but not excessively
+            verify(orderRepository, atLeastOnce())
+                    .save(any(Order.class));
+            
+            // Log results for debugging (useful in CI/CD)
+            results.forEach((threadId, result) -> {
+                System.out.println(String.format(
+                    "Thread-%d: success=%s, message=%s",
+                    threadId,
+                    result.isSuccess(),
+                    result.getMessage()
+                ));
+            });
+        }
+
+        @Test
+        @DisplayName("Should return success for already captured order (idempotent)")
+        void testCapturePayment_Idempotency() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setTransactionNumber("TXN-2026-001");
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.SUCCESS);  // Already captured
+            transaction.setGatewayTransactionId("CAPTURE-123");
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getMessage()).contains("already captured");
+            // Should not call gateway
+            verifyNoInteractions(gatewayRegistry);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when user does not own the order")
+        void testCapturePayment_WrongUser() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            Long otherUserId = 999L;
+            order.setUserId(otherUserId);  // Different user
+
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.capturePayment(userId, gatewayOrderId))
+                    .isInstanceOf(PaymentFailedException.class)
+                    .hasMessageContaining("does not own this order");
+        }
+
+        @Test
+        @DisplayName("Should return error when order is not in valid state for capture")
+        void testCapturePayment_InvalidOrderState() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            order.setStatus(OrderStatus.CANCELLED);  // Cancelled order
+
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("INVALID_ORDER_STATUS");
+            assertThat(result.getMessage()).contains("cancelled order");
+            verifyNoInteractions(gatewayRegistry);
+        }
+
+        @Test
+        @DisplayName("Should handle gateway capture failure")
+        void testCapturePayment_GatewayFailure() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId))
+                    .thenThrow(new RuntimeException("PayPal API error"));
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getErrorCode()).isEqualTo("CAPTURE_FAILED");
+            // Transaction should be marked as FAILED
+            verify(transactionRepository).save(argThat(tx -> 
+                tx.getStatus() == TransactionStatus.FAILED));
+        }
+
+        @Test
+        @DisplayName("Should throw exception when transaction not found")
+        void testCapturePayment_TransactionNotFound() {
+            // Given
+            String gatewayOrderId = "INVALID-ORDER";
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> checkoutService.capturePayment(userId, gatewayOrderId))
+                    .isInstanceOf(jakarta.persistence.EntityNotFoundException.class)
+                    .hasMessageContaining("Transaction not found");
+        }
+
+        @Test
+        @DisplayName("Should handle order in FAILED state - attempt capture")
+        void testCapturePayment_FailedOrder_AttemptsCapture() {
+            // Given
+            String gatewayOrderId = "PAYPAL-ORDER-123";
+            order.setStatus(OrderStatus.FAILED);  // Failed order
+
+            Transaction transaction = new Transaction();
+            transaction.setId(500L);
+            transaction.setOrder(order);
+            transaction.setGatewayOrderId(gatewayOrderId);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setGateway(PaymentMethod.PAYPAL);
+
+            GatewayPaymentResult captureResult = GatewayPaymentResult.builder()
+                    .success(true)
+                    .status(GatewayResultStatus.SUCCESS)
+                    .gatewayTransactionId("CAPTURE-123")
+                    .build();
+
+            when(transactionRepository.findByGatewayIdForUpdate(gatewayOrderId))
+                    .thenReturn(Optional.of(transaction));
+            when(gatewayRegistry.getGateway("PAYPAL")).thenReturn(Optional.of(mockPaymentGateway));
+            when(mockPaymentGateway.capturePayment(gatewayOrderId)).thenReturn(captureResult);
+            when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(orderRepository.save(any(Order.class))).thenReturn(order);
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(List.of(orderItem));
+            when(invoiceService.generateInvoice(any(Order.class))).thenReturn(InvoiceResponse.builder().id(600L).build());
+            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(anyLong(), anyLong(), any())).thenReturn(false);
+            Enrollment mockEnrollment = Enrollment.builder()
+                    .studentId(userId)
+                    .status(EnrollmentStatus.ACTIVE)
+                    .build();
+            when(enrollmentService.enrollStudent(anyLong(), anyLong())).thenReturn(mockEnrollment);
+            doNothing().when(cartService).removeItems(anyLong(), anyList());
+            doNothing().when(earningService).createEarningsForOrder(any(Order.class));
+            doNothing().when(eventPublisher).publishEvent(any());
+
+            // When
+            CheckoutResultResponse result = checkoutService.capturePayment(userId, gatewayOrderId);
+
+            // Then
+            assertThat(result.isSuccess()).isTrue();
+            // Order should be reset to PROCESSING then completed
+            verify(orderRepository, atLeastOnce()).save(any(Order.class));
         }
     }
 }

@@ -69,8 +69,10 @@ payment:
     client-secret: test-client-secret
     mode: sandbox
   sepay:
-    enabled: false
+    enabled: true
     api-key: test-api-key
+    webhook-secret: test-secret
+    enforce-signature: true
     bank-code: MB
     bank-account: 1234567890
     account-name: Test Account
