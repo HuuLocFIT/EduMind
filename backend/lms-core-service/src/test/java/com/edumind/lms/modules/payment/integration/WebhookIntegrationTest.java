@@ -3,14 +3,10 @@ package com.edumind.lms.modules.payment.integration;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseStatus;
-import com.edumind.lms.modules.course.repository.CategoryRepository;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.payment.BaseIntegrationTest;
+import com.edumind.lms.modules.payment.BasePaymentIntegrationTest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.WebhookPayloadRequest;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
-import com.edumind.lms.modules.payment.repository.OrderRepository;
-import com.edumind.lms.modules.payment.repository.TransactionRepository;
 import com.edumind.lms.modules.payment.service.CheckoutService;
 import com.edumind.lms.config.security.JwtUserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,19 +24,12 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class WebhookIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private CourseRepository courseRepository;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
+/**
+ * Integration tests for webhook functionality.
+ * Extends BasePaymentIntegrationTest (non-transactional) to allow REQUIRES_NEW transactions
+ * to see committed order data during payment processing.
+ */
+class WebhookIntegrationTest extends BasePaymentIntegrationTest {
 
     @Autowired
     private CheckoutService checkoutService;
@@ -50,10 +39,7 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        transactionRepository.deleteAll();
-        orderRepository.deleteAll();
-        courseRepository.deleteAll();
-        categoryRepository.deleteAll();
+        // Note: cleanup is handled by BasePaymentIntegrationTest.cleanupTestData() in @AfterEach
 
         Category category = Category.builder()
                 .name("Test Category")
@@ -104,6 +90,7 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         var result = checkoutService.directCheckout(userId, request);
         String orderNumber = result.getOrderNumber();
 
@@ -125,6 +112,7 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
         DirectCheckoutRequest request = new DirectCheckoutRequest();
         request.setCourseId(course.getId());
         request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
         var result = checkoutService.directCheckout(userId, request);
         String orderNumber = result.getOrderNumber();
 
@@ -146,5 +134,104 @@ class WebhookIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("healthy"))
                 .andExpect(jsonPath("$.endpoints.mock").value("/payments/webhook/mock"));
+    }
+
+    @Test
+    void handleMockWebhook_ShouldHandleUnknownEventType() throws Exception {
+        // Create an order first
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        var result = checkoutService.directCheckout(userId, request);
+        String orderNumber = result.getOrderNumber();
+
+        // Send webhook with unknown event type but SUCCESS status
+        WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();
+        webhookPayload.setOrderNumber(orderNumber);
+        webhookPayload.setStatus("SUCCESS");  // Status is what matters
+        webhookPayload.setTransactionId("test-txn-456");
+        // No eventType set - unknown event
+
+        mockMvc.perform(post("/payments/webhook/mock")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(webhookPayload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void handleMockWebhook_ShouldHandleInvalidOrderNumber() throws Exception {
+        // Send webhook with non-existent order number
+        WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();
+        webhookPayload.setOrderNumber("NON-EXISTENT-ORDER");
+        webhookPayload.setStatus("SUCCESS");
+        webhookPayload.setTransactionId("test-txn-789");
+
+        mockMvc.perform(post("/payments/webhook/mock")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(webhookPayload)))
+                .andExpect(status().isBadRequest());  // Should return 400 for unknown order
+    }
+
+    @Test
+    void handleMockWebhook_ShouldHandleInvalidSignature() throws Exception {
+        // Create an order first
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        var result = checkoutService.directCheckout(userId, request);
+        String orderNumber = result.getOrderNumber();
+
+        WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();
+        webhookPayload.setOrderNumber(orderNumber);
+        webhookPayload.setStatus("SUCCESS");
+        webhookPayload.setTransactionId("test-txn-invalid-sig");
+
+        // Send webhook with invalid authorization header
+        // When an invalid Authorization header is present, it should be rejected with 401
+        mockMvc.perform(post("/payments/webhook/mock")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer invalid-token")
+                .content(objectMapper.writeValueAsString(webhookPayload)))
+                .andExpect(status().isUnauthorized());  // Returns 401 for invalid auth header
+    }
+
+    @Test
+    void handleMockWebhook_ShouldHandleConcurrentWebhooks() throws Exception {
+        // Create an order
+        DirectCheckoutRequest request = new DirectCheckoutRequest();
+        request.setCourseId(course.getId());
+        request.setPaymentMethod(PaymentMethod.MOCK);
+        request.setCustomerEmail("student@example.com");
+        var result = checkoutService.directCheckout(userId, request);
+        String orderNumber = result.getOrderNumber();
+
+        WebhookPayloadRequest webhookPayload = new WebhookPayloadRequest();
+        webhookPayload.setOrderNumber(orderNumber);
+        webhookPayload.setStatus("SUCCESS");
+        webhookPayload.setTransactionId("test-txn-concurrent");
+
+        // Send the same webhook multiple times (simulating race condition)
+        mockMvc.perform(post("/payments/webhook/mock")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(webhookPayload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Second webhook should be idempotent
+        mockMvc.perform(post("/payments/webhook/mock")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(webhookPayload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // Third webhook should still be idempotent
+        mockMvc.perform(post("/payments/webhook/mock")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(webhookPayload)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
     }
 }

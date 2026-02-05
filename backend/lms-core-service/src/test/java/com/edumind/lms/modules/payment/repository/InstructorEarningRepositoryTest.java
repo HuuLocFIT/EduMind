@@ -1,6 +1,6 @@
 package com.edumind.lms.modules.payment.repository;
 
-import com.edumind.lms.config.JpaAuditingConfig;
+import com.edumind.lms.config.BaseRepositoryTest;
 import com.edumind.lms.modules.payment.PaymentTestHelper;
 import com.edumind.lms.modules.payment.entity.InstructorEarning;
 import com.edumind.lms.modules.payment.entity.Order;
@@ -10,13 +10,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,11 +21,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@Import(JpaAuditingConfig.class)
 @DisplayName("InstructorEarningRepository Tests")
-class InstructorEarningRepositoryTest {
+class InstructorEarningRepositoryTest extends BaseRepositoryTest {
 
     @Autowired
     private InstructorEarningRepository earningRepository;
@@ -41,6 +35,7 @@ class InstructorEarningRepositoryTest {
 
     @BeforeEach
     void setUp() {
+        cleanupActiveOrders(); // Clean up any existing PENDING/PROCESSING orders to prevent unique constraint violations
         entityManager.clear();
     }
 

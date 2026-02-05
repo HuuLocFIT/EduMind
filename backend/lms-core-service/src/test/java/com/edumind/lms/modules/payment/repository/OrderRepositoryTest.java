@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.payment.repository;
 
+import com.edumind.lms.config.BaseRepositoryTest;
 import com.edumind.lms.modules.payment.PaymentTestHelper;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.OrderItem;
@@ -9,13 +10,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.edumind.lms.config.JpaAuditingConfig;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,11 +21,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@Import(JpaAuditingConfig.class)
+/**
+ * Repository tests for OrderRepository.
+ * Uses Testcontainers with real PostgreSQL.
+ */
 @DisplayName("OrderRepository Tests")
-class OrderRepositoryTest {
+class OrderRepositoryTest extends BaseRepositoryTest {
 
     @Autowired
     private OrderRepository orderRepository;
@@ -41,15 +39,15 @@ class OrderRepositoryTest {
     @BeforeEach
     void setUp() {
         PaymentTestHelper.resetCounters();
-        entityManager.clear();
+        cleanupActiveOrders(); // Clean up any existing PENDING/PROCESSING orders to prevent unique constraint violations
     }
 
     @Test
     @DisplayName("Should find order by order number")
     void findByOrderNumber_WhenExists_ShouldReturnOrder() {
-        // Given
+        // Given - Use COMPLETED order to avoid unique constraint issues
         String orderNum = PaymentTestHelper.generateOrderNumber();
-        Order order = PaymentTestHelper.createOrder(userId, orderNum, new BigDecimal("100.00"));
+        Order order = PaymentTestHelper.createCompletedOrder(userId, orderNum, new BigDecimal("100.00"));
         entityManager.persist(order);
         entityManager.flush();
 
@@ -64,11 +62,11 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should find order with items by ID using EntityGraph")
     void findWithItemsById_ShouldFetchItemsEagerly() {
-        // Given
-        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        // Given - Use COMPLETED order to avoid unique constraint issues
+        Order order = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
         OrderItem item = PaymentTestHelper.createOrderItem(PaymentTestHelper.NON_EXISTENT_COURSE_ID, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
         order.addItem(item);
-        
+
         entityManager.persist(order);
         entityManager.flush();
         entityManager.clear();
@@ -85,8 +83,8 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should find order with items and transactions by ID")
     void findWithItemsAndTransactionsById_ShouldFetchEverything() {
-        // Given
-        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        // Given - Use COMPLETED order to avoid unique constraint issues
+        Order order = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
         OrderItem item = PaymentTestHelper.createOrderItem(PaymentTestHelper.NON_EXISTENT_COURSE_ID, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
         order.addItem(item);
 
@@ -114,7 +112,7 @@ class OrderRepositoryTest {
         Order order = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00"));
         OrderItem item = PaymentTestHelper.createOrderItem(courseId, 1L, new BigDecimal("50.00"), new BigDecimal("50.00"));
         order.addItem(item);
-        
+
         entityManager.persist(order);
         entityManager.flush();
 
@@ -127,34 +125,36 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should return false if order is not COMPLETED")
     void hasUserPurchasedCourse_WhenPending_ShouldReturnFalse() {
-        // Given
+        // Given - Use unique userId (201L) to avoid unique constraint conflicts with other tests
+        Long testUserId = 201L;
         Long courseId = PaymentTestHelper.NON_EXISTENT_COURSE_ID;
         // Create PENDING order
-        Order order = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00")); 
+        Order order = PaymentTestHelper.createOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00"));
         OrderItem item = PaymentTestHelper.createOrderItem(courseId, 1L, new BigDecimal("50.00"), new BigDecimal("50.00"));
         order.addItem(item);
-        
+
         entityManager.persist(order);
         entityManager.flush();
 
         // When/Then
-        assertThat(orderRepository.hasUserPurchasedCourse(userId, courseId)).isFalse();
+        assertThat(orderRepository.hasUserPurchasedCourse(testUserId, courseId)).isFalse();
     }
 
     @Test
     @DisplayName("Should count orders by status and userId")
     void countByUserIdAndStatus_ShouldReturnCorrectCount() {
-        // Given
-        Order order1 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("10.00"));
-        Order order2 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("20.00")); // PENDING
-        
+        // Given - Use unique userId (202L) to avoid unique constraint conflicts with other tests
+        Long testUserId = 202L;
+        Order order1 = PaymentTestHelper.createCompletedOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("10.00"));
+        Order order2 = PaymentTestHelper.createOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("20.00")); // PENDING
+
         entityManager.persist(order1);
         entityManager.persist(order2);
         entityManager.flush();
 
         // When
-        long completed = orderRepository.countByUserIdAndStatus(userId, OrderStatus.COMPLETED);
-        long pending = orderRepository.countByUserIdAndStatus(userId, OrderStatus.PENDING);
+        long completed = orderRepository.countByUserIdAndStatus(testUserId, OrderStatus.COMPLETED);
+        long pending = orderRepository.countByUserIdAndStatus(testUserId, OrderStatus.PENDING);
 
         // Then
         assertThat(completed).isEqualTo(1);
@@ -164,19 +164,20 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should aggregate status counts by user")
     void countStatusByUserId_ShouldReturnGroupedCounts() {
-        // Given
-        entityManager.persist(PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
-        entityManager.persist(PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
-        entityManager.persist(PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN)); // PENDING
+        // Given - Use unique userId (203L) to avoid unique constraint conflicts with other tests
+        Long testUserId = 203L;
+        entityManager.persist(PaymentTestHelper.createCompletedOrder(testUserId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createCompletedOrder(testUserId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createOrder(testUserId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN)); // PENDING
         entityManager.flush();
 
         // When
-        List<Object[]> stats = orderRepository.countStatusByUserId(userId);
+        List<Object[]> stats = orderRepository.countStatusByUserId(testUserId);
 
         // Then
         // Expecting [[COMPLETED, 2], [PENDING, 1]]
         assertThat(stats).hasSize(2);
-        
+
         // Use flexible matching as order isn't guaranteed
         boolean foundCompleted = false;
         boolean foundPending = false;
@@ -201,20 +202,21 @@ class OrderRepositoryTest {
     void findByDateRange_ShouldFilterByCreatedAt() {
         // Given
         LocalDateTime now = LocalDateTime.now();
-        
-        Order oldOrder = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
+
+        // Use COMPLETED orders to avoid unique constraint on PENDING status
+        Order oldOrder = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
         entityManager.persist(oldOrder);
-        
+
         // Force update created_at using native query to bypass auditing
         entityManager.getEntityManager()
                 .createNativeQuery("UPDATE payment.orders SET created_at = ? WHERE id = ?")
                 .setParameter(1, now.minusDays(5))
                 .setParameter(2, oldOrder.getId())
                 .executeUpdate();
-        
-        Order newOrder = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
+
+        Order newOrder = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
         entityManager.persist(newOrder); // created_at = now
-        
+
         entityManager.flush();
         entityManager.clear();
 
@@ -230,26 +232,27 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should calculate total revenue by date range")
     void getTotalRevenueByDateRange_ShouldSumCompletedOrdersOnly() {
-        // Given
+        // Given - Use unique userId (204L) to avoid unique constraint conflicts with other tests
+        Long testUserId = 204L;
         LocalDateTime now = LocalDateTime.now();
-        
+
         // Order 1: Completed, in range ($100)
-        Order o1 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        Order o1 = PaymentTestHelper.createCompletedOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
         o1.setCompletedAt(now.minusDays(1));
         entityManager.persist(o1);
 
         // Order 2: Completed, in range ($50)
-        Order o2 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00"));
+        Order o2 = PaymentTestHelper.createCompletedOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("50.00"));
         o2.setCompletedAt(now.minusDays(2));
         entityManager.persist(o2);
 
         // Order 3: Pending, in range (Should be ignored)
-        Order o3 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("200.00"));
+        Order o3 = PaymentTestHelper.createOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("200.00"));
         // Force create date but status is PENDING
         entityManager.persist(o3);
 
         // Order 4: Completed, OUT of range (Old)
-        Order o4 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
+        Order o4 = PaymentTestHelper.createCompletedOrder(testUserId, PaymentTestHelper.generateOrderNumber(), new BigDecimal("100.00"));
         o4.setCompletedAt(now.minusDays(10));
         entityManager.persist(o4);
 
@@ -277,12 +280,12 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should find order with items by order number")
     void findWithItemsByOrderNumber_ShouldFetchItemsEagerly() {
-        // Given
+        // Given - Use COMPLETED order to avoid unique constraint issues
         String orderNum = PaymentTestHelper.generateOrderNumber();
-        Order order = PaymentTestHelper.createOrder(userId, orderNum, new BigDecimal("100.00"));
+        Order order = PaymentTestHelper.createCompletedOrder(userId, orderNum, new BigDecimal("100.00"));
         OrderItem item = PaymentTestHelper.createOrderItem(PaymentTestHelper.NON_EXISTENT_COURSE_ID, 1L, new BigDecimal("100.00"), new BigDecimal("100.00"));
         order.addItem(item);
-        
+
         entityManager.persist(order);
         entityManager.flush();
         entityManager.clear();
@@ -298,16 +301,16 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should find orders by user ID ordered by created at desc")
     void findByUserIdOrderByCreatedAtDesc_ShouldReturnOrderedPage() throws InterruptedException {
-        // Given
-        Order o1 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
+        // Given - Use COMPLETED orders to avoid unique constraint on PENDING status
+        Order o1 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
         entityManager.persist(o1);
-        
+
         // Ensure time gap
         Thread.sleep(10);
-        
-        Order o2 = PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
+
+        Order o2 = PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN);
         entityManager.persist(o2);
-        
+
         entityManager.flush();
 
         // When
@@ -322,10 +325,10 @@ class OrderRepositoryTest {
     @Test
     @DisplayName("Should count user orders by user ID")
     void countByUserId_ShouldReturnCorrectCount() {
-        // Given
-        entityManager.persist(PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
-        entityManager.persist(PaymentTestHelper.createOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
-        entityManager.persist(PaymentTestHelper.createOrder(2L, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN)); // Other user
+        // Given - Use COMPLETED orders to avoid unique constraint on PENDING status
+        entityManager.persist(PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createCompletedOrder(userId, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN));
+        entityManager.persist(PaymentTestHelper.createCompletedOrder(2L, PaymentTestHelper.generateOrderNumber(), BigDecimal.TEN)); // Other user
         entityManager.flush();
 
         // When

@@ -1,39 +1,87 @@
+# Test Profile Configuration
+# This profile uses PostgreSQL via Testcontainers for testing
+# Datasource properties are injected dynamically by PostgresTestContainerConfig
+
 spring:
   application:
     name: lms-core-service-test
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS payment\;CREATE SCHEMA IF NOT EXISTS course
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-    hikari:
-      schema: PUBLIC
-  sql:
-    init:
-      mode: always
+
+  # JPA Configuration - Flyway manages schema, no ddl-auto
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
+    show-sql: true
     properties:
       hibernate:
         format_sql: true
-    show-sql: true
-    defer-datasource-initialization: false
-  
+        use_sql_comments: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Flyway is enabled and configured by Testcontainer initializer
+  # Schemas are created via V1__Create_schemas.sql
+  flyway:
+    enabled: true
+
   # Disable cloud features
   cloud:
     discovery:
       enabled: false
     config:
       enabled: false
-  
-  # Disable Flyway for tests (use Hibernate ddl-auto)
-  flyway:
-    enabled: false
 
+# Disable Eureka for tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# JWT Configuration (use test secret)
+jwt:
+  secret: test-secret-key-for-testing-only-minimum-32-characters-long
+  expiration: 900000
+
+# Disable Cloudinary in tests
+cloudinary:
+  cloud-name: test
+  api-key: test
+  api-secret: test
+
+# App Configuration
+app:
+  encryption:
+    key: test-encryption-key-for-testing-only
+  review:
+    auto-approve-enabled: true
+    auto-approve-threshold: 0
+
+# Payment Gateway Configuration for tests
+payment:
+  gateway: mock
+  mock:
+    enabled: true
+    delay-ms: 0
+    success-rate: 1.0
+  paypal:
+    enabled: false
+    return-base-url: http://localhost:3000
+    client-id: test-client-id
+    client-secret: test-client-secret
+    mode: sandbox
+  sepay:
+    enabled: true
+    api-key: test-api-key
+    webhook-secret: test-secret
+    enforce-signature: true
+    bank-code: MB
+    bank-account: 1234567890
+    account-name: Test Account
+
+# Logging Configuration for tests
 logging:
   level:
     root: INFO
     com.edumind: DEBUG
     org.hibernate.SQL: DEBUG
+    org.testcontainers: INFO
+    com.github.dockerjava: WARN

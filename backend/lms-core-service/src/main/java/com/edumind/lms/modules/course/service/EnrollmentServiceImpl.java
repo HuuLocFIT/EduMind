@@ -21,7 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigInteger;
@@ -42,7 +42,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final WishlistService wishlistService;
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public Enrollment enrollStudent(Long courseId, Long studentId) {
         log.info("Enrolling student: {} in course: {}", studentId, courseId);
 

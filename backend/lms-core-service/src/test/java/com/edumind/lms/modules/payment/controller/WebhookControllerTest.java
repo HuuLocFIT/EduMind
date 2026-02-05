@@ -82,15 +82,35 @@ class WebhookControllerTest {
     @Test
     @DisplayName("POST /payments/webhook/paypal - Handle PayPal webhook success")
     void handlePayPalWebhook_Success() throws Exception {
-        WebhookPayloadRequest request = new WebhookPayloadRequest();
-        request.setOrderNumber("ORD-123");
+        com.edumind.lms.modules.payment.gateway.impl.paypal.PayPalWebhookPayload payload = 
+            new com.edumind.lms.modules.payment.gateway.impl.paypal.PayPalWebhookPayload();
+        payload.setId("webhook-id-123");
+        payload.setEventType("PAYMENT.CAPTURE.COMPLETED");
+        
+        // Create resource as Map
+        Map<String, Object> resourceMap = new java.util.LinkedHashMap<>();
+        resourceMap.put("id", "capture-id-123");
+        resourceMap.put("custom_id", "ORD-123");
+        resourceMap.put("status", "COMPLETED");
+        
+        // Add amount
+        Map<String, Object> amountMap = new java.util.LinkedHashMap<>();
+        amountMap.put("value", "100.00");
+        amountMap.put("currency_code", "USD");
+        resourceMap.put("amount", amountMap);
+        
+        payload.setRawResource(resourceMap);
 
-        when(webhookService.verifySignature(eq(PaymentMethod.PAYPAL), any(), any())).thenReturn(true);
+        when(webhookService.verifyPayPalSignature(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         mockMvc.perform(post("/payments/webhook/paypal")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("PAYPAL-TRANSMISSION-SIG", "valid-signature"))
+                .content(objectMapper.writeValueAsString(payload))
+                .header("PAYPAL-TRANSMISSION-ID", "trans-id")
+                .header("PAYPAL-TRANSMISSION-TIME", "2023-01-01T00:00:00Z")
+                .header("PAYPAL-TRANSMISSION-SIG", "valid-signature")
+                .header("PAYPAL-CERT-URL", "https://api.paypal.com/cert")
+                .header("PAYPAL-AUTH-ALGO", "SHA256withRSA"))
                 .andExpect(status().isOk()); // Returns 200 OK empty body
 
         verify(webhookService).handleWebhook(eq(PaymentMethod.PAYPAL), any(WebhookPayloadRequest.class));
@@ -113,15 +133,21 @@ class WebhookControllerTest {
     @Test
     @DisplayName("POST /payments/webhook/sepay - Handle SePay webhook success")
     void handleSepayWebhook_Success() throws Exception {
-        WebhookPayloadRequest request = new WebhookPayloadRequest();
-        request.setOrderNumber("ORD-123");
+        com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload payload = 
+            new com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload();
+        payload.setId(123L);
+        payload.setCode("ORD-123");
+        payload.setContent("ORD-123 payment");
+        payload.setTransferType("in");
+        payload.setTransferAmount(100000L);
+        payload.setAccountNumber("1234567890");
 
         when(webhookService.verifySignature(eq(PaymentMethod.SEPAY), any(), any())).thenReturn(true);
 
         mockMvc.perform(post("/payments/webhook/sepay")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("X-Sepay-Signature", "valid-signature"))
+                .content(objectMapper.writeValueAsString(payload))
+                .header("Authorization", "Apikey valid-key"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
