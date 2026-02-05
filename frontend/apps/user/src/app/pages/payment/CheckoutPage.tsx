@@ -9,7 +9,8 @@ import {
 } from "../../hooks/useCheckout";
 import { useCheckoutStore } from "../../stores/checkout.store";
 import { useCartStore } from "../../stores/cart.store";
-import { CreditCard, Wallet, ArrowLeft, ArrowRight, ShieldCheck, Lock } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CreditCard, Wallet, ArrowLeft, ArrowRight, ShieldCheck, Lock, AlertTriangle } from "lucide-react";
 import { USER_ROUTES, UserRouteHelpers } from "@edumind/shared-utils";
 import { PaymentMethod } from "@edumind/shared-constants";
 import type { CheckoutRequest, DirectCheckoutRequest } from "@edumind/shared-types";
@@ -37,6 +38,7 @@ const PAYMENT_METHODS = [
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { success: showSuccess, error: showError } = useToast();
 
   const courseIdParam = searchParams.get("courseId");
@@ -194,8 +196,45 @@ export const CheckoutPage: React.FC = () => {
         );
       }
     } catch (err: any) {
-      setStep("failed");
-      showError(err.message || "Checkout failed");
+      const errorCode = err.errorCode || err.response?.data?.errorCode;
+      const errorMessage = err.message || err.response?.data?.message || "Checkout failed";
+      const orderId = err.orderId || err.response?.data?.orderId;
+
+      // Handle specific error codes from backend
+      switch (errorCode) {
+        case "CART_CHANGED":
+          // Cart was modified between preview and checkout - refresh preview
+          showError("Your cart was updated. Please review and try again.");
+          setStep("payment");
+          // Invalidate preview to force refetch
+          queryClient.invalidateQueries({ queryKey: ["checkout", "preview"] });
+          return;
+
+        case "ORDER_EXPIRED":
+          showError("This order has expired. Please start a new checkout.");
+          navigate(USER_ROUTES.CART);
+          return;
+
+        case "CHECKOUT_IN_PROGRESS":
+          showError("You have an active order in progress. Please complete or cancel it first.");
+          // Navigate to existing order if orderId is provided
+          if (orderId) {
+            navigate(`${USER_ROUTES.ORDERS}/${orderId}`);
+          }
+          return;
+
+        case "RETRY_LIMIT_EXCEEDED":
+          showError("Maximum payment attempts reached. Please start a new order.");
+          navigate(`${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(errorMessage)}&errorCode=${errorCode}`);
+          return;
+
+        default:
+          setStep("failed");
+          showError(errorMessage);
+          navigate(
+            `${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(errorMessage)}${errorCode ? `&errorCode=${errorCode}` : ""}`
+          );
+      }
     }
   };
 
@@ -278,6 +317,23 @@ export const CheckoutPage: React.FC = () => {
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Order Summary - Show FIRST on mobile */}
           <div className="order-1 lg:order-2 lg:col-span-1">
+            {/* Warnings Banner */}
+            {preview?.warnings && preview.warnings.length > 0 && (
+              <Card className="p-4 mb-4 bg-amber-50 border-amber-200">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-amber-800 text-sm mb-1">Warnings</h4>
+                    <ul className="list-disc list-inside text-amber-700 text-sm space-y-1">
+                      {preview.warnings.map((warning, idx) => (
+                        <li key={idx}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <Card className="p-4 sm:p-6 lg:sticky lg:top-8">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Order Summary

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button, Loading } from "@edumind/user-ui";
-import { CheckCircle, ArrowRight, BookOpen, Package, XCircle, RefreshCw } from "lucide-react";
+import { CheckCircle, ArrowRight, BookOpen, Package, XCircle, RefreshCw, FileText, Clock } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useCapturePayment } from "../../hooks/useCheckout";
+import type { CheckoutResultResponse } from "@edumind/shared-types";
 
 type PageState = "loading" | "success" | "error";
 
@@ -22,6 +23,7 @@ export const CheckoutSuccessPage: React.FC = () => {
   const [pageState, setPageState] = useState<PageState>(token ? "loading" : "success");
   const [orderNumber, setOrderNumber] = useState<string | null>(orderNumberParam);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [captureResult, setCaptureResult] = useState<CheckoutResultResponse | null>(null);
 
   // Handle PayPal capture when token is present
   useEffect(() => {
@@ -30,6 +32,7 @@ export const CheckoutSuccessPage: React.FC = () => {
         onSuccess: (result) => {
           if (result.success) {
             setOrderNumber(result.orderNumber || null);
+            setCaptureResult(result);
             setPageState("success");
           } else {
             setErrorMessage(result.message || "Payment capture failed");
@@ -43,6 +46,22 @@ export const CheckoutSuccessPage: React.FC = () => {
       });
     }
   }, [token, pageState]);
+
+  // Format currency with proper locale
+  const formatCurrency = (amount: number | null | undefined, currency: string | null | undefined) => {
+    if (amount === null || amount === undefined) return null;
+    const currencyCode = currency || "USD";
+
+    // Use Vietnamese locale for VND
+    const locale = currencyCode === "VND" ? "vi-VN" : "en-US";
+
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: currencyCode,
+      minimumFractionDigits: currencyCode === "VND" ? 0 : 2,
+      maximumFractionDigits: currencyCode === "VND" ? 0 : 2,
+    }).format(amount);
+  };
 
   // Loading state - capturing payment
   if (pageState === "loading") {
@@ -118,13 +137,49 @@ export const CheckoutSuccessPage: React.FC = () => {
 
         {/* Order Number */}
         {orderNumber && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
             <p className="text-sm text-gray-500">Order Number</p>
             <p className="text-lg font-mono font-semibold text-gray-900">
               {orderNumber}
             </p>
           </div>
         )}
+
+        {/* Payment Amount - Show local currency for SePay VND payments */}
+        {captureResult?.localAmount && captureResult?.localCurrency && (
+          <div className="bg-blue-50 rounded-lg p-4 mb-4">
+            <p className="text-sm text-blue-600">Amount Paid</p>
+            <p className="text-lg font-semibold text-blue-900">
+              {formatCurrency(captureResult.localAmount, captureResult.localCurrency)}
+            </p>
+            {captureResult.totalAmount && captureResult.currency &&
+             captureResult.currency !== captureResult.localCurrency && (
+              <p className="text-xs text-blue-600 mt-1">
+                ({formatCurrency(captureResult.totalAmount, captureResult.currency)})
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Invoice Section */}
+        <div className="mb-6">
+          {captureResult?.invoiceNumber && captureResult?.invoiceUrl ? (
+            <a
+              href={captureResult.invoiceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700"
+            >
+              <FileText className="w-4 h-4 text-blue-600" />
+              Download Invoice ({captureResult.invoiceNumber})
+            </a>
+          ) : captureResult && !captureResult.invoiceNumber ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg text-sm text-gray-500">
+              <Clock className="w-4 h-4" />
+              Invoice will be generated shortly
+            </div>
+          ) : null}
+        </div>
 
         {/* Info */}
         <div className="text-sm text-gray-600 mb-8 space-y-2">
