@@ -90,4 +90,17 @@ public interface InstructorEarningRepository extends JpaRepository<InstructorEar
             "WHERE e.instructorId = :instructorId AND e.status != 'REFUNDED' " +
             "GROUP BY e.courseId ORDER BY total DESC")
     List<Object[]> findTopCoursesByEarnings(@Param("instructorId") Long instructorId, Pageable pageable);
+
+    // Find the most common currency for an instructor's earnings
+    @Query("SELECT e.currency FROM InstructorEarning e WHERE e.instructorId = :instructorId " +
+            "GROUP BY e.currency ORDER BY COUNT(e.currency) DESC LIMIT 1")
+    String findTopCurrencyByInstructorId(@Param("instructorId") Long instructorId);
+
+    // Find earnings by status and created before a date (for scheduler)
+    List<InstructorEarning> findByStatusAndCreatedAtBefore(EarningStatus status, LocalDateTime date);
+
+    // Find distinct instructor IDs with available earnings
+    @Query("SELECT DISTINCT e.instructorId FROM InstructorEarning e " +
+            "WHERE e.status = 'AVAILABLE'")
+    List<Long> findDistinctInstructorIdsWithAvailableEarnings();
 }

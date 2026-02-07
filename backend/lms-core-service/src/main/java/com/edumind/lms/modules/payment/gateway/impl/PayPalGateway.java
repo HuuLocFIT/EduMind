@@ -409,4 +409,25 @@ public class PayPalGateway implements PaymentGateway {
         if (currency == null) return false;
         return SUPPORTED_CURRENCIES.contains(currency.toUpperCase());
     }
+
+    @Override
+    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency) {
+        log.info("[PAYPAL] Processing payout to: {}, amount: {} {}", recipient, amount, currency);
+
+        // Validate currency
+        if (!supportsCurrency(currency)) {
+            log.warn("[PAYPAL] Currency {} not supported for payout", currency);
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "CURRENCY_NOT_SUPPORTED",
+                    "PayPal does not support " + currency + " for payouts.");
+        }
+
+        // PayPal Payouts API requires OAuth token
+        // For now, return a pending result that requires manual processing
+        // In production, implement OAuth flow and use PayPal Payouts REST API
+        log.warn("[PAYPAL] Payout API not fully implemented - requires OAuth token and Payouts API access");
+        
+        // Return pending status - admin can process manually or implement OAuth flow
+        String transactionId = "PAYPAL-POUT-" + System.currentTimeMillis();
+        return GatewayPayoutResult.pending(transactionId, GATEWAY_NAME);
+    }
 }

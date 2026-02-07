@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -20,6 +21,9 @@ public class RefundRequest {
     @NotNull(message = "Order ID is required")
     @Positive(message = "Order ID must be positive")
     private Long orderId;
+
+    // Optional: specific order item IDs to refund (null = entire order)
+    private List<Long> orderItemIds;
 
     // Optional: partial refund amount (null = full refund)
     @Positive(message = "Refund amount must be positive")

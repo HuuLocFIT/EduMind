@@ -468,6 +468,7 @@ public class SepayGateway implements PaymentGateway {
         // SePay (bank transfer) doesn't support automatic refunds
         // This would need to be handled manually
         return GatewayRefundResult.builder()
+                .success(true)
                 .status(GatewayRefundStatus.PENDING)
                 .originalTransactionId(gatewayTransactionId)
                 .gatewayName(GATEWAY_NAME)
@@ -530,6 +531,85 @@ public class SepayGateway implements PaymentGateway {
     @Override
     public boolean supportsCurrency(String currency) {
         return SUPPORTED_CURRENCIES.contains(currency.toUpperCase());
+    }
+
+    @Override
+    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency) {
+        log.info("[SEPAY] Processing payout to bank account: {}, amount: {} {}", recipient, amount, currency);
+
+        // Validate currency
+        if (!supportsCurrency(currency)) {
+            log.warn("[SEPAY] Currency {} not supported for payout", currency);
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "CURRENCY_NOT_SUPPORTED",
+                    "SePay does not support " + currency + " for payouts.");
+        }
+
+        // Convert to VND if needed
+        BigDecimal amountVnd;
+        if ("VND".equalsIgnoreCase(currency)) {
+            amountVnd = amount;
+        } else if ("USD".equalsIgnoreCase(currency)) {
+            BigDecimal exchangeRate = properties.getUsdToVndRate();
+            amountVnd = amount.multiply(exchangeRate);
+        } else {
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "CURRENCY_NOT_SUPPORTED",
+                    "SePay only supports VND and USD for payouts.");
+        }
+
+        // Round to whole number (VND doesn't use decimals)
+        long amountLong = amountVnd.longValue();
+        if (amountLong <= 0) {
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "INVALID_AMOUNT",
+                    "Invalid payout amount.");
+        }
+
+        // SePay payout via bank transfer API
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + properties.getApiKey());
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            // Build payout request
+            String url = properties.getBaseUrl() + "/userapi/payouts/create";
+            
+            // Create request body
+            String requestBody = String.format(
+                    "{\"account_number\":\"%s\",\"amount\":%d,\"content\":\"EduMind LMS Payout\"}",
+                    recipient, amountLong);
+
+            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> body = response.getBody();
+                String transactionId = body.get("transaction_id") != null
+                        ? body.get("transaction_id").toString()
+                        : "SEPAY-" + System.currentTimeMillis();
+
+                log.info("[SEPAY] Payout created successfully. Transaction ID: {}", transactionId);
+
+                return GatewayPayoutResult.success(
+                        transactionId,
+                        GATEWAY_NAME,
+                        amount,
+                        currency
+                );
+            } else {
+                log.error("[SEPAY] Payout failed with status: {}", response.getStatusCode());
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "SEPAY_PAYOUT_ERROR",
+                        "Payout failed with status: " + response.getStatusCode());
+            }
+
+        } catch (RestClientException e) {
+            log.error("[SEPAY] Payout failed: {}", e.getMessage());
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "SEPAY_PAYOUT_ERROR",
+                    "Payout service unavailable. Please try again later.");
+        }
     }
 
     // ===== SePay Webhook Handler =====

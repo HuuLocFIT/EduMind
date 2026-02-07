@@ -371,6 +371,42 @@ spring:
                   requestedTokens: 1
             - RewritePath=/api/teacher/earnings(?<segment>/?.*), /teacher/earnings${segment}
         
+        # Refund Routes
+        # STUDENT: request refund, view refund policy, view refund history
+        # ADMIN: approve/reject refunds, view pending refunds
+        # External: /api/payments/refunds/** → Internal: /payments/refunds/**
+        - id: refund-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/payments/refunds/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/payments/refunds(?<segment>/?.*), /payments/refunds${segment}
+
+        # Payout Routes
+        # TEACHER: view payout history, summary
+        # ADMIN: create, update, process payouts
+        # External: /api/instructors/payouts/** → Internal: /instructors/payouts/**
+        - id: payout-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/instructors/payouts/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 10
+                  burstCapacity: 20
+                  requestedTokens: 1
+            - RewritePath=/api/instructors/payouts(?<segment>/?.*), /instructors/payouts${segment}
+
         # Payment Webhook Routes (4 endpoints)
         # PUBLIC: receive webhooks from payment gateways (PayPal, SePay, Mock)
         # External: /api/payments/webhook/** → Internal: /payments/webhook/**
