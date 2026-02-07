@@ -434,9 +434,11 @@ public class WebhookServiceImpl implements WebhookService {
                     order.getOrderNumber(), e.getMessage());
         }
 
-        // Generate invoice
+        // Generate invoice and PDF
         try {
-            invoiceService.generateInvoice(order);
+            var invoice = invoiceService.generateInvoice(order);
+            // Generate PDF and upload to Cloudinary (same as PayPal flow)
+            invoiceService.generateInvoicePdf(invoice.getId());
         } catch (Exception e) {
             log.error("Failed to generate invoice for order {} (non-critical): {}",
                     order.getOrderNumber(), e.getMessage());

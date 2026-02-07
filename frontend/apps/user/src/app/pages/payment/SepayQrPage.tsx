@@ -72,7 +72,7 @@ export const SepayQrPage: React.FC = () => {
         setPageState("success");
         // Auto-redirect to success page after short delay
         setTimeout(() => {
-          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${statusData.orderNumber || orderNumber}`);
+          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${statusData.orderNumber || orderNumber}&orderId=${statusData.orderId || orderId}`);
         }, 2000);
         return;
       }

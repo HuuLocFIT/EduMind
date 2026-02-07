@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button, Loading } from "@edumind/user-ui";
 import { CheckCircle, ArrowRight, BookOpen, Package, XCircle, RefreshCw, FileText, Clock } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
-import { useCapturePayment } from "../../hooks/useCheckout";
+import { useCapturePayment, usePaymentStatus } from "../../hooks/useCheckout";
 import type { CheckoutResultResponse } from "@edumind/shared-types";
 
 type PageState = "loading" | "success" | "error";
@@ -24,6 +24,25 @@ export const CheckoutSuccessPage: React.FC = () => {
   const [orderNumber, setOrderNumber] = useState<string | null>(orderNumberParam);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [captureResult, setCaptureResult] = useState<CheckoutResultResponse | null>(null);
+
+  const parsedOrderId = orderId ? Number(orderId) : null;
+
+  // Fetch order status for SePay flow (orderId present, no token)
+  // Uses a single fetch (no polling) to get invoice data
+  const { data: orderStatusData } = usePaymentStatus(parsedOrderId, {
+    enabled: !token && parsedOrderId !== null && parsedOrderId > 0,
+    refetchInterval: false,
+  });
+
+  // Populate captureResult from order status (SePay flow)
+  useEffect(() => {
+    if (orderStatusData && !captureResult) {
+      setCaptureResult(orderStatusData);
+      if (orderStatusData.orderNumber) {
+        setOrderNumber(orderStatusData.orderNumber);
+      }
+    }
+  }, [orderStatusData, captureResult]);
 
   // Handle PayPal capture when token is present
   useEffect(() => {
