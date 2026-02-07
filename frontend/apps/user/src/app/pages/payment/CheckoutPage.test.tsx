@@ -30,6 +30,14 @@ vi.mock('../../hooks/useCheckout');
 vi.mock('../../stores/checkout.store');
 vi.mock('../../stores/cart.store');
 
+// Mock @tanstack/react-query
+const mockInvalidateQueries = vi.fn();
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    invalidateQueries: mockInvalidateQueries,
+  }),
+}));
+
 vi.mock('@edumind/user-ui', () => ({
   Button: ({ children, onClick, disabled, isLoading }: any) => (
     <button onClick={onClick} disabled={disabled}>
@@ -49,6 +57,7 @@ vi.mock('lucide-react', () => ({
   ArrowRight: () => <span>ArrowRightIcon</span>,
   ShieldCheck: () => <span>ShieldCheckIcon</span>,
   Lock: () => <span>LockIcon</span>,
+  AlertTriangle: () => <span>AlertTriangleIcon</span>,
 }));
 
 describe('CheckoutPage', () => {
@@ -71,6 +80,7 @@ describe('CheckoutPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
+    mockInvalidateQueries.mockClear();
 
     (useToast as any).mockReturnValue({
       success: mockShowSuccess,
@@ -418,6 +428,178 @@ describe('CheckoutPage', () => {
           cartSignature: undefined,
         })
       );
+    });
+  });
+
+  // Tests for error handling in catch block (FIX #13)
+  describe('checkout error handling', () => {
+    beforeEach(() => {
+      (useCheckoutPreview as any).mockReturnValue({
+        data: mockCartPreviewData,
+        isLoading: false
+      });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.PAYPAL,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+    });
+
+    it('handles CART_CHANGED error by refreshing preview', async () => {
+      const user = userEvent.setup();
+
+      mockCheckoutMutate.mockRejectedValue({
+        errorCode: 'CART_CHANGED',
+        message: 'Cart was modified',
+      });
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith('Your cart was updated. Please review and try again.');
+        expect(mockSetStep).toHaveBeenCalledWith('payment');
+        expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['checkout', 'preview'] });
+      });
+    });
+
+    it('handles ORDER_EXPIRED error by navigating to cart', async () => {
+      const user = userEvent.setup();
+      mockCheckoutMutate.mockRejectedValue({
+        errorCode: 'ORDER_EXPIRED',
+        message: 'Order has expired',
+      });
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith('This order has expired. Please start a new checkout.');
+        expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+      });
+    });
+
+    it('handles CHECKOUT_IN_PROGRESS error by navigating to order', async () => {
+      const user = userEvent.setup();
+      mockCheckoutMutate.mockRejectedValue({
+        errorCode: 'CHECKOUT_IN_PROGRESS',
+        message: 'Checkout already in progress',
+        orderId: 123,
+      });
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith('You have an active order in progress. Please complete or cancel it first.');
+        expect(mockNavigate).toHaveBeenCalledWith(`${USER_ROUTES.ORDERS}/123`);
+      });
+    });
+
+    it('handles RETRY_LIMIT_EXCEEDED by redirecting to failed page', async () => {
+      const user = userEvent.setup();
+      mockCheckoutMutate.mockRejectedValue({
+        errorCode: 'RETRY_LIMIT_EXCEEDED',
+        message: 'Maximum attempts exceeded',
+      });
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith('Maximum payment attempts reached. Please start a new order.');
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining(`${USER_ROUTES.CHECKOUT_FAILED}?error=`)
+        );
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining('errorCode=RETRY_LIMIT_EXCEEDED')
+        );
+      });
+    });
+
+    it('handles unknown errors by navigating to failed page', async () => {
+      const user = userEvent.setup();
+      mockCheckoutMutate.mockRejectedValue({
+        errorCode: 'UNKNOWN_ERROR',
+        message: 'Something went wrong',
+      });
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      await waitFor(() => {
+        expect(mockSetStep).toHaveBeenCalledWith('failed');
+        expect(mockShowError).toHaveBeenCalledWith('Something went wrong');
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining(USER_ROUTES.CHECKOUT_FAILED)
+        );
+      });
+    });
+
+    it('handles errors without errorCode', async () => {
+      const user = userEvent.setup();
+      mockCheckoutMutate.mockRejectedValue(new Error('Network error'));
+
+      render(<CheckoutPage />);
+      await user.click(screen.getByText('Complete Order'));
+
+      await waitFor(() => {
+        expect(mockSetStep).toHaveBeenCalledWith('failed');
+        expect(mockShowError).toHaveBeenCalledWith('Network error');
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining(USER_ROUTES.CHECKOUT_FAILED)
+        );
+      });
+    });
+  });
+
+  // Tests for warnings banner
+  describe('warnings banner', () => {
+    it('renders warnings banner when preview has warnings', () => {
+      const previewWithWarnings = {
+        ...mockCartPreviewData,
+        warnings: ['Price has changed for "React Course"', 'Coupon expired'],
+      };
+
+      (useCheckoutPreview as any).mockReturnValue({
+        data: previewWithWarnings,
+        isLoading: false
+      });
+
+      render(<CheckoutPage />);
+
+      expect(screen.getByText('Warnings')).toBeInTheDocument();
+      expect(screen.getByText('Price has changed for "React Course"')).toBeInTheDocument();
+      expect(screen.getByText('Coupon expired')).toBeInTheDocument();
+    });
+
+    it('does not render warnings banner when no warnings', () => {
+      (useCheckoutPreview as any).mockReturnValue({
+        data: mockCartPreviewData,
+        isLoading: false
+      });
+
+      render(<CheckoutPage />);
+
+      expect(screen.queryByText('Warnings')).not.toBeInTheDocument();
+    });
+
+    it('does not render warnings banner when warnings array is empty', () => {
+      const previewWithEmptyWarnings = {
+        ...mockCartPreviewData,
+        warnings: [],
+      };
+
+      (useCheckoutPreview as any).mockReturnValue({
+        data: previewWithEmptyWarnings,
+        isLoading: false
+      });
+
+      render(<CheckoutPage />);
+
+      expect(screen.queryByText('Warnings')).not.toBeInTheDocument();
     });
   });
 });
