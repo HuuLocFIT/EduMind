@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button, Loading } from "@edumind/user-ui";
 import {
@@ -13,12 +13,14 @@ import {
   Check,
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
-import { usePaymentStatus, useCancelPayment } from "../../hooks/useCheckout";
+import { usePaymentStatus, useCancelPayment, formatTimeRemaining, calculateTimeRemaining } from "../../hooks/useCheckout";
 
 type PageState = "scanning" | "success" | "expired" | "error";
 
-// Default QR expiration time in minutes
-const QR_EXPIRATION_MINUTES = 15;
+// Order expiration time in minutes (matches backend: 30 minutes)
+const ORDER_EXPIRATION_MINUTES = 30;
+// Fallback initial time before we get createdAt from backend
+const INITIAL_FALLBACK_SECONDS = ORDER_EXPIRATION_MINUTES * 60;
 
 export const SepayQrPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,24 +37,69 @@ export const SepayQrPage: React.FC = () => {
   const orderId = orderIdParam ? Number(orderIdParam) : null;
 
   const [pageState, setPageState] = useState<PageState>("scanning");
-  const [timeRemaining, setTimeRemaining] = useState(QR_EXPIRATION_MINUTES * 60);
+  const [timeRemaining, setTimeRemaining] = useState(INITIAL_FALLBACK_SECONDS);
   const [copied, setCopied] = useState(false);
 
-  // Poll for payment status
+  // Track order creation time from backend for accurate countdown
+  const orderCreatedAtRef = useRef<string | null>(null);
+
+  // Poll for payment status with expiration handling
   const { data: statusData, isError } = usePaymentStatus(orderId, {
     enabled: pageState === "scanning" && orderId !== null,
     refetchInterval: 3000, // Poll every 3 seconds
+    onExpired: () => {
+      setPageState("expired");
+    },
   });
 
-  // Handle status updates
+  // Handle status updates and sync createdAt for accurate timer
   useEffect(() => {
     if (statusData) {
+      // Sync order createdAt from backend (only once)
+      if (statusData.createdAt && !orderCreatedAtRef.current) {
+        orderCreatedAtRef.current = statusData.createdAt;
+        // Immediately update timer with accurate remaining time
+        const remaining = calculateTimeRemaining(statusData.createdAt);
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
+          setPageState("expired");
+          return;
+        }
+      }
+
+      // Check for successful completion
       if (statusData.success && statusData.orderStatus === "COMPLETED") {
         setPageState("success");
         // Auto-redirect to success page after short delay
         setTimeout(() => {
-          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${statusData.orderNumber || orderNumber}`);
+          navigate(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=${statusData.orderNumber || orderNumber}&orderId=${statusData.orderId || orderId}`);
         }, 2000);
+        return;
+      }
+
+      // Check for error states from backend
+      if (statusData.errorCode) {
+        switch (statusData.errorCode) {
+          case "ORDER_EXPIRED":
+          case "PAYMENT_EXPIRED":
+            setPageState("expired");
+            return;
+          case "PAYMENT_FAILED":
+          case "ORDER_CANCELLED":
+          case "ORDER_REFUNDED":
+            // Redirect to failed page with error info
+            navigate(
+              `${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(statusData.message || "Payment failed")}&errorCode=${statusData.errorCode}`
+            );
+            return;
+        }
+      }
+
+      // Check for terminal failure states
+      if (statusData.orderStatus === "FAILED" || statusData.orderStatus === "CANCELLED") {
+        navigate(
+          `${USER_ROUTES.CHECKOUT_FAILED}?error=${encodeURIComponent(statusData.message || "Payment was not completed")}&errorCode=${statusData.errorCode || ""}`
+        );
       }
     }
   }, [statusData, navigate, orderNumber]);
@@ -65,29 +112,35 @@ export const SepayQrPage: React.FC = () => {
     }
   }, [isError]);
 
-  // Countdown timer
+  // Countdown timer - uses backend createdAt when available for accuracy
   useEffect(() => {
     if (pageState !== "scanning") return;
 
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
+      // If we have createdAt from backend, calculate from that for accuracy
+      if (orderCreatedAtRef.current) {
+        const remaining = calculateTimeRemaining(orderCreatedAtRef.current);
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
           setPageState("expired");
-          return 0;
         }
-        return prev - 1;
-      });
+      } else {
+        // Fallback: decrement local counter until we get backend data
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setPageState("expired");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }
     }, 1000);
 
     return () => clearInterval(timer);
   }, [pageState]);
 
-  // Format time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
+  // Use formatTimeRemaining from hooks for consistency
+  const formatTime = formatTimeRemaining;
 
   // Format amount with thousand separators
   const formatAmount = (value: string | null) => {

@@ -53,7 +53,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
             <img
               src={enrollment.courseThumbnail}
               alt={enrollment.courseTitle}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
             <div className="flex items-center justify-center h-full">
