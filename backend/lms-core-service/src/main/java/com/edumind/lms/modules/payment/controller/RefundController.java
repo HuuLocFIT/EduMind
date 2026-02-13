@@ -1,11 +1,14 @@
 package com.edumind.lms.modules.payment.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.payment.dto.request.ApproveRefundRequestDto;
+import com.edumind.lms.modules.payment.dto.request.ConfirmManualRefundRequestDto;
 import com.edumind.lms.modules.payment.dto.request.RefundRequest;
 import com.edumind.lms.modules.payment.dto.request.RejectRefundRequestDto;
 import com.edumind.lms.modules.payment.dto.response.RefundPolicyResponseDto;
 import com.edumind.lms.modules.payment.dto.response.RefundResponseDto;
+import com.edumind.lms.modules.payment.enums.RefundStatus;
 import com.edumind.lms.modules.payment.service.RefundService;
 import com.edumind.lms.config.security.JwtUserPrincipal;
 import jakarta.validation.Valid;
@@ -67,7 +70,7 @@ public class RefundController {
      * GET /api/payments/refunds/my-refunds
      */
     @GetMapping("/my-refunds")
-    public ResponseEntity<ApiResponse<Page<RefundResponseDto>>> getMyRefunds(
+    public ResponseEntity<PagedResponse<RefundResponseDto>> getMyRefunds(
             @PageableDefault(size = 20) Pageable pageable,
             Authentication authentication) {
 
@@ -76,7 +79,12 @@ public class RefundController {
 
         Page<RefundResponseDto> refunds = refundService.getMyRefunds(userId, pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(refunds));
+        return ResponseEntity.ok(PagedResponse.of(
+                refunds.getContent(),
+                refunds.getNumber(),
+                refunds.getSize(),
+                refunds.getTotalElements(),
+                refunds.getTotalPages()));
     }
 
     /**
@@ -96,6 +104,23 @@ public class RefundController {
         return ResponseEntity.ok(ApiResponse.success(refund));
     }
 
+    /**
+     * Get refund by order ID
+     * GET /api/payments/refunds/by-order/{orderId}
+     */
+    @GetMapping("/by-order/{orderId}")
+    public ResponseEntity<ApiResponse<RefundResponseDto>> getRefundByOrderId(
+            @PathVariable Long orderId,
+            Authentication authentication) {
+
+        Long userId = extractUserId(authentication);
+        log.info("User {} fetching refund for order {}", userId, orderId);
+
+        RefundResponseDto refund = refundService.getRefundByOrderId(userId, orderId);
+
+        return ResponseEntity.ok(ApiResponse.success(refund));
+    }
+
     // ==================== Admin Endpoints ====================
 
     /**
@@ -104,14 +129,19 @@ public class RefundController {
      */
     @GetMapping("/admin/pending")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<RefundResponseDto>>> getPendingRefundsAdmin(
+    public ResponseEntity<PagedResponse<RefundResponseDto>> getPendingRefundsAdmin(
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.info("Admin fetching pending refunds");
 
         Page<RefundResponseDto> refunds = refundService.getPendingRefunds(pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(refunds));
+        return ResponseEntity.ok(PagedResponse.of(
+                refunds.getContent(),
+                refunds.getNumber(),
+                refunds.getSize(),
+                refunds.getTotalElements(),
+                refunds.getTotalPages()));
     }
 
     /**
@@ -130,7 +160,12 @@ public class RefundController {
 
         RefundResponseDto refund = refundService.approveRefund(id, adminId);
 
-        return ResponseEntity.ok(ApiResponse.success("Refund approved and processed", refund));
+        // Differentiate message based on refund status
+        String message = refund.getStatus() == RefundStatus.AWAITING_MANUAL_REFUND
+                ? "Refund approved. Manual bank transfer required."
+                : "Refund approved and processed";
+
+        return ResponseEntity.ok(ApiResponse.success(message, refund));
     }
 
     /**
@@ -150,6 +185,29 @@ public class RefundController {
         RefundResponseDto refund = refundService.rejectRefund(id, adminId, request.getReason());
 
         return ResponseEntity.ok(ApiResponse.success("Refund request rejected", refund));
+    }
+
+    /**
+     * Admin: Confirm manual refund has been completed
+     * POST /api/payments/refunds/admin/{id}/confirm-manual-refund
+     * 
+     * This endpoint is used for manual gateways (like SePay) where admin must
+     * manually transfer money to the customer. After the transfer is done,
+     * admin calls this endpoint to mark the refund as completed.
+     */
+    @PostMapping("/admin/{id}/confirm-manual-refund")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<RefundResponseDto>> confirmManualRefundAdmin(
+            @PathVariable Long id,
+            @Valid @RequestBody ConfirmManualRefundRequestDto request,
+            Authentication authentication) {
+
+        Long adminId = extractUserId(authentication);
+        log.info("Admin {} confirming manual refund completion for refund {}", adminId, id);
+
+        RefundResponseDto refund = refundService.confirmManualRefund(id, adminId, request.getBankTransferReference());
+
+        return ResponseEntity.ok(ApiResponse.success("Manual refund confirmed and completed", refund));
     }
 
     /**

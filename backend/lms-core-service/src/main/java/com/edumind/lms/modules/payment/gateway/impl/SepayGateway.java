@@ -466,9 +466,9 @@ public class SepayGateway implements PaymentGateway {
                 gatewayTransactionId, amount, currency);
 
         // SePay (bank transfer) doesn't support automatic refunds
-        // This would need to be handled manually
+        // Return success=false to indicate this gateway cannot process refunds automatically
         return GatewayRefundResult.builder()
-                .success(true)
+                .success(false)
                 .status(GatewayRefundStatus.PENDING)
                 .originalTransactionId(gatewayTransactionId)
                 .gatewayName(GATEWAY_NAME)
@@ -534,7 +534,7 @@ public class SepayGateway implements PaymentGateway {
     }
 
     @Override
-    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency) {
+    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency, String payoutReference) {
         log.info("[SEPAY] Processing payout to bank account: {}, amount: {} {}", recipient, amount, currency);
 
         // Validate currency
@@ -563,53 +563,19 @@ public class SepayGateway implements PaymentGateway {
                     "Invalid payout amount.");
         }
 
-        // SePay payout via bank transfer API
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + properties.getApiKey());
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        // SePay does not support automatic payouts via API.
+        // Return PENDING status so the service layer marks it as AWAITING_MANUAL_PAYOUT.
+        log.info("[SEPAY] Automatic payout not supported. Returning MANUAL_PAYOUT_REQUIRED for amount: {} {}", amount, currency);
 
-            // Build payout request
-            String url = properties.getBaseUrl() + "/userapi/payouts/create";
-            
-            // Create request body
-            String requestBody = String.format(
-                    "{\"account_number\":\"%s\",\"amount\":%d,\"content\":\"EduMind LMS Payout\"}",
-                    recipient, amountLong);
-
-            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
-            );
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-                String transactionId = body.get("transaction_id") != null
-                        ? body.get("transaction_id").toString()
-                        : "SEPAY-" + System.currentTimeMillis();
-
-                log.info("[SEPAY] Payout created successfully. Transaction ID: {}", transactionId);
-
-                return GatewayPayoutResult.success(
-                        transactionId,
-                        GATEWAY_NAME,
-                        amount,
-                        currency
-                );
-            } else {
-                log.error("[SEPAY] Payout failed with status: {}", response.getStatusCode());
-                return GatewayPayoutResult.failed(GATEWAY_NAME, "SEPAY_PAYOUT_ERROR",
-                        "Payout failed with status: " + response.getStatusCode());
-            }
-
-        } catch (RestClientException e) {
-            log.error("[SEPAY] Payout failed: {}", e.getMessage());
-            return GatewayPayoutResult.failed(GATEWAY_NAME, "SEPAY_PAYOUT_ERROR",
-                    "Payout service unavailable. Please try again later.");
-        }
+        return GatewayPayoutResult.builder()
+                .success(false)
+                .status(GatewayPayoutStatus.PENDING)
+                .gatewayName(GATEWAY_NAME)
+                .amount(amount)
+                .currency(currency)
+                .errorCode("MANUAL_PAYOUT_REQUIRED")
+                .errorMessage("SePay does not support automatic payouts. Admin must manually transfer funds to instructor.")
+                .build();
     }
 
     // ===== SePay Webhook Handler =====

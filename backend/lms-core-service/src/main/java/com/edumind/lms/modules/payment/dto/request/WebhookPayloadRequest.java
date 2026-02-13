@@ -22,5 +22,6 @@ public class WebhookPayloadRequest {
     private String status;              // SUCCESS, FAILED
     private String failureReason;
     private String signature;           // For webhook verification
+    private String resourceId;          // Gateway resource ID (e.g., PayPal refund ID) for alternative lookup
     private Map<String, Object> rawPayload;  // Original payload from gateway
 }

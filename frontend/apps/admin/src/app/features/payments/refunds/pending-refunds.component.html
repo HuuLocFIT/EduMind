@@ -1,0 +1,214 @@
+<div class="space-y-5 md:space-y-6 text-gray-900">
+  <!-- Page Header -->
+  <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+    <div class="space-y-1">
+      <h1 class="text-2xl font-bold text-gray-900">Refund Requests</h1>
+      <p class="text-gray-600 text-sm">Review and process pending refunds, or handle failed refunds that require manual processing.</p>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  @if (successMessage()) {
+    <app-alert variant="success" [message]="successMessage()" [dismissible]="true" (onClose)="successMessage.set('')" />
+  }
+  @if (errorMessage()) {
+    <app-alert variant="error" [message]="errorMessage()" [dismissible]="true" (onClose)="errorMessage.set('')" />
+  }
+
+  <!-- Table -->
+  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
+    <app-data-table
+      [columns]="columns"
+      [data]="refunds()"
+      [isLoading]="isLoading()"
+      [showActions]="true"
+      [actionsSticky]="actionsSticky()"
+      [actionsStickyOffset]="actionsSticky() ? '0px' : undefined"
+      [actionsWidth]="'160px'"
+      [showPagination]="true"
+      [totalItems]="totalItems()"
+      [pageSize]="pageSize"
+      [currentPage]="currentPage()"
+      emptyMessage="No refunds to process"
+      (pageChange)="onPageChange($event.page)"
+    >
+      <ng-template #actions let-row>
+        <div class="flex items-center justify-center gap-2">
+          @if (row.status === 'PENDING') {
+            <app-button variant="primary" size="sm" (click)="openApproveModal(row)">
+              Approve
+            </app-button>
+            <app-button variant="danger" size="sm" (click)="openRejectModal(row)">
+              Reject
+            </app-button>
+          } @else if (row.status === 'AWAITING_MANUAL_REFUND') {
+            <app-button variant="primary" size="sm" (click)="openConfirmManualModal(row)">
+              Confirm
+            </app-button>
+          } @else if (row.status === 'FAILED') {
+            <span class="text-xs text-red-600 font-medium whitespace-nowrap">
+              Manual Required
+            </span>
+          }
+        </div>
+      </ng-template>
+    </app-data-table>
+  </app-card>
+
+  <!-- Templates -->
+  <ng-template #orderNumberTpl let-row>
+    <span class="text-sm font-mono font-semibold text-gray-900">{{ row.orderNumber }}</span>
+  </ng-template>
+
+  <ng-template #userIdTpl let-row>
+    <span class="text-sm font-semibold text-gray-800">{{ row.userId }}</span>
+  </ng-template>
+
+  <ng-template #statusTpl let-row>
+    @if (row.status === 'PENDING') {
+      <app-badge variant="warning" size="sm">Pending</app-badge>
+    } @else if (row.status === 'AWAITING_MANUAL_REFUND') {
+      <app-badge variant="primary" size="sm">Awaiting Manual Transfer</app-badge>
+    } @else if (row.status === 'FAILED') {
+      <app-badge variant="error" size="sm">Failed</app-badge>
+    }
+  </ng-template>
+
+  <ng-template #amountTpl let-row>
+    <div class="text-sm text-gray-900">
+      <span class="font-semibold text-gray-900">{{ formatCurrency(row.requestedAmount, row.currency) }}</span>
+    </div>
+  </ng-template>
+
+  <ng-template #reasonTpl let-row>
+    <div class="space-y-1.5 min-w-[280px] max-w-[450px]">
+      <p class="text-sm text-gray-600 line-clamp-2 leading-relaxed" [title]="row.reason">
+        {{ row.reason }}
+      </p>
+      @if (row.status === 'FAILED' && row.gatewayResponse) {
+        <div class="text-xs text-red-700 bg-red-50 px-2.5 py-1.5 rounded-md border border-red-200 line-clamp-2 leading-snug" [title]="row.gatewayResponse">
+          <span class="font-medium">Error:</span> {{ row.gatewayResponse }}
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #requestedAtTpl let-row>
+    <div class="text-sm text-gray-700">
+      {{ formatDate(row.requestedAt) }}
+    </div>
+  </ng-template>
+
+  <!-- Approve Modal -->
+  <app-modal
+    [isOpen]="showApproveModal()"
+    title="Approve Refund"
+    size="sm"
+    (close)="showApproveModal.set(false)"
+  >
+    <div class="space-y-4 text-gray-800">
+      <p class="text-gray-600">
+        Approve refund request for order <strong class="text-gray-900">{{ selectedRefund()?.orderNumber }}</strong>?
+      </p>
+      <app-textarea
+        label="Admin Notes (Optional)"
+        placeholder="Add notes about this approval..."
+        [(ngModel)]="approveNotes"
+        [rows]="3"
+      />
+    </div>
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+      <app-button variant="outline" (click)="showApproveModal.set(false)">Cancel</app-button>
+      <app-button variant="primary" (click)="approveRefund()">
+        Confirm Approve
+      </app-button>
+    </div>
+  </app-modal>
+
+  <!-- Reject Modal -->
+  <app-modal
+    [isOpen]="showRejectModal()"
+    title="Reject Refund"
+    size="sm"
+    (close)="showRejectModal.set(false)"
+  >
+    <div class="space-y-4 text-gray-800">
+      <p class="text-gray-600">
+        Please provide a reason for rejecting refund request for order <strong class="text-gray-900">{{ selectedRefund()?.orderNumber }}</strong>.
+      </p>
+      <app-textarea
+        label="Rejection Reason"
+        placeholder="Explain why this refund is being rejected (required)..."
+        [(ngModel)]="rejectReason"
+        [rows]="3"
+        [required]="true"
+      />
+    </div>
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+      <app-button variant="outline" (click)="showRejectModal.set(false)">Cancel</app-button>
+      <app-button variant="danger" (click)="rejectRefund()" [disabled]="!rejectReason.trim()">
+        Confirm Reject
+      </app-button>
+    </div>
+  </app-modal>
+
+  <!-- Confirm Manual Refund Modal -->
+  <app-modal
+    [isOpen]="showConfirmManualModal()"
+    title="Confirm Manual Refund"
+    size="sm"
+    (close)="showConfirmManualModal.set(false)"
+  >
+    <div class="space-y-4 text-gray-800">
+      <p class="text-gray-600">
+        Confirm that you have completed the manual bank transfer for refund request <strong class="text-gray-900">{{ selectedRefund()?.orderNumber }}</strong>.
+      </p>
+      <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
+        <p class="text-sm text-blue-900">
+          <strong>Amount:</strong> {{ formatCurrency(selectedRefund()?.requestedAmount || 0, selectedRefund()?.currency || 'USD') }}
+        </p>
+      </div>
+
+      <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+        <p class="text-sm font-medium text-gray-700">Transfer To:</p>
+        @if (selectedRefund()?.bankName) {
+          <p class="text-sm text-gray-800"><strong>Bank:</strong> {{ selectedRefund()?.bankName }}</p>
+        }
+        @if (selectedRefund()?.accountHolderName) {
+          <p class="text-sm text-gray-800"><strong>Account Holder:</strong> {{ selectedRefund()?.accountHolderName }}</p>
+        }
+        <p class="text-sm text-gray-800">
+          <strong>Account Number:</strong> {{ selectedRefund()?.accountNumber || 'Not provided' }}
+        </p>
+        @if (selectedRefund()?.swiftCode) {
+          <p class="text-sm text-gray-800"><strong>SWIFT Code:</strong> {{ selectedRefund()?.swiftCode }}</p>
+        }
+        @if (selectedRefund()?.bankAddress) {
+          <p class="text-sm text-gray-800"><strong>Bank Address:</strong> {{ selectedRefund()?.bankAddress }}</p>
+        }
+      </div>
+
+      <div class="mt-3">
+        <app-textarea
+          label="Bank Transfer Reference"
+          placeholder="Enter the bank transfer reference number or transaction ID..."
+          [(ngModel)]="bankTransferReference"
+          [rows]="2"
+          [required]="true"
+        />
+        <p class="text-xs text-gray-500">
+          This reference will be stored with the refund record for tracking purposes.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+      <app-button variant="outline" (click)="showConfirmManualModal.set(false)">Cancel</app-button>
+      <app-button variant="primary" (click)="confirmManualRefund()" [disabled]="!bankTransferReference.trim()">
+        Confirm Transfer
+      </app-button>
+    </div>
+  </app-modal>
+</div>

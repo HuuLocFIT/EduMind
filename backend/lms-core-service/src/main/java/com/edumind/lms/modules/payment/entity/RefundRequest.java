@@ -37,9 +37,25 @@ public class RefundRequest extends BaseEntity {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String reason;
 
+    // Bank account information for manual refunds
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
+
+    @Column(name = "account_holder_name", length = 100)
+    private String accountHolderName;
+
+    @Column(name = "account_number", length = 50)
+    private String accountNumber;
+
+    @Column(name = "swift_code", length = 20)
+    private String swiftCode;
+
+    @Column(name = "bank_address", length = 200)
+    private String bankAddress;
+
     // Status workflow
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     @Builder.Default
     private RefundStatus status = RefundStatus.PENDING;
 
@@ -119,9 +135,19 @@ public class RefundRequest extends BaseEntity {
         return status == RefundStatus.FAILED;
     }
 
+    public boolean isAwaitingManualRefund() {
+        return status == RefundStatus.AWAITING_MANUAL_REFUND;
+    }
+
     public void markAsFailed(String errorMessage) {
         this.status = RefundStatus.FAILED;
         this.processedAt = LocalDateTime.now();
         this.gatewayResponse = errorMessage;
+    }
+
+    public void markAsAwaitingManualRefund(Long adminId) {
+        this.status = RefundStatus.AWAITING_MANUAL_REFUND;
+        this.approvedAt = LocalDateTime.now();
+        this.approvedBy = adminId;
     }
 }

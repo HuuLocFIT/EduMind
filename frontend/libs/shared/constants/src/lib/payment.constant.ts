@@ -61,3 +61,40 @@ export const TransactionStatus = {
 } as const;
 export type TransactionStatus =
   (typeof TransactionStatus)[keyof typeof TransactionStatus];
+
+/**
+ * Refund Status enum
+ * Tracks refund request lifecycle
+ */
+export const RefundStatus = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  AWAITING_MANUAL_REFUND: "AWAITING_MANUAL_REFUND",
+  REJECTED: "REJECTED",
+  COMPLETED: "COMPLETED",
+  FAILED: "FAILED",
+} as const;
+export type RefundStatus = (typeof RefundStatus)[keyof typeof RefundStatus];
+
+/**
+ * Payout Status enum
+ * Tracks instructor payout lifecycle
+ */
+export const PayoutStatus = {
+  PENDING: "PENDING",
+  PROCESSING: "PROCESSING",
+  AWAITING_MANUAL_PAYOUT: "AWAITING_MANUAL_PAYOUT",
+  COMPLETED: "COMPLETED",
+  FAILED: "FAILED",
+} as const;
+export type PayoutStatus = (typeof PayoutStatus)[keyof typeof PayoutStatus];
+
+/**
+ * Payout Method enum
+ * Defines available payout methods
+ */
+export const PayoutMethod = {
+  BANK_TRANSFER: "BANK_TRANSFER",
+  PAYPAL: "PAYPAL",
+} as const;
+export type PayoutMethod = (typeof PayoutMethod)[keyof typeof PayoutMethod];

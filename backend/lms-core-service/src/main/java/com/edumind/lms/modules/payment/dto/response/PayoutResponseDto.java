@@ -38,6 +38,14 @@ public class PayoutResponseDto {
     // Gateway tracking
     private String gatewayTransactionId;
 
+    // Recipient info
+    private String bankName;
+    private String accountHolderName;
+    private String bankAccount;
+    private String swiftCode;
+    private String bankAddress;
+    private String paypalEmail;
+
     // Failure tracking
     private String failureReason;
     private String failureCode;

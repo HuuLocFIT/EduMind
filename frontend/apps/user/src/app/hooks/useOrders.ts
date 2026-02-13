@@ -72,6 +72,7 @@ export const useCancelOrder = () => {
 
 /**
  * Request refund mutation
+ * @deprecated Use useSubmitRefundRequest from useRefunds instead
  */
 export const useRequestRefund = () => {
   const queryClient = useQueryClient();

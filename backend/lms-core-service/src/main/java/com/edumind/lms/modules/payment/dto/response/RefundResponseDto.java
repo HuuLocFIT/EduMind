@@ -25,6 +25,13 @@ public class RefundResponseDto {
     private String currency;
     private String reason;
 
+    // Bank account information for manual refunds
+    private String bankName;
+    private String accountHolderName;
+    private String accountNumber;
+    private String swiftCode;
+    private String bankAddress;
+
     // Status
     private RefundStatus status;
 
@@ -32,16 +39,19 @@ public class RefundResponseDto {
     private LocalDateTime requestedAt;
     private LocalDateTime approvedAt;
     private Long approvedBy;
+    private String approvedByName;  // Display name of the admin who approved
     private LocalDateTime processedAt;
 
     // Gateway tracking
     private String refundTransactionId;
     private String gatewayRefundId;
+    private String gatewayResponse;  // Error message for FAILED refunds
 
     // Rejection info
     private String rejectionReason;
     private LocalDateTime rejectedAt;
     private Long rejectedBy;
+    private String rejectedByName;  // Display name of the admin who rejected
 
     // Metadata
     private LocalDateTime createdAt;

@@ -138,8 +138,8 @@ export class CoursesComponent implements OnInit, OnDestroy {
       { key: 'price', header: 'Pricing', template: this.priceTpl, sortable: true },
       { key: 'level', header: 'Level', template: this.levelTpl },
       { key: 'status', header: 'Status', template: this.statusTpl },
-      { key: 'totalStudents', header: 'Students', sortable: true, align: 'center' },
-      { key: 'averageRating', header: 'Rating', sortable: true, align: 'center' },
+      { key: 'totalStudents', header: 'Students', sortable: true},
+      { key: 'averageRating', header: 'Rating', sortable: true },
       { key: 'createdAt', header: 'Created', sortable: true, template: this.createdTpl },
     ];
 

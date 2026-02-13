@@ -34,4 +34,21 @@ public class RefundRequest {
     private String reason;
 
     private String notes;
+
+    // Bank account information for manual refunds (required only for SePay)
+    // For PayPal and other auto-refund methods, these fields are optional
+    @Size(max = 100, message = "Bank name must not exceed 100 characters")
+    private String bankName;
+
+    @Size(max = 100, message = "Account holder name must not exceed 100 characters")
+    private String accountHolderName;
+
+    @Size(max = 50, message = "Account number must not exceed 50 characters")
+    private String accountNumber;
+
+    @Size(max = 20, message = "Swift/BIC code must not exceed 20 characters")
+    private String swiftCode; // Optional for international transfers
+
+    @Size(max = 200, message = "Bank address must not exceed 200 characters")
+    private String bankAddress; // Optional additional info
 }

@@ -42,9 +42,15 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
 
+    // Find by multiple statuses (for pending payouts page)
+    Page<Payout> findByStatusInOrderByScheduledAtDesc(List<PayoutStatus> statuses, Pageable pageable);
+
     // Count by status
     long countByStatus(PayoutStatus status);
 
     // Find failed payouts that can be retried
     List<Payout> findByStatusAndRetryCountLessThan(PayoutStatus status, Integer maxRetries);
+
+    // Find payout by gateway batch/transaction ID (for webhook lookup)
+    Optional<Payout> findByGatewayTransactionId(String gatewayTransactionId);
 }

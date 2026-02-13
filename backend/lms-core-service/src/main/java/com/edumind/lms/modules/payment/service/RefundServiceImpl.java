@@ -1,15 +1,21 @@
 package com.edumind.lms.modules.payment.service;
 
+import com.edumind.common.response.ApiResponse;
+import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.payment.dto.response.RefundPolicyResponseDto;
 import com.edumind.lms.modules.payment.dto.response.RefundResponseDto;
+import com.edumind.lms.shared.client.UserClient;
+import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.modules.payment.entity.InstructorEarning;
 import com.edumind.lms.modules.payment.entity.Order;
 import com.edumind.lms.modules.payment.entity.OrderItem;
+import com.edumind.lms.modules.payment.entity.RefundRequest;
 import com.edumind.lms.modules.payment.entity.Transaction;
 import com.edumind.lms.modules.payment.enums.OrderStatus;
+import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.enums.RefundStatus;
 import com.edumind.lms.modules.payment.enums.TransactionStatus;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
@@ -45,6 +51,7 @@ public class RefundServiceImpl implements RefundService {
     private final EnrollmentRepository enrollmentRepository;
     private final PaymentGatewayRegistry gatewayRegistry;
     private final NumberGeneratorService numberGeneratorService;
+    private final UserClient userClient;
 
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
@@ -78,7 +85,7 @@ public class RefundServiceImpl implements RefundService {
 
         // 2. Check if refund already exists
         if (refundRequestRepository.existsByOrderId(orderId)) {
-            com.edumind.lms.modules.payment.entity.RefundRequest existing = refundRequestRepository.findByOrderId(orderId)
+            RefundRequest existing = refundRequestRepository.findByOrderId(orderId)
                     .orElseThrow(() -> new IllegalStateException("Refund request exists but not found"));
             return toResponseDto(existing);
         }
@@ -106,13 +113,32 @@ public class RefundServiceImpl implements RefundService {
             refundAmount = policy.getEligibleRefundAmount();
         }
 
+        // 3.5. Validate bank account information for manual refund methods (SePay)
+        boolean requiresBankInfo = !supportsAutoRefund(order.getPaymentMethod());
+        if (requiresBankInfo) {
+            if (request.getBankName() == null || request.getBankName().trim().isEmpty()) {
+                throw new IllegalArgumentException("Bank name is required for SePay refunds");
+            }
+            if (request.getAccountHolderName() == null || request.getAccountHolderName().trim().isEmpty()) {
+                throw new IllegalArgumentException("Account holder name is required for SePay refunds");
+            }
+            if (request.getAccountNumber() == null || request.getAccountNumber().trim().isEmpty()) {
+                throw new IllegalArgumentException("Account number is required for SePay refunds");
+            }
+        }
+
         // 4. Create refund request
-        com.edumind.lms.modules.payment.entity.RefundRequest refundRequestEntity = com.edumind.lms.modules.payment.entity.RefundRequest.builder()
+        RefundRequest refundRequestEntity = RefundRequest.builder()
                 .order(order)
                 .userId(userId)
                 .requestedAmount(refundAmount)
                 .currency(order.getCurrency())
                 .reason(request.getReason())
+                .bankName(request.getBankName())
+                .accountHolderName(request.getAccountHolderName())
+                .accountNumber(request.getAccountNumber())
+                .swiftCode(request.getSwiftCode())
+                .bankAddress(request.getBankAddress())
                 .status(RefundStatus.PENDING)
                 .requestedAt(LocalDateTime.now())
                 .build();
@@ -122,7 +148,7 @@ public class RefundServiceImpl implements RefundService {
         } catch (DataIntegrityViolationException e) {
             // Unique constraint on order_id — concurrent request already created a refund
             log.warn("Duplicate refund request for order {} (concurrent race condition)", orderId);
-            com.edumind.lms.modules.payment.entity.RefundRequest existing = refundRequestRepository.findByOrderId(orderId)
+            RefundRequest existing = refundRequestRepository.findByOrderId(orderId)
                     .orElseThrow(() -> new IllegalStateException("Refund request exists but not found"));
             return toResponseDto(existing);
         }
@@ -157,14 +183,14 @@ public class RefundServiceImpl implements RefundService {
     @Override
     @Transactional(readOnly = true)
     public Page<RefundResponseDto> getMyRefunds(Long userId, Pageable pageable) {
-        Page<com.edumind.lms.modules.payment.entity.RefundRequest> refunds = refundRequestRepository.findByUserIdOrderByRequestedAtDesc(userId, pageable);
+        Page<RefundRequest> refunds = refundRequestRepository.findByUserIdOrderByRequestedAtDesc(userId, pageable);
         return refunds.map(this::toResponseDto);
     }
 
     @Override
     @Transactional(readOnly = true)
     public RefundResponseDto getRefundById(Long userId, Long refundId) {
-        com.edumind.lms.modules.payment.entity.RefundRequest refund = refundRequestRepository.findById(refundId)
+        RefundRequest refund = refundRequestRepository.findById(refundId)
                 .orElseThrow(() -> new IllegalArgumentException("Refund request not found: " + refundId));
 
         if (!refund.getUserId().equals(userId)) {
@@ -176,9 +202,25 @@ public class RefundServiceImpl implements RefundService {
 
     @Override
     @Transactional(readOnly = true)
+    public RefundResponseDto getRefundByOrderId(Long userId, Long orderId) {
+        RefundRequest refund = refundRequestRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Refund not found for order: " + orderId));
+
+        if (!refund.getUserId().equals(userId)) {
+            throw new com.edumind.lms.shared.exception.ResourceNotFoundException(
+                    "Refund not found for order: " + orderId);
+        }
+
+        return toResponseDto(refund);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<RefundResponseDto> getPendingRefunds(Pageable pageable) {
-        Page<com.edumind.lms.modules.payment.entity.RefundRequest> refunds = refundRequestRepository.findByStatusOrderByRequestedAtDesc(
-                RefundStatus.PENDING, pageable);
+        // Return PENDING (awaiting approval), AWAITING_MANUAL_REFUND (awaiting manual transfer), and FAILED (retry needed)
+        Page<RefundRequest> refunds = refundRequestRepository.findByStatusInOrderByRequestedAtDesc(
+                List.of(RefundStatus.PENDING, RefundStatus.AWAITING_MANUAL_REFUND, RefundStatus.FAILED), pageable);
         return refunds.map(this::toResponseDto);
     }
 
@@ -187,18 +229,31 @@ public class RefundServiceImpl implements RefundService {
     public RefundResponseDto approveRefund(Long refundId, Long adminId) {
         log.info("Admin {} approving refund request: {}", adminId, refundId);
 
-        com.edumind.lms.modules.payment.entity.RefundRequest refund = refundRequestRepository.findById(refundId)
+        RefundRequest refund = refundRequestRepository.findById(refundId)
                 .orElseThrow(() -> new IllegalArgumentException("Refund request not found: " + refundId));
 
         if (refund.getStatus() != RefundStatus.PENDING) {
             throw new IllegalStateException("Only pending refunds can be approved");
         }
 
-        refund.markAsApproved(adminId);
-        refund = refundRequestRepository.save(refund);
-
-        // Process immediately after approval (via proxy to ensure @Transactional is respected)
-        return self.processRefund(refundId);
+        Order order = refund.getOrder();
+        
+        // Check if gateway supports auto-refund
+        boolean supportsAutoRefund = supportsAutoRefund(order.getPaymentMethod());
+        
+        if (supportsAutoRefund) {
+            // Auto-refund gateway: approve and process immediately
+            refund.markAsApproved(adminId);
+            refund = refundRequestRepository.save(refund);
+            return self.processRefund(refundId);
+        } else {
+            // Manual refund gateway (e.g., SePay): approve and mark as awaiting manual transfer
+            log.info("Refund {} approved for manual gateway ({}). Admin must manually transfer money.",
+                    refundId, order.getPaymentMethod());
+            refund.markAsAwaitingManualRefund(adminId);
+            refund = refundRequestRepository.save(refund);
+            return toResponseDto(refund);
+        }
     }
 
     @Override
@@ -206,7 +261,7 @@ public class RefundServiceImpl implements RefundService {
     public RefundResponseDto rejectRefund(Long refundId, Long adminId, String reason) {
         log.info("Admin {} rejecting refund request: {}", adminId, refundId);
 
-        com.edumind.lms.modules.payment.entity.RefundRequest refund = refundRequestRepository.findById(refundId)
+        RefundRequest refund = refundRequestRepository.findById(refundId)
                 .orElseThrow(() -> new IllegalArgumentException("Refund request not found: " + refundId));
 
         if (refund.getStatus() != RefundStatus.PENDING) {
@@ -224,7 +279,7 @@ public class RefundServiceImpl implements RefundService {
     public RefundResponseDto processRefund(Long refundId) {
         log.info("Processing refund: {}", refundId);
 
-        com.edumind.lms.modules.payment.entity.RefundRequest refund = refundRequestRepository.findById(refundId)
+        RefundRequest refund = refundRequestRepository.findById(refundId)
                 .orElseThrow(() -> new IllegalArgumentException("Refund request not found: " + refundId));
 
         if (refund.getStatus() != RefundStatus.APPROVED) {
@@ -254,63 +309,26 @@ public class RefundServiceImpl implements RefundService {
 
         // 3. Handle refund result
         if (refundResult.isSuccess() && refundResult.getStatus() == GatewayRefundStatus.COMPLETED) {
-            // Update refund request
-            String refundTransactionId = "REF-" + numberGeneratorService.generateTransactionNumber();
-            refund.markAsCompleted(
-                    refundTransactionId,
-                    refundResult.getRefundTransactionId(),
-                    refundResult.getRawResponse()
-            );
-            refund = refundRequestRepository.save(refund);
-
-            // Update order
-            order.markAsRefunded("Refund processed: " + refund.getReason());
-            orderRepository.save(order);
-
-            // Update transaction
-            transaction.markAsRefunded();
-            transactionRepository.save(transaction);
-
-            // Mark earnings as refunded (proportional for partial refunds)
-            List<InstructorEarning> earnings = earningRepository.findByOrderId(order.getId());
-            boolean isFullRefund = refund.getRequestedAmount().compareTo(order.getTotalAmount()) >= 0;
-
-            if (isFullRefund) {
-                for (InstructorEarning earning : earnings) {
-                    if (earning.isPaid()) {
-                        log.warn("MANUAL RECOVERY REQUIRED: Earning {} for instructor {} is already PAID (amount: {}). "
-                                + "Refund {} requires manual clawback from instructor.",
-                                earning.getId(), earning.getInstructorId(), earning.getNetAmount(), refundId);
-                    }
-                    earning.markAsRefunded();
-                }
-            } else {
-                BigDecimal remainingRefund = refund.getRequestedAmount();
-                for (InstructorEarning earning : earnings) {
-                    if (remainingRefund.compareTo(BigDecimal.ZERO) <= 0) break;
-                    BigDecimal earningRefundAmount = earning.getNetAmount().min(remainingRefund);
-                    remainingRefund = remainingRefund.subtract(earningRefundAmount);
-                    if (earning.isPaid()) {
-                        log.warn("MANUAL RECOVERY REQUIRED: Earning {} for instructor {} is already PAID (amount: {}). "
-                                + "Refund {} requires manual clawback from instructor.",
-                                earning.getId(), earning.getInstructorId(), earningRefundAmount, refundId);
-                    }
-                    earning.markAsRefunded();
-                }
-            }
-            earningRepository.saveAll(earnings);
-
-            // Revoke enrollments if full refund
-            if (isFullRefund) {
-                revokeEnrollments(order);
-            }
-
+            // Auto-refund completed successfully
+            completeRefund(refund, order, transaction, refundResult);
             log.info("Refund processed successfully: {}", refundId);
-        } else if (refundResult.getStatus() == GatewayRefundStatus.PENDING) {
-            // Gateway cannot auto-process (e.g., SePay bank transfer) — mark as FAILED for admin attention
-            log.warn("Refund requires manual processing for request {}: {}",
-                    refundId, refundResult.getErrorMessage());
-            refund.markAsFailed("Manual refund required: " + refundResult.getErrorMessage());
+        } else if (!refundResult.isSuccess() && refundResult.getStatus() == GatewayRefundStatus.PENDING) {
+            // Gateway cannot auto-process (e.g., SePay bank transfer)
+            // Check if this gateway supports auto-refund
+            boolean supportsAutoRefund = supportsAutoRefund(order.getPaymentMethod());
+            if (!supportsAutoRefund) {
+                // Manual gateway (SePay) - mark as AWAITING_MANUAL_REFUND
+                // This should not happen if approveRefund() logic is correct, but handle it defensively
+                log.warn("Manual gateway returned PENDING for request {}: {}. "
+                        + "This should have been caught in approveRefund(). Marking as AWAITING_MANUAL_REFUND.",
+                        refundId, refundResult.getErrorMessage());
+                refund.markAsAwaitingManualRefund(refund.getApprovedBy());
+            } else {
+                // Auto-refund gateway returned PENDING (unusual) - mark as FAILED for retry
+                log.error("Auto-refund gateway returned PENDING for request {}: {}. Marking as FAILED.",
+                        refundId, refundResult.getErrorMessage());
+                refund.markAsFailed("Gateway returned PENDING status: " + refundResult.getErrorMessage());
+            }
             refund = refundRequestRepository.save(refund);
         } else {
             // Refund failed — mark as FAILED so admin can retry
@@ -320,6 +338,45 @@ public class RefundServiceImpl implements RefundService {
             refund = refundRequestRepository.save(refund);
         }
 
+        return toResponseDto(refund);
+    }
+
+    @Override
+    @Transactional
+    public RefundResponseDto confirmManualRefund(Long refundId, Long adminId, String bankTransferReference) {
+        log.info("Admin {} confirming manual refund completion for refund: {}, bank transfer reference: {}",
+                adminId, refundId, bankTransferReference);
+
+        RefundRequest refund = refundRequestRepository.findById(refundId)
+                .orElseThrow(() -> new IllegalArgumentException("Refund request not found: " + refundId));
+
+        if (refund.getStatus() != RefundStatus.AWAITING_MANUAL_REFUND) {
+            throw new IllegalStateException("Only refunds awaiting manual transfer can be confirmed. Current status: " + refund.getStatus());
+        }
+
+        Order order = refund.getOrder();
+
+        // 1. Find the successful transaction
+        Transaction transaction = transactionRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(
+                order.getId(), TransactionStatus.SUCCESS)
+                .orElseThrow(() -> new IllegalStateException("No successful transaction found for order"));
+
+        // 2. Create a mock GatewayRefundResult for manual refund
+        GatewayRefundResult manualRefundResult = GatewayRefundResult.builder()
+                .success(true)
+                .status(GatewayRefundStatus.COMPLETED)
+                .originalTransactionId(transaction.getGatewayTransactionId())
+                .gatewayName(order.getPaymentMethod().name())
+                .amount(refund.getRequestedAmount())
+                .currency(refund.getCurrency())
+                .refundTransactionId(bankTransferReference != null ? bankTransferReference : "MANUAL-" + System.currentTimeMillis())
+                .rawResponse("Manual bank transfer confirmed by admin " + adminId + ". Reference: " + bankTransferReference)
+                .build();
+
+        // 3. Complete the refund using shared logic
+        completeRefund(refund, order, transaction, manualRefundResult);
+
+        log.info("Manual refund confirmed and completed: {}", refundId);
         return toResponseDto(refund);
     }
 
@@ -357,13 +414,34 @@ public class RefundServiceImpl implements RefundService {
         // Calculate course access percentage
         int courseAccessPercentage = calculateCourseAccessPercentage(order);
 
+        // Check if payment method requires manual refund (e.g., SePay bank transfer)
+        boolean isManualRefundGateway = order.getPaymentMethod() == PaymentMethod.SEPAY;
+
         // Determine refund amount and approval requirement
         BigDecimal refundAmount;
         boolean requiresAdminApproval;
         String eligibilityReason;
 
-        if (daysSincePurchase <= autoApproveDays && courseAccessPercentage == 0) {
-            // Auto-approve: within auto-approve window and no course access
+        // SePay (bank transfer) always requires admin approval - no auto-refund possible
+        if (isManualRefundGateway) {
+            if (daysSincePurchase <= maxRefundDays && courseAccessPercentage <= partialRefundThreshold) {
+                refundAmount = order.getTotalAmount();
+                requiresAdminApproval = true;
+                eligibilityReason = "Eligible for full refund (requires admin approval - manual bank transfer)";
+            } else if (daysSincePurchase <= maxRefundDays && courseAccessPercentage > partialRefundThreshold) {
+                // Partial refund: high course access
+                BigDecimal accessRatio = BigDecimal.valueOf(courseAccessPercentage).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                BigDecimal refundRatio = BigDecimal.ONE.subtract(accessRatio);
+                refundAmount = order.getTotalAmount().multiply(refundRatio);
+                requiresAdminApproval = true;
+                eligibilityReason = "Eligible for partial refund (" + refundAmount + " " + order.getCurrency() + " - requires admin approval)";
+            } else {
+                refundAmount = BigDecimal.ZERO;
+                requiresAdminApproval = false;
+                eligibilityReason = "Not eligible for refund";
+            }
+        } else if (daysSincePurchase <= autoApproveDays && courseAccessPercentage == 0) {
+            // Auto-approve: within auto-approve window and no course access (only for auto-refund gateways)
             refundAmount = order.getTotalAmount();
             requiresAdminApproval = false;
             eligibilityReason = "Eligible for full refund (auto-approve)";
@@ -449,10 +527,81 @@ public class RefundServiceImpl implements RefundService {
     }
 
     /**
+     * Check if payment method supports automatic refund processing
+     */
+    private boolean supportsAutoRefund(PaymentMethod paymentMethod) {
+        // SePay (bank transfer) requires manual refund
+        // PayPal and other gateways support auto-refund
+        return paymentMethod != PaymentMethod.SEPAY;
+    }
+
+    /**
+     * Complete a refund by updating all related entities (order, transaction, earnings, enrollments)
+     * This is shared logic used by both processRefund() (auto-refund) and confirmManualRefund() (manual refund)
+     */
+    private void completeRefund(
+            RefundRequest refund,
+            Order order,
+            Transaction transaction,
+            GatewayRefundResult refundResult) {
+        
+        // Update refund request
+        String refundTransactionId = "REF-" + numberGeneratorService.generateTransactionNumber();
+        refund.markAsCompleted(
+                refundTransactionId,
+                refundResult.getRefundTransactionId(),
+                refundResult.getRawResponse()
+        );
+        refund = refundRequestRepository.save(refund);
+
+        // Update order
+        order.markAsRefunded("Refund processed: " + refund.getReason());
+        orderRepository.save(order);
+
+        // Update transaction
+        transaction.markAsRefunded();
+        transactionRepository.save(transaction);
+
+        // Mark earnings as refunded (proportional for partial refunds)
+        List<InstructorEarning> earnings = earningRepository.findByOrderId(order.getId());
+        boolean isFullRefund = refund.getRequestedAmount().compareTo(order.getTotalAmount()) >= 0;
+
+        if (isFullRefund) {
+            for (InstructorEarning earning : earnings) {
+                if (earning.isPaid()) {
+                    log.warn("MANUAL RECOVERY REQUIRED: Earning {} for instructor {} is already PAID (amount: {}). "
+                            + "Refund {} requires manual clawback from instructor.",
+                            earning.getId(), earning.getInstructorId(), earning.getNetAmount(), refund.getId());
+                }
+                earning.markAsRefunded();
+            }
+        } else {
+            BigDecimal remainingRefund = refund.getRequestedAmount();
+            for (InstructorEarning earning : earnings) {
+                if (remainingRefund.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal earningRefundAmount = earning.getNetAmount().min(remainingRefund);
+                remainingRefund = remainingRefund.subtract(earningRefundAmount);
+                if (earning.isPaid()) {
+                    log.warn("MANUAL RECOVERY REQUIRED: Earning {} for instructor {} is already PAID (amount: {}). "
+                            + "Refund {} requires manual clawback from instructor.",
+                            earning.getId(), earning.getInstructorId(), earningRefundAmount, refund.getId());
+                }
+                earning.markAsRefunded();
+            }
+        }
+        earningRepository.saveAll(earnings);
+
+        // Revoke enrollments if full refund
+        if (isFullRefund) {
+            revokeEnrollments(order);
+        }
+    }
+
+    /**
      * Convert entity to DTO
      */
-    private RefundResponseDto toResponseDto(com.edumind.lms.modules.payment.entity.RefundRequest refund) {
-        return RefundResponseDto.builder()
+    private RefundResponseDto toResponseDto(RefundRequest refund) {
+        RefundResponseDto.RefundResponseDtoBuilder builder = RefundResponseDto.builder()
                 .id(refund.getId())
                 .orderId(refund.getOrder().getId())
                 .orderNumber(refund.getOrder().getOrderNumber())
@@ -460,6 +609,11 @@ public class RefundServiceImpl implements RefundService {
                 .requestedAmount(refund.getRequestedAmount())
                 .currency(refund.getCurrency())
                 .reason(refund.getReason())
+                .bankName(refund.getBankName())
+                .accountHolderName(refund.getAccountHolderName())
+                .accountNumber(refund.getAccountNumber())
+                .swiftCode(refund.getSwiftCode())
+                .bankAddress(refund.getBankAddress())
                 .status(refund.getStatus())
                 .requestedAt(refund.getRequestedAt())
                 .approvedAt(refund.getApprovedAt())
@@ -467,11 +621,47 @@ public class RefundServiceImpl implements RefundService {
                 .processedAt(refund.getProcessedAt())
                 .refundTransactionId(refund.getRefundTransactionId())
                 .gatewayRefundId(refund.getGatewayRefundId())
+                .gatewayResponse(refund.getGatewayResponse())
                 .rejectionReason(refund.getRejectionReason())
                 .rejectedAt(refund.getRejectedAt())
                 .rejectedBy(refund.getRejectedBy())
                 .createdAt(refund.getCreatedAt())
-                .updatedAt(refund.getUpdatedAt())
-                .build();
+                .updatedAt(refund.getUpdatedAt());
+
+        // Fetch and populate approved by name
+        if (refund.getApprovedBy() != null) {
+            builder.approvedByName(fetchUserName(refund.getApprovedBy()));
+        }
+
+        // Fetch and populate rejected by name
+        if (refund.getRejectedBy() != null) {
+            builder.rejectedByName(fetchUserName(refund.getRejectedBy()));
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * Fetch user display name from auth service
+     * Returns null if user not found or error occurs
+     */
+    private String fetchUserName(Long userId) {
+        try {
+            ApiResponse<UserPublicProfileResponse> response = userClient.getUserPublicProfile(userId);
+            if (response != null && response.getData() != null) {
+                UserPublicProfileResponse user = response.getData();
+                // Prefer displayName, fallback to firstName + lastName, or "Unknown User"
+                if (user.displayName != null && !user.displayName.trim().isEmpty()) {
+                    return user.displayName;
+                } else if (user.firstName != null || user.lastName != null) {
+                    String firstName = user.firstName != null ? user.firstName : "";
+                    String lastName = user.lastName != null ? user.lastName : "";
+                    return (firstName + " " + lastName).trim();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch user profile for userId {}: {}", userId, e.getMessage());
+        }
+        return null; // Return null if user not found or error
     }
 }

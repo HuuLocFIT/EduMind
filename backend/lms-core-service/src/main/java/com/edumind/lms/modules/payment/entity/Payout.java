@@ -41,7 +41,7 @@ public class Payout extends BaseEntity {
 
     // Status
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     @Builder.Default
     private PayoutStatus status = PayoutStatus.PENDING;
 
@@ -62,6 +62,18 @@ public class Payout extends BaseEntity {
     // Recipient info (encrypted)
     @Column(name = "bank_account", length = 255)
     private String bankAccount;  // Encrypted
+
+    @Column(name = "bank_name", length = 100)
+    private String bankName;
+
+    @Column(name = "account_holder_name", length = 100)
+    private String accountHolderName;
+
+    @Column(name = "swift_code", length = 20)
+    private String swiftCode;
+
+    @Column(name = "bank_address", length = 200)
+    private String bankAddress;
 
     @Column(name = "paypal_email", length = 255)
     private String paypalEmail;  // Encrypted
@@ -99,6 +111,10 @@ public class Payout extends BaseEntity {
         return status == PayoutStatus.FAILED;
     }
 
+    public boolean isAwaitingManualPayout() {
+        return status == PayoutStatus.AWAITING_MANUAL_PAYOUT;
+    }
+
     public void markAsProcessing() {
         this.status = PayoutStatus.PROCESSING;
     }
@@ -108,6 +124,10 @@ public class Payout extends BaseEntity {
         this.processedAt = LocalDateTime.now();
         this.gatewayTransactionId = gatewayTransactionId;
         this.gatewayResponse = gatewayResponse;
+    }
+
+    public void markAsAwaitingManualPayout() {
+        this.status = PayoutStatus.AWAITING_MANUAL_PAYOUT;
     }
 
     public void markAsFailed(String failureCode, String failureReason) {

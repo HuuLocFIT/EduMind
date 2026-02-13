@@ -29,6 +29,11 @@ public interface RefundService {
     RefundResponseDto getRefundById(Long userId, Long refundId);
 
     /**
+     * Get refund by order ID (for user)
+     */
+    RefundResponseDto getRefundByOrderId(Long userId, Long orderId);
+
+    /**
      * Admin: Get pending refunds
      */
     Page<RefundResponseDto> getPendingRefunds(Pageable pageable);
@@ -47,4 +52,10 @@ public interface RefundService {
      * Process approved refund (called automatically or by admin)
      */
     RefundResponseDto processRefund(Long refundId);
+
+    /**
+     * Admin: Confirm manual refund has been completed (for manual gateways like SePay)
+     * This is called after admin has manually transferred money to the customer
+     */
+    RefundResponseDto confirmManualRefund(Long refundId, Long adminId, String bankTransferReference);
 }

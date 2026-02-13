@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OrderDetailPage } from './OrderDetailPage';
-import { useOrder, useCancelOrder, useRequestRefund } from '../../hooks/useOrders';
+import { useOrder, useCancelOrder } from '../../hooks/useOrders';
 import { useInvoiceByOrder } from '../../hooks/useInvoices';
 import { invoiceService } from '../../services/invoice.service';
 import { USER_ROUTES } from '@edumind/shared-utils';
@@ -23,6 +23,15 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../../hooks/useOrders');
 vi.mock('../../hooks/useInvoices');
 vi.mock('../../services/invoice.service');
+vi.mock('./components/RefundRequestModal', () => ({
+  RefundRequestModal: ({ isOpen, onClose, onSuccess }: any) => 
+    isOpen ? (
+      <div data-testid="refund-request-modal">
+        <button onClick={onClose}>Close Modal</button>
+        <button onClick={onSuccess}>Submit Refund</button>
+      </div>
+    ) : null,
+}));
 
 vi.mock('@edumind/user-ui', () => ({
   Button: ({ children, onClick, disabled, className, isLoading }: any) => (
@@ -81,7 +90,6 @@ describe('OrderDetailPage', () => {
   const mockRefetch = vi.fn();
   
   const mockCancelMutate = vi.fn();
-  const mockRefundMutate = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,11 +113,6 @@ describe('OrderDetailPage', () => {
 
     (useCancelOrder as any).mockReturnValue({
       mutate: mockCancelMutate,
-      isPending: false,
-    });
-
-    (useRequestRefund as any).mockReturnValue({
-      mutate: mockRefundMutate,
       isPending: false,
     });
   });
@@ -226,21 +229,12 @@ describe('OrderDetailPage', () => {
     await user.click(screen.getByText('Request Refund'));
     
     // Modal opens
-    expect(screen.getByText('Reason for Refund')).toBeInTheDocument();
+    expect(screen.getByTestId('refund-request-modal')).toBeInTheDocument();
     
-    // Type reason
-    const textarea = screen.getByPlaceholderText('Please provide a detailed reason for your refund request...');
-    await user.type(textarea, 'Course content not as described');
+    // Submit refund via modal
+    await user.click(screen.getByText('Submit Refund'));
     
-    // Submit
-    await user.click(screen.getByText('Submit Request'));
-    
-    expect(mockRefundMutate).toHaveBeenCalled();
-    const mutateArgs = mockRefundMutate.mock.calls[0][0];
-    expect(mutateArgs).toEqual({ orderId: 123, reason: 'Course content not as described' });
-    
-    // Simulate success
-    mockRefundMutate.mock.calls[0][1].onSuccess();
+    // Verify success callback was called
     expect(mockShowSuccess).toHaveBeenCalledWith('Refund request submitted');
     expect(mockRefetch).toHaveBeenCalled();
   });

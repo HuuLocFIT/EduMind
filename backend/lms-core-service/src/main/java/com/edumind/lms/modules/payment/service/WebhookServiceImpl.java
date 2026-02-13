@@ -96,9 +96,38 @@ public class WebhookServiceImpl implements WebhookService {
                 gateway, request.getOrderNumber(), request.getStatus());
 
         // Find order by order number (with items for cart clearing)
-        Order order = orderRepository.findWithItemsByOrderNumber(request.getOrderNumber())
-                .orElseThrow(() -> new OrderNotFoundException(
-                        "Order not found: " + request.getOrderNumber()));
+        Order order;
+        if (request.getOrderNumber() != null) {
+            order = orderRepository.findWithItemsByOrderNumber(request.getOrderNumber())
+                    .orElseThrow(() -> new OrderNotFoundException(
+                            "Order not found: " + request.getOrderNumber()));
+        } else {
+            // orderNumber is null - try alternative lookup (e.g., PayPal refund webhooks
+            // where the resource is a refund object without custom_id)
+            String status = request.getStatus() != null ? request.getStatus().toUpperCase() : "";
+            if ("REFUNDED".equals(status) || "REVERSED".equals(status)) {
+                // Try to find order via RefundRequest.gatewayRefundId
+                String refundId = request.getResourceId() != null ? request.getResourceId() : request.getTransactionId();
+                order = refundRequestRepository.findByGatewayRefundId(refundId)
+                        .flatMap(refundReq -> orderRepository.findById(refundReq.getOrder().getId()))
+                        .orElse(null);
+
+                if (order == null) {
+                    log.warn("Refund webhook received but could not find order by refundId={}. " +
+                            "This may be a refund processed outside our system. Ignoring gracefully.", refundId);
+                    return;
+                }
+
+                // If order is already refunded, this is idempotent - just log and return
+                if (order.getStatus() == OrderStatus.REFUNDED) {
+                    log.info("Refund webhook for order {} (refundId={}) - order already REFUNDED. " +
+                            "Skipping duplicate webhook processing.", order.getOrderNumber(), refundId);
+                    return;
+                }
+            } else {
+                throw new OrderNotFoundException("Order not found: " + request.getOrderNumber());
+            }
+        }
 
         // Find or create transaction for this order
         // This handles the edge case where webhook arrives before transaction is created

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CheckoutSuccessPage } from './CheckoutSuccessPage';
-import { useCapturePayment } from '../../hooks/useCheckout';
+import { useCapturePayment, usePaymentStatus } from '../../hooks/useCheckout';
 import { USER_ROUTES } from '@edumind/shared-utils';
 
 // Mock Dependencies
@@ -48,6 +48,14 @@ describe('CheckoutSuccessPage', () => {
     (useCapturePayment as any).mockReturnValue({
       mutate: mockCaptureMutate,
       isPending: false,
+    });
+
+    // Mock usePaymentStatus to return a query result object
+    (usePaymentStatus as any).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
     });
   });
 
@@ -244,6 +252,31 @@ describe('CheckoutSuccessPage', () => {
       // No invoice section elements
       expect(screen.queryByText(/Download Invoice/i)).not.toBeInTheDocument();
       expect(screen.queryByText('Invoice will be generated shortly')).not.toBeInTheDocument();
+    });
+
+    it('renders invoice from usePaymentStatus for SePay flow (orderId)', async () => {
+      mockSearchParams.set('orderId', '123');
+      (usePaymentStatus as any).mockReturnValue({
+        data: {
+          success: true,
+          orderNumber: 'ORD-SEPAY-123',
+          invoiceNumber: 'INV-SEPAY-001',
+          invoiceUrl: 'https://example.com/sepay-invoice.pdf',
+        },
+        isLoading: false,
+        isError: false,
+        error: null,
+      });
+
+      render(<CheckoutSuccessPage />);
+
+      await waitFor(() => {
+        const downloadLink = screen.getByRole('link', { name: /Download Invoice/i });
+        expect(downloadLink).toBeInTheDocument();
+        expect(downloadLink).toHaveAttribute('href', 'https://example.com/sepay-invoice.pdf');
+        expect(screen.getByText(/INV-SEPAY-001/)).toBeInTheDocument();
+        expect(screen.getByText('ORD-SEPAY-123')).toBeInTheDocument();
+      });
     });
   });
 

@@ -10,8 +10,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 /**
- * Scheduler for monthly automated payouts.
- * Runs on the 1st of each month at the configured hour.
+ * Scheduler for monthly automated payouts and processing payout status checks.
  */
 @Slf4j
 @Component
@@ -41,6 +40,20 @@ public class PayoutScheduler {
             log.info("Scheduled {} payouts for processing", payouts.size());
         } catch (Exception e) {
             log.error("Error scheduling monthly payouts: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Check status of payouts stuck in PROCESSING state.
+     * Runs every 2 minutes to finalize payouts that were accepted by the gateway
+     * but hadn't completed within the initial polling window.
+     */
+    @Scheduled(fixedDelayString = "${payment.payout.processing-check-interval:120000}")
+    public void checkProcessingPayouts() {
+        try {
+            payoutService.checkProcessingPayouts();
+        } catch (Exception e) {
+            log.error("Error checking processing payouts: {}", e.getMessage(), e);
         }
     }
 }

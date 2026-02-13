@@ -28,5 +28,9 @@ public class CreatePayoutRequestDto {
 
     // Recipient info (required based on payment method)
     private String bankAccount;  // For BANK_TRANSFER
+    private String bankName;
+    private String accountHolderName;
+    private String swiftCode;
+    private String bankAddress;
     private String paypalEmail;  // For PAYPAL
 }

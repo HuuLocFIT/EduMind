@@ -6,6 +6,14 @@ import com.paypal.core.PayPalHttpClient;
 import com.paypal.http.HttpResponse;
 import com.paypal.http.exceptions.HttpException;
 import com.paypal.orders.*;
+import com.paypal.payouts.CreatePayoutRequest;
+import com.paypal.payouts.CreatePayoutResponse;
+import com.paypal.payouts.PayoutBatch;
+import com.paypal.payouts.PayoutBatchItem;
+import com.paypal.payouts.PayoutItem;
+import com.paypal.payouts.PayoutsGetRequest;
+import com.paypal.payouts.PayoutsPostRequest;
+import com.paypal.payouts.SenderBatchHeader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -15,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * PayPal Payment Gateway implementation using PayPal Checkout SDK.
@@ -25,6 +34,10 @@ import java.util.Set;
 public class PayPalGateway implements PaymentGateway {
 
     private static final String GATEWAY_NAME = "PAYPAL";
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    private static final int PAYOUT_POLL_MAX_ATTEMPTS = 5;
+    private static final long PAYOUT_POLL_INTERVAL_MS = 2000;
     private static final Set<String> SUPPORTED_CURRENCIES = Set.of(
             "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "SGD"
             // Note: VND is not directly supported by PayPal for international transactions usually,
@@ -411,8 +424,8 @@ public class PayPalGateway implements PaymentGateway {
     }
 
     @Override
-    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency) {
-        log.info("[PAYPAL] Processing payout to: {}, amount: {} {}", recipient, amount, currency);
+    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency, String payoutReference) {
+        log.info("[PAYPAL] Processing payout to: {}, amount: {} {}, reference: {}", recipient, amount, currency, payoutReference);
 
         // Validate currency
         if (!supportsCurrency(currency)) {
@@ -421,13 +434,223 @@ public class PayPalGateway implements PaymentGateway {
                     "PayPal does not support " + currency + " for payouts.");
         }
 
-        // PayPal Payouts API requires OAuth token
-        // For now, return a pending result that requires manual processing
-        // In production, implement OAuth flow and use PayPal Payouts REST API
-        log.warn("[PAYPAL] Payout API not fully implemented - requires OAuth token and Payouts API access");
-        
-        // Return pending status - admin can process manually or implement OAuth flow
-        String transactionId = "PAYPAL-POUT-" + System.currentTimeMillis();
-        return GatewayPayoutResult.pending(transactionId, GATEWAY_NAME);
+        // Validate recipient email
+        if (!isValidEmail(recipient)) {
+            log.warn("[PAYPAL] Invalid recipient email for payout: {}", recipient);
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "INVALID_RECIPIENT",
+                    "Invalid PayPal email address: " + recipient);
+        }
+
+        // Deterministic sender_batch_id based on payout number for idempotency.
+        // PayPal rejects SENDER_BATCH_ID_ALREADY_USED if the same batch is submitted twice.
+        String senderBatchId = "EDUMIND-" + payoutReference;
+
+        // Create payout batch with a single item
+        CreatePayoutRequest payoutRequest = new CreatePayoutRequest()
+                .senderBatchHeader(new SenderBatchHeader()
+                        .senderBatchId(senderBatchId)
+                        .emailSubject("You have a payout from EduMind")
+                        .emailMessage("You have received a payout for your instructor earnings on EduMind."))
+                .items(List.of(new PayoutItem()
+                        .recipientType("EMAIL")
+                        .receiver(recipient)
+                        .amount(new com.paypal.payouts.Currency()
+                                .currency(currency)
+                                .value(amount.toPlainString()))
+                        .senderItemId("EDUMIND-" + payoutReference + "-ITEM-1")
+                        .note("EduMind instructor payout")));
+
+        PayoutsPostRequest request = new PayoutsPostRequest();
+        request.requestBody(payoutRequest);
+
+        try {
+            HttpResponse<CreatePayoutResponse> response = payPalClient.execute(request);
+            CreatePayoutResponse payoutResponse = response.result();
+
+            String batchId = payoutResponse.batchHeader().payoutBatchId();
+            String batchStatus = payoutResponse.batchHeader().batchStatus();
+            log.info("[PAYPAL] Payout batch created. Batch ID: {}, Status: {}", batchId, batchStatus);
+
+            // Poll for completion — most PayPal payouts resolve in 1-5 seconds
+            return pollPayoutStatus(batchId, amount, currency);
+
+        } catch (HttpException e) {
+            log.error("[PAYPAL] Payout HTTP error: {}", e.getMessage());
+            return mapPayoutHttpError(e);
+        } catch (IOException e) {
+            log.error("[PAYPAL] Payout failed due to IO error", e);
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYPAL_PAYOUT_ERROR",
+                    "Payout service unavailable. Please try again later.");
+        }
+    }
+
+    /**
+     * Poll PayPal Payouts batch status until items resolve or timeout.
+     */
+    private GatewayPayoutResult pollPayoutStatus(String batchId, BigDecimal amount, String currency) {
+        for (int attempt = 1; attempt <= PAYOUT_POLL_MAX_ATTEMPTS; attempt++) {
+            try {
+                Thread.sleep(PAYOUT_POLL_INTERVAL_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYOUT_INTERRUPTED",
+                        "Payout status check interrupted. Batch ID: " + batchId);
+            }
+
+            try {
+                PayoutsGetRequest getRequest = new PayoutsGetRequest(batchId);
+                getRequest.page(1);
+                getRequest.pageSize(1);
+                HttpResponse<PayoutBatch> batchResponse = payPalClient.execute(getRequest);
+                PayoutBatch batch = batchResponse.result();
+
+                String batchStatus = batch.batchHeader().batchStatus();
+                log.debug("[PAYPAL] Poll attempt {}/{} for batch {}: status={}",
+                        attempt, PAYOUT_POLL_MAX_ATTEMPTS, batchId, batchStatus);
+
+                // Check individual item status if items are available
+                if (batch.items() != null && !batch.items().isEmpty()) {
+                    PayoutBatchItem item = batch.items().get(0);
+                    String itemStatus = item.transactionStatus();
+                    log.info("[PAYPAL] Payout item status for batch {}: {}", batchId, itemStatus);
+
+                    if ("SUCCESS".equals(itemStatus)) {
+                        String payoutItemId = item.payoutItemId();
+                        log.info("[PAYPAL] Payout completed successfully. Batch ID: {}, Item ID: {}", batchId, payoutItemId);
+                        return GatewayPayoutResult.success(payoutItemId, GATEWAY_NAME, amount, currency);
+                    }
+
+                    if ("FAILED".equals(itemStatus) || "RETURNED".equals(itemStatus) || "BLOCKED".equals(itemStatus)) {
+                        String errorMsg = mapPayoutItemError(item);
+                        log.error("[PAYPAL] Payout item failed. Batch ID: {}, Status: {}, Error: {}", batchId, itemStatus, errorMsg);
+                        return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYOUT_" + itemStatus, errorMsg);
+                    }
+                }
+
+                // If batch-level status indicates final failure
+                if ("DENIED".equals(batchStatus)) {
+                    log.error("[PAYPAL] Payout batch denied. Batch ID: {}", batchId);
+                    return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYOUT_DENIED",
+                            "Payout batch was denied by PayPal. Batch ID: " + batchId);
+                }
+
+            } catch (IOException e) {
+                log.warn("[PAYPAL] Error polling payout status (attempt {}/{}): {}",
+                        attempt, PAYOUT_POLL_MAX_ATTEMPTS, e.getMessage());
+                // Continue polling on transient errors
+            }
+        }
+
+        // Timeout — PayPal accepted the payout but hasn't finished processing yet.
+        // Return PENDING so the service layer keeps it as PROCESSING (not FAILED).
+        log.info("[PAYPAL] Payout still processing after {} poll attempts. Batch ID: {}. Will check later.",
+                PAYOUT_POLL_MAX_ATTEMPTS, batchId);
+        return GatewayPayoutResult.pending(batchId, GATEWAY_NAME);
+    }
+
+    /**
+     * Map PayPal payout item errors to user-friendly messages.
+     */
+    private String mapPayoutItemError(PayoutBatchItem item) {
+        if (item.errors() != null) {
+            String errorName = item.errors().name();
+            String errorMessage = item.errors().message();
+            log.debug("[PAYPAL] Payout item error: name={}, message={}", errorName, errorMessage);
+
+            if (errorName != null) {
+                return switch (errorName) {
+                    case "RECEIVER_UNREGISTERED" ->
+                            "Recipient does not have a PayPal account. Please verify the PayPal email address.";
+                    case "RECEIVER_UNCONFIRMED" ->
+                            "Recipient's PayPal account is unconfirmed. They need to confirm their account.";
+                    case "INSUFFICIENT_FUNDS" ->
+                            "Insufficient funds in sender PayPal account. Please contact support.";
+                    case "REGULATORY_BLOCKED", "REGULATORY_REVIEW_PENDING" ->
+                            "Payout blocked due to regulatory review. Please contact support.";
+                    default ->
+                            errorMessage != null ? errorMessage : "Payout failed: " + errorName;
+                };
+            }
+            return errorMessage != null ? errorMessage : "Payout item failed with unknown error.";
+        }
+        return "Payout failed. Transaction status: " + item.transactionStatus();
+    }
+
+    /**
+     * Map PayPal HTTP errors from the Payouts API to GatewayPayoutResult.
+     */
+    private GatewayPayoutResult mapPayoutHttpError(HttpException e) {
+        String errorBody = e.getMessage();
+        if (errorBody != null) {
+            if (errorBody.contains("INSUFFICIENT_FUNDS")) {
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "INSUFFICIENT_FUNDS",
+                        "Insufficient funds in PayPal account to process payout.");
+            }
+            if (errorBody.contains("AUTHORIZATION_ERROR")) {
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "AUTHORIZATION_ERROR",
+                        "PayPal Payouts API not authorized. Ensure Payouts permission is enabled in PayPal Developer Dashboard.");
+            }
+            if (errorBody.contains("SENDER_BATCH_ID_ALREADY_USED")) {
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "DUPLICATE_BATCH",
+                        "Duplicate payout request detected. This payout may have already been processed.");
+            }
+            if (errorBody.contains("VALIDATION_ERROR")) {
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "VALIDATION_ERROR",
+                        "Invalid payout request. Please verify the recipient email and amount.");
+            }
+        }
+        return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYPAL_PAYOUT_ERROR",
+                "Payout request failed. Please try again or contact support.");
+    }
+
+    @Override
+    public GatewayPayoutResult getPayoutStatus(String gatewayTransactionId) {
+        log.info("[PAYPAL] Checking payout status for Batch ID: {}", gatewayTransactionId);
+
+        try {
+            PayoutsGetRequest getRequest = new PayoutsGetRequest(gatewayTransactionId);
+            getRequest.page(1);
+            getRequest.pageSize(1);
+            HttpResponse<PayoutBatch> batchResponse = payPalClient.execute(getRequest);
+            PayoutBatch batch = batchResponse.result();
+
+            String batchStatus = batch.batchHeader().batchStatus();
+            log.info("[PAYPAL] Payout batch {} status: {}", gatewayTransactionId, batchStatus);
+
+            // Check batch-level terminal states
+            if ("DENIED".equals(batchStatus) || "CANCELED".equals(batchStatus)) {
+                return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYOUT_" + batchStatus,
+                        "Payout batch was " + batchStatus.toLowerCase() + " by PayPal.");
+            }
+
+            // Check item-level status
+            if (batch.items() != null && !batch.items().isEmpty()) {
+                PayoutBatchItem item = batch.items().get(0);
+                String itemStatus = item.transactionStatus();
+
+                if ("SUCCESS".equals(itemStatus)) {
+                    return GatewayPayoutResult.success(item.payoutItemId(), GATEWAY_NAME,
+                            new BigDecimal(item.payoutItem().amount().value()),
+                            item.payoutItem().amount().currency());
+                }
+
+                if ("FAILED".equals(itemStatus) || "RETURNED".equals(itemStatus) || "BLOCKED".equals(itemStatus)) {
+                    return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYOUT_" + itemStatus,
+                            mapPayoutItemError(item));
+                }
+            }
+
+            // Still processing
+            return GatewayPayoutResult.pending(gatewayTransactionId, GATEWAY_NAME);
+
+        } catch (IOException e) {
+            log.error("[PAYPAL] Failed to check payout status for Batch ID: {}", gatewayTransactionId, e);
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "PAYOUT_STATUS_ERROR",
+                    "Failed to check payout status: " + e.getMessage());
+        }
+    }
+
+    private boolean isValidEmail(String email) {
+        return email != null && EMAIL_PATTERN.matcher(email).matches();
     }
 }

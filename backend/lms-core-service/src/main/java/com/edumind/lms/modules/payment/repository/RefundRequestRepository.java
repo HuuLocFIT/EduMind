@@ -22,6 +22,9 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequest, Lo
     // Find by status
     Page<RefundRequest> findByStatusOrderByRequestedAtDesc(RefundStatus status, Pageable pageable);
 
+    // Find by multiple statuses (for admin: PENDING and FAILED refunds that need attention)
+    Page<RefundRequest> findByStatusInOrderByRequestedAtDesc(List<RefundStatus> statuses, Pageable pageable);
+
     // Find pending refunds
     List<RefundRequest> findByStatusOrderByRequestedAtAsc(RefundStatus status);
 
@@ -30,6 +33,9 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequest, Lo
 
     // Check if order has any refund request
     boolean existsByOrderId(Long orderId);
+
+    // Find by gateway refund ID (e.g., PayPal refund ID from webhook)
+    Optional<RefundRequest> findByGatewayRefundId(String gatewayRefundId);
 
     // Count by status
     long countByStatus(RefundStatus status);

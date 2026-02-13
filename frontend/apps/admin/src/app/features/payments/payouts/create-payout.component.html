@@ -1,0 +1,133 @@
+<div class="container mx-auto p-6 space-y-6">
+  <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+    <div class="space-y-1">
+      <h1 class="text-2xl font-bold text-gray-900">Create Payout</h1>
+      <p class="text-gray-600 text-sm">Create a new payout for an instructor.</p>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  @if (successMessage()) {
+    <app-alert variant="success" [message]="successMessage()" [dismissible]="true" (onClose)="successMessage.set('')" />
+  }
+  @if (errorMessage()) {
+    <app-alert variant="error" [message]="errorMessage()" [dismissible]="true" (onClose)="errorMessage.set('')" />
+  }
+
+  <!-- Form -->
+  <app-card [padding]="'md'" [customClass]="'bg-white border border-gray-200 shadow-sm mt-4'">
+    <form [formGroup]="payoutForm" (ngSubmit)="onSubmit()" class="space-y-5">
+      <!-- Instructor ID -->
+      <div>
+        <app-input
+          label="Instructor ID"
+          type="number"
+          formControlName="instructorId"
+          placeholder="Enter instructor ID"
+          [required]="true"
+        />
+        @if (getFieldError('instructorId')) {
+          <p class="mt-1 text-sm text-red-600">{{ getFieldError('instructorId') }}</p>
+        }
+      </div>
+
+      <!-- Payment Method -->
+      <div>
+        <app-select
+          label="Payment Method"
+          [options]="paymentMethodOptions"
+          formControlName="paymentMethod"
+          [required]="true"
+          [size]="'md'"
+        />
+      </div>
+
+      <!-- Conditional Fields -->
+      @if (paymentMethod === PayoutMethod.BANK_TRANSFER) {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="md:col-span-2">
+            <app-input
+              label="Bank Name"
+              type="text"
+              formControlName="bankName"
+              placeholder="Enter bank name"
+              [required]="true"
+            />
+            @if (getFieldError('bankName')) {
+              <p class="mt-1 text-sm text-red-600">{{ getFieldError('bankName') }}</p>
+            }
+          </div>
+
+          <div class="md:col-span-2">
+            <app-input
+              label="Account Holder Name"
+              type="text"
+              formControlName="accountHolderName"
+              placeholder="Enter account holder name"
+              [required]="true"
+            />
+            @if (getFieldError('accountHolderName')) {
+              <p class="mt-1 text-sm text-red-600">{{ getFieldError('accountHolderName') }}</p>
+            }
+          </div>
+
+          <div class="md:col-span-2">
+            <app-input
+              label="Bank Account / Account Number"
+              type="text"
+              formControlName="bankAccount"
+              placeholder="Enter bank account number"
+              [required]="true"
+            />
+            @if (getFieldError('bankAccount')) {
+              <p class="mt-1 text-sm text-red-600">{{ getFieldError('bankAccount') }}</p>
+            }
+          </div>
+
+          <div>
+            <app-input
+              label="SWIFT Code (optional)"
+              type="text"
+              formControlName="swiftCode"
+              placeholder="Enter SWIFT/BIC code"
+            />
+          </div>
+
+          <div>
+            <app-input
+              label="Bank Address (optional)"
+              type="text"
+              formControlName="bankAddress"
+              placeholder="Enter bank branch address"
+            />
+          </div>
+        </div>
+      }
+
+      @if (paymentMethod === PayoutMethod.PAYPAL) {
+        <div>
+          <app-input
+            label="PayPal Email"
+            type="email"
+            formControlName="paypalEmail"
+            placeholder="Enter PayPal email address"
+            [required]="true"
+          />
+          @if (getFieldError('paypalEmail')) {
+            <p class="mt-1 text-sm text-red-600">{{ getFieldError('paypalEmail') }}</p>
+          }
+        </div>
+      }
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+        <app-button variant="outline" type="button" (click)="onCancel()">
+          Cancel
+        </app-button>
+        <app-button variant="primary" type="submit" [disabled]="payoutForm.invalid">
+          Create Payout
+        </app-button>
+      </div>
+    </form>
+  </app-card>
+</div>

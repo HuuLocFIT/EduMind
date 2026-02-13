@@ -163,6 +163,13 @@
 			<artifactId>checkout-sdk</artifactId>
 			<version>2.0.0</version>
 		</dependency>
+
+		<!-- PayPal Payouts SDK (uses same PayPalHttpClient) -->
+		<dependency>
+			<groupId>com.paypal.sdk</groupId>
+			<artifactId>payouts-sdk</artifactId>
+			<version>1.1.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>

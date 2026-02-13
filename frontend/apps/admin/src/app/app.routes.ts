@@ -60,6 +60,34 @@ export const appRoutes: Route[] = [
             (m) => m.CourseDetailComponent
           ),
       },
+      {
+        path: ADMIN_ROUTES.REFUNDS_PENDING.replace('/', ''),
+        loadComponent: () =>
+          import('./features/payments/refunds/pending-refunds.component').then(
+            (m) => m.PendingRefundsComponent
+          ),
+      },
+      {
+        path: ADMIN_ROUTES.PAYOUTS_ALL.replace('/', ''),
+        loadComponent: () =>
+          import('./features/payments/payouts/all-payouts.component').then(
+            (m) => m.AllPayoutsComponent
+          ),
+      },
+      {
+        path: ADMIN_ROUTES.PAYOUTS_PENDING.replace('/', ''),
+        loadComponent: () =>
+          import('./features/payments/payouts/pending-payouts.component').then(
+            (m) => m.PendingPayoutsComponent
+          ),
+      },
+      {
+        path: ADMIN_ROUTES.PAYOUT_CREATE.replace('/', ''),
+        loadComponent: () =>
+          import('./features/payments/payouts/create-payout.component').then(
+            (m) => m.CreatePayoutComponent
+          ),
+      },
     ],
   },
 ];

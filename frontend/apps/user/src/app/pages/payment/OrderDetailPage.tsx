@@ -1,12 +1,14 @@
 import React from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Card, Button, Loading, PriceTag, ConfirmDialog, useToast } from "@edumind/user-ui";
-import { useOrder, useCancelOrder, useRequestRefund } from "../../hooks/useOrders";
+import { Card, Button, Loading, ConfirmDialog, useToast } from "@edumind/user-ui";
+import { useOrder, useCancelOrder } from "../../hooks/useOrders";
 import { useInvoiceByOrder } from "../../hooks/useInvoices";
+import { useRefundByOrder } from "../../hooks/useRefunds";
+import { RefundRequestModal } from "./components/RefundRequestModal";
 import {
   Package, ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle,
   Download, FileText, RefreshCw, CreditCard, Receipt, Calendar,
-  User, Hash, TrendingUp,
+  User, Hash, Eye,
 } from "lucide-react";
 import { USER_ROUTES, UserRouteHelpers, downloadBlob, formatDateTime } from "@edumind/shared-utils";
 import { OrderStatus } from "@edumind/shared-constants";
@@ -83,14 +85,13 @@ export const OrderDetailPage: React.FC = () => {
   const { success: showSuccess, error: showError } = useToast();
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState(false);
-  const [isRefundDialogOpen, setIsRefundDialogOpen] = React.useState(false);
-  const [refundReason, setRefundReason] = React.useState("");
+  const [isRefundModalOpen, setIsRefundModalOpen] = React.useState(false);
 
   // Server state
   const { data: order, isLoading, error, refetch } = useOrder(Number(orderId), !!orderId);
   const { data: invoice } = useInvoiceByOrder(Number(orderId), !!orderId);
+  const { data: existingRefund } = useRefundByOrder(Number(orderId), !!orderId && order?.status === OrderStatus.COMPLETED);
   const cancelOrder = useCancelOrder();
-  const requestRefund = useRequestRefund();
 
   const handleCancelOrder = () => {
     if (!orderId) return;
@@ -106,21 +107,6 @@ export const OrderDetailPage: React.FC = () => {
     });
   };
 
-  const handleRequestRefund = () => {
-    if (!orderId) return;
-    requestRefund.mutate({ orderId: Number(orderId), reason: refundReason }, {
-      onSuccess: () => {
-        setIsRefundDialogOpen(false);
-        setRefundReason("");
-        showSuccess("Refund request submitted");
-        refetch();
-      },
-      onError: (err: Error) => {
-        showError(err.message || "Failed to request refund");
-      },
-    });
-  };
-
   const handleDownloadInvoice = async () => {
     if (!invoice) return;
     try {
@@ -131,8 +117,6 @@ export const OrderDetailPage: React.FC = () => {
       showError(err.message || "Failed to download invoice");
     }
   };
-
-
 
   const formatCurrency = (amount: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
@@ -177,7 +161,7 @@ export const OrderDetailPage: React.FC = () => {
   const statusConfig = STATUS_CONFIG[order.status as OrderStatus] || STATUS_CONFIG[OrderStatus.PENDING];
   const StatusIcon = statusConfig.icon;
   const canCancel = order.status === OrderStatus.PENDING;
-  const canRefund = order.status === OrderStatus.COMPLETED;
+  const canRefund = order.status === OrderStatus.COMPLETED && !existingRefund;
 
   return (
     <>
@@ -388,6 +372,30 @@ export const OrderDetailPage: React.FC = () => {
                 </div>
               </Card>
 
+              {/* Existing Refund Info */}
+              {existingRefund && (
+                <Card className="p-4 sm:p-5 lg:p-8 rounded-2xl border border-blue-200 shadow-sm bg-blue-50/30">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                    <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Refund Request</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600">
+                      You have already submitted a refund request for this order.
+                    </p>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => navigate(UserRouteHelpers.refundDetail(existingRefund.id))}
+                      className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all text-xs sm:text-sm"
+                      leftIcon={<Eye className="w-4 h-4" />}
+                    >
+                      View Refund Status
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
               {/* Actions */}
               {(canCancel || canRefund) && (
                 <Card className="p-4 sm:p-5 lg:p-8 rounded-2xl border border-gray-200 shadow-sm">
@@ -410,7 +418,7 @@ export const OrderDetailPage: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsRefundDialogOpen(true)}
+                        onClick={() => setIsRefundModalOpen(true)}
                         className="w-full sm:w-auto bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:border-amber-300 shadow-sm hover:shadow-md transition-all text-xs sm:text-sm"
                       >
                         Request Refund
@@ -437,64 +445,24 @@ export const OrderDetailPage: React.FC = () => {
         isLoading={cancelOrder.isPending}
       />
 
-      {/* Refund Dialog - Custom Modal */}
-      {isRefundDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 lg:p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start sm:items-center gap-3 mb-4 sm:mb-6">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Request Refund</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Our team will review within 3-5 business days</p>
-              </div>
-            </div>
-            
-            <div className="mb-4 sm:mb-6">
-              <label htmlFor="refund-reason" className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
-                Reason for Refund <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="refund-reason"
-                value={refundReason}
-                onChange={(e) => setRefundReason(e.target.value)}
-                placeholder="Please provide a detailed reason for your refund request..."
-                rows={4}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-none text-xs sm:text-sm"
-              />
-              {refundReason.length === 0 && (
-                <p className="text-xs text-gray-400 mt-1">This field is required</p>
-              )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsRefundDialogOpen(false);
-                  setRefundReason("");
-                }}
-                className="flex-1 border-gray-300 hover:bg-gray-50 text-xs sm:text-sm"
-                disabled={requestRefund.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleRequestRefund}
-                isLoading={requestRefund.isPending}
-                disabled={!refundReason.trim()}
-                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
-              >
-                Submit Request
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Refund Request Modal */}
+      <RefundRequestModal
+        orderId={Number(orderId)}
+        paymentMethod={order?.paymentMethod}
+        isOpen={isRefundModalOpen}
+        onClose={() => setIsRefundModalOpen(false)}
+        onSuccess={(refundId) => {
+          setIsRefundModalOpen(false);
+          showSuccess("Refund request submitted successfully");
+          refetch();
+          // Navigate to refund detail page
+          if (refundId) {
+            setTimeout(() => {
+              navigate(UserRouteHelpers.refundDetail(refundId));
+            }, 1000);
+          }
+        }}
+      />
     </>
   );
 };

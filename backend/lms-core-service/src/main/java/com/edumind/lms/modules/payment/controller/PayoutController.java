@@ -1,10 +1,14 @@
 package com.edumind.lms.modules.payment.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.common.response.PagedResponse;
+import com.edumind.lms.modules.payment.dto.request.ConfirmManualPayoutRequestDto;
 import com.edumind.lms.modules.payment.dto.request.CreatePayoutRequestDto;
 import com.edumind.lms.modules.payment.dto.request.UpdatePayoutRequestDto;
+import com.edumind.lms.modules.payment.dto.request.PayoutSettingsDto;
 import com.edumind.lms.modules.payment.dto.response.PayoutResponseDto;
 import com.edumind.lms.modules.payment.dto.response.PayoutSummaryDto;
+import com.edumind.lms.modules.payment.enums.PayoutStatus;
 import com.edumind.lms.modules.payment.service.PayoutService;
 import com.edumind.lms.config.security.JwtUserPrincipal;
 import jakarta.validation.Valid;
@@ -32,7 +36,7 @@ public class PayoutController {
      * GET /api/instructors/payouts
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<PayoutResponseDto>>> getInstructorPayouts(
+    public ResponseEntity<PagedResponse<PayoutResponseDto>> getInstructorPayouts(
             @PageableDefault(size = 20) Pageable pageable,
             Authentication authentication) {
 
@@ -41,7 +45,12 @@ public class PayoutController {
 
         Page<PayoutResponseDto> payouts = payoutService.getInstructorPayouts(instructorId, pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(payouts));
+        return ResponseEntity.ok(PagedResponse.of(
+                payouts.getContent(),
+                payouts.getNumber(),
+                payouts.getSize(),
+                payouts.getTotalElements(),
+                payouts.getTotalPages()));
     }
 
     /**
@@ -77,6 +86,34 @@ public class PayoutController {
         return ResponseEntity.ok(ApiResponse.success(summary));
     }
 
+    /**
+     * Get instructor payout settings (bank / PayPal)
+     * GET /api/instructors/payouts/payment-settings
+     */
+    @GetMapping("/payment-settings")
+    public ResponseEntity<ApiResponse<PayoutSettingsDto>> getPayoutSettings(Authentication authentication) {
+        Long instructorId = extractUserId(authentication);
+        log.info("Instructor {} fetching payout settings", instructorId);
+
+        PayoutSettingsDto settings = payoutService.getPayoutSettings(instructorId);
+        return ResponseEntity.ok(ApiResponse.success(settings));
+    }
+
+    /**
+     * Update instructor payout settings (bank / PayPal)
+     * PUT /api/instructors/payouts/payment-settings
+     */
+    @PutMapping("/payment-settings")
+    public ResponseEntity<ApiResponse<PayoutSettingsDto>> updatePayoutSettings(
+            @Valid @RequestBody PayoutSettingsDto request,
+            Authentication authentication) {
+        Long instructorId = extractUserId(authentication);
+        log.info("Instructor {} updating payout settings", instructorId);
+
+        PayoutSettingsDto settings = payoutService.updatePayoutSettings(instructorId, request);
+        return ResponseEntity.ok(ApiResponse.success("Payout settings updated", settings));
+    }
+
     // ==================== Admin Endpoints ====================
 
     /**
@@ -85,30 +122,47 @@ public class PayoutController {
      */
     @GetMapping("/admin/pending")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<PayoutResponseDto>>> getPendingPayoutsAdmin(
+    public ResponseEntity<PagedResponse<PayoutResponseDto>> getPendingPayoutsAdmin(
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.info("Admin fetching pending payouts");
 
         Page<PayoutResponseDto> payouts = payoutService.getPendingPayouts(pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(payouts));
+        return ResponseEntity.ok(PagedResponse.of(
+                payouts.getContent(),
+                payouts.getNumber(),
+                payouts.getSize(),
+                payouts.getTotalElements(),
+                payouts.getTotalPages()));
     }
 
     /**
-     * Admin: Get all payouts
-     * GET /api/instructors/payouts/admin
+     * Admin: Get all payouts (optionally filtered by status)
+     * GET /api/instructors/payouts/admin?status=PENDING
      */
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<PayoutResponseDto>>> getAllPayoutsAdmin(
+    public ResponseEntity<PagedResponse<PayoutResponseDto>> getAllPayoutsAdmin(
+            @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        log.info("Admin fetching all payouts");
+        log.info("Admin fetching all payouts, status filter: {}", status);
 
-        Page<PayoutResponseDto> payouts = payoutService.getAllPayouts(pageable);
+        Page<PayoutResponseDto> payouts;
+        if (status != null && !status.isBlank()) {
+            PayoutStatus payoutStatus = PayoutStatus.valueOf(status.toUpperCase());
+            payouts = payoutService.getAllPayouts(payoutStatus, pageable);
+        } else {
+            payouts = payoutService.getAllPayouts(pageable);
+        }
 
-        return ResponseEntity.ok(ApiResponse.success(payouts));
+        return ResponseEntity.ok(PagedResponse.of(
+                payouts.getContent(),
+                payouts.getNumber(),
+                payouts.getSize(),
+                payouts.getTotalElements(),
+                payouts.getTotalPages()));
     }
 
     /**
@@ -158,6 +212,26 @@ public class PayoutController {
         PayoutResponseDto payout = payoutService.processPayout(id);
 
         return ResponseEntity.ok(ApiResponse.success("Payout processed", payout));
+    }
+
+    /**
+     * Admin: Confirm manual payout after bank transfer
+     * POST /api/instructors/payouts/admin/{id}/confirm-manual-payout
+     */
+    @PostMapping("/admin/{id}/confirm-manual-payout")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PayoutResponseDto>> confirmManualPayoutAdmin(
+            @PathVariable Long id,
+            @Valid @RequestBody ConfirmManualPayoutRequestDto request,
+            Authentication authentication) {
+
+        Long adminId = extractUserId(authentication);
+        log.info("Admin {} confirming manual payout {}", adminId, id);
+
+        PayoutResponseDto payout = payoutService.confirmManualPayout(
+                id, adminId, request.getBankTransferReference());
+
+        return ResponseEntity.ok(ApiResponse.success("Manual payout confirmed", payout));
     }
 
     /**
