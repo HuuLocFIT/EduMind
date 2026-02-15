@@ -21,4 +21,9 @@ public interface NumberGeneratorService {
      * Generate transaction number: TXN-202501-0001
      */
     String generateTransactionNumber();
+
+    /**
+     * Generate payout number: POUT-202501-0001
+     */
+    String generatePayoutNumber();
 }

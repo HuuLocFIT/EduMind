@@ -28,6 +28,10 @@ export const ADMIN_ROUTES = {
   COURSES: '/courses',
   CATEGORIES: '/categories',
   PAYMENTS: '/payments',
+  REFUNDS_PENDING: '/payments/refunds',
+  PAYOUTS_ALL: '/payments/payouts',
+  PAYOUTS_PENDING: '/payments/payouts/pending',
+  PAYOUT_CREATE: '/payments/payouts/create',
   REPORTS: '/reports',
   SETTINGS: '/settings',
 } as const;
@@ -102,6 +106,10 @@ export const USER_ROUTES = {
   // Invoices
   INVOICES: '/invoices',
   INVOICE_DETAIL: '/invoices/:invoiceId',
+
+  // Refunds
+  REFUNDS: '/refunds',
+  REFUND_DETAIL: '/refunds/:refundId',
   
   // Not found
   NOT_FOUND: '/404',
@@ -134,6 +142,10 @@ export const TEACHER_ROUTES = {
   
   // Earnings
   EARNINGS: '/teacher/earnings',
+  
+  // Payouts
+  PAYOUTS: '/teacher/payouts',
+  PAYOUT_DETAIL: '/teacher/payouts/:payoutId',
   
   // Settings
   SETTINGS: '/teacher/settings',
@@ -192,6 +204,7 @@ export const getUserRoute = (route: keyof typeof USER_ROUTES): string => {
 export const UserRouteHelpers = {
   courseDetail: (courseId: string | number) => `/courses/${courseId}`,
   learningCourse: (courseId: string | number) => `/learning/${courseId}`,
+  refundDetail: (refundId: string | number) => `/refunds/${refundId}`,
 } as const;
 
 /**
@@ -202,6 +215,7 @@ export const TeacherRouteHelpers = {
   courseEdit: (courseId: string | number, tab?: string) => `/teacher/courses/${courseId}/edit${tab ? `?tab=${tab}` : ''}`,
   courseCurriculum: (courseId: string | number) => `/teacher/courses/${courseId}/curriculum`,
   courseStudents: (courseId: string | number) => `/teacher/courses/${courseId}/students`,
+  payoutDetail: (payoutId: string | number) => `/teacher/payouts/${payoutId}`,
 } as const;
 
 /**

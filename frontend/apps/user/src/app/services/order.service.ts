@@ -70,6 +70,7 @@ export const orderService = {
 
   /**
    * Request refund for a completed order
+   * @deprecated Use refundService.requestRefund instead
    */
   async requestRefund(orderId: number, reason?: string): Promise<OrderResponse> {
     const response = await apiClient.post<OrderResponse>(

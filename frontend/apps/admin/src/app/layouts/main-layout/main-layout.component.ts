@@ -29,6 +29,8 @@ export class MainLayoutComponent {
   isNotificationOpen = signal(false);
   expandedItems = signal<Set<string>>(new Set());
 
+  readonly ADMIN_ROUTES = ADMIN_ROUTES;
+
   navItems: NavItem[] = [
     { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     {
@@ -42,7 +44,16 @@ export class MainLayoutComponent {
     { label: 'Students', path: '/students', icon: 'school' },
     { label: 'Courses', path: ADMIN_ROUTES.COURSES, icon: 'book' },
     { label: 'Categories', path: ADMIN_ROUTES.CATEGORIES, icon: 'category' },
-    { label: 'Payments', path: '/payments', icon: 'payment' },
+    {
+      label: 'Payments',
+      icon: 'payment',
+      children: [
+        { label: 'Pending Refunds', path: ADMIN_ROUTES.REFUNDS_PENDING, icon: 'undo' },
+        { label: 'Pending Payouts', path: ADMIN_ROUTES.PAYOUTS_PENDING, icon: 'schedule_send' },
+        { label: 'All Payouts', path: ADMIN_ROUTES.PAYOUTS_ALL, icon: 'payments' },
+        { label: 'Create Payout', path: ADMIN_ROUTES.PAYOUT_CREATE, icon: 'add_circle' },
+      ],
+    },
     { label: 'Reports', path: '/reports', icon: 'analytics' },
     { label: 'Settings', path: '/settings', icon: 'settings' },
   ];

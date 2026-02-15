@@ -4,7 +4,7 @@ import { useAuthStore } from "../../stores/auth.store";
 import { earningService } from "../../services/earning.service";
 import { EarningStatus } from "@edumind/shared-constants";
 import { Button, Alert, useToast, Skeleton } from "@edumind/user-ui";
-import { Download, Filter, Plus } from "lucide-react";
+import { Download, Filter, Plus, Wallet } from "lucide-react";
 import { EarningsStats } from "./earnings/components/EarningsStats";
 import { EarningsTable } from "./earnings/components/EarningsTable";
 import { EarningsChart } from "./earnings/components/EarningsChart";
@@ -102,6 +102,14 @@ export const TeacherEarningsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(TEACHER_ROUTES.PAYOUTS)}
+              leftIcon={<Wallet className="w-4 h-4" />}
+            >
+              View Payouts
+            </Button>
             <Button
               variant="primary"
               size="sm"

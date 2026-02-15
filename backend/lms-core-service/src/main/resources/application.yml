@@ -139,3 +139,17 @@ payment:
     account-name: ${SEPAY_ACCOUNT_NAME:}
     qr-expire-minutes: 15
     template: compact2
+
+  # Refund Policy Configuration
+  refund:
+    auto-approve-days: ${PAYMENT_REFUND_AUTO_APPROVE_DAYS:7}  # Days within which refund is auto-approved
+    max-refund-days: ${PAYMENT_REFUND_MAX_DAYS:30}  # Maximum days after purchase for refund eligibility
+    partial-refund-threshold: ${PAYMENT_REFUND_PARTIAL_THRESHOLD:50}  # Course access % threshold for partial refunds
+
+  # Payout Configuration
+  payout:
+    minimum-amount: ${PAYMENT_PAYOUT_MINIMUM_AMOUNT:50}  # Minimum payout amount in USD
+    hold-period-days: ${PAYMENT_PAYOUT_HOLD_PERIOD:30}  # Days before earnings become available
+    schedule-day: ${PAYMENT_PAYOUT_SCHEDULE_DAY:1}  # Day of month to process payouts (1-31)
+    schedule-hour: ${PAYMENT_PAYOUT_SCHEDULE_HOUR:2}  # Hour of day to process payouts (0-23)
+    max-retries: ${PAYMENT_PAYOUT_MAX_RETRIES:3}  # Maximum retry attempts for failed payouts

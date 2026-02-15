@@ -127,16 +127,27 @@ export const OrdersPage: React.FC = () => {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex-shrink-0">
-              <Box className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex-shrink-0">
+                <Box className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2">My Orders</h1>
+                <p className="text-blue-100 text-lg">
+                  View and manage your purchase history
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">My Orders</h1>
-              <p className="text-blue-100 text-lg">
-                View and manage your purchase history
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(USER_ROUTES.REFUNDS)}
+              className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20 flex-shrink-0"
+              leftIcon={<RefreshCw className="w-4 h-4" />}
+            >
+              My Refunds
+            </Button>
           </div>
         </div>
       </div>

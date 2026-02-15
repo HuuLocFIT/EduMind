@@ -113,6 +113,12 @@ const OrdersPage = createLazyRoute(
 const OrderDetailPage = createLazyRoute(
   () => import("./pages/payment/OrderDetailPage")
 );
+const RefundsPage = createLazyRoute(
+  () => import("./pages/payment/RefundsPage")
+);
+const RefundDetailPage = createLazyRoute(
+  () => import("./pages/payment/RefundDetailPage")
+);
 
 // Teacher Portal Pages
 const TeacherDashboardPage = createLazyRoute(
@@ -138,6 +144,12 @@ const TeacherReviewsPage = createLazyRoute(
 );
 const TeacherEarningsPage = createLazyRoute(
   () => import("./pages/teacher/TeacherEarningsPage")
+);
+const TeacherPayoutsPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherPayoutsPage")
+);
+const TeacherPayoutDetailPage = createLazyRoute(
+  () => import("./pages/teacher/TeacherPayoutDetailPage")
 );
 
 function AppContent() {
@@ -380,6 +392,23 @@ function AppContent() {
                   </Suspense>
                 }
               />
+              {/* Refunds */}
+              <Route
+                path={USER_ROUTES.REFUNDS}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading refunds..." />}>
+                    <RefundsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={USER_ROUTES.REFUND_DETAIL}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading refund..." />}>
+                    <RefundDetailPage />
+                  </Suspense>
+                }
+              />
             </Route>
           </Route>
 
@@ -462,6 +491,24 @@ function AppContent() {
                 element={
                   <Suspense fallback={<FullPageLoading message="Loading earnings..." />}>
                     <TeacherEarningsPage />
+                  </Suspense>
+                }
+              />
+
+              {/* Payouts */}
+              <Route
+                path={TEACHER_ROUTES.PAYOUTS}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading payouts..." />}>
+                    <TeacherPayoutsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path={TEACHER_ROUTES.PAYOUT_DETAIL}
+                element={
+                  <Suspense fallback={<FullPageLoading message="Loading payout..." />}>
+                    <TeacherPayoutDetailPage />
                   </Suspense>
                 }
               />

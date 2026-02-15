@@ -2,9 +2,11 @@ package com.edumind.lms.modules.payment.service;
 
 import com.edumind.lms.modules.payment.entity.InvoiceSequence;
 import com.edumind.lms.modules.payment.entity.OrderSequence;
+import com.edumind.lms.modules.payment.entity.PayoutSequence;
 import com.edumind.lms.modules.payment.entity.TransactionSequence;
 import com.edumind.lms.modules.payment.repository.InvoiceSequenceRepository;
 import com.edumind.lms.modules.payment.repository.OrderSequenceRepository;
+import com.edumind.lms.modules.payment.repository.PayoutSequenceRepository;
 import com.edumind.lms.modules.payment.repository.TransactionSequenceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +32,12 @@ public class NumberGeneratorServiceImpl implements NumberGeneratorService {
     private final OrderSequenceRepository orderSequenceRepository;
     private final InvoiceSequenceRepository invoiceSequenceRepository;
     private final TransactionSequenceRepository transactionSequenceRepository;
+    private final PayoutSequenceRepository payoutSequenceRepository;
 
     private static final String ORDER_PREFIX = "ORD";
     private static final String INVOICE_PREFIX = "INV";
     private static final String TRANSACTION_PREFIX = "TXN";
+    private static final String PAYOUT_PREFIX = "POUT";
 
     private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
@@ -91,6 +95,24 @@ public class NumberGeneratorServiceImpl implements NumberGeneratorService {
         return transactionNumber;
     }
 
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String generatePayoutNumber() {
+        String yearMonth = getCurrentYearMonth();
+
+        PayoutSequence sequence = payoutSequenceRepository.findByYearMonth(yearMonth)
+                .orElseGet(() -> createPayoutSequence(yearMonth));
+
+        long nextValue = sequence.getLastValue() + 1;
+        sequence.setLastValue(nextValue);
+        payoutSequenceRepository.save(sequence);
+
+        String payoutNumber = formatNumber(PAYOUT_PREFIX, yearMonth, nextValue);
+        log.debug("Generated payout number: {}", payoutNumber);
+
+        return payoutNumber;
+    }
+
     // ===== Private Helpers =====
 
     private String getCurrentYearMonth() {
@@ -120,5 +142,12 @@ public class NumberGeneratorServiceImpl implements NumberGeneratorService {
         sequence.setYearMonth(yearMonth);
         sequence.setLastValue(0L);
         return transactionSequenceRepository.save(sequence);
+    }
+
+    private PayoutSequence createPayoutSequence(String yearMonth) {
+        PayoutSequence sequence = new PayoutSequence();
+        sequence.setYearMonth(yearMonth);
+        sequence.setLastValue(0L);
+        return payoutSequenceRepository.save(sequence);
     }
 }

@@ -1,10 +1,11 @@
 package com.edumind.lms.modules.payment.service;
 
+import com.edumind.lms.modules.course.entity.Enrollment;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.payment.dto.request.WebhookPayloadRequest;
-import com.edumind.lms.modules.payment.entity.Order;
-import com.edumind.lms.modules.payment.entity.OrderItem;
-import com.edumind.lms.modules.payment.entity.Transaction;
+import com.edumind.lms.modules.payment.entity.*;
 import com.edumind.lms.modules.payment.enums.OrderStatus;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.enums.TransactionStatus;
@@ -12,8 +13,7 @@ import com.edumind.lms.modules.payment.event.OrderCompletedEvent;
 import com.edumind.lms.modules.payment.event.PaymentFailedEvent;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
 import com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties;
-import com.edumind.lms.modules.payment.repository.OrderRepository;
-import com.edumind.lms.modules.payment.repository.TransactionRepository;
+import com.edumind.lms.modules.payment.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +36,10 @@ public class WebhookServiceImpl implements WebhookService {
 
     private final OrderRepository orderRepository;
     private final TransactionRepository transactionRepository;
+    private final InstructorEarningRepository earningRepository;
+    private final RefundRequestRepository refundRequestRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentService enrollmentService;
     private final EarningService earningService;
     private final InvoiceService invoiceService;
@@ -47,6 +51,10 @@ public class WebhookServiceImpl implements WebhookService {
     public WebhookServiceImpl(
             OrderRepository orderRepository,
             TransactionRepository transactionRepository,
+            InstructorEarningRepository earningRepository,
+            RefundRequestRepository refundRequestRepository,
+            OrderItemRepository orderItemRepository,
+            EnrollmentRepository enrollmentRepository,
             EnrollmentService enrollmentService,
             EarningService earningService,
             InvoiceService invoiceService,
@@ -57,6 +65,10 @@ public class WebhookServiceImpl implements WebhookService {
             PayPalGatewayProperties payPalProperties) {
         this.orderRepository = orderRepository;
         this.transactionRepository = transactionRepository;
+        this.earningRepository = earningRepository;
+        this.refundRequestRepository = refundRequestRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.enrollmentRepository = enrollmentRepository;
         this.enrollmentService = enrollmentService;
         this.earningService = earningService;
         this.invoiceService = invoiceService;
@@ -84,9 +96,38 @@ public class WebhookServiceImpl implements WebhookService {
                 gateway, request.getOrderNumber(), request.getStatus());
 
         // Find order by order number (with items for cart clearing)
-        Order order = orderRepository.findWithItemsByOrderNumber(request.getOrderNumber())
-                .orElseThrow(() -> new OrderNotFoundException(
-                        "Order not found: " + request.getOrderNumber()));
+        Order order;
+        if (request.getOrderNumber() != null) {
+            order = orderRepository.findWithItemsByOrderNumber(request.getOrderNumber())
+                    .orElseThrow(() -> new OrderNotFoundException(
+                            "Order not found: " + request.getOrderNumber()));
+        } else {
+            // orderNumber is null - try alternative lookup (e.g., PayPal refund webhooks
+            // where the resource is a refund object without custom_id)
+            String status = request.getStatus() != null ? request.getStatus().toUpperCase() : "";
+            if ("REFUNDED".equals(status) || "REVERSED".equals(status)) {
+                // Try to find order via RefundRequest.gatewayRefundId
+                String refundId = request.getResourceId() != null ? request.getResourceId() : request.getTransactionId();
+                order = refundRequestRepository.findByGatewayRefundId(refundId)
+                        .flatMap(refundReq -> orderRepository.findById(refundReq.getOrder().getId()))
+                        .orElse(null);
+
+                if (order == null) {
+                    log.warn("Refund webhook received but could not find order by refundId={}. " +
+                            "This may be a refund processed outside our system. Ignoring gracefully.", refundId);
+                    return;
+                }
+
+                // If order is already refunded, this is idempotent - just log and return
+                if (order.getStatus() == OrderStatus.REFUNDED) {
+                    log.info("Refund webhook for order {} (refundId={}) - order already REFUNDED. " +
+                            "Skipping duplicate webhook processing.", order.getOrderNumber(), refundId);
+                    return;
+                }
+            } else {
+                throw new OrderNotFoundException("Order not found: " + request.getOrderNumber());
+            }
+        }
 
         // Find or create transaction for this order
         // This handles the edge case where webhook arrives before transaction is created
@@ -482,15 +523,52 @@ public class WebhookServiceImpl implements WebhookService {
     }
 
     private void handleRefund(Order order, Transaction transaction) {
-        log.info("Payment refunded for order {}", order.getOrderNumber());
+        log.info("Payment refunded via webhook for order {}", order.getOrderNumber());
 
         transaction.markAsRefunded();
         transactionRepository.save(transaction);
 
-        order.markAsRefunded();
+        order.markAsRefunded("Refunded via payment gateway webhook");
         orderRepository.save(order);
 
-        // TODO: Handle refund - unenroll student, reverse earnings
+        // Reverse earnings
+        List<InstructorEarning> earnings = earningRepository.findByOrderId(order.getId());
+        for (InstructorEarning earning : earnings) {
+            if (earning.isPaid()) {
+                log.warn("MANUAL RECOVERY REQUIRED: Earning {} for instructor {} is already PAID (amount: {}). "
+                        + "Webhook refund for order {} requires manual clawback from instructor.",
+                        earning.getId(), earning.getInstructorId(), earning.getNetAmount(), order.getOrderNumber());
+            }
+            earning.markAsRefunded();
+        }
+        earningRepository.saveAll(earnings);
+
+        // Update RefundRequest if one exists
+        refundRequestRepository.findByOrderId(order.getId()).ifPresent(refund -> {
+            if (!refund.isCompleted()) {
+                refund.markAsCompleted(null, null, "Processed via gateway webhook");
+                refundRequestRepository.save(refund);
+            }
+        });
+
+        // Revoke enrollments
+        revokeEnrollments(order);
+    }
+
+    private void revokeEnrollments(Order order) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+        for (OrderItem item : items) {
+            Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(
+                    item.getCourseId(), order.getUserId())
+                    .orElse(null);
+
+            if (enrollment != null && enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
+                enrollment.setStatus(EnrollmentStatus.DROPPED);
+                enrollmentRepository.save(enrollment);
+                log.info("Enrollment revoked for user {} in course {} due to refund",
+                        order.getUserId(), item.getCourseId());
+            }
+        }
     }
 
     // ==================== Helper Methods ====================

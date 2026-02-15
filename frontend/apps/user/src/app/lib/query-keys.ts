@@ -207,6 +207,29 @@ export const earningKeys = {
 } as const;
 
 // ============================================
+// Refunds
+// ============================================
+export const refundKeys = {
+  all: ['refunds'] as const,
+  list: (params?: { page?: number; size?: number; sortBy?: string; sortOrder?: string }) =>
+    ['refunds', 'list', params] as const,
+  detail: (refundId: number) => ['refunds', 'detail', refundId] as const,
+  policy: (orderId: number) => ['refunds', 'policy', orderId] as const,
+} as const;
+
+// ============================================
+// Payouts (Teacher)
+// ============================================
+export const payoutKeys = {
+  all: ['payouts'] as const,
+  list: (params?: { page?: number; size?: number; sortBy?: string; sortOrder?: string }) =>
+    ['payouts', 'list', params] as const,
+  detail: (payoutId: number) => ['payouts', 'detail', payoutId] as const,
+  summary: ['payouts', 'summary'] as const,
+  settings: ['payouts', 'settings'] as const,
+} as const;
+
+// ============================================
 // Helper: Get all keys for a resource
 // ============================================
 export const queryKeys = {
@@ -222,5 +245,7 @@ export const queryKeys = {
   orders: orderKeys,
   invoices: invoiceKeys,
   earnings: earningKeys,
+  refunds: refundKeys,
+  payouts: payoutKeys,
 } as const;
 

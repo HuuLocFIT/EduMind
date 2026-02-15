@@ -8,7 +8,10 @@ export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './modal.component.html',
-  styleUrls: ['./modal.component.css']
+  styleUrls: ['./modal.component.css'],
+  host: {
+    '[attr.title]': 'null',
+  },
 })
 export class ModalComponent implements OnInit, OnDestroy {
   @Input() isOpen = false;

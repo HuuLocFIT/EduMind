@@ -27,3 +27,6 @@ export * from './lib/LoadingOverlay/LoadingOverlay';
 export * from './lib/Skeleton/Skeleton';
 export * from './lib/FullPageLoading/FullPageLoading';
 export * from './lib/FileUpload/FileUpload';
+
+// Tabs
+export * from './lib/Tabs/Tabs';

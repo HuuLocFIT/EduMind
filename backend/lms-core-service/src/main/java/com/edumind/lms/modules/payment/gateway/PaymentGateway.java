@@ -59,4 +59,25 @@ public interface PaymentGateway {
     default GatewayPaymentResult capturePayment(String gatewayTransactionId) {
         throw new UnsupportedOperationException("This gateway does not support manual capture");
     }
+
+    /**
+     * Process a payout to an instructor.
+     * @param recipient Recipient identifier (PayPal email or bank account)
+     * @param amount Amount to payout
+     * @param currency Currency code
+     * @param payoutReference Deterministic reference for idempotency (e.g., payout number)
+     * @return Payout result
+     */
+    default GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency, String payoutReference) {
+        throw new UnsupportedOperationException("This gateway does not support payouts");
+    }
+
+    /**
+     * Check the status of a previously submitted payout.
+     * @param gatewayTransactionId The payout batch/transaction ID from the gateway
+     * @return Updated payout result with current status
+     */
+    default GatewayPayoutResult getPayoutStatus(String gatewayTransactionId) {
+        throw new UnsupportedOperationException("This gateway does not support payout status checks");
+    }
 }

@@ -347,6 +347,37 @@ export const EARNING_ENDPOINTS = {
 } as const;
 
 /**
+ * Refund endpoints
+ */
+export const REFUND_ENDPOINTS = {
+  REQUEST: `${API_BASE_PATH}/payments/refunds/request`,
+  POLICY: `${API_BASE_PATH}/payments/refunds/policy`,
+  MY_REFUNDS: `${API_BASE_PATH}/payments/refunds/my-refunds`,
+  DETAIL: (refundId: string | number) => `${API_BASE_PATH}/payments/refunds/${refundId}`,
+  BY_ORDER: (orderId: string | number) => `${API_BASE_PATH}/payments/refunds/by-order/${orderId}`,
+  ADMIN_PENDING: `${API_BASE_PATH}/payments/refunds/admin/pending`,
+  ADMIN_APPROVE: (refundId: string | number) => `${API_BASE_PATH}/payments/refunds/admin/${refundId}/approve`,
+  ADMIN_REJECT: (refundId: string | number) => `${API_BASE_PATH}/payments/refunds/admin/${refundId}/reject`,
+  ADMIN_CONFIRM_MANUAL: (refundId: string | number) => `${API_BASE_PATH}/payments/refunds/admin/${refundId}/confirm-manual-refund`,
+} as const;
+
+/**
+ * Payout endpoints
+ */
+export const PAYOUT_ENDPOINTS = {
+  BASE: `${API_BASE_PATH}/instructors/payouts`,
+  DETAIL: (payoutId: string | number) => `${API_BASE_PATH}/instructors/payouts/${payoutId}`,
+  SUMMARY: `${API_BASE_PATH}/instructors/payouts/summary`,
+  SETTINGS: `${API_BASE_PATH}/instructors/payouts/payment-settings`,
+  ADMIN_PENDING: `${API_BASE_PATH}/instructors/payouts/admin/pending`,
+  ADMIN_ALL: `${API_BASE_PATH}/instructors/payouts/admin`,
+  ADMIN_CREATE: `${API_BASE_PATH}/instructors/payouts/admin`,
+  ADMIN_UPDATE: (payoutId: string | number) => `${API_BASE_PATH}/instructors/payouts/admin/${payoutId}`,
+  ADMIN_PROCESS: (payoutId: string | number) => `${API_BASE_PATH}/instructors/payouts/admin/${payoutId}/process`,
+  ADMIN_CONFIRM_MANUAL: (payoutId: string | number) => `${API_BASE_PATH}/instructors/payouts/admin/${payoutId}/confirm-manual-payout`,
+} as const;
+
+/**
  * Admin endpoints (for future use)
  */
 export const ADMIN_ENDPOINTS = {

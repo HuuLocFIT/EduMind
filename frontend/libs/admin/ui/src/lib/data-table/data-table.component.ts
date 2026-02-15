@@ -83,8 +83,11 @@ export interface PageEvent {
               }
               @if (showActions) {
                 <th
-                  class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                   [class]="getActionsHeaderClasses()"
+                  [style.width]="actionsWidth"
+                  [style.minWidth]="actionsWidth"
+                  [style.maxWidth]="actionsWidth"
                   [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
                   [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
                 >
@@ -162,8 +165,11 @@ export interface PageEvent {
                   }
                   @if (showActions) {
                     <td 
-                      class="px-4 py-4 text-right"
+                      class="px-4 py-4 text-center"
                       [class]="getActionsCellClasses()"
+                      [style.width]="actionsWidth"
+                      [style.minWidth]="actionsWidth"
+                      [style.maxWidth]="actionsWidth"
                       [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
                       [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
                       (click)="$event.stopPropagation()"
@@ -238,6 +244,8 @@ export class DataTableComponent<T = unknown> {
   /** Sticky actions column */
   @Input() actionsSticky?: 'left' | 'right';
   @Input() actionsStickyOffset?: string;
+  /** Width of actions column */
+  @Input() actionsWidth?: string;
   @Input() trackByFn?: (index: number, item: T) => unknown;
 
   @Output() sort = new EventEmitter<SortEvent>();

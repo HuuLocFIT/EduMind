@@ -466,8 +466,9 @@ public class SepayGateway implements PaymentGateway {
                 gatewayTransactionId, amount, currency);
 
         // SePay (bank transfer) doesn't support automatic refunds
-        // This would need to be handled manually
+        // Return success=false to indicate this gateway cannot process refunds automatically
         return GatewayRefundResult.builder()
+                .success(false)
                 .status(GatewayRefundStatus.PENDING)
                 .originalTransactionId(gatewayTransactionId)
                 .gatewayName(GATEWAY_NAME)
@@ -530,6 +531,51 @@ public class SepayGateway implements PaymentGateway {
     @Override
     public boolean supportsCurrency(String currency) {
         return SUPPORTED_CURRENCIES.contains(currency.toUpperCase());
+    }
+
+    @Override
+    public GatewayPayoutResult payout(String recipient, BigDecimal amount, String currency, String payoutReference) {
+        log.info("[SEPAY] Processing payout to bank account: {}, amount: {} {}", recipient, amount, currency);
+
+        // Validate currency
+        if (!supportsCurrency(currency)) {
+            log.warn("[SEPAY] Currency {} not supported for payout", currency);
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "CURRENCY_NOT_SUPPORTED",
+                    "SePay does not support " + currency + " for payouts.");
+        }
+
+        // Convert to VND if needed
+        BigDecimal amountVnd;
+        if ("VND".equalsIgnoreCase(currency)) {
+            amountVnd = amount;
+        } else if ("USD".equalsIgnoreCase(currency)) {
+            BigDecimal exchangeRate = properties.getUsdToVndRate();
+            amountVnd = amount.multiply(exchangeRate);
+        } else {
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "CURRENCY_NOT_SUPPORTED",
+                    "SePay only supports VND and USD for payouts.");
+        }
+
+        // Round to whole number (VND doesn't use decimals)
+        long amountLong = amountVnd.longValue();
+        if (amountLong <= 0) {
+            return GatewayPayoutResult.failed(GATEWAY_NAME, "INVALID_AMOUNT",
+                    "Invalid payout amount.");
+        }
+
+        // SePay does not support automatic payouts via API.
+        // Return PENDING status so the service layer marks it as AWAITING_MANUAL_PAYOUT.
+        log.info("[SEPAY] Automatic payout not supported. Returning MANUAL_PAYOUT_REQUIRED for amount: {} {}", amount, currency);
+
+        return GatewayPayoutResult.builder()
+                .success(false)
+                .status(GatewayPayoutStatus.PENDING)
+                .gatewayName(GATEWAY_NAME)
+                .amount(amount)
+                .currency(currency)
+                .errorCode("MANUAL_PAYOUT_REQUIRED")
+                .errorMessage("SePay does not support automatic payouts. Admin must manually transfer funds to instructor.")
+                .build();
     }
 
     // ===== SePay Webhook Handler =====

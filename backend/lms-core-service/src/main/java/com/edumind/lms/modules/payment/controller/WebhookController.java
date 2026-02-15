@@ -6,6 +6,7 @@ import com.edumind.lms.modules.payment.exception.DuplicateWebhookException;
 import com.edumind.lms.modules.payment.gateway.impl.paypal.PayPalWebhookPayload;
 import com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload;
 import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
+import com.edumind.lms.modules.payment.service.PayoutService;
 import com.edumind.lms.modules.payment.service.WebhookService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -32,13 +33,16 @@ import java.util.Map;
 public class WebhookController {
 
     private final WebhookService webhookService;
+    private final PayoutService payoutService;
     private final SepayGatewayProperties sepayProperties;
 
     @Autowired
     public WebhookController(
             WebhookService webhookService,
+            PayoutService payoutService,
             @Autowired(required = false) SepayGatewayProperties sepayProperties) {
         this.webhookService = webhookService;
+        this.payoutService = payoutService;
         this.sepayProperties = sepayProperties;
     }
 
@@ -76,14 +80,18 @@ public class WebhookController {
     // ==================== PayPal Gateway ====================
 
     /**
-     * PayPal Webhook handler for payment events.
+     * PayPal Webhook handler for payment and payout events.
      * POST /payments/webhook/paypal
      *
-     * Supported events:
+     * Supported payment events:
      * - CHECKOUT.ORDER.APPROVED: Order approved by buyer (ready for capture)
      * - PAYMENT.CAPTURE.COMPLETED: Payment captured successfully
      * - PAYMENT.CAPTURE.DENIED: Payment capture was denied
      * - PAYMENT.CAPTURE.REFUNDED: Payment was refunded
+     *
+     * Supported payout events:
+     * - PAYMENT.PAYOUTS-ITEM.SUCCEEDED/FAILED/BLOCKED/DENIED/RETURNED/CANCELED/UNCLAIMED
+     * - PAYMENT.PAYOUTSBATCH.SUCCESS/DENIED/PROCESSING
      *
      * Reference: https://developer.paypal.com/docs/api/webhooks/v1/
      */
@@ -97,13 +105,34 @@ public class WebhookController {
             @RequestHeader(value = "PAYPAL-AUTH-ALGO", required = false) String authAlgo,
             HttpServletRequest httpRequest) {
 
+        String eventType = payload.getEventType();
         log.info("Received PayPal webhook: id={}, eventType={}, resourceId={}",
                 payload.getId(),
-                payload.getEventType(),
+                eventType,
                 payload.getResource() != null ? payload.getResource().getId() : "null");
 
         try {
-            // Convert PayPal payload to our standard format
+            // Check if this is a payout event
+            if (eventType != null && eventType.startsWith("PAYMENT.PAYOUT")) {
+                // Verify signature for payout webhooks
+                WebhookPayloadRequest signatureRequest = WebhookPayloadRequest.builder()
+                        .eventType(eventType)
+                        .rawPayload(payload.getRawWebhookEvent())
+                        .build();
+
+                if (!webhookService.verifyPayPalSignature(
+                        signatureRequest, transmissionId, transmissionTime,
+                        signature, certUrl, authAlgo, httpRequest)) {
+                    log.warn("Invalid PayPal webhook signature for payout event: {}", payload.getId());
+                    return ResponseEntity.badRequest().body("Invalid signature");
+                }
+
+                // Route to payout service
+                payoutService.handlePayoutWebhook(eventType, payload.getRawResource());
+                return ResponseEntity.ok().build();
+            }
+
+            // Standard payment/order webhook flow
             WebhookPayloadRequest request = convertPayPalPayload(payload);
 
             // Verify webhook signature
@@ -163,6 +192,7 @@ public class WebhookController {
                 .eventType(eventType)
                 .transactionId(transactionId)
                 .orderNumber(orderNumber)
+                .resourceId(resource != null ? resource.getId() : null)
                 .amount(amount)
                 .currency(currency)
                 .status(status)
