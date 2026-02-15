@@ -32,12 +32,17 @@ sequenceDiagram
     Backend->>Database: Process Payout via Gateway
     Backend->>Database: Mark Earnings (PAID)
     Note over Database: Earnings lifecycle complete
+
+    Note over Backend: If order is refunded:
+    Backend->>Database: Mark Earnings (REFUNDED)
+    Note over Database: Earnings reversed
 ```
 
 **Earnings Status Flow:**
 - **PENDING**: Created when order completes, held for 30 days
 - **AVAILABLE**: After hold period, eligible for payout
 - **PAID**: After successful payout processing
+- **REFUNDED**: Reversed due to order refund (via webhook or admin action)
 
 ---
 
@@ -94,8 +99,11 @@ sequenceDiagram
         Scheduler->>Scheduler: Filter Earnings Not in Payouts
         Scheduler->>Scheduler: Calculate Total Amount
         
+        Scheduler->>Database: Load InstructorPayoutSettings
+        Note over Scheduler: Pre-fill payment method &<br/>recipient info from settings
+
         alt Total Amount ≥ Minimum Threshold
-            Scheduler->>PayoutService: Create Payout
+            Scheduler->>PayoutService: Create Payout (with pre-filled recipient info)
             PayoutService->>Database: Create Payout (PENDING)
             PayoutService->>Database: Create PayoutItems (link earnings)
             Note over Database: Payout created, awaiting admin processing
@@ -110,7 +118,8 @@ sequenceDiagram
 **Scheduler Configuration:**
 - **Cron**: `0 0 2 1 * ?` (2:00 AM on 1st of month)
 - **Minimum Threshold**: $50 (configurable via `payment.payout.minimum-amount`)
-- **Default Payment Method**: BANK_TRANSFER (admin can update)
+- **Default Payment Method**: BANK_TRANSFER (uses InstructorPayoutSettings if configured)
+- **Recipient Auto-fill**: Bank/PayPal details pre-filled from `InstructorPayoutSettings`
 
 ---
 
@@ -175,36 +184,81 @@ sequenceDiagram
     Backend->>Database: Fetch Payout (PENDING/FAILED)
     Backend->>Backend: Validate Payout Status
     Backend->>Backend: Check Retry Count (max 3)
-    
+
     alt Retry Limit Exceeded
         Backend-->>Admin: Error (Max retries exceeded)
     else Valid Payout
-        Backend->>Database: Mark Payout (PROCESSING)
         Backend->>Backend: Get Gateway (PayPal/SePay)
         Backend->>Backend: Get Recipient Info
-        
+
+        Note over Backend: Layer 1: Pre-retry status check
+        alt Has existing gatewayTransactionId (retry)
+            Backend->>PaymentGateway: Check existing batch status
+            alt Already COMPLETED at gateway
+                Backend->>Database: Mark Payout (COMPLETED)
+                Backend->>Database: Mark All Earnings (PAID)
+                Backend-->>Admin: Payout Already Completed (recovered)
+            else Still PENDING at gateway
+                Backend->>Database: Keep as PROCESSING
+                Backend-->>Admin: Payout Still Processing
+            else FAILED at gateway
+                Note over Backend: Proceed with retry below
+            end
+        end
+
+        Backend->>Database: Mark Payout (PROCESSING)
+
+        Note over Backend: Layer 2: Deterministic payoutReference for idempotency
         Backend->>PaymentGateway: Process Payout
-        Note over Backend,PaymentGateway: recipient, amount, currency
-        
-        alt Gateway Success
+        Note over Backend,PaymentGateway: recipient, amount, currency, payoutNumber
+
+        alt Gateway COMPLETED
             PaymentGateway-->>Backend: Payout Result (COMPLETED, transactionId)
             Backend->>Database: Mark Payout (COMPLETED)
             Backend->>Database: Store Gateway Transaction ID
             Backend->>Database: Mark All Earnings (PAID)
             Backend-->>Admin: Payout Processed Successfully
-        else Gateway Failure
+        else Gateway PENDING (auto-payout gateway)
+            PaymentGateway-->>Backend: Payout Result (PENDING, batchId)
+            Backend->>Database: Store Gateway Transaction ID
+            Backend->>Database: Keep as PROCESSING
+            Note over Backend: Will be resolved by scheduler/webhook
+            Backend-->>Admin: Payout Submitted, Awaiting Confirmation
+        else Gateway PENDING (manual gateway - SePay)
+            PaymentGateway-->>Backend: Payout Result (PENDING)
+            Backend->>Database: Mark Payout (AWAITING_MANUAL_PAYOUT)
+            Backend-->>Admin: Manual Bank Transfer Required
+        else Gateway FAILED
             PaymentGateway-->>Backend: Payout Result (FAILED, error)
-            Backend->>Database: Mark Payout (FAILED)
-            Backend->>Database: Increment Retry Count
-            Backend->>Database: Store Failure Reason & Code
-            Backend-->>Admin: Payout Failed (can retry)
+
+            Note over Backend: Layer 3: DUPLICATE_BATCH recovery
+            alt Error is DUPLICATE_BATCH
+                Backend->>PaymentGateway: Check existing batch status
+                alt Existing batch COMPLETED
+                    Backend->>Database: Mark Payout (COMPLETED)
+                    Backend->>Database: Mark All Earnings (PAID)
+                    Backend-->>Admin: Payout Recovered from Duplicate
+                else Existing batch not COMPLETED
+                    Backend->>Database: Mark Payout (FAILED)
+                end
+            else Other error
+                Backend->>Database: Mark Payout (FAILED)
+                Backend->>Database: Increment Retry Count
+                Backend->>Database: Store Failure Reason & Code
+                Backend-->>Admin: Payout Failed (can retry)
+            end
         end
     end
 ```
 
+**Idempotency Layers:**
+- **Layer 1 (Pre-retry check)**: Before re-sending, queries gateway for existing batch status to prevent double payouts
+- **Layer 2 (Deterministic reference)**: Uses `payoutNumber` as `senderBatchId` — PayPal rejects duplicate batches
+- **Layer 3 (DUPLICATE_BATCH recovery)**: If PayPal rejects as duplicate, checks if existing batch already succeeded
+
 **Retry Mechanism:**
 - **Max Retries**: 3 (configurable via `payment.payout.max-retries`)
-- **Retry Count**: Tracked in `Payout.retryCount`
+- **Retry Count**: Tracked in `Payout.retryCount`, incremented on failure
 - **Status Reset**: FAILED payouts can be updated and reprocessed
 
 ---
@@ -260,22 +314,92 @@ sequenceDiagram
     participant PayPal
     participant Database
 
-    Backend->>PayPal: POST /v1/payments/payouts
-    Note over Backend,PayPal: Requires OAuth token<br/>Recipient email, amount, currency
-    alt Payout Successful
-        PayPal-->>Backend: Payout Result (COMPLETED, batchId)
-        Backend->>Database: Mark Payout (COMPLETED)
-        Backend->>Database: Store Gateway Transaction ID
-    else Payout Failed
-        PayPal-->>Backend: Error Response
-        Backend->>Database: Mark Payout (FAILED)
-        Note over Backend: Currently returns PENDING status<br/>Requires OAuth implementation
+    Backend->>Backend: Validate currency & recipient email
+    Backend->>PayPal: POST /v1/payments/payouts (PayoutsPostRequest)
+    Note over Backend,PayPal: OAuth handled by PayPal SDK<br/>SenderBatchHeader + PayoutItem<br/>(recipient email, amount, currency)
+    PayPal-->>Backend: CreatePayoutResponse (batchId, batchStatus)
+
+    loop Poll up to 5 times (2s interval)
+        Backend->>PayPal: GET /v1/payments/payouts/{batchId} (PayoutsGetRequest)
+        PayPal-->>Backend: PayoutBatch (batchStatus, items)
+        Backend->>Backend: Check item transactionStatus
+        alt Item SUCCESS
+            Backend->>Database: Mark Payout (COMPLETED)
+            Backend->>Database: Store payoutItemId as Gateway Transaction ID
+        else Item FAILED / RETURNED / BLOCKED
+            Backend->>Database: Mark Payout (FAILED)
+            Backend->>Database: Store Failure Reason
+        else Batch DENIED
+            Backend->>Database: Mark Payout (FAILED)
+        else Still Processing
+            Backend->>Backend: Continue polling
+        end
+    end
+
+    alt Polling Timeout (still processing)
+        Backend->>Database: Mark Payout (PENDING)
+        Note over Backend: Will be resolved by webhook
     end
 ```
 
-**PayPal Status:**
-- ⚠️ Currently returns PENDING status (requires OAuth token implementation)
-- **Next Step**: Implement OAuth flow and PayPal Payouts REST API
+### PayPal Payout Webhook Processing
+
+For payouts that are still processing after polling, PayPal sends webhook events to confirm the final status.
+
+```mermaid
+sequenceDiagram
+    participant PayPal
+    participant Backend
+    participant Database
+
+    PayPal->>Backend: POST /payments/webhook/paypal
+    Note over PayPal,Backend: PAYPAL-TRANSMISSION-ID, PAYPAL-TRANSMISSION-SIG,<br/>PAYPAL-CERT-URL, PAYPAL-AUTH-ALGO headers
+
+    Backend->>Backend: Detect payout event (event_type starts with PAYMENT.PAYOUT)
+    Backend->>PayPal: POST /v1/notifications/verify-webhook-signature
+    PayPal-->>Backend: verification_status: SUCCESS
+
+    Backend->>Backend: Extract payout_batch_id from resource
+    Backend->>Database: Find Payout by gatewayTransactionId (batchId)
+
+    alt Idempotency Check
+        Backend->>Backend: Skip if payout already COMPLETED
+    end
+
+    alt PAYOUTS-ITEM.SUCCEEDED / PAYOUTSBATCH.SUCCESS
+        Backend->>Database: Mark Payout (COMPLETED)
+        Backend->>Database: Mark All Earnings (PAID)
+    else PAYOUTS-ITEM.FAILED / BLOCKED / DENIED / RETURNED / CANCELED / PAYOUTSBATCH.DENIED
+        Backend->>Database: Mark Payout (FAILED)
+        Backend->>Database: Store error detail
+    else PAYOUTS-ITEM.UNCLAIMED
+        Backend->>Database: Mark Payout (FAILED)
+        Note over Database: Recipient may not have PayPal account
+    end
+```
+
+**Supported Payout Webhook Events:**
+- `PAYMENT.PAYOUTS-ITEM.SUCCEEDED` - Payout item completed successfully
+- `PAYMENT.PAYOUTS-ITEM.FAILED` - Payout item failed
+- `PAYMENT.PAYOUTS-ITEM.BLOCKED` - Payout item blocked
+- `PAYMENT.PAYOUTS-ITEM.DENIED` - Payout item denied
+- `PAYMENT.PAYOUTS-ITEM.RETURNED` - Payout item returned
+- `PAYMENT.PAYOUTS-ITEM.CANCELED` - Payout item canceled
+- `PAYMENT.PAYOUTS-ITEM.UNCLAIMED` - Recipient hasn't accepted payment
+- `PAYMENT.PAYOUTSBATCH.SUCCESS` - Entire batch completed
+- `PAYMENT.PAYOUTSBATCH.DENIED` - Entire batch denied
+
+**PayPal Payout Features:**
+- OAuth authentication handled automatically by PayPal SDK (`PayPalHttpClient`)
+- Idempotent batch creation via deterministic `senderBatchId` (`EDUMIND-{payoutReference}`)
+- Synchronous status polling: up to 5 attempts with 2-second intervals
+- Asynchronous webhook confirmation for payouts that don't resolve during polling
+- Webhook signature verification via PayPal's Verify Webhook Signature API
+- Item-level status tracking (SUCCESS, FAILED, RETURNED, BLOCKED, UNCLAIMED)
+- Batch-level status tracking (DENIED, CANCELED)
+- Detailed error mapping: INSUFFICIENT_FUNDS, AUTHORIZATION_ERROR, DUPLICATE_BATCH, VALIDATION_ERROR
+- Recipient validation: RECEIVER_UNREGISTERED, RECEIVER_UNCONFIRMED, REGULATORY_BLOCKED
+- Supported currencies: USD, EUR, GBP, CAD, AUD, JPY, SGD
 
 ### SePay Payout Processing
 
@@ -362,9 +486,9 @@ sequenceDiagram
 
     Admin->>Frontend: Navigate to Admin Payouts
     Frontend->>Backend: GET /api/instructors/payouts/admin/pending
-    Backend->>Database: Fetch PENDING Payouts
-    Backend-->>Frontend: Return Pending Payouts List
-    Frontend->>Admin: Show Pending Payouts
+    Backend->>Database: Fetch Payouts (PENDING, AWAITING_MANUAL_PAYOUT, FAILED)
+    Backend-->>Frontend: Return Actionable Payouts List
+    Frontend->>Admin: Show Actionable Payouts
     
     Admin->>Frontend: View All Payouts
     Frontend->>Backend: GET /api/instructors/payouts/admin
@@ -380,14 +504,143 @@ sequenceDiagram
 
 ---
 
-## 10. Payout Status State Machine
+## 10. Manual Payout Confirmation Flow (Admin)
+
+For gateways that cannot auto-process payouts (e.g., SePay bank transfers), admins manually transfer funds and then confirm in the system.
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Frontend
+    participant Backend
+    participant Database
+
+    Note over Admin: Admin has manually transferred funds<br/>via bank transfer outside the system
+
+    Admin->>Frontend: View Payout (AWAITING_MANUAL_PAYOUT)
+    Admin->>Frontend: Enter bank transfer reference
+    Admin->>Frontend: Click "Confirm Manual Payout"
+    Frontend->>Backend: POST /api/instructors/payouts/admin/{id}/confirm-manual-payout
+    Note over Frontend,Backend: ConfirmManualPayoutRequestDto<br/>(bankTransferReference)
+
+    Backend->>Database: Fetch Payout
+    Backend->>Backend: Validate status = AWAITING_MANUAL_PAYOUT
+
+    alt Invalid Status
+        Backend-->>Frontend: Error (Only AWAITING_MANUAL_PAYOUT can be confirmed)
+    else Valid
+        Backend->>Database: Mark Payout (COMPLETED)
+        Backend->>Database: Store bank transfer reference as gatewayTransactionId
+        Backend->>Database: Mark All Earnings (PAID)
+        Backend-->>Frontend: Return Completed Payout
+        Frontend->>Admin: Show Payout Confirmed
+    end
+```
+
+**Confirmation Details:**
+- Only payouts in `AWAITING_MANUAL_PAYOUT` status can be confirmed
+- Admin provides the bank transfer reference for audit trail
+- If no reference provided, system generates `MANUAL-{timestamp}` as fallback
+- Records which admin confirmed the payout in gateway response
+
+---
+
+## 11. Instructor Payout Settings Flow
+
+Instructors configure their preferred payment method and recipient details. These settings are auto-filled when creating payouts (both manual and scheduled).
+
+```mermaid
+sequenceDiagram
+    participant Instructor
+    participant Frontend
+    participant Backend
+    participant Database
+
+    Instructor->>Frontend: Navigate to Payout Settings
+    Frontend->>Backend: GET /api/instructors/payouts/payment-settings
+    Backend->>Database: Find InstructorPayoutSettings
+    alt Settings Exist
+        Backend-->>Frontend: Return Settings (method, bank/PayPal details)
+    else No Settings
+        Backend-->>Frontend: Return Default (BANK_TRANSFER, empty details)
+    end
+    Frontend->>Instructor: Show Current Settings
+
+    Instructor->>Frontend: Update Settings
+    Frontend->>Backend: PUT /api/instructors/payouts/payment-settings
+    Note over Frontend,Backend: PayoutSettingsDto<br/>(preferredMethod, bankName, bankAccount,<br/>accountHolderName, swiftCode, paypalEmail)
+
+    Backend->>Backend: Validate Settings
+    alt PayPal Method
+        Backend->>Backend: Validate PayPal email present
+    else Bank Transfer Method
+        Backend->>Backend: Validate bank account, bank name,<br/>account holder name present
+    end
+
+    Backend->>Database: Upsert InstructorPayoutSettings
+    Backend-->>Frontend: Return Updated Settings
+    Frontend->>Instructor: Show Settings Saved
+```
+
+**Settings Usage:**
+- **Manual Payout Creation**: If admin doesn't provide recipient info, auto-fills from settings
+- **Monthly Scheduler**: Pre-fills payment method and recipient details from settings
+- **Upsert Pattern**: Creates settings if not exist, updates if exist
+
+---
+
+## 12. Processing Payouts Scheduler Flow
+
+A background scheduler periodically checks payouts stuck in PROCESSING state and resolves them by querying the gateway.
+
+```mermaid
+sequenceDiagram
+    participant Scheduler
+    participant Database
+    participant PaymentGateway
+
+    Note over Scheduler: Runs every 2 minutes (fixedDelay)
+
+    Scheduler->>Database: Find payouts with status = PROCESSING
+    Database-->>Scheduler: Return Processing Payouts List
+
+    loop For Each Processing Payout
+        alt No gatewayTransactionId
+            Scheduler->>Scheduler: Skip (no ID to check)
+        else Has gatewayTransactionId
+            Scheduler->>PaymentGateway: Check payout status (batchId)
+            PaymentGateway-->>Scheduler: Current Status
+
+            alt COMPLETED
+                Scheduler->>Database: Mark Payout (COMPLETED)
+                Scheduler->>Database: Mark All Earnings (PAID)
+            else FAILED
+                Scheduler->>Database: Mark Payout (FAILED)
+                Scheduler->>Database: Store error details
+            else Still PENDING
+                Scheduler->>Scheduler: Skip (will check again next run)
+            end
+        end
+    end
+```
+
+**Scheduler Configuration:**
+- **Interval**: Every 2 minutes (configurable via `payment.payout.processing-check-interval`)
+- **Purpose**: Resolves payouts that were accepted by the gateway but didn't complete within initial polling
+- **Complementary to**: Webhooks (provides redundancy if webhook is missed)
+
+---
+
+## 13. Payout Status State Machine
 
 ```mermaid
 stateDiagram-v2
     [*] --> PENDING: Payout Created
     PENDING --> PROCESSING: Admin Processes via Gateway
-    PROCESSING --> COMPLETED: Gateway Success
-    PROCESSING --> FAILED: Gateway Error
+    PROCESSING --> COMPLETED: Gateway Success / Webhook SUCCEEDED
+    PROCESSING --> FAILED: Gateway Error / Webhook FAILED
+    PROCESSING --> AWAITING_MANUAL_PAYOUT: Gateway Cannot Auto-Process (SePay)
+    AWAITING_MANUAL_PAYOUT --> COMPLETED: Admin Confirms Manual Transfer
     FAILED --> PENDING: Admin Updates & Retries
     COMPLETED --> [*]
     FAILED --> [*]: Max Retries Exceeded
@@ -396,17 +649,19 @@ stateDiagram-v2
 **Status Transitions:**
 - **PENDING**: Initial state after payout creation
 - **PROCESSING**: Payout being processed by gateway
+- **AWAITING_MANUAL_PAYOUT**: Gateway cannot auto-process (e.g., SePay bank transfer), admin must manually transfer and confirm
 - **COMPLETED**: Payout processed successfully, earnings marked as PAID
 - **FAILED**: Gateway error or processing failure (can retry if < max retries)
 
 **Status Transition Guards:**
 - Only PENDING or FAILED payouts can be processed
-- Only PROCESSING payouts can transition to COMPLETED or FAILED
+- Only PROCESSING payouts can transition to COMPLETED, FAILED, or AWAITING_MANUAL_PAYOUT
+- Only AWAITING_MANUAL_PAYOUT payouts can be confirmed via `confirmManualPayout`
 - FAILED payouts can be updated and reset to PENDING for retry
 
 ---
 
-## 11. Earnings Aggregation Flow
+## 14. Earnings Aggregation Flow
 
 The system aggregates AVAILABLE earnings for payout creation.
 
@@ -445,7 +700,7 @@ sequenceDiagram
 
 ---
 
-## 12. Multi-Currency Payout Flow
+## 15. Multi-Currency Payout Flow
 
 The system supports multi-currency payouts with automatic currency derivation.
 
@@ -454,23 +709,22 @@ sequenceDiagram
     participant Service
     participant Database
 
-    Service->>Database: Get AVAILABLE Earnings
-    Database-->>Service: Return Earnings (may have different currencies)
-    
-    Service->>Service: Group Earnings by Currency
-    alt Single Currency
-        Service->>Service: Use Currency from Earnings
-    else Multiple Currencies
-        Service->>Service: Derive Currency
-        Note over Service: Priority:<br/>1. Most common currency in earnings<br/>2. Currency from payout history<br/>3. USD (default)
-    end
-    
-    Service->>Database: Create Payout (with derived currency)
-    Note over Database: All earnings in payout must be same currency
+    Service->>Database: Get AVAILABLE Earnings (filtered, not in payouts)
+    Database-->>Service: Return Earnings List
+
+    Service->>Service: Use currency from first earning
+    Note over Service: availableEarnings.get(0).getCurrency()
+
+    Service->>Database: Create Payout (with first earning's currency)
 ```
 
-**Currency Derivation:**
-- **Primary**: Currency from instructor's AVAILABLE earnings
+**Currency Derivation (in `createPayout` and `scheduleMonthlyPayouts`):**
+- Uses the currency of the **first available earning** in the list
+- No currency grouping or aggregation is performed
+- All earnings in a payout are assumed to share the same currency
+
+**Currency Derivation (in `getPayoutSummary`):**
+- **Primary**: Top currency from instructor's earnings via `findTopCurrencyByInstructorId`
 - **Fallback**: Currency from most recent payout
 - **Default**: USD if no earnings or payouts exist
 
@@ -483,11 +737,14 @@ sequenceDiagram
 | `/api/instructors/payouts` | GET | Get instructor payout history | Instructor |
 | `/api/instructors/payouts/{id}` | GET | Get payout details by ID | Instructor |
 | `/api/instructors/payouts/summary` | GET | Get payout summary | Instructor |
-| `/api/instructors/payouts/admin/pending` | GET | Get pending payouts | Admin |
-| `/api/instructors/payouts/admin` | GET | Get all payouts | Admin |
+| `/api/instructors/payouts/payment-settings` | GET | Get instructor payout settings | Instructor |
+| `/api/instructors/payouts/payment-settings` | PUT | Update instructor payout settings | Instructor |
+| `/api/instructors/payouts/admin/pending` | GET | Get actionable payouts (PENDING, AWAITING, FAILED) | Admin |
+| `/api/instructors/payouts/admin` | GET | Get all payouts (optional `?status=` filter) | Admin |
 | `/api/instructors/payouts/admin` | POST | Create payout manually | Admin |
 | `/api/instructors/payouts/admin/{id}` | PUT | Update payout recipient info | Admin |
 | `/api/instructors/payouts/admin/{id}/process` | POST | Process payout via gateway | Admin |
+| `/api/instructors/payouts/admin/{id}/confirm-manual-payout` | POST | Confirm manual bank transfer payout | Admin |
 
 ---
 
@@ -536,7 +793,7 @@ sequenceDiagram
 
 ### Gateway Integration
 
-- **PayPal**: Payout method added (requires OAuth for full implementation)
+- **PayPal**: Fully implemented via PayPal Payouts SDK with OAuth, batch creation, status polling, and error handling
 - **SePay**: Fully implemented bank transfer payouts with VND conversion
 - Gateway selection based on payment method (PAYPAL → PayPal, BANK_TRANSFER → SePay)
 
@@ -549,20 +806,22 @@ sequenceDiagram
 ```yaml
 payment:
   payout:
-    minimum-amount: 50              # Minimum payout threshold
-    hold-period-days: 30             # Earnings hold period
-    schedule-day: 1                   # Day of month for scheduler
-    schedule-hour: 2                  # Hour of day for scheduler
-    max-retries: 3                    # Maximum retry attempts
-    schedule-cron: "0 0 2 1 * ?"     # Monthly scheduler cron
+    minimum-amount: 50                        # Minimum payout threshold
+    hold-period-days: 30                       # Earnings hold period
+    schedule-day: 1                             # Day of month for scheduler
+    schedule-hour: 2                            # Hour of day for scheduler
+    max-retries: 3                              # Maximum retry attempts
+    schedule-cron: "0 0 2 1 * ?"               # Monthly scheduler cron
+    processing-check-interval: 120000          # ms (2 min) - check PROCESSING payouts
 ```
 
 ### Scheduler Configuration
 
-| Scheduler | Cron Expression | Description |
-|-----------|----------------|-------------|
-| `EarningAvailabilityScheduler` | `0 0 3 * * ?` | Daily at 3:00 AM |
-| `PayoutScheduler` | `0 0 2 1 * ?` | 1st of month at 2:00 AM |
+| Scheduler | Schedule | Description |
+|-----------|---------|-------------|
+| `EarningAvailabilityScheduler` | `0 0 3 * * ?` (daily 3:00 AM) | Mark PENDING earnings as AVAILABLE after hold period |
+| `PayoutScheduler.scheduleMonthlyPayouts` | `0 0 2 1 * ?` (1st of month 2:00 AM) | Create payouts for instructors with available earnings |
+| `PayoutScheduler.checkProcessingPayouts` | Every 2 min (`fixedDelay=120000`) | Check and resolve PROCESSING payouts via gateway |
 
 ---
 
@@ -602,7 +861,7 @@ payment:
 ### Payout Processing Tests
 
 - ✅ SePay payout processing
-- ✅ PayPal payout processing (when implemented)
+- ✅ PayPal payout processing (batch creation, polling, error handling)
 - ✅ Earnings marked as PAID after success
 - ✅ Failed payout handling with retry count
 - ✅ Retry limit enforcement
@@ -625,12 +884,10 @@ payment:
 
 ## Known Limitations
 
-1. **PayPal Payouts**: Currently returns PENDING status - requires OAuth implementation
-2. **Encryption**: Payout recipient data not yet encrypted (security enhancement needed)
-3. **Webhooks**: Payout status webhooks not yet implemented
-4. **Notifications**: Email notifications not yet implemented
+1. **Encryption**: Payout recipient data not yet encrypted (security enhancement needed)
+2. **Notifications**: Email notifications not yet implemented
 
 ---
 
-**Last Updated**: Based on implementation in `PayoutServiceImpl`, `PayoutController`, and schedulers
-**Status**: ✅ Core functionality complete, PayPal OAuth pending
+**Last Updated**: Based on implementation in `PayoutServiceImpl`, `PayoutController`, `PayPalGateway`, and schedulers
+**Status**: ✅ Core functionality complete, PayPal Payouts fully integrated
