@@ -1,17 +1,21 @@
 package com.edumind.lms.modules.payment.event;
 
-import com.edumind.lms.modules.payment.entity.Order;
 import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
+
+import com.edumind.lms.shared.event.DomainEvent;
 
 @Getter
-public class PaymentFailedEvent extends ApplicationEvent {
-    private final Order order;
+public class PaymentFailedEvent extends DomainEvent {
+    private final Long orderId;
+    private final String orderNumber;
+    private final Long userId;
     private final String errorMessage;
 
-    public PaymentFailedEvent(Object source, Order order, String errorMessage) {
+    public PaymentFailedEvent(Object source, Long orderId, String orderNumber, Long userId, String errorMessage) {
         super(source);
-        this.order = order;
+        this.orderId = orderId;
+        this.orderNumber = orderNumber;
+        this.userId = userId;
         this.errorMessage = errorMessage;
     }
 }

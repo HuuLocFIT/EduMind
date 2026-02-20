@@ -135,14 +135,15 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             savedEnrollment = enrollmentRepository.save(enrollment);
         }
 
-        // Update course statistics (only increment if this is a new enrollment, not a reactivated DROPPED one)
-        // Protection against integer overflow
-        int currentStudents = course.getTotalStudents() != null ? course.getTotalStudents() : 0;
-        if (currentStudents < Integer.MAX_VALUE) {
-            course.setTotalStudents(currentStudents + 1);
-            courseRepository.save(course);
-        } else {
-            log.warn("Course {} has reached maximum student count, cannot increment further", courseId);
+        // Update course statistics — only increment for NEW enrollments, not reactivated DROPPED ones
+        if (existingEnrollmentOpt.isEmpty()) {
+            int currentStudents = course.getTotalStudents() != null ? course.getTotalStudents() : 0;
+            if (currentStudents < Integer.MAX_VALUE) {
+                course.setTotalStudents(currentStudents + 1);
+                courseRepository.save(course);
+            } else {
+                log.warn("Course {} has reached maximum student count, cannot increment further", courseId);
+            }
         }
 
         // Publish event
@@ -421,6 +422,29 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         
         reportRequestRepository.save(reportRequest);
         log.info("Report request {} created successfully for enrollment {}", reportRequest.getId(), enrollmentId);
+    }
+
+    /**
+     * Soft-drop enrollment by course and student IDs.
+     * Used by the payment ACL layer on refund. Does NOT decrement totalStudents.
+     * Idempotent: no-op if enrollment not found or already DROPPED.
+     */
+    @Override
+    @Transactional
+    public void dropStudent(Long courseId, Long studentId) {
+        Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId).orElse(null);
+        if (enrollment == null) {
+            log.debug("dropStudent: no enrollment found for courseId={}, studentId={} — no-op", courseId, studentId);
+            return;
+        }
+        if (enrollment.getStatus() == EnrollmentStatus.DROPPED) {
+            log.debug("dropStudent: enrollment {} already DROPPED — no-op", enrollment.getId());
+            return;
+        }
+        enrollment.setStatus(EnrollmentStatus.DROPPED);
+        enrollment.setLastAccessedAt(LocalDateTime.now());
+        enrollmentRepository.save(enrollment);
+        log.info("Enrollment {} dropped (refund revocation): courseId={}, studentId={}", enrollment.getId(), courseId, studentId);
     }
 
     /**

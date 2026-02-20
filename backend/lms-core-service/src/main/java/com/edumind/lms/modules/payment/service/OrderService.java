@@ -1,6 +1,6 @@
 package com.edumind.lms.modules.payment.service;
 
-import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.api.dto.CourseInfo;
 import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.OrderResponse;
@@ -85,5 +85,5 @@ public interface OrderService {
     /**
      * Create order from single course (transactional)
      */
-    Order createOrderFromSingleCourse(Long userId, Course course, DirectCheckoutRequest request);
+    Order createOrderFromSingleCourse(Long userId, CourseInfo course, DirectCheckoutRequest request);
 }

@@ -118,6 +118,11 @@ public class Order extends BaseEntity {
     @Column(name = "refunded_at")
     private LocalDateTime refundedAt;
 
+    // Tracks whether async side effects (enrollment, earnings, invoice, cart) were published
+    @Column(name = "side_effects_published")
+    @Builder.Default
+    private boolean sideEffectsPublished = false;
+
     // Relationships
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

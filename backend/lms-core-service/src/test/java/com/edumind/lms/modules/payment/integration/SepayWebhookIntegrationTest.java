@@ -30,6 +30,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.awaitility.Awaitility.await;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Integration tests for SePay webhook flow.
@@ -134,9 +136,10 @@ class SepayWebhookIntegrationTest extends BasePaymentIntegrationTest {
         assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
         
         // Verify enrollment was created
-        boolean isEnrolled = enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                course.getId(), userId, com.edumind.lms.modules.course.enums.EnrollmentStatus.DROPPED);
-        assertThat(isEnrolled).isTrue();
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
+                course.getId(), userId, com.edumind.lms.modules.course.enums.EnrollmentStatus.DROPPED)
+        );
     }
 
     @Test
@@ -499,9 +502,10 @@ class SepayWebhookIntegrationTest extends BasePaymentIntegrationTest {
         
         // CRITICAL: Enrollment should only happen ONCE
         // Verify enrollment exists (implementation should be idempotent)
-        boolean isEnrolled = enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                course.getId(), userId, com.edumind.lms.modules.course.enums.EnrollmentStatus.DROPPED);
-        assertThat(isEnrolled).isTrue();
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
+                course.getId(), userId, com.edumind.lms.modules.course.enums.EnrollmentStatus.DROPPED)
+        );
     }
 
     @Test

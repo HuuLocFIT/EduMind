@@ -2,8 +2,9 @@ package com.edumind.lms.modules.payment.service;
 
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseStatus;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.api.dto.CourseInfo;
+import com.edumind.lms.modules.course.api.CourseQueryService;
+import com.edumind.lms.modules.course.api.EnrollmentQueryService;
 import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.OrderCountResponse;
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -43,9 +46,13 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("OrderService Unit Tests")
 class OrderServiceTest {
 
@@ -59,10 +66,10 @@ class OrderServiceTest {
     private NumberGeneratorService numberGeneratorService;
 
     @Mock
-    private CourseRepository courseRepository;
+    private CourseQueryService courseQueryService;
 
     @Mock
-    private EnrollmentRepository enrollmentRepository;
+    private EnrollmentQueryService enrollmentQueryService;
 
     @Mock
     private UserClient userClient;
@@ -75,6 +82,7 @@ class OrderServiceTest {
     private String orderNumber = "ORD-2026-001";
     private Order order;
     private Course course;
+    private CourseInfo courseInfo;
 
     @BeforeEach
     void setUp() {
@@ -103,6 +111,25 @@ class OrderServiceTest {
                 .build();
         // Set ID via reflection since it's auto-generated
         org.springframework.test.util.ReflectionTestUtils.setField(course, "id", 200L);
+
+        courseInfo = new CourseInfo(
+                course.getId(),
+                course.getTitle(),
+                course.getSlug(),
+                course.getThumbnailUrl(),
+                course.getPrice(),
+                course.getDiscountPrice(),
+                course.getEffectivePrice(),
+                course.getOriginalPrice(),
+                course.isPublished(),
+                course.getInstructorId(),
+                course.getInstructorName(),
+                course.getCurrency()
+        );
+
+        // Default stubs for new ACL dependencies (tests can override as needed).
+        lenient().when(courseQueryService.getCourseInfoBatch(any())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+        lenient().when(enrollmentQueryService.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
     }
 
     @Nested
@@ -302,7 +329,7 @@ class OrderServiceTest {
             when(orderRepository.save(any(Order.class))).thenReturn(order);
 
             // When
-            OrderResponse response = orderService.cancelOrder(orderId, userId);
+            orderService.cancelOrder(orderId, userId);
 
             // Then
             assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
@@ -404,8 +431,8 @@ class OrderServiceTest {
                 o.setId(orderId);
                 return o;
             });
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(Collections.emptyList());
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -444,10 +471,27 @@ class OrderServiceTest {
             when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
             
-            // Mock finding both courses
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course, unpublishedCourse));
+            CourseInfo unpublishedCourseInfo = new CourseInfo(
+                    unpublishedCourse.getId(),
+                    unpublishedCourse.getTitle(),
+                    null,
+                    null,
+                    unpublishedCourse.getPrice(),
+                    null,
+                    unpublishedCourse.getPrice(),
+                    unpublishedCourse.getPrice(),
+                    false,
+                    unpublishedCourse.getInstructorId(),
+                    unpublishedCourse.getInstructorName(),
+                    "USD"
+            );
+
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(
+                    courseInfo.id(), courseInfo,
+                    unpublishedCourseInfo.id(), unpublishedCourseInfo
+            ));
             // Mock no existing enrollments
-            when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
+            when(enrollmentQueryService.findEnrolledCourseIds(anyLong(), anyList())).thenReturn(Collections.emptyList());
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -457,7 +501,7 @@ class OrderServiceTest {
             // Started with 2 items, but unpublished one should be skipped. 
             // verifying validation was done is indirect via the number of saved items or result total
             verify(orderItemRepository, times(1)).save(any(OrderItem.class)); 
-            assertThat(result.getTotalAmount()).isEqualTo(course.getEffectivePrice());
+            assertThat(result.getTotalAmount()).isEqualTo(courseInfo.effectivePrice());
         }
 
         @Test
@@ -484,16 +528,33 @@ class OrderServiceTest {
 
             when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course, enrolledCourse));
+            CourseInfo enrolledCourseInfo = new CourseInfo(
+                    enrolledCourse.getId(),
+                    enrolledCourse.getTitle(),
+                    null,
+                    null,
+                    enrolledCourse.getPrice(),
+                    null,
+                    enrolledCourse.getPrice(),
+                    enrolledCourse.getPrice(),
+                    true,
+                    enrolledCourse.getInstructorId(),
+                    enrolledCourse.getInstructorName(),
+                    "USD"
+            );
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(
+                    courseInfo.id(), courseInfo,
+                    enrolledCourseInfo.id(), enrolledCourseInfo
+            ));
             
             // Mock enrollment for the second course
-            when(enrollmentRepository.findEnrolledCourseIds(eq(userId), any()))
+            when(enrollmentQueryService.findEnrolledCourseIds(eq(userId), anyList()))
                     .thenReturn(List.of(enrolledCourse.getId()));
             
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
-            Order result = orderService.createOrderFromCart(userId, List.of(validItem, enrolledItem), request);
+            orderService.createOrderFromCart(userId, List.of(validItem, enrolledItem), request);
 
             // Then
             verify(orderItemRepository, times(1)).save(any(OrderItem.class));
@@ -508,10 +569,10 @@ class OrderServiceTest {
             CheckoutRequest request = new CheckoutRequest();
             request.setPaymentMethod(PaymentMethod.MOCK);
 
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
 
             // Simulating already enrolled
-            when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(List.of(course.getId()));
+            when(enrollmentQueryService.findEnrolledCourseIds(anyLong(), anyList())).thenReturn(List.of(courseInfo.id()));
 
             // When & Then
             assertThatThrownBy(() -> orderService.createOrderFromCart(userId, List.of(item), request))
@@ -541,8 +602,8 @@ class OrderServiceTest {
 
             when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(anyLong(), anyList())).thenReturn(Collections.emptyList());
             when(userClient.getCurrentUser()).thenReturn(apiResponse);
 
             // When
@@ -564,8 +625,8 @@ class OrderServiceTest {
 
             when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(anyLong(), anyList())).thenReturn(Collections.emptyList());
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // Simulate error
@@ -617,8 +678,22 @@ class OrderServiceTest {
 
             when(numberGeneratorService.generateOrderNumber()).thenReturn(orderNumber);
             when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(courseRepository.findAllById(any())).thenReturn(List.of(pricedCourse));
-            when(enrollmentRepository.findEnrolledCourseIds(any(), any())).thenReturn(Collections.emptyList());
+            CourseInfo pricedCourseInfo = new CourseInfo(
+                    pricedCourse.getId(),
+                    pricedCourse.getTitle(),
+                    null,
+                    null,
+                    pricedCourse.getPrice(),
+                    null,
+                    pricedCourse.getPrice(),
+                    pricedCourse.getPrice(),
+                    true,
+                    pricedCourse.getInstructorId(),
+                    pricedCourse.getInstructorName(),
+                    "USD"
+            );
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(pricedCourseInfo.id(), pricedCourseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(anyLong(), anyList())).thenReturn(Collections.emptyList());
 
             // When
             Order result = orderService.createOrderFromCart(userId, List.of(cartItem), request);
@@ -666,7 +741,7 @@ class OrderServiceTest {
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
-            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+            Order result = orderService.createOrderFromSingleCourse(userId, courseInfo, request);
 
             // Then
             assertThat(result).isNotNull();
@@ -678,14 +753,23 @@ class OrderServiceTest {
         @DisplayName("Should handle null prices gracefully")
         void createOrderFromSingleCourse_NullPrices_HandledGracefully() {
             // Given
-            Course nullPriceCourse = Course.builder()
-                    .title("Free Course")
-                    .price(null) // Null original price
-                    .build();
-            ReflectionTestUtils.setField(nullPriceCourse, "id", 400L);
+            CourseInfo nullPriceCourse = new CourseInfo(
+                    400L,
+                    "Free Course",
+                    "free-course",
+                    null,
+                    null,
+                    null,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    true,
+                    50L,
+                    "Test Instructor",
+                    "USD"
+            );
 
             DirectCheckoutRequest request = new DirectCheckoutRequest();
-            request.setCourseId(nullPriceCourse.getId());
+            request.setCourseId(nullPriceCourse.id());
             request.setPaymentMethod(PaymentMethod.MOCK);
             request.setCustomerName("Test");
             request.setCustomerEmail("test@example.com");
@@ -723,7 +807,7 @@ class OrderServiceTest {
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
-            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+            Order result = orderService.createOrderFromSingleCourse(userId, courseInfo, request);
 
             // Then
             assertThat(result.getExpiresAt()).isNotNull();
@@ -755,7 +839,7 @@ class OrderServiceTest {
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
-            Order result = orderService.createOrderFromSingleCourse(userId, course, request);
+            Order result = orderService.createOrderFromSingleCourse(userId, courseInfo, request);
 
             // Then
             assertThat(result.getIpAddress()).isEqualTo("192.168.1.100");
@@ -788,8 +872,8 @@ class OrderServiceTest {
                 o.setId(orderId);
                 return o;
             });
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(Collections.emptyList());
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -825,8 +909,8 @@ class OrderServiceTest {
                 o.setId(orderId);
                 return o;
             });
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(Collections.emptyList());
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When
@@ -857,8 +941,8 @@ class OrderServiceTest {
                 o.setId(orderId);
                 return o;
             });
-            when(courseRepository.findAllById(any())).thenReturn(List.of(course));
-            when(enrollmentRepository.findEnrolledCourseIds(userId, List.of(course.getId()))).thenReturn(Collections.emptyList());
+            when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(Map.of(courseInfo.id(), courseInfo));
+            when(enrollmentQueryService.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(Collections.emptyList());
             when(orderItemRepository.save(any(OrderItem.class))).thenAnswer(inv -> inv.getArgument(0));
 
             // When

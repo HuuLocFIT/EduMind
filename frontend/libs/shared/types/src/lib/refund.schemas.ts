@@ -64,9 +64,9 @@ export const RefundPolicyResponseSchema = z.object({
   autoApproveDays: z.number(),
   maxRefundDays: z.number(),
   partialRefundThreshold: z.number(),
-  eligibleRefundAmount: z.number(),
+  eligibleRefundAmount: z.number().nullable().optional(),
   eligible: z.boolean(),
-  eligibilityReason: z.string(),
+  eligibilityReason: z.string().nullable().optional(),
   requiresAdminApproval: z.boolean(),
 });
 

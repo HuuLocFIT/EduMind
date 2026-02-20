@@ -12,6 +12,8 @@ import com.edumind.lms.modules.payment.exception.InstructorEarningNotFoundExcept
 import com.edumind.lms.modules.payment.mapper.EarningMapper;
 import com.edumind.lms.modules.payment.repository.InstructorEarningRepository;
 import com.edumind.lms.modules.payment.repository.OrderItemRepository;
+import com.edumind.lms.modules.payment.repository.OrderRepository;
+import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -40,6 +42,7 @@ public class EarningServiceImpl implements EarningService {
 
     private final InstructorEarningRepository earningRepository;
     private final OrderItemRepository orderItemRepository;
+    private final OrderRepository orderRepository;
     private final PlatformConfigService platformConfigService;
     private final EarningMapper earningMapper;
 
@@ -76,6 +79,13 @@ public class EarningServiceImpl implements EarningService {
         }
 
         log.info("Created earnings for order: {}", order.getOrderNumber());
+    }
+
+    @Override
+    @Transactional
+    public void createEarningsForOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
+        createEarningsForOrder(order);
     }
 
     @Override

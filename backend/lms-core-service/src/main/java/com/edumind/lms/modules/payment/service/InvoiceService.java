@@ -16,6 +16,11 @@ public interface InvoiceService {
     InvoiceResponse generateInvoice(Order order);
 
     /**
+     * Generate invoice for completed order (loads order internally).
+     */
+    InvoiceResponse generateInvoice(Long orderId);
+
+    /**
      * Get invoice by ID
      */
     InvoiceResponse getInvoiceById(Long invoiceId);
