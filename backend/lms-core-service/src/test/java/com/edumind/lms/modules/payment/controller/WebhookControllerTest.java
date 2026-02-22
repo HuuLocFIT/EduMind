@@ -3,6 +3,7 @@ package com.edumind.lms.modules.payment.controller;
 import com.edumind.lms.modules.payment.dto.request.WebhookPayloadRequest;
 import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.service.WebhookService;
+import com.edumind.lms.modules.payment.service.PayoutService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,12 +22,10 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,6 +44,9 @@ class WebhookControllerTest {
 
     @MockBean
     private WebhookService webhookService;
+
+    @MockBean
+    private PayoutService payoutService;
 
     @MockBean(name = "teacherSecurity")
     private com.edumind.lms.config.security.TeacherSecurity teacherSecurity;

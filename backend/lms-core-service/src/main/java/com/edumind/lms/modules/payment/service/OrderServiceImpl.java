@@ -1,9 +1,9 @@
 package com.edumind.lms.modules.payment.service;
 
 import com.edumind.common.response.ApiResponse;
-import com.edumind.lms.modules.course.entity.Course;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.api.CourseQueryService;
+import com.edumind.lms.modules.course.api.EnrollmentQueryService;
+import com.edumind.lms.modules.course.api.dto.CourseInfo;
 import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.OrderItemResponse;
@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -46,8 +45,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final NumberGeneratorService numberGeneratorService;
-    private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final CourseQueryService courseQueryService;
+    private final EnrollmentQueryService enrollmentQueryService;
     private final UserClient userClient; // Injected
 
     @Override
@@ -297,19 +296,17 @@ public class OrderServiceImpl implements OrderService {
                 .map(CartItem::getCourseId)
                 .collect(Collectors.toList());
 
-        Map<Long, Course> coursesMap = courseRepository.findAllById(courseIds).stream()
-                .collect(Collectors.toMap(Course::getId, Function.identity()));
+        Map<Long, CourseInfo> coursesMap = courseQueryService.getCourseInfoBatch(courseIds);
 
-        Set<Long> enrolledCourseIds = new HashSet<>(
-                enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
+        Set<Long> enrolledCourseIds = new HashSet<>(enrollmentQueryService.findEnrolledCourseIds(userId, courseIds));
 
         // Pre-validate: count valid items before creating order
         List<CartItem> validCartItems = cartItems.stream()
                 .filter(cartItem -> {
-                    Course course = coursesMap.get(cartItem.getCourseId());
+                    CourseInfo course = coursesMap.get(cartItem.getCourseId());
                     return course != null
                             && course.isPublished()
-                            && !enrolledCourseIds.contains(course.getId());
+                            && !enrolledCourseIds.contains(course.id());
                 })
                 .collect(Collectors.toList());
 
@@ -348,24 +345,24 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalDiscount = BigDecimal.ZERO;
 
         for (CartItem cartItem : validCartItems) {
-            Course course = coursesMap.get(cartItem.getCourseId());
+            CourseInfo course = coursesMap.get(cartItem.getCourseId());
 
-            BigDecimal originalPrice = course.getOriginalPrice();
-            BigDecimal finalPrice = course.getEffectivePrice();
+            BigDecimal originalPrice = course.originalPrice() != null ? course.originalPrice() : BigDecimal.ZERO;
+            BigDecimal finalPrice = course.effectivePrice() != null ? course.effectivePrice() : BigDecimal.ZERO;
             BigDecimal discount = originalPrice.subtract(finalPrice);
 
             OrderItem item = new OrderItem();
             item.setOrder(order);
-            item.setCourseId(course.getId());
-            item.setCourseTitle(course.getTitle());
-            item.setCourseSlug(course.getSlug());
-            item.setCourseThumbnailUrl(course.getThumbnailUrl());
-            item.setInstructorId(course.getInstructorId());
-            item.setInstructorName(course.getInstructorName());
+            item.setCourseId(course.id());
+            item.setCourseTitle(course.title());
+            item.setCourseSlug(course.slug());
+            item.setCourseThumbnailUrl(course.thumbnailUrl());
+            item.setInstructorId(course.instructorId());
+            item.setInstructorName(course.instructorName());
             item.setFinalPrice(finalPrice);
             item.setOriginalPrice(originalPrice);
             item.setDiscountAmount(discount);
-            item.setCurrency("USD");
+            item.setCurrency(course.currency() != null ? course.currency() : "USD");
 
             orderItemRepository.save(item);
 
@@ -386,8 +383,8 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional
-    public Order createOrderFromSingleCourse(Long userId, Course course, DirectCheckoutRequest request) {
-        log.debug("Creating order from single course for user: {}, course: {}", userId, course.getId());
+    public Order createOrderFromSingleCourse(Long userId, CourseInfo course, DirectCheckoutRequest request) {
+        log.debug("Creating order from single course for user: {}, course: {}", userId, course.id());
 
         Order order = new Order();
         order.setOrderNumber(numberGeneratorService.generateOrderNumber());
@@ -408,22 +405,22 @@ public class OrderServiceImpl implements OrderService {
         order = orderRepository.save(order);
 
         // Use getOriginalPrice() consistently with createOrderFromCart
-        BigDecimal originalPrice = course.getOriginalPrice() != null ? course.getOriginalPrice() : BigDecimal.ZERO;
-        BigDecimal effectivePrice = course.getEffectivePrice() != null ? course.getEffectivePrice() : BigDecimal.ZERO;
+        BigDecimal originalPrice = course.originalPrice() != null ? course.originalPrice() : BigDecimal.ZERO;
+        BigDecimal effectivePrice = course.effectivePrice() != null ? course.effectivePrice() : BigDecimal.ZERO;
         BigDecimal discount = originalPrice.subtract(effectivePrice);
 
         OrderItem item = new OrderItem();
         item.setOrder(order);
-        item.setCourseId(course.getId());
-        item.setCourseTitle(course.getTitle());
-        item.setCourseSlug(course.getSlug());
-        item.setCourseThumbnailUrl(course.getThumbnailUrl());
-        item.setInstructorId(course.getInstructorId());
-        item.setInstructorName(course.getInstructorName());
+        item.setCourseId(course.id());
+        item.setCourseTitle(course.title());
+        item.setCourseSlug(course.slug());
+        item.setCourseThumbnailUrl(course.thumbnailUrl());
+        item.setInstructorId(course.instructorId());
+        item.setInstructorName(course.instructorName());
         item.setFinalPrice(effectivePrice);
         item.setOriginalPrice(originalPrice);
         item.setDiscountAmount(discount);
-        item.setCurrency("USD");
+        item.setCurrency(course.currency() != null ? course.currency() : "USD");
 
         orderItemRepository.save(item);
 

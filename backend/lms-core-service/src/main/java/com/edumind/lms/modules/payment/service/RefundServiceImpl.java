@@ -1,10 +1,9 @@
 package com.edumind.lms.modules.payment.service;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.lms.modules.course.api.EnrollmentQueryService;
+import com.edumind.lms.modules.course.api.dto.EnrollmentInfo;
 import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
-import com.edumind.lms.modules.course.entity.Enrollment;
-import com.edumind.lms.modules.course.enums.EnrollmentStatus;
-import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.payment.dto.response.RefundPolicyResponseDto;
 import com.edumind.lms.modules.payment.dto.response.RefundResponseDto;
 import com.edumind.lms.shared.client.UserClient;
@@ -24,8 +23,10 @@ import com.edumind.lms.modules.payment.gateway.GatewayRefundStatus;
 import com.edumind.lms.modules.payment.gateway.PaymentGateway;
 import com.edumind.lms.modules.payment.gateway.config.PaymentGatewayRegistry;
 import com.edumind.lms.modules.payment.repository.*;
+import com.edumind.lms.modules.payment.event.RefundCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -48,10 +49,11 @@ public class RefundServiceImpl implements RefundService {
     private final OrderItemRepository orderItemRepository;
     private final TransactionRepository transactionRepository;
     private final InstructorEarningRepository earningRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentQueryService enrollmentQueryService;
     private final PaymentGatewayRegistry gatewayRegistry;
     private final NumberGeneratorService numberGeneratorService;
     private final UserClient userClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
@@ -488,16 +490,15 @@ public class RefundServiceImpl implements RefundService {
         int courseCount = 0;
 
         for (OrderItem item : items) {
-            Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(
-                    item.getCourseId(), order.getUserId())
+            EnrollmentInfo enrollment = enrollmentQueryService.getEnrollmentInfo(item.getCourseId(), order.getUserId())
                     .orElse(null);
 
             if (enrollment != null) {
-                if (enrollment.getStatus() == EnrollmentStatus.COMPLETED) {
+                if ("COMPLETED".equalsIgnoreCase(enrollment.status())) {
                     totalAccess += 100;
                 } else {
-                    totalAccess += enrollment.getProgressPercentage() != null
-                            ? enrollment.getProgressPercentage()
+                    totalAccess += enrollment.progressPercentage() != null
+                            ? enrollment.progressPercentage()
                             : 0;
                 }
                 courseCount++;
@@ -510,22 +511,6 @@ public class RefundServiceImpl implements RefundService {
     /**
      * Revoke enrollments for all courses in the order
      */
-    private void revokeEnrollments(Order order) {
-        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-        for (OrderItem item : items) {
-            Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(
-                    item.getCourseId(), order.getUserId())
-                    .orElse(null);
-
-            if (enrollment != null && enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-                enrollment.setStatus(EnrollmentStatus.DROPPED);
-                enrollmentRepository.save(enrollment);
-                log.info("Enrollment revoked for user {} in course {} due to refund",
-                        order.getUserId(), item.getCourseId());
-            }
-        }
-    }
-
     /**
      * Check if payment method supports automatic refund processing
      */
@@ -593,7 +578,19 @@ public class RefundServiceImpl implements RefundService {
 
         // Revoke enrollments if full refund
         if (isFullRefund) {
-            revokeEnrollments(order);
+            List<Long> courseIds = orderItemRepository.findByOrderId(order.getId()).stream()
+                    .map(OrderItem::getCourseId)
+                    .toList();
+
+            eventPublisher.publishEvent(new RefundCompletedEvent(
+                    this,
+                    order.getId(),
+                    order.getOrderNumber(),
+                    order.getUserId(),
+                    courseIds,
+                    refund.getRequestedAmount(),
+                    true
+            ));
         }
     }
 

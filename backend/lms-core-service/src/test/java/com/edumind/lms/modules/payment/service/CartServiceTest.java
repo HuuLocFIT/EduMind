@@ -4,6 +4,9 @@ import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseStatus;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.api.CourseQueryService;
+import com.edumind.lms.modules.course.api.EnrollmentQueryService;
+import com.edumind.lms.modules.course.api.dto.CourseInfo;
 import com.edumind.lms.modules.payment.dto.request.AddToCartRequest;
 import com.edumind.lms.modules.payment.dto.response.CartItemResponse;
 import com.edumind.lms.modules.payment.dto.response.CartResponse;
@@ -23,6 +26,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -41,6 +46,7 @@ import static org.mockito.Mockito.*;
 import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("CartService Unit Tests")
 class CartServiceTest {
 
@@ -56,6 +62,12 @@ class CartServiceTest {
     @Mock
     private EnrollmentRepository enrollmentRepository;
 
+    @Mock
+    private CourseQueryService courseQueryService;
+
+    @Mock
+    private EnrollmentQueryService enrollmentQueryService;
+
     @InjectMocks
     private CartServiceImpl cartService;
 
@@ -63,6 +75,7 @@ class CartServiceTest {
     private Long courseId = 100L;
     private Cart cart;
     private Course course;
+    private CourseInfo courseInfo;
 
     @BeforeEach
     void setUp() {
@@ -84,6 +97,26 @@ class CartServiceTest {
                 .build();
         // Set ID via reflection since it's auto-generated
         ReflectionTestUtils.setField(course, "id", courseId);
+
+        courseInfo = new CourseInfo(
+                course.getId(),
+                course.getTitle(),
+                course.getSlug(),
+                course.getThumbnailUrl(),
+                course.getPrice(),
+                course.getDiscountPrice(),
+                course.getEffectivePrice(),
+                course.getOriginalPrice(),
+                course.isPublished(),
+                course.getInstructorId(),
+                course.getInstructorName(),
+                course.getCurrency()
+        );
+
+        // Default stubs for new ACL dependencies (tests can override as needed).
+        lenient().when(courseQueryService.getCourseInfo(anyLong())).thenReturn(Optional.of(courseInfo));
+        lenient().when(courseQueryService.getCourseInfoBatch(anyCollection())).thenReturn(java.util.Map.of(courseId, courseInfo));
+        lenient().when(enrollmentQueryService.isStudentEnrolledExcludingDropped(anyLong(), anyLong())).thenReturn(false);
     }
 
     @Nested
@@ -134,10 +167,8 @@ class CartServiceTest {
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            // Updated to use correct enrollment check method
-            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                    eq(courseId), eq(userId), any())).thenReturn(false);
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.of(courseInfo));
+            when(enrollmentQueryService.isStudentEnrolledExcludingDropped(courseId, userId)).thenReturn(false);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(false);
             when(cartItemRepository.save(any(CartItem.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -163,7 +194,7 @@ class CartServiceTest {
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.empty());
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.empty());
 
             // When & Then
             assertThatThrownBy(() -> cartService.addToCart(userId, request))
@@ -178,7 +209,22 @@ class CartServiceTest {
             request.setCourseId(courseId);
             course.setStatus(CourseStatus.DRAFT);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
+            CourseInfo unpublishedInfo = new CourseInfo(
+                    course.getId(),
+                    course.getTitle(),
+                    course.getSlug(),
+                    course.getThumbnailUrl(),
+                    course.getPrice(),
+                    course.getDiscountPrice(),
+                    course.getEffectivePrice(),
+                    course.getOriginalPrice(),
+                    false,
+                    course.getInstructorId(),
+                    course.getInstructorName(),
+                    course.getCurrency()
+            );
+
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.of(unpublishedInfo));
 
             // When & Then
             assertThatThrownBy(() -> cartService.addToCart(userId, request))
@@ -192,10 +238,8 @@ class CartServiceTest {
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            // Changed to use existsByCourseIdAndStudentIdAndStatusNot to exclude DROPPED
-            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                    eq(courseId), eq(userId), any())).thenReturn(true);
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.of(courseInfo));
+            when(enrollmentQueryService.isStudentEnrolledExcludingDropped(courseId, userId)).thenReturn(true);
 
             // When & Then
             assertThatThrownBy(() -> cartService.addToCart(userId, request))
@@ -209,10 +253,9 @@ class CartServiceTest {
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            // User previously DROPPED, so existsByCourseIdAndStudentIdAndStatusNot returns false
-            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                    eq(courseId), eq(userId), any())).thenReturn(false);
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.of(courseInfo));
+            // User previously DROPPED (or never enrolled), so query returns false
+            when(enrollmentQueryService.isStudentEnrolledExcludingDropped(courseId, userId)).thenReturn(false);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(false);
             when(cartItemRepository.save(any(CartItem.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -235,9 +278,8 @@ class CartServiceTest {
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                    eq(courseId), eq(userId), any())).thenReturn(false);
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.of(courseInfo));
+            when(enrollmentQueryService.isStudentEnrolledExcludingDropped(courseId, userId)).thenReturn(false);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(true);
 
@@ -253,9 +295,8 @@ class CartServiceTest {
             AddToCartRequest request = new AddToCartRequest();
             request.setCourseId(courseId);
 
-            when(courseRepository.findById(courseId)).thenReturn(Optional.of(course));
-            when(enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                    eq(courseId), eq(userId), any())).thenReturn(false);
+            when(courseQueryService.getCourseInfo(courseId)).thenReturn(Optional.of(courseInfo));
+            when(enrollmentQueryService.isStudentEnrolledExcludingDropped(courseId, userId)).thenReturn(false);
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.existsByCartIdAndCourseId(cart.getId(), courseId)).thenReturn(false);
             // Simulate concurrent insert - DataIntegrityViolationException from unique constraint
@@ -556,7 +597,42 @@ class CartServiceTest {
 
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartId(cart.getId())).thenReturn(Arrays.asList(item1, item2));
-            when(courseRepository.findAllById(anyCollection())).thenReturn(Arrays.asList(course1, course2));
+
+            CourseInfo courseInfo1 = new CourseInfo(
+                    course1.getId(),
+                    course1.getTitle(),
+                    course1.getSlug(),
+                    course1.getThumbnailUrl(),
+                    course1.getPrice(),
+                    course1.getDiscountPrice(),
+                    course1.getEffectivePrice(),
+                    course1.getOriginalPrice(),
+                    course1.isPublished(),
+                    course1.getInstructorId(),
+                    course1.getInstructorName(),
+                    course1.getCurrency()
+            );
+
+            CourseInfo courseInfo2 = new CourseInfo(
+                    course2.getId(),
+                    course2.getTitle(),
+                    course2.getSlug(),
+                    course2.getThumbnailUrl(),
+                    course2.getPrice(),
+                    course2.getDiscountPrice(),
+                    course2.getEffectivePrice(),
+                    course2.getOriginalPrice(),
+                    course2.isPublished(),
+                    course2.getInstructorId(),
+                    course2.getInstructorName(),
+                    course2.getCurrency()
+            );
+
+            when(courseQueryService.getCourseInfoBatch(anyCollection()))
+                    .thenReturn(java.util.Map.of(
+                            courseId1, courseInfo1,
+                            courseId2, courseInfo2
+                    ));
 
             // When
             CartResponse response = cartService.getCart(userId);
@@ -607,8 +683,27 @@ class CartServiceTest {
             when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
             when(cartItemRepository.findByCartId(cart.getId()))
                     .thenReturn(Arrays.asList(publishedItem, unpublishedItem));
-            when(courseRepository.findAllById(anyCollection()))
-                    .thenReturn(Arrays.asList(course, unpublishedCourse));
+
+            CourseInfo unpublishedCourseInfo = new CourseInfo(
+                    unpublishedCourse.getId(),
+                    unpublishedCourse.getTitle(),
+                    unpublishedCourse.getSlug(),
+                    unpublishedCourse.getThumbnailUrl(),
+                    unpublishedCourse.getPrice(),
+                    unpublishedCourse.getDiscountPrice(),
+                    unpublishedCourse.getEffectivePrice(),
+                    unpublishedCourse.getOriginalPrice(),
+                    false,
+                    unpublishedCourse.getInstructorId(),
+                    unpublishedCourse.getInstructorName(),
+                    unpublishedCourse.getCurrency()
+            );
+
+            when(courseQueryService.getCourseInfoBatch(anyCollection()))
+                    .thenReturn(java.util.Map.of(
+                            courseId, courseInfo,
+                            unpublishedCourseId, unpublishedCourseInfo
+                    ));
 
             // When
             CartResponse response = cartService.getCart(userId);

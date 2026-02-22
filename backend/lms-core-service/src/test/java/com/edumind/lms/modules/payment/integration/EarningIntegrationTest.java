@@ -22,6 +22,8 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
+import static org.awaitility.Awaitility.await;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Integration tests for instructor earnings functionality.
@@ -110,6 +112,10 @@ class EarningIntegrationTest extends BasePaymentIntegrationTest {
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
 
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            !earningRepository.findAll().isEmpty()
+        );
+
         // Now get earnings as teacher
         setupTeacherSecurityContext();
         
@@ -127,6 +133,10 @@ class EarningIntegrationTest extends BasePaymentIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
+
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            !earningRepository.findAll().isEmpty()
+        );
 
         // Now get summary as teacher
         setupTeacherSecurityContext();
@@ -146,6 +156,10 @@ class EarningIntegrationTest extends BasePaymentIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
+
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            !earningRepository.findAll().isEmpty()
+        );
 
         // Now get earnings by course as teacher
         setupTeacherSecurityContext();
@@ -177,6 +191,10 @@ class EarningIntegrationTest extends BasePaymentIntegrationTest {
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
 
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            !earningRepository.findAll().isEmpty()
+        );
+
         // Now get monthly earnings as teacher
         setupTeacherSecurityContext();
         
@@ -195,6 +213,10 @@ class EarningIntegrationTest extends BasePaymentIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
+
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            !earningRepository.findAll().isEmpty()
+        );
 
         // Get the earning ID
         var earnings = earningRepository.findAll();
@@ -218,6 +240,10 @@ class EarningIntegrationTest extends BasePaymentIntegrationTest {
         request.setPaymentMethod(PaymentMethod.MOCK);
         request.setCustomerEmail("student@example.com");
         checkoutService.directCheckout(studentId, request);
+
+        await().atMost(5, TimeUnit.SECONDS).until(() -> 
+            !earningRepository.findAll().isEmpty()
+        );
 
         // Export as teacher
         setupTeacherSecurityContext();

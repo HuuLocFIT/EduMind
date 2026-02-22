@@ -1,9 +1,8 @@
 package com.edumind.lms.modules.payment.service;
 
-import com.edumind.lms.modules.course.entity.Course;
-import com.edumind.lms.modules.course.enums.EnrollmentStatus;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.api.CourseQueryService;
+import com.edumind.lms.modules.course.api.EnrollmentQueryService;
+import com.edumind.lms.modules.course.api.dto.CourseInfo;
 import com.edumind.lms.modules.payment.dto.request.AddToCartRequest;
 import com.edumind.lms.modules.payment.dto.response.CartItemResponse;
 import com.edumind.lms.modules.payment.dto.response.CartResponse;
@@ -18,7 +17,6 @@ import com.edumind.lms.modules.payment.repository.CartRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,8 +36,8 @@ public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final CourseQueryService courseQueryService;
+    private final EnrollmentQueryService enrollmentQueryService;
 
     @Override
     @Transactional
@@ -57,7 +55,7 @@ public class CartServiceImpl implements CartService {
         log.info("Adding course {} to cart for user {}", courseId, userId);
 
         // Validate course exists and is available
-        Course course = courseRepository.findById(courseId)
+        CourseInfo course = courseQueryService.getCourseInfo(courseId)
                 .orElseThrow(() -> new CourseNotAvailableException(courseId));
 
         // Check if course is published
@@ -66,7 +64,7 @@ public class CartServiceImpl implements CartService {
         }
 
         // This makes the check consistent with checkout flow, allowing re-enrollment after drop
-        if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(courseId, userId, EnrollmentStatus.DROPPED)) {
+        if (enrollmentQueryService.isStudentEnrolledExcludingDropped(courseId, userId)) {
             throw new CourseAlreadyPurchasedException(courseId);
         }
 
@@ -85,7 +83,7 @@ public class CartServiceImpl implements CartService {
         item.setAddedAt(LocalDateTime.now());
 
         // Snapshot price at time of adding (in case price changes later)
-        item.setPriceSnapshot(course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO);
+        item.setPriceSnapshot(course.price() != null ? course.price() : BigDecimal.ZERO);
 
         // Handle race condition - if another request added the same item concurrently,
         // the unique constraint (cart_id, course_id) will throw DataIntegrityViolationException
@@ -261,8 +259,7 @@ public class CartServiceImpl implements CartService {
                 .map(CartItem::getCourseId)
                 .collect(Collectors.toSet());
 
-        Map<Long, Course> courseMap = courseRepository.findAllById(courseIds).stream()
-                .collect(Collectors.toMap(Course::getId, Function.identity()));
+        Map<Long, CourseInfo> courseMap = courseQueryService.getCourseInfoBatch(courseIds);
 
         List<CartItemResponse> itemResponses = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
@@ -270,7 +267,7 @@ public class CartServiceImpl implements CartService {
         int availableItemCount = 0;
 
         for (CartItem item : items) {
-            Course course = courseMap.get(item.getCourseId());
+            CourseInfo course = courseMap.get(item.getCourseId());
 
             // Handle case where course was deleted or not found
             if (course == null) {
@@ -285,8 +282,8 @@ public class CartServiceImpl implements CartService {
                 continue;
             }
 
-            BigDecimal originalPrice = course.getPrice() != null ? course.getPrice() : BigDecimal.ZERO;
-            BigDecimal finalPrice = course.getEffectivePrice();
+            BigDecimal originalPrice = course.originalPrice() != null ? course.originalPrice() : BigDecimal.ZERO;
+            BigDecimal finalPrice = course.effectivePrice() != null ? course.effectivePrice() : BigDecimal.ZERO;
             BigDecimal discount = originalPrice.subtract(finalPrice);
 
             // Check if course is still published/available
@@ -297,16 +294,16 @@ public class CartServiceImpl implements CartService {
             }
 
             CartItemResponse itemResponse = CartItemResponse.builder()
-                    .courseId(course.getId())
-                    .courseTitle(course.getTitle())
-                    .courseSlug(course.getSlug())
-                    .courseThumbnailUrl(course.getThumbnailUrl())
-                    .instructorId(course.getInstructorId())
-                    .instructorName(course.getInstructorName())
+                    .courseId(course.id())
+                    .courseTitle(course.title())
+                    .courseSlug(course.slug())
+                    .courseThumbnailUrl(course.thumbnailUrl())
+                    .instructorId(course.instructorId())
+                    .instructorName(course.instructorName())
                     .originalPrice(originalPrice)
                     .discountAmount(discount)
                     .effectivePrice(finalPrice)
-                    .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                    .currency(course.currency() != null ? course.currency() : "USD")
                     .addedAt(item.getAddedAt())
                     .isAvailable(isAvailable)
                     .unavailableReason(unavailableReason)

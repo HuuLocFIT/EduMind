@@ -1,9 +1,5 @@
 package com.edumind.lms.modules.payment.service;
 
-import com.edumind.lms.modules.course.entity.Enrollment;
-import com.edumind.lms.modules.course.enums.EnrollmentStatus;
-import com.edumind.lms.modules.course.repository.EnrollmentRepository;
-import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.payment.dto.request.WebhookPayloadRequest;
 import com.edumind.lms.modules.payment.entity.*;
 import com.edumind.lms.modules.payment.enums.OrderStatus;
@@ -11,7 +7,10 @@ import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.enums.TransactionStatus;
 import com.edumind.lms.modules.payment.event.OrderCompletedEvent;
 import com.edumind.lms.modules.payment.event.PaymentFailedEvent;
+import com.edumind.lms.modules.payment.event.PaymentPendingEvent;
+import com.edumind.lms.modules.payment.event.RefundCompletedEvent;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
+
 import com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties;
 import com.edumind.lms.modules.payment.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,13 +21,14 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 @Slf4j
@@ -39,14 +39,10 @@ public class WebhookServiceImpl implements WebhookService {
     private final InstructorEarningRepository earningRepository;
     private final RefundRequestRepository refundRequestRepository;
     private final OrderItemRepository orderItemRepository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final EnrollmentService enrollmentService;
-    private final EarningService earningService;
-    private final InvoiceService invoiceService;
-    private final CartServiceImpl cartServiceImpl; // For REQUIRES_NEW transaction
     private final ApplicationEventPublisher eventPublisher;
     private final PayPalGatewayProperties payPalProperties;
     private final NumberGeneratorService numberGeneratorService;
+    private final RestTemplate restTemplate;
 
     public WebhookServiceImpl(
             OrderRepository orderRepository,
@@ -54,13 +50,9 @@ public class WebhookServiceImpl implements WebhookService {
             InstructorEarningRepository earningRepository,
             RefundRequestRepository refundRequestRepository,
             OrderItemRepository orderItemRepository,
-            EnrollmentRepository enrollmentRepository,
-            EnrollmentService enrollmentService,
-            EarningService earningService,
-            InvoiceService invoiceService,
-            CartServiceImpl cartServiceImpl,
             ApplicationEventPublisher eventPublisher,
             NumberGeneratorService numberGeneratorService,
+            RestTemplate restTemplate,
             @org.springframework.beans.factory.annotation.Autowired(required = false)
             PayPalGatewayProperties payPalProperties) {
         this.orderRepository = orderRepository;
@@ -68,13 +60,9 @@ public class WebhookServiceImpl implements WebhookService {
         this.earningRepository = earningRepository;
         this.refundRequestRepository = refundRequestRepository;
         this.orderItemRepository = orderItemRepository;
-        this.enrollmentRepository = enrollmentRepository;
-        this.enrollmentService = enrollmentService;
-        this.earningService = earningService;
-        this.invoiceService = invoiceService;
-        this.cartServiceImpl = cartServiceImpl;
         this.eventPublisher = eventPublisher;
         this.numberGeneratorService = numberGeneratorService;
+        this.restTemplate = restTemplate;
         this.payPalProperties = payPalProperties;
     }
 
@@ -184,18 +172,13 @@ public class WebhookServiceImpl implements WebhookService {
     public boolean verifySignature(PaymentMethod gateway, WebhookPayloadRequest request, String signature) {
         return switch (gateway) {
             case MOCK -> true; // No verification for mock
-            case PAYPAL -> verifyPayPalSignature(request, signature);
+            case PAYPAL -> verifyPayPalSignature(request, null, null, signature, null, null, null);
             case SEPAY -> verifySepaySignature(request, signature);
             default -> {
                 log.warn("No signature verification for gateway: {}", gateway);
                 yield true;
             }
         };
-    }
-
-    private boolean verifyPayPalSignature(WebhookPayloadRequest request, String signature) {
-        // Legacy method - delegate to new method with null headers
-        return verifyPayPalSignature(request, null, null, signature, null, null, null);
     }
 
     @Override
@@ -208,16 +191,30 @@ public class WebhookServiceImpl implements WebhookService {
             String authAlgo,
             HttpServletRequest httpRequest) {
 
-        // Check if webhook ID is configured
+        // If PAYPAL_WEBHOOK_ID isn't configured, we cannot verify real signatures.
+        // Policy (aligned with integration tests):
+        // - If NO signature headers are provided, treat as dev mode and allow (200 OK).
+        // - If signature headers ARE provided, reject (400) because we cannot verify.
+        boolean hasAnySignatureHeader =
+                (signature != null && !signature.isBlank())
+                        || (transmissionId != null && !transmissionId.isBlank())
+                        || (transmissionTime != null && !transmissionTime.isBlank())
+                        || (certUrl != null && !certUrl.isBlank())
+                        || (authAlgo != null && !authAlgo.isBlank());
+
         if (paypalWebhookId == null || paypalWebhookId.isEmpty()) {
-            log.warn("PayPal webhook verification skipped - no webhook ID configured. " +
-                    "Configure PAYPAL_WEBHOOK_ID for production.");
-            return true;
+            if (!hasAnySignatureHeader) {
+                log.warn("PayPal webhook verification skipped - no webhook ID configured and no signature headers provided (dev mode).");
+                return true;
+            }
+            log.warn("Rejecting PayPal webhook - signature headers provided but PAYPAL_WEBHOOK_ID is not configured.");
+            return false;
         }
 
-        // In development/sandbox without signature, skip verification
-        if (signature == null || signature.isEmpty()) {
-            log.warn("PayPal signature not provided for order {} - skipping verification (configure for production)",
+        // If webhook ID is configured but signature itself is missing, allow (dev fallback).
+        // Production should always provide signature headers.
+        if (signature == null || signature.isBlank()) {
+            log.warn("PayPal signature not provided for order {} - allowing (dev fallback).",
                     request.getOrderNumber());
             return true;
         }
@@ -227,8 +224,8 @@ public class WebhookServiceImpl implements WebhookService {
             log.warn("Missing PayPal webhook headers for verification. " +
                     "transmissionId={}, transmissionTime={}, certUrl={}, authAlgo={}",
                     transmissionId != null, transmissionTime != null, certUrl != null, authAlgo != null);
-            // Allow in development, but log warning
-            return true;
+            // If signature is present and webhook id is configured, we must reject.
+            return false;
         }
 
         try {
@@ -285,7 +282,7 @@ public class WebhookServiceImpl implements WebhookService {
         );
 
         try {
-            RestTemplate restTemplate = new RestTemplate();
+            // restTemplate is injected via constructor — connection pooling, keep-alive
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -293,11 +290,11 @@ public class WebhookServiceImpl implements WebhookService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(verifyRequest, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     verifyUrl,
                     HttpMethod.POST,
                     entity,
-                    Map.class
+                    new ParameterizedTypeReference<>() {}
             );
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
@@ -391,27 +388,20 @@ public class WebhookServiceImpl implements WebhookService {
         log.info("Payment success webhook for order {}, gateway txn: {}",
                 order.getOrderNumber(), gatewayTxnId);
 
-        // Idempotency check - prevent duplicate processing
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            log.info("Order {} already COMPLETED - skipping duplicate webhook processing", order.getOrderNumber());
-            
-            // Still attempt to clear cart to handle race conditions
-            // where the other thread (e.g., Capture) completed the order but failed to clear the cart
-            try {
-                // We need to re-fetch items or use existing ones to get course IDs
-                List<Long> courseIds = order.getItems().stream()
-                        .map(OrderItem::getCourseId)
-                        .toList();
-                
-                if (!courseIds.isEmpty()) {
-                    log.info("Ensuring cart is cleared for already completed order {}. Items: {}", order.getOrderNumber(), courseIds);
-                    cartServiceImpl.removeItemsInNewTransaction(order.getUserId(), courseIds);
-                }
-            } catch (Exception e) {
-                log.error("Failed to ensure cart clearing for completed order {} (non-critical): {}", 
-                        order.getOrderNumber(), e.getMessage());
-            }
-            
+        // Idempotency check — separate "payment processed" from "side effects ran"
+        if (order.getStatus() == OrderStatus.COMPLETED && order.isSideEffectsPublished()) {
+            log.info("Order {} already COMPLETED and side effects published — skipping duplicate webhook processing.",
+                    order.getOrderNumber());
+            return;
+        }
+
+        // Recovery path: order COMPLETED but side effects failed on a previous attempt
+        if (order.getStatus() == OrderStatus.COMPLETED && !order.isSideEffectsPublished()) {
+            log.warn("Order {} is COMPLETED but side effects were not published — re-publishing event",
+                    order.getOrderNumber());
+            publishOrderCompletedEvent(order, false);
+            order.setSideEffectsPublished(true);
+            orderRepository.save(order);
             return;
         }
 
@@ -422,16 +412,6 @@ public class WebhookServiceImpl implements WebhookService {
             return;
         }
 
-        // Extract courseIds BEFORE any save operations
-        // After save(), Hibernate may detach the collection or cause lazy loading issues
-        List<Long> courseIds = order.getItems().stream()
-                .map(OrderItem::getCourseId)
-                .toList();
-        Long userId = order.getUserId();
-        String orderNumber = order.getOrderNumber();
-
-        log.debug("Extracted {} course IDs from order {} for processing: {}", courseIds.size(), orderNumber, courseIds);
-
         // Update transaction
         transaction.markAsSuccess(gatewayTxnId, null);
         transactionRepository.save(transaction);
@@ -440,58 +420,13 @@ public class WebhookServiceImpl implements WebhookService {
         order.markAsCompleted();
         orderRepository.save(order);
 
-        // Create enrollments (with duplicate check inside)
-        createEnrollmentsForOrder(order);
+        // Publish event — async listeners handle all side-effects:
+        // enrollment (CourseEventListener), cart clearing, earnings, invoice (PaymentEventListener).
+        publishOrderCompletedEvent(order, false);
 
-        // Clear cart items
-        // Use separate transaction to ensure it commits even if invoice generation fails
-        try {
-            if (courseIds.isEmpty()) {
-                log.warn("Order {} has no items - skipping cart cleanup", orderNumber);
-            } else {
-                log.info("Attempting to clear {} cart items for user {} after successful payment. Course IDs: {}",
-                        courseIds.size(), userId, courseIds);
-                try {
-                    // Use removeItemsInNewTransaction to ensure cart clearing commits in separate transaction
-                    // This prevents rollback if invoice generation fails later
-                    cartServiceImpl.removeItemsInNewTransaction(userId, courseIds);
-                    log.info("Successfully requested cart clearing for user {} after order {} completion",
-                            userId, orderNumber);
-                } catch (Exception e) {
-                   log.error("Error during cart clearing call: {}", e.getMessage(), e);
-                   throw e; // Rethrow to be caught by outer catch if needed, allows observing the error
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to clear cart for user {} after order {} completion: {}",
-                    userId, orderNumber, e.getMessage(), e);
-        }
-
-        // Create earnings for instructors
-        try {
-            earningService.createEarningsForOrder(order);
-        } catch (Exception e) {
-            log.error("Failed to create earnings for order {} (non-critical): {}",
-                    order.getOrderNumber(), e.getMessage());
-        }
-
-        // Generate invoice and PDF
-        try {
-            var invoice = invoiceService.generateInvoice(order);
-            // Generate PDF and upload to Cloudinary (same as PayPal flow)
-            invoiceService.generateInvoicePdf(invoice.getId());
-        } catch (Exception e) {
-            log.error("Failed to generate invoice for order {} (non-critical): {}",
-                    order.getOrderNumber(), e.getMessage());
-        }
-
-        // Publish event
-        try {
-            eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
-        } catch (Exception e) {
-            log.error("Failed to publish OrderCompletedEvent for order {} (non-critical): {}",
-                    order.getOrderNumber(), e.getMessage());
-        }
+        // Mark side effects as published
+        order.setSideEffectsPublished(true);
+        orderRepository.save(order);
 
         log.info("Successfully processed payment webhook for order {}", order.getOrderNumber());
     }
@@ -509,17 +444,27 @@ public class WebhookServiceImpl implements WebhookService {
         orderRepository.save(order);
 
         // Publish event
-        eventPublisher.publishEvent(new PaymentFailedEvent(this, order, failureReason));
+        eventPublisher.publishEvent(new PaymentFailedEvent(
+                this,
+                order.getId(),
+                order.getOrderNumber(),
+                order.getUserId(),
+                failureReason
+        ));
     }
 
     private void handlePaymentPending(Order order, Transaction transaction) {
-        log.info("Payment pending for order {}", order.getOrderNumber());
+        log.warn("Payment pending for order {}", order.getOrderNumber());
 
         transaction.setStatus(TransactionStatus.PENDING);
         transactionRepository.save(transaction);
 
         order.setStatus(OrderStatus.PENDING);
         orderRepository.save(order);
+
+        // Publish event for audit consistency (analogous to handlePaymentFailure)
+        eventPublisher.publishEvent(new PaymentPendingEvent(
+                this, order.getId(), order.getOrderNumber(), order.getUserId()));
     }
 
     private void handleRefund(Order order, Transaction transaction) {
@@ -543,81 +488,56 @@ public class WebhookServiceImpl implements WebhookService {
         }
         earningRepository.saveAll(earnings);
 
-        // Update RefundRequest if one exists
-        refundRequestRepository.findByOrderId(order.getId()).ifPresent(refund -> {
-            if (!refund.isCompleted()) {
-                refund.markAsCompleted(null, null, "Processed via gateway webhook");
-                refundRequestRepository.save(refund);
-            }
-        });
+        // Determine refund amount and type from RefundRequest (if one exists).
+        // Gateway-initiated refunds with no matching RefundRequest are treated as full refunds.
+        BigDecimal refundAmount = order.getTotalAmount();
+        boolean isFullRefund = true;
 
-        // Revoke enrollments
-        revokeEnrollments(order);
+        RefundRequest existingRefund = refundRequestRepository.findByOrderId(order.getId()).orElse(null);
+        if (existingRefund != null) {
+            refundAmount = existingRefund.getRequestedAmount();
+            isFullRefund = refundAmount.compareTo(order.getTotalAmount()) >= 0;
+            if (!existingRefund.isCompleted()) {
+                existingRefund.markAsCompleted(null, null, "Processed via gateway webhook");
+                refundRequestRepository.save(existingRefund);
+            }
+        }
+
+        // Publish refund completion for enrollment revocation (async, idempotent)
+        List<Long> courseIds = orderItemRepository.findByOrderId(order.getId()).stream()
+                .map(OrderItem::getCourseId)
+                .toList();
+
+        eventPublisher.publishEvent(new RefundCompletedEvent(
+                this,
+                order.getId(),
+                order.getOrderNumber(),
+                order.getUserId(),
+                courseIds,
+                refundAmount,
+                isFullRefund
+        ));
     }
 
-    private void revokeEnrollments(Order order) {
-        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-        for (OrderItem item : items) {
-            Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(
-                    item.getCourseId(), order.getUserId())
-                    .orElse(null);
+    private void publishOrderCompletedEvent(Order order, boolean freeOrder) {
+        List<OrderCompletedEvent.OrderItemInfo> items = orderItemRepository.findByOrderId(order.getId()).stream()
+                .map(oi -> new OrderCompletedEvent.OrderItemInfo(
+                        oi.getCourseId(),
+                        oi.getCourseTitle(),
+                        oi.getInstructorId(),
+                        oi.getFinalPrice()
+                ))
+                .toList();
 
-            if (enrollment != null && enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-                enrollment.setStatus(EnrollmentStatus.DROPPED);
-                enrollmentRepository.save(enrollment);
-                log.info("Enrollment revoked for user {} in course {} due to refund",
-                        order.getUserId(), item.getCourseId());
-            }
-        }
-    }
-
-    // ==================== Helper Methods ====================
-
-    /**
-     * Create enrollments for order items.
-     * Handles duplicates gracefully - if already enrolled, just logs and continues.
-     */
-    private void createEnrollmentsForOrder(Order order) {
-        Set<OrderItem> orderItems = order.getItems();
-
-        if (orderItems == null || orderItems.isEmpty()) {
-            log.warn("No order items found for order {} - skipping enrollment creation", order.getOrderNumber());
-            return;
-        }
-
-        int successCount = 0;
-        int skipCount = 0;
-        int failCount = 0;
-
-        for (OrderItem item : orderItems) {
-            try {
-                // Check if already enrolled to avoid exception within transaction (which marks rollback-only)
-                if (enrollmentService.isStudentEnrolled(item.getCourseId(), order.getUserId())) {
-                    skipCount++;
-                    log.info("User {} already enrolled in course {} - skipping (idempotent)",
-                            order.getUserId(), item.getCourseId());
-                    continue;
-                }
-
-                // EnrollmentService should handle duplicate check internally
-                // but we catch any "already enrolled" exceptions gracefully
-                enrollmentService.enrollStudent(item.getCourseId(), order.getUserId());
-                successCount++;
-                log.debug("Created enrollment for user {} in course {}",
-                        order.getUserId(), item.getCourseId());
-            } catch (IllegalStateException e) {
-                // Likely "already enrolled" exception - this is OK for idempotency
-                skipCount++;
-                log.info("User {} already enrolled in course {} - skipping (idempotent)",
-                        order.getUserId(), item.getCourseId());
-            } catch (Exception e) {
-                failCount++;
-                log.error("Failed to create enrollment for user {} in course {}: {}",
-                        order.getUserId(), item.getCourseId(), e.getMessage());
-            }
-        }
-
-        log.info("Enrollment creation for order {}: {} created, {} skipped (already enrolled), {} failed",
-                order.getOrderNumber(), successCount, skipCount, failCount);
+        eventPublisher.publishEvent(new OrderCompletedEvent(
+                this,
+                order.getId(),
+                order.getOrderNumber(),
+                order.getUserId(),
+                items,
+                order.getTotalAmount(),
+                order.getCurrency(),
+                freeOrder
+        ));
     }
 }

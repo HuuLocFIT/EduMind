@@ -1,10 +1,8 @@
 package com.edumind.lms.modules.payment.service;
 
-import com.edumind.lms.modules.course.entity.Course;
-import com.edumind.lms.modules.course.enums.EnrollmentStatus;
-import com.edumind.lms.modules.course.repository.CourseRepository;
-import com.edumind.lms.modules.course.repository.EnrollmentRepository;
-import com.edumind.lms.modules.course.service.EnrollmentService;
+import com.edumind.lms.modules.course.api.CourseQueryService;
+import com.edumind.lms.modules.course.api.EnrollmentQueryService;
+import com.edumind.lms.modules.course.api.dto.CourseInfo;
 import com.edumind.lms.modules.payment.dto.request.CheckoutRequest;
 import com.edumind.lms.modules.payment.dto.request.DirectCheckoutRequest;
 import com.edumind.lms.modules.payment.dto.response.*;
@@ -41,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -55,16 +52,13 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final CartItemRepository cartItemRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
+    private final CourseQueryService courseQueryService;
+    private final EnrollmentQueryService enrollmentQueryService;
     private final TransactionRepository transactionRepository; // Added dependency
 
     private final CartService cartService;
     private final OrderService orderService;
-    private final TransactionService transactionService;
-    private final EarningService earningService;
     private final InvoiceService invoiceService;
-    private final EnrollmentService enrollmentService;
     private final NumberGeneratorService numberGeneratorService; // Added dependency
     private final PaymentMethodPolicyService paymentMethodPolicyService;
 
@@ -96,14 +90,13 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .map(CartItem::getCourseId)
                 .collect(Collectors.toList());
 
-        Map<Long, Course> coursesMap = courseRepository.findAllById(courseIds).stream()
-                .collect(Collectors.toMap(Course::getId, Function.identity()));
+        Map<Long, CourseInfo> coursesMap = courseQueryService.getCourseInfoBatch(courseIds);
 
         Set<Long> enrolledCourseIds = new HashSet<>(
-                enrollmentRepository.findEnrolledCourseIds(userId, courseIds));
+                enrollmentQueryService.findEnrolledCourseIds(userId, courseIds));
 
         for (CartItem item : items) {
-            Course course = coursesMap.get(item.getCourseId());
+            CourseInfo course = coursesMap.get(item.getCourseId());
 
             if (course == null) {
                 warnings.add("Course not found: " + item.getCourseId());
@@ -111,30 +104,30 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
 
             if (!course.isPublished()) {
-                warnings.add("Course no longer available: " + course.getTitle());
+                warnings.add("Course no longer available: " + course.title());
                 continue;
             }
 
-            if (enrolledCourseIds.contains(course.getId())) {
-                warnings.add("Already enrolled in: " + course.getTitle());
+            if (enrolledCourseIds.contains(course.id())) {
+                warnings.add("Already enrolled in: " + course.title());
                 continue;
             }
 
-            BigDecimal originalPrice = course.getOriginalPrice();
-            BigDecimal finalPrice = course.getEffectivePrice();
+            BigDecimal originalPrice = course.originalPrice() != null ? course.originalPrice() : BigDecimal.ZERO;
+            BigDecimal finalPrice = course.effectivePrice() != null ? course.effectivePrice() : BigDecimal.ZERO;
             BigDecimal discount = originalPrice.subtract(finalPrice);
 
             CheckoutItemPreview preview = CheckoutItemPreview.builder()
-                    .courseId(course.getId())
-                    .courseTitle(course.getTitle())
-                    .courseSlug(course.getSlug())
-                    .courseThumbnailUrl(course.getThumbnailUrl())
-                    .instructorId(course.getInstructorId())
-                    .instructorName(course.getInstructorName())
+                    .courseId(course.id())
+                    .courseTitle(course.title())
+                    .courseSlug(course.slug())
+                    .courseThumbnailUrl(course.thumbnailUrl())
+                    .instructorId(course.instructorId())
+                    .instructorName(course.instructorName())
                     .effectivePrice(finalPrice)
                     .originalPrice(originalPrice)
                     .discountAmount(discount)
-                    .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                    .currency(course.currency() != null ? course.currency() : "USD")
                     .isFree(finalPrice.compareTo(BigDecimal.ZERO) == 0)
                     .build();
 
@@ -171,7 +164,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     public CheckoutPreviewResponse previewDirectCheckout(Long userId, Long courseId) {
         log.info("Previewing direct checkout for user: {}, course: {}", userId, courseId);
 
-        Course course = courseRepository.findById(courseId)
+        CourseInfo course = courseQueryService.getCourseInfo(courseId)
                 .orElseThrow(() -> new CourseNotAvailableException(courseId));
 
         if (!course.isPublished()) {
@@ -179,27 +172,26 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         List<String> warnings = new ArrayList<>();
-        // Use existsByCourseIdAndStudentIdAndStatusNot to allow re-enrollment if DROPPED
-        if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                course.getId(), userId, EnrollmentStatus.DROPPED)) {
-            warnings.add("Already enrolled in: " + course.getTitle());
+        // Allow re-enrollment if DROPPED
+        if (enrollmentQueryService.isStudentEnrolledExcludingDropped(course.id(), userId)) {
+            warnings.add("Already enrolled in: " + course.title());
         }
 
-        BigDecimal originalPrice = course.getOriginalPrice();
-        BigDecimal finalPrice = course.getEffectivePrice();
+        BigDecimal originalPrice = course.originalPrice() != null ? course.originalPrice() : BigDecimal.ZERO;
+        BigDecimal finalPrice = course.effectivePrice() != null ? course.effectivePrice() : BigDecimal.ZERO;
         BigDecimal discount = originalPrice.subtract(finalPrice);
 
         CheckoutItemPreview preview = CheckoutItemPreview.builder()
-                .courseId(course.getId())
-                .courseTitle(course.getTitle())
-                .courseSlug(course.getSlug())
-                .courseThumbnailUrl(course.getThumbnailUrl())
-                .instructorId(course.getInstructorId())
-                .instructorName(course.getInstructorName())
+                .courseId(course.id())
+                .courseTitle(course.title())
+                .courseSlug(course.slug())
+                .courseThumbnailUrl(course.thumbnailUrl())
+                .instructorId(course.instructorId())
+                .instructorName(course.instructorName())
                 .effectivePrice(finalPrice)
                 .originalPrice(originalPrice)
                 .discountAmount(discount)
-                .currency(course.getCurrency() != null ? course.getCurrency() : "USD")
+                .currency(course.currency() != null ? course.currency() : "USD")
                 .isFree(finalPrice.compareTo(BigDecimal.ZERO) == 0)
                 .build();
 
@@ -349,16 +341,18 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         // Validate course
-        Course course = courseRepository.findById(request.getCourseId())
+        CourseInfo course = courseQueryService.getCourseInfo(request.getCourseId())
                 .orElseThrow(() -> new CourseNotAvailableException(request.getCourseId()));
 
         if (!course.isPublished()) {
             throw new CourseNotAvailableException(request.getCourseId(), "Course is not published");
         }
 
-        // Use existsByCourseIdAndStudentIdAndStatusNot to allow re-enrollment if DROPPED
-        if (enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                request.getCourseId(), userId, com.edumind.lms.modules.course.enums.EnrollmentStatus.DROPPED)) {
+        // Prevent duplicate purchases:
+        // 1) Check current enrollment (ignoring DROPPED)
+        // 2) Also check for any existing COMPLETED orders for this course
+        if (enrollmentQueryService.isStudentEnrolledExcludingDropped(request.getCourseId(), userId)
+                || orderRepository.hasUserPurchasedCourse(userId, request.getCourseId())) {
             throw new CourseAlreadyPurchasedException(request.getCourseId());
         }
 
@@ -792,10 +786,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             freshOrder.setPaymentMethod(PaymentMethod.FREE);
             orderRepository.save(freshOrder);
 
-            // Create enrollments
-            createEnrollmentsForOrder(freshOrder);
-
-            // Set order to COMPLETED after successful enrollment
+            // Set order to COMPLETED (side-effects handled asynchronously via OrderCompletedEvent listeners)
             freshOrder.setStatus(OrderStatus.COMPLETED);
             freshOrder.setCompletedAt(LocalDateTime.now());
             return orderRepository.save(freshOrder);
@@ -804,27 +795,14 @@ public class CheckoutServiceImpl implements CheckoutService {
         // Load order items explicitly (lazy loading issue)
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(completedOrder.getId());
 
-        // Clear cart only if checkout was from cart (non-critical, outside main transaction)
-        if (isFromCart) {
-            try {
-                List<Long> courseIds = orderItems.stream()
-                        .map(OrderItem::getCourseId)
-                        .collect(Collectors.toList());
-                cartService.removeItems(userId, courseIds);
-            } catch (Exception e) {
-                log.error("Failed to clear cart for user {}: {}", userId, e.getMessage());
-            }
-        }
-
         // Generate invoice with limited retries (non-critical)
         InvoiceResponse invoice = generateInvoiceWithRetry(completedOrder, 3);
 
-        // Publish event (non-critical)
-        try {
-            eventPublisher.publishEvent(new OrderCompletedEvent(this, completedOrder));
-        } catch (Exception e) {
-            log.error("Failed to publish OrderCompletedEvent for order {}: {}", completedOrder.getOrderNumber(), e.getMessage());
-        }
+        // Publish event (async listeners handle enrollments/cart/earnings; invoice was generated sync for free order)
+        publishOrderCompletedEvent(completedOrder, true);
+
+        completedOrder.setSideEffectsPublished(true);
+        orderRepository.save(completedOrder);
 
         log.info("Free order completed: {}", completedOrder.getOrderNumber());
 
@@ -1359,23 +1337,14 @@ public class CheckoutServiceImpl implements CheckoutService {
             freshOrder.setCompletedAt(LocalDateTime.now());
             orderRepository.save(freshOrder);
 
-            // 2. Create enrollments
-            createEnrollmentsForOrder(freshOrder);
-
             return freshOrder;
         });
-
-        // 3. Create earnings
-        try {
-            earningService.createEarningsForOrder(completedOrder);
-        } catch (Exception e) {
-            log.error("Failed to create earnings for order: {}", completedOrder.getOrderNumber(), e);
-        }
 
         // Load order items explicitly
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(completedOrder.getId());
 
-        // 4. Clear cart
+        // Clear cart synchronously for flows that originated from the cart to avoid
+        // relying solely on asynchronous event listeners (which can race with tests).
         if (isFromCart) {
             try {
                 List<Long> courseIds = orderItems.stream()
@@ -1383,19 +1352,16 @@ public class CheckoutServiceImpl implements CheckoutService {
                         .collect(Collectors.toList());
                 cartService.removeItems(completedOrder.getUserId(), courseIds);
             } catch (Exception e) {
-                log.error("Failed to clear cart for user: {}", completedOrder.getUserId(), e);
+                log.error("Failed to clear cart for user {} after successful payment for order {}: {}",
+                        completedOrder.getUserId(), completedOrder.getOrderNumber(), e.getMessage());
             }
         }
 
-        // 5. Generate invoice with limited retries
-        InvoiceResponse invoice = generateInvoiceWithRetry(completedOrder, 3);
-
         // 6. Publish event
-        try {
-            eventPublisher.publishEvent(new OrderCompletedEvent(this, completedOrder));
-        } catch (Exception e) {
-            log.error("Failed to publish OrderCompletedEvent for order: {}", completedOrder.getOrderNumber(), e);
-        }
+        publishOrderCompletedEvent(completedOrder, false);
+
+        completedOrder.setSideEffectsPublished(true);
+        orderRepository.save(completedOrder);
 
         CheckoutResultResponse.CheckoutResultResponseBuilder responseBuilder = CheckoutResultResponse.builder()
                 .success(true)
@@ -1413,12 +1379,6 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .createdAt(completedOrder.getCreatedAt())
                 .completedAt(completedOrder.getCompletedAt())
                 .message("Payment successful! You can now access your courses.");
-
-        if (invoice != null) {
-            responseBuilder
-                .invoiceNumber(invoice.getInvoiceNumber())
-                .invoiceUrl(invoice.getPdfUrl());
-        }
 
         return responseBuilder.build();
     }
@@ -1482,11 +1442,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         });
 
         // Publish event (non-critical, outside transaction)
-        try {
-            eventPublisher.publishEvent(new PaymentFailedEvent(this, failedOrder, result.getErrorMessage()));
-        } catch (Exception e) {
-            log.error("Failed to publish PaymentFailedEvent for order {}: {}", failedOrder.getOrderNumber(), e.getMessage());
-        }
+        publishPaymentFailedEvent(failedOrder, result.getErrorMessage());
 
         return CheckoutResultResponse.builder()
                 .success(false)
@@ -1608,12 +1564,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         });
 
         // Publish event for alerting/monitoring
-        try {
-            eventPublisher.publishEvent(new PaymentFailedEvent(this, failedOrder,
-                    "CRITICAL: Manual refund required - " + enrollmentError));
-        } catch (Exception e) {
-            log.error("Failed to publish PaymentFailedEvent for order {}: {}", failedOrder.getOrderNumber(), e.getMessage());
-        }
+        publishPaymentFailedEvent(failedOrder, "CRITICAL: Manual refund required - " + enrollmentError);
 
         return CheckoutResultResponse.builder()
                 .success(false)
@@ -1677,31 +1628,6 @@ public class CheckoutServiceImpl implements CheckoutService {
                             .append("|"));
             sb.append("total:").append(totalAmount);
             return sb.toString();
-        }
-    }
-
-    private void createEnrollmentsForOrder(Order order) {
-        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-
-        for (OrderItem item : items) {
-            try {
-                // Re-validate enrollment to avoid duplicates in race conditions
-                boolean alreadyEnrolled = enrollmentRepository.existsByCourseIdAndStudentIdAndStatusNot(
-                        item.getCourseId(), order.getUserId(), EnrollmentStatus.DROPPED);
-
-                if (alreadyEnrolled) {
-                    log.debug("Skipping enrollment for user {} in course {} - already enrolled",
-                            order.getUserId(), item.getCourseId());
-                    continue;
-                }
-
-                enrollmentService.enrollStudent(item.getCourseId(), order.getUserId());
-                log.debug("Created enrollment for user {} in course {}", order.getUserId(), item.getCourseId());
-            } catch (Exception e) {
-                log.error("Failed to create enrollment for course {}: {}",
-                        item.getCourseId(), e.getMessage());
-                throw new PaymentFailedException("Failed to activate enrollment: " + e.getMessage());
-            }
         }
     }
 
@@ -1858,5 +1784,45 @@ public class CheckoutServiceImpl implements CheckoutService {
         log.error("Giving up invoice generation for order {} after {} attempts",
                 order.getOrderNumber(), maxAttempts);
         return null;
+    }
+
+    private void publishOrderCompletedEvent(Order order, boolean freeOrder) {
+        try {
+            List<OrderCompletedEvent.OrderItemInfo> items = orderItemRepository.findByOrderId(order.getId()).stream()
+                    .map(oi -> new OrderCompletedEvent.OrderItemInfo(
+                            oi.getCourseId(),
+                            oi.getCourseTitle(),
+                            oi.getInstructorId(),
+                            oi.getFinalPrice()
+                    ))
+                    .toList();
+
+            eventPublisher.publishEvent(new OrderCompletedEvent(
+                    this,
+                    order.getId(),
+                    order.getOrderNumber(),
+                    order.getUserId(),
+                    items,
+                    order.getTotalAmount(),
+                    order.getCurrency(),
+                    freeOrder
+            ));
+        } catch (Exception e) {
+            log.error("Failed to publish OrderCompletedEvent for order {}: {}", order.getOrderNumber(), e.getMessage());
+        }
+    }
+
+    private void publishPaymentFailedEvent(Order order, String errorMessage) {
+        try {
+            eventPublisher.publishEvent(new PaymentFailedEvent(
+                    this,
+                    order.getId(),
+                    order.getOrderNumber(),
+                    order.getUserId(),
+                    errorMessage
+            ));
+        } catch (Exception e) {
+            log.error("Failed to publish PaymentFailedEvent for order {}: {}", order.getOrderNumber(), e.getMessage());
+        }
     }
 }

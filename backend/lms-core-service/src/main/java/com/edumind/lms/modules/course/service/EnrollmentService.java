@@ -106,4 +106,15 @@ public interface EnrollmentService {
      * @param reason The reason for requesting unenrollment
      */
     void reportToAdmin(Long enrollmentId, Long teacherId, String reason);
+
+    /**
+     * Drop (soft-revoke) a student's enrollment, identified by course and student IDs.
+     * Used by the payment module's ACL layer for refund-driven revocations.
+     * Does NOT decrement totalStudents — the student genuinely enrolled and paid.
+     * Idempotency: safe to call multiple times (no-op if already DROPPED or not found).
+     *
+     * @param courseId  the course whose enrollment is being revoked
+     * @param studentId the student being dropped
+     */
+    void dropStudent(Long courseId, Long studentId);
 }

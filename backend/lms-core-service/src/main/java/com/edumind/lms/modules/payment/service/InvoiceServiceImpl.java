@@ -12,6 +12,8 @@ import com.edumind.lms.modules.payment.exception.InvoiceNotFoundException;
 import com.edumind.lms.modules.payment.mapper.InvoiceMapper;
 import com.edumind.lms.modules.payment.repository.InvoiceRepository;
 import com.edumind.lms.modules.payment.repository.OrderItemRepository;
+import com.edumind.lms.modules.payment.repository.OrderRepository;
+import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
@@ -48,6 +50,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final OrderItemRepository orderItemRepository;
+    private final OrderRepository orderRepository;
     private final NumberGeneratorService numberGeneratorService;
     private final InvoiceMapper invoiceMapper;
     private final CloudinaryService cloudinaryService;
@@ -60,7 +63,6 @@ public class InvoiceServiceImpl implements InvoiceService {
     private static final String SELLER_PHONE = "+1 (555) 123-4567";
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public InvoiceResponse generateInvoice(Order order) {
         log.info("Generating invoice for order: {}", order.getOrderNumber());
 
@@ -112,6 +114,13 @@ public class InvoiceServiceImpl implements InvoiceService {
         log.info("Invoice generated: {} for order {}", saved.getInvoiceNumber(), order.getOrderNumber());
 
         return buildInvoiceResponse(saved);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public InvoiceResponse generateInvoice(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
+        return generateInvoice(order);
     }
 
     private InvoiceResponse buildInvoiceResponse(Invoice invoice) {

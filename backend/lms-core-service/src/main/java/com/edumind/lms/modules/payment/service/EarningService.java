@@ -23,6 +23,12 @@ public interface EarningService {
     void createEarningsForOrder(Order order);
 
     /**
+     * Create earnings for all instructors in an order (loads order internally).
+     * Useful for event-driven listeners where only the orderId is available.
+     */
+    void createEarningsForOrder(Long orderId);
+
+    /**
      * Get instructor's earnings summary
      */
     EarningsSummaryResponse getEarningsSummary(Long instructorId);
