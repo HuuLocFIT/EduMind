@@ -33,6 +33,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
+import ReactPlayer from 'react-player';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -595,11 +596,13 @@ export const CoursePlayerPage: React.FC = () => {
           <div className="bg-black aspect-video relative">
             {currentLesson.contentType === ContentType.VIDEO && currentLesson.videoUrl ? (
               <>
-                <video
+                <ReactPlayer
                   ref={videoRef}
                   src={currentLesson.videoUrl}
-                  className="w-full h-full"
                   controls
+                  width="100%"
+                  height="100%"
+                  style={{ position: 'absolute', top: 0, left: 0 }}
                   onLoadedMetadata={handleVideoLoadedMetadata}
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
