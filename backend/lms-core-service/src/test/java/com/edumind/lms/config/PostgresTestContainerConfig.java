@@ -36,7 +36,7 @@ public class PostgresTestContainerConfig {
      * Comma-separated list of schemas used by the LMS service.
      * These are created by Flyway migration V1__Create_schemas.sql
      */
-    private static final String SCHEMAS = "course,assessment,gamification,payment,notification,public";
+    private static final String SCHEMAS = "course,assessment,gamification,payment,notification,ai,public";
 
     /**
      * Singleton PostgreSQL container instance.

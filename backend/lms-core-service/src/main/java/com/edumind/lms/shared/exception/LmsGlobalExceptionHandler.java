@@ -18,8 +18,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import com.edumind.lms.modules.ai.exception.AiResponseParseException;
 import com.edumind.lms.modules.payment.exception.PaymentFailedException;
 import com.edumind.lms.modules.payment.gateway.exception.PaymentGatewayException;
+import org.springframework.core.task.TaskRejectedException;
 @Slf4j
 @RestControllerAdvice(basePackages = "com.edumind.lms")
 public class LmsGlobalExceptionHandler {
@@ -149,6 +151,32 @@ public class LmsGlobalExceptionHandler {
         log.error("Payment gateway error: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(buildResponse(HttpStatus.BAD_GATEWAY, "Payment Gateway Error", ex.getMessage(), request));
+    }
+
+    /**
+     * Handles {@link AiResponseParseException} thrown synchronously from controllers.
+     *
+     * <p><b>NOTE:</b> This handler is NOT reachable from {@code @Async} workers. Exceptions thrown
+     * inside {@code @Async} methods are routed to
+     * {@link com.edumind.lms.config.AsyncConfig#getAsyncUncaughtExceptionHandler()}, which logs
+     * them with method and parameter context. Phase 2/3 async AI failures are handled there,
+     * not here. This handler is defensive only — for any synchronous call path to JsonExtractor.
+     */
+    @ExceptionHandler(AiResponseParseException.class)
+    public ResponseEntity<ErrorResponse> handleAiResponseParse(AiResponseParseException ex,
+                                                               HttpServletRequest request) {
+        log.warn("AI response parse error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "AI Response Error", ex.getMessage(), request));
+    }
+
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<ErrorResponse> handleTaskRejected(TaskRejectedException ex,
+                                                            HttpServletRequest request) {
+        log.warn("Task queue full: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(buildResponse(HttpStatus.TOO_MANY_REQUESTS, "Queue Full",
+                        "Transcription queue is full. Please try again later.", request));
     }
 
     @ExceptionHandler(Exception.class)
