@@ -51,12 +51,15 @@ spring:
 
   # AI Module (Google GenAI / AI Studio) - optional, app starts without if not configured
   ai:
+    retry:
+      max-attempts: 1          # disable Spring AI's built-in retry (our processor handles its own)
+      on-client-errors: false  # don't retry on 4xx (429 rate-limit, 404 model not found)
     google:
       genai:
         api-key: ${GEMINI_API_KEY:}
         chat:
           options:
-            model: gemini-1.5-flash
+            model: gemini-2.5-flash-lite
             temperature: 0.3
             max-output-tokens: 4096
         embedding:

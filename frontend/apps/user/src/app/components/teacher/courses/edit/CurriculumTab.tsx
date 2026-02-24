@@ -29,6 +29,7 @@ import { Plus, BookOpen, GripVertical } from "lucide-react";
 import { SortableSection } from "./SortableSection";
 import { LessonModal } from "./LessonModal";
 import { SectionModal } from "./SectionModal";
+import { QuizGeneratorModal } from "./QuizGeneratorModal";
 
 interface CurriculumTabProps {
   courseId: number;
@@ -44,6 +45,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
   const { success: showSuccess, error: showError } = useToast();
   const sectionModal = useModal();
   const lessonModal = useModal();
+  const quizModal = useModal();
 
   const [expandedSections, setExpandedSections] = useState<Set<number>>(
     new Set(sections.map((s) => s.id))
@@ -53,6 +55,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     sectionId: number;
     lesson?: LessonResponse;
   } | null>(null);
+  const [quizTargetLesson, setQuizTargetLesson] = useState<LessonResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
@@ -251,6 +254,11 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     }
   };
 
+  const openQuizGenerator = (lesson: LessonResponse) => {
+    setQuizTargetLesson(lesson);
+    quizModal.open();
+  };
+
   const toggleSection = (sectionId: number) => {
     setExpandedSections((prev) => {
       const next = new Set(prev);
@@ -323,6 +331,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
                   onEditLesson={(lesson) => openEditLesson(section.id, lesson)}
                   onDeleteLesson={handleDeleteLesson}
                   onReorderLessons={(lessonIds) => handleReorderLessons(section.id, lessonIds)}
+                  onGenerateQuiz={openQuizGenerator}
                   reordering={reordering}
                 />
               ))}
@@ -366,6 +375,13 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         editingLesson={editingLesson}
         onSave={handleSaveLesson}
         saving={saving}
+      />
+
+      {/* Quiz Generator Modal */}
+      <QuizGeneratorModal
+        isOpen={quizModal.isOpen}
+        onClose={quizModal.close}
+        lesson={quizTargetLesson}
       />
     </div>
   );

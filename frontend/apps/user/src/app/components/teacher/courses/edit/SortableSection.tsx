@@ -30,6 +30,7 @@ interface SortableSectionProps {
   onEditLesson: (lesson: LessonResponse) => void;
   onDeleteLesson: (lessonId: number) => void;
   onReorderLessons: (lessonIds: number[]) => void;
+  onGenerateQuiz?: (lesson: LessonResponse) => void;
   reordering: boolean;
 }
 
@@ -43,6 +44,7 @@ export const SortableSection: React.FC<SortableSectionProps> = ({
   onEditLesson,
   onDeleteLesson,
   onReorderLessons,
+  onGenerateQuiz,
   reordering,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -141,6 +143,7 @@ export const SortableSection: React.FC<SortableSectionProps> = ({
                   lesson={lesson}
                   onEdit={() => onEditLesson(lesson)}
                   onDelete={() => onDeleteLesson(lesson.id)}
+                  onGenerateQuiz={onGenerateQuiz ? () => onGenerateQuiz(lesson) : undefined}
                   disabled={reordering}
                 />
               ))}

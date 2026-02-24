@@ -20,3 +20,4 @@ export * from './lib/invoice.schemas.js';
 export * from './lib/earning.schemas.js';
 export * from './lib/refund.schemas.js';
 export * from './lib/payout.schemas.js';
+export * from './lib/ai.schemas.js';

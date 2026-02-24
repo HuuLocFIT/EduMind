@@ -49,7 +49,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
       title={editingLesson?.lesson ? "Edit Lesson" : "Add Lesson"}
       size="lg"
     >
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Lesson Title <span className="text-red-500">*</span>
@@ -74,30 +74,44 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         {lessonForm.contentType === ContentType.VIDEO && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
-              <Input
-                value={lessonForm.videoUrl}
-                onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
-                placeholder="https://..."
-              />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
+                <Input
+                  value={lessonForm.videoUrl}
+                  onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duration (seconds)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={lessonForm.videoDuration || ""}
+                  onChange={(e) =>
+                    setLessonForm((p) => ({ ...p, videoDuration: Number(e.target.value) || 0 }))
+                  }
+                  placeholder="e.g., 600 (10 minutes)"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Duration (seconds)
+                Video Summary / Transcript{" "}
+                <span className="text-xs text-gray-400 font-normal">(optional — used for quiz generation)</span>
               </label>
-              <Input
-                type="number"
-                min={0}
-                value={lessonForm.videoDuration || ""}
-                onChange={(e) =>
-                  setLessonForm((p) => ({ ...p, videoDuration: Number(e.target.value) || 0 }))
-                }
-                placeholder="e.g., 600 (10 minutes)"
+              <Textarea
+                value={lessonForm.articleContent}
+                onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
+                rows={6}
+                placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
               />
             </div>
-          </div>
+          </>
         )}
 
         {lessonForm.contentType === ContentType.ARTICLE && (

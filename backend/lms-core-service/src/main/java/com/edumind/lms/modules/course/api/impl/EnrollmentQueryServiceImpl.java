@@ -39,6 +39,16 @@ public class EnrollmentQueryServiceImpl implements EnrollmentQueryService {
         return enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId).map(this::toInfo);
     }
 
+    @Override
+    public boolean isEnrolledAndActive(Long courseId, Long userId) {
+        return enrollmentRepository.findByCourseIdAndStudentId(courseId, userId)
+                .map(enrollment -> {
+                    EnrollmentStatus status = enrollment.getStatus();
+                    return status == EnrollmentStatus.ACTIVE || status == EnrollmentStatus.COMPLETED;
+                })
+                .orElse(false);
+    }
+
     private EnrollmentInfo toInfo(Enrollment e) {
         Long courseId = e.getCourse() != null ? e.getCourse().getId() : null;
         return new EnrollmentInfo(

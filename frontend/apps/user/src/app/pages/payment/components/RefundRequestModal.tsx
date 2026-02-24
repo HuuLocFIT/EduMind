@@ -191,7 +191,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-emerald-900">Eligible for Refund</p>
                       <p className="text-xs text-emerald-700 mt-0.5">
-                        Amount: <span className="font-bold">{formatCurrency(policy.eligibleRefundAmount, "USD")}</span>
+                        Amount: <span className="font-bold">{formatCurrency(policy.eligibleRefundAmount || 0, "USD")}</span>
                       </p>
                     </div>
                   </div>

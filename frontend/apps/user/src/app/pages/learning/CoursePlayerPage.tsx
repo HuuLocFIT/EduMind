@@ -6,12 +6,14 @@ import {
   Loading,
   ProgressBar,
   useToast,
+  useModal,
 } from '@edumind/user-ui';
 import { courseService } from '../../services/course.service';
 import { enrollmentService } from '../../services/enrollment.service';
 import { lessonProgressService } from '../../services/lesson-progress.service';
 import { lessonService } from '../../services/lesson.service';
 import { sectionService } from '../../services/section.service';
+import { aiService } from '../../services/ai.service';
 import type {
   CourseDetailResponse,
   LessonResponse,
@@ -34,11 +36,13 @@ import {
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import ReactPlayer from 'react-player';
+import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { success: showSuccess, error: showError,} = useToast();
+  const quizModal = useModal();
 
   const REDIRECT_DELAY_SECONDS = 10;
 
@@ -55,6 +59,8 @@ export const CoursePlayerPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  // null = still checking, true/false = resolved
+  const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
   const [accessError, setAccessError] = useState<{
     title: string;
     message: string;
@@ -84,6 +90,15 @@ export const CoursePlayerPage: React.FC = () => {
       updateLastAccessedLesson();
     }
   }, [currentLesson, enrollment]);
+
+  // Check whether the current lesson has a generated quiz available for the student
+  useEffect(() => {
+    if (!currentLesson) return;
+    setLessonHasQuiz(null);
+    aiService.getQuizForStudent(currentLesson.id)
+      .then((quiz) => setLessonHasQuiz(quiz !== null))
+      .catch(() => setLessonHasQuiz(false));
+  }, [currentLesson?.id]);
 
   // By default, expand all sections when they are loaded
   useEffect(() => {
@@ -404,7 +419,7 @@ export const CoursePlayerPage: React.FC = () => {
       } catch (progressErr) {
         console.error('Error refreshing lesson progress after manual completion:', progressErr);
       }
-      
+
       // Refresh enrollment to get updated progress
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
       const foundEnrollment = response.data?.find(
@@ -417,6 +432,21 @@ export const CoursePlayerPage: React.FC = () => {
       showSuccess('Lesson marked as complete!');
     } catch (err: any) {
       showError(err?.message || 'Failed to mark lesson as complete');
+    }
+  };
+
+  const handleQuizPass = async () => {
+    if (!currentLesson || !enrollment) return;
+    try {
+      await lessonProgressService.completeLesson(enrollment.id, currentLesson.id);
+      const allProgress = await lessonProgressService.getEnrollmentProgress(enrollment.id);
+      setAllLessonProgress(allProgress);
+      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
+      const found = response.data?.find((e) => e.courseId === Number(courseId));
+      if (found) setEnrollment(found);
+      showSuccess('Quiz passed! Lesson marked as complete.');
+    } catch (err: any) {
+      console.error('Error completing lesson after quiz pass:', err);
     }
   };
 
@@ -436,6 +466,7 @@ export const CoursePlayerPage: React.FC = () => {
 
     setCurrentLesson(lesson);
     setVideoProgress(0);
+    setLessonHasQuiz(null);
   };
 
   const getNextLesson = (): LessonResponse | null => {
@@ -667,6 +698,30 @@ export const CoursePlayerPage: React.FC = () => {
                 </Card>
               )}
 
+              {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}
+              {(currentLesson.contentType === ContentType.ARTICLE ||
+                currentLesson.contentType === ContentType.VIDEO) && (
+                <div className="mb-6">
+                  <Button
+                    variant="primary"
+                    onClick={quizModal.open}
+                    disabled={lessonHasQuiz !== true}
+                    className="flex items-center gap-2"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Take Quiz
+                  </Button>
+                  {lessonHasQuiz === null && (
+                    <p className="text-xs text-gray-400 mt-1">Checking quiz availability…</p>
+                  )}
+                  {lessonHasQuiz === false && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      No quiz available for this lesson yet.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Resources */}
               {currentLesson.resources && currentLesson.resources.length > 0 && (
                 <Card className="p-6 mb-6">
@@ -862,6 +917,17 @@ export const CoursePlayerPage: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* Quiz Taker Modal */}
+      {currentLesson && enrollment && (
+        <QuizTakerModal
+          isOpen={quizModal.isOpen}
+          onClose={quizModal.close}
+          lesson={currentLesson}
+          enrollmentId={enrollment.id}
+          onQuizPass={handleQuizPass}
+        />
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.enums.AiJobType;
 import com.edumind.lms.modules.ai.service.AiJobService;
+import com.edumind.lms.modules.ai.service.AiQuizService;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,13 +20,11 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -44,6 +43,9 @@ class AiControllerTest {
     @MockBean
     private AiJobService aiJobService;
 
+    @MockBean
+    private AiQuizService aiQuizService;
+
     @MockBean(name = "teacherSecurity")
     private TeacherSecurity teacherSecurity;
 
@@ -54,13 +56,13 @@ class AiControllerTest {
     private ObjectMapper objectMapper;
 
     private Long userId = 1L;
+    private UsernamePasswordAuthenticationToken auth;
     private AiJobResponse jobResponse;
 
     @BeforeEach
     void setUp() {
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+        auth = new UsernamePasswordAuthenticationToken(
                 userId.toString(), null, Collections.emptyList());
-        SecurityContextHolder.getContext().setAuthentication(auth);
 
         jobResponse = AiJobResponse.builder()
                 .jobId(42L)
@@ -79,6 +81,7 @@ class AiControllerTest {
         when(aiJobService.getJobStatus(42L)).thenReturn(jobResponse);
 
         mockMvc.perform(get("/ai/jobs/42")
+                        .principal(auth)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -87,7 +90,6 @@ class AiControllerTest {
                 .andExpect(jsonPath("$.data.jobType").value("QUIZ_GENERATION"));
     }
 
-    // Issue 8: Missing test — 404 when job not found
     @Test
     @DisplayName("GET /ai/jobs/{id} returns 404 when job not found")
     void getJobStatus_notFound() throws Exception {
@@ -95,13 +97,13 @@ class AiControllerTest {
                 .thenThrow(new ResourceNotFoundException("AI job not found: 99999"));
 
         mockMvc.perform(get("/ai/jobs/99999")
+                        .principal(auth)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Not Found"));
     }
 
-    // Issue 8: Missing test — job in PROCESSING status
     @Test
     @DisplayName("GET /ai/jobs/{id} returns PROCESSING status job")
     void getJobStatus_processingJob() throws Exception {
@@ -117,13 +119,13 @@ class AiControllerTest {
         when(aiJobService.getJobStatus(43L)).thenReturn(processingJob);
 
         mockMvc.perform(get("/ai/jobs/43")
+                        .principal(auth)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("PROCESSING"))
                 .andExpect(jsonPath("$.data.startedAt").isNotEmpty());
     }
 
-    // Issue 8: Missing test — job in FAILED status with error message
     @Test
     @DisplayName("GET /ai/jobs/{id} returns FAILED status job with errorMessage")
     void getJobStatus_failedJob() throws Exception {
@@ -140,6 +142,7 @@ class AiControllerTest {
         when(aiJobService.getJobStatus(44L)).thenReturn(failedJob);
 
         mockMvc.perform(get("/ai/jobs/44")
+                        .principal(auth)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("FAILED"))

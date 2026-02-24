@@ -9,8 +9,10 @@ import com.edumind.lms.modules.ai.repository.AiJobLogRepository;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -25,6 +27,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 @DisplayName("AiJobService Integration Tests")
 class AiJobServiceTest {
+
+    @MockBean
+    private ChatModel chatModel;
 
     @Autowired
     private AiJobService aiJobService;
@@ -71,7 +76,6 @@ class AiJobServiceTest {
         assertNotNull(r2.getCompletedAt());
     }
 
-    // Issue 8: Missing test — updateStatus to FAILED with non-null errorMessage
     @Test
     @DisplayName("updateStatus to FAILED persists errorMessage")
     void updateStatus_toFailedWithErrorMessage() {
@@ -87,7 +91,6 @@ class AiJobServiceTest {
         assertNotNull(response.getCompletedAt(), "completedAt should be set on FAILED");
     }
 
-    // Issue 8: Missing test — getJob returns the AiJobLog entity (not a DTO)
     @Test
     @DisplayName("getJob returns AiJobLog entity with correct fields")
     void getJob_returnsEntity() {
@@ -105,7 +108,6 @@ class AiJobServiceTest {
         assertNotNull(fetched.getUpdatedAt(), "@PrePersist should have set updatedAt");
     }
 
-    // Issue 8: Missing test — getJob throws when job not found
     @Test
     @DisplayName("getJob throws ResourceNotFoundException when job not found")
     void getJob_notFound() {
