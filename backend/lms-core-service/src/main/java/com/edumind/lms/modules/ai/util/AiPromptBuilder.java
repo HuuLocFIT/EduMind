@@ -9,15 +9,6 @@ public final class AiPromptBuilder {
     private AiPromptBuilder() {
     }
 
-    /**
-     * Build quiz generation prompt with content truncation.
-     * Truncates lesson content to 30,000 characters to prevent Gemini token limit errors.
-     *
-     * @param lessonTitle   lesson title
-     * @param lessonContent lesson article content
-     * @param questionCount number of questions to generate (1-20)
-     * @return formatted prompt string
-     */
     public static String buildQuizPrompt(String lessonTitle, String lessonContent, int questionCount) {
         String truncated = lessonContent.length() > 30_000
                 ? lessonContent.substring(0, 30_000) : lessonContent;
@@ -30,5 +21,28 @@ public final class AiPromptBuilder {
                 LESSON CONTENT:
                 %s
                 """.formatted(questionCount, lessonTitle, truncated);
+    }
+
+    public static String buildSummaryPrompt(String lessonTitle, String lessonContent) {
+        String truncated = lessonContent.length() > 30_000
+                ? lessonContent.substring(0, 30_000) : lessonContent;
+        return """
+                You are an IT English educator helping learners understand technical content.
+                Summarize the lesson below. Return ONLY a valid JSON object with no markdown, no code block wrappers.
+
+                Required JSON format:
+                {
+                  "summaryText": "<2-3 sentence summary of the lesson>",
+                  "keyPoints": ["<key point 1>", "<key point 2>", "<key point 3>"],
+                  "vocabulary": [
+                    {"term": "<IT term>", "definition": "<plain English definition>"},
+                    {"term": "<IT term>", "definition": "<plain English definition>"}
+                  ]
+                }
+
+                LESSON TITLE: %s
+                LESSON CONTENT:
+                %s
+                """.formatted(lessonTitle, truncated);
     }
 }

@@ -445,6 +445,7 @@ export const AI_ENDPOINTS = {
   QUIZ_FOR_STUDENT: (lessonId: number) => `${API_BASE_PATH}/ai/quizzes/lesson/${lessonId}/take`,
   SUBMIT_ATTEMPT: `${API_BASE_PATH}/ai/quizzes/attempts`,
   MY_ATTEMPTS: (lessonId: number) => `${API_BASE_PATH}/ai/quizzes/lesson/${lessonId}/my-attempts`,
+  SUMMARY_BY_LESSON: (lessonId: number) => `${API_BASE_PATH}/ai/summaries/lesson/${lessonId}`,
 } as const;
 
 /**

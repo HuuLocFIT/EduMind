@@ -1,7 +1,9 @@
 import React from "react";
+import { FileText } from "lucide-react";
 import { ContentType } from "@edumind/shared-constants";
 import type { LessonResponse } from "@edumind/shared-types";
 import { Modal, Button, Input, Textarea } from "@edumind/user-ui";
+import { RichTextEditor } from "../../../ui/RichTextEditor";
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -42,14 +44,16 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   onSave,
   saving,
 }) => {
+  const isArticle = lessonForm.contentType === ContentType.ARTICLE;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={editingLesson?.lesson ? "Edit Lesson" : "Add Lesson"}
-      size="lg"
+      size="3xl"
     >
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+      <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Lesson Title <span className="text-red-500">*</span>
@@ -104,25 +108,47 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                 Video Summary / Transcript{" "}
                 <span className="text-xs text-gray-400 font-normal">(optional — used for quiz generation)</span>
               </label>
-              <Textarea
-                value={lessonForm.articleContent}
-                onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
-                rows={6}
-                placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
-              />
+              <div className="rounded-lg border border-gray-300 shadow-sm overflow-clip">
+                <RichTextEditor
+                  value={lessonForm.articleContent ?? ""}
+                  onChange={(html) =>
+                    setLessonForm((p) => ({
+                      ...p,
+                      articleContent: html,
+                    }))
+                  }
+                  placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
+                  rows={14}
+                  borderless
+                />
+                </div>
             </div>
           </>
         )}
 
-        {lessonForm.contentType === ContentType.ARTICLE && (
+        {isArticle && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Article Content</label>
-            <Textarea
-              value={lessonForm.articleContent}
-              onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
-              rows={10}
-              placeholder="Write your article content here..."
-            />
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-semibold text-gray-800">Article Content</span>
+              <span className="text-xs text-gray-400 ml-1">
+                Use the toolbar to format text, add headings and lists.
+              </span>
+            </div>
+            <div className="rounded-lg border border-gray-300 shadow-sm overflow-clip">
+              <RichTextEditor
+                value={lessonForm.articleContent ?? ""}
+                onChange={(html) =>
+                  setLessonForm((p) => ({
+                    ...p,
+                    articleContent: html,
+                  }))
+                }
+                placeholder="Start writing your article..."
+                rows={14}
+                borderless
+              />
+            </div>
           </div>
         )}
 

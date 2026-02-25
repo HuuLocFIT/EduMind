@@ -11,6 +11,8 @@ import {
   type GeneratedQuizResponse,
   type QuizAttemptResponse,
   type SubmitQuizAttemptRequest,
+  LessonSummaryResponseSchema,
+  type LessonSummaryResponse,
 } from "@edumind/shared-types";
 import { AI_ENDPOINTS } from "@edumind/shared-utils";
 
@@ -68,6 +70,19 @@ export const aiService = {
       AI_ENDPOINTS.MY_ATTEMPTS(lessonId)
     );
     return QuizAttemptListResponseSchema.parse(response.data);
+  },
+
+  async getSummaryByLesson(lessonId: number): Promise<LessonSummaryResponse | null> {
+    try {
+      const response = await apiClient.get<LessonSummaryResponse>(
+        AI_ENDPOINTS.SUMMARY_BY_LESSON(lessonId)
+      );
+      if (!response.data) return null;
+      return LessonSummaryResponseSchema.parse(response.data);
+    } catch {
+      // 404 = not yet generated; silently return null
+      return null;
+    }
   },
 };
 

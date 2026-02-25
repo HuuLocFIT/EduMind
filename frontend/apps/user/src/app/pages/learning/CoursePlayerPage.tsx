@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { ArticleViewer } from '../../components/learning/ArticleViewer';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
@@ -37,10 +38,12 @@ import {
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import ReactPlayer from 'react-player';
 import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
+import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { success: showSuccess, error: showError,} = useToast();
   const quizModal = useModal();
 
@@ -183,9 +186,21 @@ export const CoursePlayerPage: React.FC = () => {
       
       setLessons(sortedLessons);
       
-      // Set first lesson as current if available
+      // Restore last lesson or default to first if available
       if (sortedLessons.length > 0) {
-        setCurrentLesson(sortedLessons[0]);
+        const lessonIdParam = searchParams.get('lesson');
+        const lastLessonId = localStorage.getItem(`course_${courseId}_last_lesson`);
+        
+        let targetLesson = sortedLessons[0];
+        if (lessonIdParam) {
+          targetLesson = sortedLessons.find(l => l.id === Number(lessonIdParam)) || sortedLessons[0];
+        } else if (lastLessonId) {
+          targetLesson = sortedLessons.find(l => l.id === Number(lastLessonId)) || sortedLessons[0];
+        }
+
+        setCurrentLesson(targetLesson);
+        setSearchParams({ lesson: targetLesson.id.toString() }, { replace: true });
+        localStorage.setItem(`course_${courseId}_last_lesson`, targetLesson.id.toString());
       }
     } catch (err) {
       console.error('Error fetching course data:', err);
@@ -465,6 +480,8 @@ export const CoursePlayerPage: React.FC = () => {
     }
 
     setCurrentLesson(lesson);
+    setSearchParams({ lessonId: lesson.id.toString() }, { replace: true });
+    localStorage.setItem(`course_${courseId}_last_lesson`, lesson.id.toString());
     setVideoProgress(0);
     setLessonHasQuiz(null);
   };
@@ -623,10 +640,10 @@ export const CoursePlayerPage: React.FC = () => {
       <div className="flex relative">
         {/* Main Content */}
         <main className={`flex-1 ${sidebarOpen ? 'md:mr-80' : ''}`}>
-          {/* Video Player */}
-          <div className="bg-black aspect-video relative">
-            {currentLesson.contentType === ContentType.VIDEO && currentLesson.videoUrl ? (
-              <>
+          {/* Video Player - only for VIDEO type */}
+          {currentLesson.contentType === ContentType.VIDEO && (
+            <div className="bg-black aspect-video relative">
+              {currentLesson.videoUrl ? (
                 <ReactPlayer
                   ref={videoRef}
                   src={currentLesson.videoUrl}
@@ -638,29 +655,13 @@ export const CoursePlayerPage: React.FC = () => {
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
                 />
-                
-                {/* Video Overlay - Progress */}
-                {/* {videoProgress > 0 && videoProgress < 100 && (
-                  <div className="absolute bottom-20 left-4 right-4">
-                    <div className="bg-black/50 backdrop-blur-sm rounded-lg p-3">
-                      <p className="text-white text-sm mb-2">
-                        Progress: {Math.floor(videoProgress)}%
-                      </p>
-                      <ProgressBar progress={videoProgress} color="blue" size="sm" />
-                    </div>
-                  </div>
-                )} */}
-              </>
-            ) : currentLesson.contentType === ContentType.ARTICLE ? (
-              <div className="flex items-center justify-center h-full bg-gray-800">
-                <FileText className="w-20 h-20 text-gray-400" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full bg-gray-800">
-                <BookOpen className="w-20 h-20 text-gray-400" />
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <BookOpen className="w-20 h-20 text-gray-400" />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Lesson Content */}
           <div className="p-6 bg-white">
@@ -690,36 +691,41 @@ export const CoursePlayerPage: React.FC = () => {
 
               {/* Lesson Content/Resources */}
               {currentLesson.articleContent && (
-                <Card className="p-6 mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Lesson Content</h3>
-                  <div className="prose max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: currentLesson.articleContent }} />
-                  </div>
+                <Card className="p-8 mb-6">
+                  <ArticleViewer
+                    html={currentLesson.articleContent}
+                    title="Lesson Content"
+                  />
                 </Card>
               )}
 
               {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}
               {(currentLesson.contentType === ContentType.ARTICLE ||
                 currentLesson.contentType === ContentType.VIDEO) && (
-                <div className="mb-6">
-                  <Button
-                    variant="primary"
-                    onClick={quizModal.open}
-                    disabled={lessonHasQuiz !== true}
-                    className="flex items-center gap-2"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    Take Quiz
-                  </Button>
-                  {lessonHasQuiz === null && (
-                    <p className="text-xs text-gray-400 mt-1">Checking quiz availability…</p>
-                  )}
-                  {lessonHasQuiz === false && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      No quiz available for this lesson yet.
-                    </p>
-                  )}
-                </div>
+                <>
+                  <div className="mb-6">
+                    <Button
+                      variant="primary"
+                      onClick={quizModal.open}
+                      disabled={lessonHasQuiz !== true}
+                      className="flex items-center gap-2"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      Take Quiz
+                    </Button>
+                    {lessonHasQuiz === null && (
+                      <p className="text-xs text-gray-400 mt-1">Checking quiz availability…</p>
+                    )}
+                    {lessonHasQuiz === false && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        No quiz available for this lesson yet.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* AI Lesson Summary */}
+                  <LessonSummaryPanel lessonId={currentLesson.id} />
+                </>
               )}
 
               {/* Resources */}

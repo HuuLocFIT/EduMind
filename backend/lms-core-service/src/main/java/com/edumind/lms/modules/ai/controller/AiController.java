@@ -5,9 +5,11 @@ import com.edumind.lms.modules.ai.dto.request.GenerateQuizRequest;
 import com.edumind.lms.modules.ai.dto.request.SubmitQuizAttemptRequest;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.dto.response.GeneratedQuizResponse;
+import com.edumind.lms.modules.ai.dto.response.LessonSummaryResponse;
 import com.edumind.lms.modules.ai.dto.response.QuizAttemptResponse;
 import com.edumind.lms.modules.ai.service.AiJobService;
 import com.edumind.lms.modules.ai.service.AiQuizService;
+import com.edumind.lms.modules.ai.service.AiSummaryService;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class AiController {
 
     private final AiJobService aiJobService;
     private final AiQuizService aiQuizService;
+    private final AiSummaryService aiSummaryService;
 
     /**
      * Get AI job status - used for polling after async job submission.
@@ -101,6 +104,14 @@ public class AiController {
             @PathVariable Long lessonId,
             Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(aiQuizService.getMyAttempts(lessonId, extractUserId(authentication))));
+    }
+
+    @GetMapping("/summaries/lesson/{lessonId}")
+    public ResponseEntity<ApiResponse<LessonSummaryResponse>> getSummary(
+            @PathVariable Long lessonId,
+            Authentication authentication) {
+        Long userId = extractUserId(authentication);
+        return ResponseEntity.ok(ApiResponse.success(aiSummaryService.getSummaryByLesson(lessonId, userId)));
     }
 
     private Long extractUserId(Authentication authentication) {

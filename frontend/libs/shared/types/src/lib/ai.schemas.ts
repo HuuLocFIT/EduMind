@@ -71,3 +71,19 @@ export type GeneratedQuizResponse = z.infer<typeof GeneratedQuizResponseSchema>;
 export type GenerateQuizRequest = z.infer<typeof GenerateQuizRequestSchema>;
 export type SubmitQuizAttemptRequest = z.infer<typeof SubmitQuizAttemptRequestSchema>;
 export type QuizAttemptResponse = z.infer<typeof QuizAttemptResponseSchema>;
+
+export const VocabularyItemSchema = z.object({
+  term: z.string(),
+  definition: z.string(),
+});
+
+export const LessonSummaryResponseSchema = z.object({
+  lessonId: z.number(),
+  summaryText: z.string(),
+  keyPoints: z.array(z.string()),
+  vocabulary: z.array(VocabularyItemSchema),
+  updatedAt: z.string(),
+});
+
+export type VocabularyItem = z.infer<typeof VocabularyItemSchema>;
+export type LessonSummaryResponse = z.infer<typeof LessonSummaryResponseSchema>;

@@ -7,6 +7,7 @@ import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.enums.AiJobType;
 import com.edumind.lms.modules.ai.service.AiJobService;
 import com.edumind.lms.modules.ai.service.AiQuizService;
+import com.edumind.lms.modules.ai.service.AiSummaryService;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,9 @@ class AiControllerTest {
 
     @MockBean
     private AiQuizService aiQuizService;
+
+    @MockBean
+    private AiSummaryService aiSummaryService;
 
     @MockBean(name = "teacherSecurity")
     private TeacherSecurity teacherSecurity;
