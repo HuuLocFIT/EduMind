@@ -1,7 +1,7 @@
 ## LMS Core Service
 
 Core Learning Management System (LMS) business logic for the EduMind platform, implemented as a **modular monolith**.  
-This service owns course, assessment, gamification, payment, and notification domains and exposes REST APIs consumed by the frontend applications and other backend services.
+This service owns course, assessment, payment, and **AI‑assisted learning** domains (with schemas reserved for future gamification and notification modules) and exposes REST APIs consumed by the frontend applications and other backend services.
 
 ### Table of Contents
 
@@ -26,20 +26,24 @@ This service owns course, assessment, gamification, payment, and notification do
 
 The **LMS Core Service** is a Spring Boot microservice responsible for the main EduMind teaching and learning workflows.
 
-**Currently implemented (MVP):**
+**Currently implemented (MVP+):**
 
 - **Course lifecycle** (categories, courses, sections, lessons, wishlist, reviews)
 - **Student enrollment & access control** (via course/enrollment controllers)
-- **E‑commerce & payments** (cart, checkout, orders, earnings, invoices, webhooks)
+- **E‑commerce & payments** (cart, checkout, orders, earnings, invoices, refunds, payouts, webhooks)
+- **AI‑assisted learning**
+  - Per‑lesson AI summaries
+  - Instructor‑driven quiz generation and student quiz attempts
+  - Course‑scoped RAG chat with lesson embeddings, rate limiting, and SSE streaming
 
-**Planned / in progress:**
+**Planned / in progress (non‑AI):**
 
-- **Assessments & quizzes**
-- **Student progress tracking beyond basic lesson progress**
-- **Gamification** (badges, achievements, points)
+- **Assessments module** for structured quizzes/exams and submission workflows (separate from quick AI quizzes)
+- **Student progress tracking** beyond basic lesson progress
+- **Gamification** (badges, achievements, points, leaderboards)
 - **Richer notifications & cross‑service integrations**
 
-It is designed as a **modular monolith**, grouping functionality by domain (`course`, `assessment`, `gamification`, `payment`, `notification`) while still running as a single deployable Spring Boot service.
+It is designed as a **modular monolith**, grouping functionality by domain (`course`, `payment`, `assessment`, `ai`, with `gamification`/`notification` reserved) while still running as a single deployable Spring Boot service.
 
 ## Architecture & Modules
 
@@ -47,25 +51,31 @@ Source root:
 
 ```text
 src/main/java/com/edumind/lms
-  ├─ config/           # Shared configuration (security, Jackson, Feign, etc.)
+  ├─ config/           # Shared configuration (security, Jackson, Feign, async, security, etc.)
   ├─ modules/
-  │   ├─ course/       # Course entities, services, controllers
-  │   ├─ assessment/   # Quizzes, questions, submissions, grading
-  │   ├─ gamification/ # Badges, points, achievements
-  │   ├─ payment/      # Cart, checkout, orders, earnings, invoices
-  │   └─ notification/ # Domain events & notifications (where applicable)
-  └─ shared/           # Shared DTOs, mappers, utilities
+  │   ├─ course/       # Course catalog, sections, lessons, enrollments, reviews, wishlists
+  │   ├─ payment/      # Cart, checkout, orders, refunds, payouts, earnings, invoices
+  │   └─ ai/           # AI summaries, quizzes, RAG chat, embeddings, rate limits
+  └─ shared/           # Shared DTOs, exceptions, events, Feign clients, utilities
 ```
+
+High‑level module mapping:
+
+| Module    | Schema    | Purpose                                                                 |
+|-----------|-----------|-------------------------------------------------------------------------|
+| `course`  | `course`  | Courses, sections, lessons, enrollments, reviews, wishlists            |
+| `payment` | `payment` | Cart, checkout, orders, refunds, payouts, earnings, invoices           |
+| `ai`      | `ai`      | AI job logs, lesson summaries, generated quizzes, embeddings, rate limits |
 
 Database schemas are separated per module and managed by Flyway:
 
-- **Schemas:** `course`, `assessment`, `gamification`, `payment`, `notification`, `public`
+- **Schemas:** `course`, `assessment`, `gamification`, `payment`, `notification`, `ai`, `public`
 - **Migrations path:** `src/main/resources/db/migration`
 
 This service:
 
-- Uses **PostgreSQL** for persistence
-- Uses **Flyway** for schema migrations
+- Uses **PostgreSQL** for persistence (with **pgvector** for AI embeddings)
+- Uses **Flyway** for schema migrations (including AI and payment schemas)
 - Registers with **Eureka Discovery Service**
 - Validates **JWT** tokens issued by the Auth Service
 - Integrates with **Cloudinary** for file uploads (e.g., course assets, documents)
@@ -160,7 +170,7 @@ CREATE DATABASE edumind_core;
 ```
 
 > Flyway is configured to **create schemas automatically** for  
-> `course, assessment, gamification, payment, notification, public`.
+> `course, assessment, gamification, payment, notification, ai, public`.
 
 #### Option B: Existing PostgreSQL Instance
 
@@ -216,6 +226,15 @@ export LMS_CORE_SERVICE_ENCRYPTION_KEY="your-32-char-encryption-key"
 export REVIEW_AUTO_APPROVE_ENABLED="true"
 export REVIEW_AUTO_APPROVE_THRESHOLD="0"
 
+# AI / Google GenAI (Spring AI)
+export GEMINI_API_KEY="your-gemini-api-key"   # required for AI chat/embeddings/quizzes/summaries
+
+# Optional AI executor tuning (defaults are usually fine)
+export AI_CORE_POOL_SIZE="2"
+export AI_MAX_POOL_SIZE="5"
+export AI_QUEUE_CAPACITY="50"
+export WHISPER_QUEUE_CAPACITY="10"
+
 # Payment Gateway Configuration
 export PAYMENT_GATEWAY="mock"         # mock | paypal | sepay
 
@@ -256,7 +275,7 @@ Key sections:
 - **`spring.datasource`**
   - PostgreSQL connection (`LMS_CORE_DB_URL`, `LMS_CORE_DB_USERNAME`, `LMS_CORE_DB_PASSWORD`)
   - HikariCP pool settings
-  - Schemas: `course,assessment,gamification,payment,notification,public`
+  - `connection-init-sql` sets search path for: `course,assessment,gamification,payment,notification,ai,public`
 
 - **`spring.jpa`**
   - `ddl-auto: validate` (schema is managed by Flyway)
@@ -265,7 +284,12 @@ Key sections:
 - **`spring.flyway`**
   - Migrations enabled with `baseline-on-migrate: true`
   - Locations: `classpath:db/migration`
-  - Schemas: `course,assessment,gamification,payment,notification,public`
+  - Schemas: `course,assessment,gamification,payment,notification,ai,public`
+
+- **`spring.ai` / Google GenAI**
+  - Chat model (`gemini-2.5-flash-lite`) and options
+  - Embedding model (`gemini-embedding-001`, 768 dimensions)
+  - Retry behavior (`max-attempts: 1`, custom error handling in AI processors)
 
 - **`eureka`**
   - Configuration for Eureka client registration and discovery.
@@ -283,6 +307,9 @@ Key sections:
 - **`logging` / `management`**
   - Log levels, patterns, log file location
   - Exposed Actuator endpoints (`health`, `info`, `metrics`)
+
+- **`ai.executor` / `app.async`**
+  - Thread pool configuration for AI workloads and general async processing
 
 ### Database Operations (Flyway CLI)
 
@@ -324,9 +351,10 @@ src/main/resources/db/migration/
 They cover:
 
 - Core course / content tables (`course` schema)
-- Assessment entities (`assessment` schema)
-- Gamification entities (`gamification` schema)
-- Payment domain (cart, orders, earnings, invoices) in the `payment` schema
+- Assessment schema (`assessment` schema, reserved for future assessments)
+- Gamification entities (`gamification` schema, reserved for future gamification module)
+- Payment domain (cart, orders, refunds, payouts, earnings, invoices) in the `payment` schema
+- AI domain in the `ai` schema (job logs, generated quizzes, quiz attempts, lesson summaries, lesson embeddings, rate limits)
 - Shared lookup and support tables (`public` or other schemas as needed)
 
 Migrations run **automatically on application startup**.  
@@ -414,10 +442,17 @@ High‑level examples (exact paths may vary by implementation):
   - `GET /me/enrollments` – current user enrollments
   - `GET /courses/{id}/content` – course content for enrolled students
 
-- **Assessments**
-  - `GET /courses/{id}/assessments` – assessments for a course
-  - `POST /assessments/{id}/submit` – submit answers
-  - `GET /me/assessment-results` – view results/history
+- **AI / Adaptive Learning**
+  - `POST /ai/quizzes/generate` – instructor requests quiz generation for a lesson (async job, returns job ID)
+  - `GET /ai/jobs/{id}` – poll AI job status for the requesting user
+  - `GET /ai/quizzes/lesson/{lessonId}` – list generated quizzes for a lesson (teacher/admin)
+  - `GET /ai/quizzes/lesson/{lessonId}/take` – get latest quiz for a student (no correct answers)
+  - `POST /ai/quizzes/attempts` – submit quiz attempt and receive scored results
+  - `GET /ai/quizzes/lesson/{lessonId}/my-attempts` – list student’s past attempts
+  - `GET /ai/summaries/lesson/{lessonId}` – get AI summary for a lesson
+  - `POST /ai/chat/courses/{courseId}` – course‑scoped RAG chat (JSON response with answer + source lessons)
+  - `POST /ai/chat/courses/{courseId}/stream` – SSE streaming RAG chat for incremental tokens + metadata
+  - `POST /ai/admin/reindex-embeddings` – admin‑only endpoint to backfill lesson embeddings
 
 - **Payment**
   - `GET /cart` / `POST /cart/items` / `DELETE /cart/items/{id}`
@@ -444,7 +479,13 @@ The payment module is designed to abstract payment gateways:
 - **SePay (`PAYMENT_GATEWAY=sepay`) – planned**
   - Uses `SEPAY_API_KEY`, `SEPAY_MERCHANT_ID`, `SEPAY_SECRET_KEY`, `SEPAY_BASE_URL`, `SEPAY_WEBHOOK_SECRET`.
 
-> For known payment module risks and ongoing refactors, see `PAYMENT_BUGS.md`.
+
+Design highlights:
+
+- Idempotent order creation using idempotency keys to prevent duplicate orders.
+- Optimistic locking on orders and related entities to protect concurrent checkouts and refunds/payouts.
+- Order expiration and retry semantics enforced at the database layer and in services.
+- Clear separation between gateway‑agnostic order logic and gateway‑specific implementations under `gateway/`.
 
 ## Logging & Monitoring
 
@@ -499,7 +540,8 @@ Run tests:
 mvn test
 ```
 
-Payment module tests (cart, checkout, earnings, etc.) are covered with controller, service, and integration tests.  
+Payment module tests (cart, checkout, earnings, refunds, payouts, etc.) are covered with controller, service, and integration tests.  
+AI and repository tests use **Testcontainers** with a PostgreSQL image that has **pgvector** enabled (see `PostgresTestContainerConfig`).  
 Check Surefire reports under `target/surefire-reports` for detailed output.
 
 ## Troubleshooting

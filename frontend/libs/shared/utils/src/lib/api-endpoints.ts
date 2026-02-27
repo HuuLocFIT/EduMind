@@ -446,6 +446,8 @@ export const AI_ENDPOINTS = {
   SUBMIT_ATTEMPT: `${API_BASE_PATH}/ai/quizzes/attempts`,
   MY_ATTEMPTS: (lessonId: number) => `${API_BASE_PATH}/ai/quizzes/lesson/${lessonId}/my-attempts`,
   SUMMARY_BY_LESSON: (lessonId: number) => `${API_BASE_PATH}/ai/summaries/lesson/${lessonId}`,
+  CHAT: (courseId: number) => `${API_BASE_PATH}/ai/chat/courses/${courseId}`,
+  CHAT_STREAM: (courseId: number) => `${API_BASE_PATH}/ai/chat/courses/${courseId}/stream`,
 } as const;
 
 /**

@@ -22,6 +22,7 @@ import com.edumind.lms.modules.ai.exception.AiResponseParseException;
 import com.edumind.lms.modules.payment.exception.PaymentFailedException;
 import com.edumind.lms.modules.payment.gateway.exception.PaymentGatewayException;
 import org.springframework.core.task.TaskRejectedException;
+import com.edumind.common.exception.TooManyRequestsException;
 @Slf4j
 @RestControllerAdvice(basePackages = "com.edumind.lms")
 public class LmsGlobalExceptionHandler {
@@ -168,6 +169,14 @@ public class LmsGlobalExceptionHandler {
         log.warn("AI response parse error: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "AI Response Error", ex.getMessage(), request));
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException ex,
+                                                               HttpServletRequest request) {
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(buildResponse(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage(), request));
     }
 
     @ExceptionHandler(TaskRejectedException.class)

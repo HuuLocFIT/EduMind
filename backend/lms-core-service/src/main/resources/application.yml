@@ -18,7 +18,7 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
-      schema: course,assessment,gamification,payment,notification,ai,public
+      connection-init-sql: SET search_path TO course,assessment,gamification,payment,notification,ai,public
 
   jpa:
     hibernate:
@@ -63,8 +63,11 @@ spring:
             temperature: 0.3
             max-output-tokens: 4096
         embedding:
-          options:
-            model: text-embedding-004
+          api-key: ${GEMINI_API_KEY:}
+          text:
+            options:
+              model: gemini-embedding-001
+              dimensions: 768
 
 eureka:
   client:

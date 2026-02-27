@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -20,6 +21,14 @@ public class LessonQueryServiceImpl implements LessonQueryService {
     @Override
     public Optional<LessonInfo> getLessonInfo(Long lessonId) {
         return lessonRepository.findById(lessonId).map(this::toInfo);
+    }
+
+    @Override
+    public List<LessonInfo> findAllWithArticleContent() {
+        return lessonRepository.findAll().stream()
+                .filter(l -> l.getArticleContent() != null && !l.getArticleContent().isBlank())
+                .map(this::toInfo)
+                .toList();
     }
 
     private LessonInfo toInfo(Lesson lesson) {

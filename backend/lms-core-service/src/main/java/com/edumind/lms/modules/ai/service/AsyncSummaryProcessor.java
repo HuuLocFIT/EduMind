@@ -1,7 +1,6 @@
 package com.edumind.lms.modules.ai.service;
 
 import com.edumind.lms.modules.ai.dto.response.VocabularyItem;
-import com.edumind.lms.modules.ai.entity.LessonSummary;
 import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.repository.LessonSummaryRepository;
 import com.edumind.lms.modules.ai.util.AiPromptBuilder;

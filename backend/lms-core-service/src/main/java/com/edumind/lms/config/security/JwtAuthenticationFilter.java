@@ -39,21 +39,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        String jwt = resolveToken(request);
+
+        // Case 1: No token provided - let Spring Security handle based on SecurityConfig
+        // (permitAll endpoints will pass, authenticated endpoints will get 401 from EntryPoint)
+        if (!StringUtils.hasText(jwt)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Case 2: Validate token and set authentication (JWT processing errors only)
         try {
-            String jwt = resolveToken(request);
-
-            // Case 1: No token provided - let Spring Security handle based on SecurityConfig
-            // (permitAll endpoints will pass, authenticated endpoints will get 401 from EntryPoint)
-            if (!StringUtils.hasText(jwt)) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            // Case 2: Validate token
             JwtValidationResult validationResult = tokenProvider.validateTokenWithDetails(jwt);
 
             if (validationResult.isValid()) {
-                // Token valid - set authentication
                 Claims claims = tokenProvider.parseClaims(jwt);
                 var authorities = tokenProvider.extractAuthorities(claims);
 
@@ -70,31 +69,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Set authentication for user: {} with roles: {}", 
+                log.debug("Set authentication for user: {} with roles: {}",
                         claims.getSubject(), authorities);
-                
-                // Continue with valid authentication
-                filterChain.doFilter(request, response);
             } else {
                 // Case 3: Token invalid/expired - Return 401 IMMEDIATELY
-                // DO NOT continue filter chain - this prevents @PreAuthorize from throwing 403
-                log.warn("JWT validation failed: {} - {}", 
+                log.warn("JWT validation failed: {} - {}",
                         validationResult.getErrorCode(), validationResult.getErrorMessage());
-                
                 sendUnauthorizedResponse(response, request, validationResult);
-                // Don't call filterChain.doFilter() - stop here!
+                return;
             }
-
         } catch (Exception ex) {
             log.error("Could not set user authentication from JWT: {}", ex.getMessage());
-            
-            // Return 401 for any JWT processing error
             JwtValidationResult errorResult = JwtValidationResult.failure(
-                    ErrorCode.TOKEN_INVALID, 
+                    ErrorCode.TOKEN_INVALID,
                     "Authentication processing failed"
             );
             sendUnauthorizedResponse(response, request, errorResult);
+            return;
         }
+
+        // Call filterChain OUTSIDE the try-catch so downstream exceptions (e.g. from
+        // controllers/services) propagate normally to Spring's exception handling
+        // instead of being swallowed here and converted to a misleading 401.
+        filterChain.doFilter(request, response);
     }
 
     /**

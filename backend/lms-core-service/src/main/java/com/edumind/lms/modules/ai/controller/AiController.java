@@ -1,23 +1,30 @@
 package com.edumind.lms.modules.ai.controller;
 
 import com.edumind.common.response.ApiResponse;
+import com.edumind.lms.modules.ai.dto.request.ChatRequest;
 import com.edumind.lms.modules.ai.dto.request.GenerateQuizRequest;
 import com.edumind.lms.modules.ai.dto.request.SubmitQuizAttemptRequest;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
+import com.edumind.lms.modules.ai.dto.response.ChatResponse;
 import com.edumind.lms.modules.ai.dto.response.GeneratedQuizResponse;
 import com.edumind.lms.modules.ai.dto.response.LessonSummaryResponse;
 import com.edumind.lms.modules.ai.dto.response.QuizAttemptResponse;
 import com.edumind.lms.modules.ai.service.AiJobService;
 import com.edumind.lms.modules.ai.service.AiQuizService;
 import com.edumind.lms.modules.ai.service.AiSummaryService;
+import com.edumind.lms.modules.ai.service.EmbeddingService;
+import com.edumind.lms.modules.ai.service.RagService;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -30,6 +37,8 @@ public class AiController {
     private final AiJobService aiJobService;
     private final AiQuizService aiQuizService;
     private final AiSummaryService aiSummaryService;
+    private final RagService ragService;
+    private final EmbeddingService embeddingService;
 
     /**
      * Get AI job status - used for polling after async job submission.
@@ -112,6 +121,41 @@ public class AiController {
             Authentication authentication) {
         Long userId = extractUserId(authentication);
         return ResponseEntity.ok(ApiResponse.success(aiSummaryService.getSummaryByLesson(lessonId, userId)));
+    }
+
+    @PostMapping("/chat/courses/{courseId}")
+    public ResponseEntity<ApiResponse<ChatResponse>> chat(
+            @PathVariable Long courseId,
+            @Valid @RequestBody ChatRequest request,
+            Authentication authentication) {
+        Long userId = extractUserId(authentication);
+        ChatResponse response = ragService.chat(courseId, request, userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping(
+            value = "/chat/courses/{courseId}/stream",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE
+    )
+    public Flux<ServerSentEvent<String>> chatStream(
+            @PathVariable Long courseId,
+            @Valid @RequestBody ChatRequest request,
+            Authentication authentication
+    ) {
+        Long userId = extractUserId(authentication);
+        return ragService.chatStream(courseId, request, userId);
+    }
+
+    /**
+     * Backfill embeddings for all lessons that have article content but no embeddings yet.
+     * Use this once after deploying the embedding feature to index existing lessons.
+     */
+    @PostMapping("/admin/reindex-embeddings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<String>> reindexEmbeddings() {
+        int count = embeddingService.reindexAll();
+        return ResponseEntity.accepted()
+                .body(ApiResponse.success("Queued embedding jobs for " + count + " lessons"));
     }
 
     private Long extractUserId(Authentication authentication) {

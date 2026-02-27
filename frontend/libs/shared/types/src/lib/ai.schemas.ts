@@ -87,3 +87,28 @@ export const LessonSummaryResponseSchema = z.object({
 
 export type VocabularyItem = z.infer<typeof VocabularyItemSchema>;
 export type LessonSummaryResponse = z.infer<typeof LessonSummaryResponseSchema>;
+
+export const ConversationTurnSchema = z.object({
+  question: z.string(),
+  answer: z.string(),
+});
+
+export const ChatRequestSchema = z.object({
+  question: z.string().min(1),
+  recentHistory: z.array(ConversationTurnSchema).optional(),
+});
+
+export const SourceLessonDtoSchema = z.object({
+  lessonId: z.number(),
+  lessonTitle: z.string(),
+});
+
+export const ChatResponseSchema = z.object({
+  answer: z.string(),
+  sourceLessons: z.array(SourceLessonDtoSchema),
+});
+
+export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+export type SourceLessonDto = z.infer<typeof SourceLessonDtoSchema>;
+export type ChatResponse = z.infer<typeof ChatResponseSchema>;

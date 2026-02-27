@@ -34,11 +34,16 @@ import {
   Menu,
   X,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import ReactPlayer from 'react-player';
 import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
 import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
+const AiChatPanel = React.lazy(() =>
+  import('../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
+);
+import { useAiChatStore } from '../../stores/aiChat.store';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -46,6 +51,7 @@ export const CoursePlayerPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { success: showSuccess, error: showError,} = useToast();
   const quizModal = useModal();
+  const { isOpen: isChatOpen, closeChat, toggleChat } = useAiChatStore();
 
   const REDIRECT_DELAY_SECONDS = 10;
 
@@ -722,9 +728,11 @@ export const CoursePlayerPage: React.FC = () => {
                       </p>
                     )}
                   </div>
-
+                  
                   {/* AI Lesson Summary */}
                   <LessonSummaryPanel lessonId={currentLesson.id} />
+
+                  {/* AI Course Tutor is now accessed via floating button & overlay */}
                 </>
               )}
 
@@ -933,6 +941,44 @@ export const CoursePlayerPage: React.FC = () => {
           enrollmentId={enrollment.id}
           onQuizPass={handleQuizPass}
         />
+      )}
+
+      {/* AI Course Tutor: floating pill + overlay panel */}
+      {courseId && (
+        <>
+          {/* Mobile backdrop */}
+          {isChatOpen && (
+            <div
+              className="fixed inset-0 z-40 md:hidden"
+              onClick={closeChat}
+            />
+          )}
+
+          {/* Panel */}
+          {isChatOpen && (
+            <React.Suspense fallback={null}>
+              <AiChatPanel courseId={Number(courseId)} onClose={closeChat} />
+            </React.Suspense>
+          )}
+
+          {/* Floating pill trigger */}
+          <button
+            onClick={toggleChat}
+            className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3
+                       bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
+                       rounded-full shadow-lg transition-all duration-200
+                       md:bottom-6 md:right-6"
+          >
+            {isChatOpen ? (
+              <X className="w-4 h-4" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">
+              {isChatOpen ? 'Close' : 'AI Tutor'}
+            </span>
+          </button>
+        </>
       )}
     </div>
   );
