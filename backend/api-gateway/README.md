@@ -17,7 +17,6 @@ API Gateway service for EduMind Platform - A single entry point for all client r
 - [Monitoring](#monitoring)
 - [Troubleshooting](#troubleshooting)
 - [Deployment](#deployment)
-- [Deployment](#deployment)
 - [Best Practices](#best-practices)
 - [Docker Guide](../DOCKER.md)
 
@@ -32,6 +31,7 @@ The API Gateway is a Spring Cloud Gateway-based microservice that serves as the 
 - **Request/Response Logging** - Comprehensive logging for debugging and monitoring
 - **Load Balancing** - Automatic load balancing across service instances
 - **Error Handling** - Centralized error handling and response formatting
+ - **AI Edge Routing** - Fronts all AI & adaptive learning endpoints under `/api/ai/**` to `LMS-CORE-SERVICE`
 
 **Technology Stack:**
 - Spring Cloud Gateway 2025.0.0
@@ -70,6 +70,9 @@ The API Gateway is a Spring Cloud Gateway-based microservice that serves as the 
 │  │  • /api/users/** → AUTH-SERVICE                    │    │
 │  │  • /api/upload/** → AUTH-SERVICE                   │    │
 │  │  • /api/teacher-application/** → AUTH-SERVICE      │    │
+│  │  • /api/ai/** → LMS-CORE-SERVICE                   │    │
+│  │  • /api/courses/** → LMS-CORE-SERVICE              │    │
+│  │  • /api/cart/** → LMS-CORE-SERVICE                 │    │
 │  └────────────────────────────────────────────────────┘    │
 │                                                            │
 │  ┌────────────────────────────────────────────────────┐    │
@@ -89,6 +92,7 @@ The API Gateway is a Spring Cloud Gateway-based microservice that serves as the 
 ┌───────▼──────────────────────────────────────────────────┐
 │              Backend Microservices                       │
 │  • AUTH-SERVICE (Port: 8081)                             │
+│  • LMS-CORE-SERVICE (Port: 8083)                         │
 │  • (Future services...)                                  │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -414,6 +418,7 @@ All routes are configured in `application.yml`. The API Gateway uses path-based 
 ### LMS Core Routes (`lms-core-service`)
 | Route Pattern | Internal Path | Rate Limit | Description |
 |---------------|---------------|------------|-------------|
+| `/api/ai/**` | `/ai/**` | 15 req/s | AI & Adaptive Learning (quizzes, summaries, chat, RAG) |
 | `/api/courses/**` | `/courses/**` | 20 req/s | Course Management |
 | `/api/categories/**` | `/categories/**` | 20 req/s | Category Browsing |
 | `/api/sections/**` | `/sections/**` | 20 req/s | Course Sections |
@@ -432,6 +437,8 @@ All routes are configured in `application.yml`. The API Gateway uses path-based 
 | `/api/invoices/**` | `/invoices/**` | 15 req/s | Invoice PDF/View |
 | `/api/teacher/earnings/**` | `/teacher/earnings/**` | 15 req/s | Teacher Payouts |
 | `/api/payments/webhook/**` | `/payments/webhook/**` | 50 req/s | **Payment Webhooks** |
+| `/api/payments/refunds/**` | `/payments/refunds/**` | 10 req/s | Refund Requests & Management |
+| `/api/instructors/payouts/**` | `/instructors/payouts/**` | 10 req/s | Instructor Payouts & History |
 
 ### Route Example
 

@@ -3,6 +3,7 @@ package com.edumind.lms.modules.course.service;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.entity.Section;
+import com.edumind.lms.modules.course.event.LessonContentUpdatedEvent;
 import com.edumind.lms.modules.course.event.LessonCreatedEvent;
 import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import com.edumind.lms.modules.course.event.LessonUpdatedEvent;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -108,6 +110,9 @@ public class LessonServiceImpl implements LessonService {
             lesson.setVideoDuration(lessonUpdate.getVideoDuration());
         }
 
+        // Capture old article content before potential update
+        String oldContent = lesson.getArticleContent();
+
         if (lessonUpdate.getArticleContent() != null) {
             lesson.setArticleContent(lessonUpdate.getArticleContent());
         }
@@ -127,8 +132,15 @@ public class LessonServiceImpl implements LessonService {
         Lesson updatedLesson = lessonRepository.save(lesson);
         log.info("Lesson updated successfully");
 
-        // Publish event
+        // Publish generic event
         eventPublisher.publishEvent(new LessonUpdatedEvent(this, updatedLesson));
+
+        // Publish content-specific event only when articleContent changed
+        if (lessonUpdate.getArticleContent() != null
+                && !Objects.equals(oldContent, lessonUpdate.getArticleContent())) {
+            eventPublisher.publishEvent(new LessonContentUpdatedEvent(this, updatedLesson));
+            log.info("LessonContentUpdatedEvent published for lesson {}", updatedLesson.getId());
+        }
 
         return updatedLesson;
     }

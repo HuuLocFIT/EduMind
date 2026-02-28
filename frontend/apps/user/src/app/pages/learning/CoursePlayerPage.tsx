@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { ArticleViewer } from '../../components/learning/ArticleViewer';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
   Loading,
   ProgressBar,
   useToast,
+  useModal,
 } from '@edumind/user-ui';
 import { courseService } from '../../services/course.service';
 import { enrollmentService } from '../../services/enrollment.service';
 import { lessonProgressService } from '../../services/lesson-progress.service';
 import { lessonService } from '../../services/lesson.service';
 import { sectionService } from '../../services/section.service';
+import { aiService } from '../../services/ai.service';
 import type {
   CourseDetailResponse,
   LessonResponse,
@@ -31,14 +34,25 @@ import {
   Menu,
   X,
   ChevronDown,
+  Sparkles,
+  Download,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import ReactPlayer from 'react-player';
+import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
+import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
+const AiChatPanel = React.lazy(() =>
+  import('../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
+);
+import { useAiChatStore } from '../../stores/aiChat.store';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { success: showSuccess, error: showError,} = useToast();
+  const quizModal = useModal();
+  const { isOpen: isChatOpen, closeChat, toggleChat } = useAiChatStore();
 
   const REDIRECT_DELAY_SECONDS = 10;
 
@@ -55,6 +69,8 @@ export const CoursePlayerPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  // null = still checking, true/false = resolved
+  const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
   const [accessError, setAccessError] = useState<{
     title: string;
     message: string;
@@ -84,6 +100,15 @@ export const CoursePlayerPage: React.FC = () => {
       updateLastAccessedLesson();
     }
   }, [currentLesson, enrollment]);
+
+  // Check whether the current lesson has a generated quiz available for the student
+  useEffect(() => {
+    if (!currentLesson) return;
+    setLessonHasQuiz(null);
+    aiService.getQuizForStudent(currentLesson.id)
+      .then((quiz) => setLessonHasQuiz(quiz !== null))
+      .catch(() => setLessonHasQuiz(false));
+  }, [currentLesson?.id]);
 
   // By default, expand all sections when they are loaded
   useEffect(() => {
@@ -168,9 +193,21 @@ export const CoursePlayerPage: React.FC = () => {
       
       setLessons(sortedLessons);
       
-      // Set first lesson as current if available
+      // Restore last lesson or default to first if available
       if (sortedLessons.length > 0) {
-        setCurrentLesson(sortedLessons[0]);
+        const lessonIdParam = searchParams.get('lesson');
+        const lastLessonId = localStorage.getItem(`course_${courseId}_last_lesson`);
+        
+        let targetLesson = sortedLessons[0];
+        if (lessonIdParam) {
+          targetLesson = sortedLessons.find(l => l.id === Number(lessonIdParam)) || sortedLessons[0];
+        } else if (lastLessonId) {
+          targetLesson = sortedLessons.find(l => l.id === Number(lastLessonId)) || sortedLessons[0];
+        }
+
+        setCurrentLesson(targetLesson);
+        setSearchParams({ lesson: targetLesson.id.toString() }, { replace: true });
+        localStorage.setItem(`course_${courseId}_last_lesson`, targetLesson.id.toString());
       }
     } catch (err) {
       console.error('Error fetching course data:', err);
@@ -404,7 +441,7 @@ export const CoursePlayerPage: React.FC = () => {
       } catch (progressErr) {
         console.error('Error refreshing lesson progress after manual completion:', progressErr);
       }
-      
+
       // Refresh enrollment to get updated progress
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
       const foundEnrollment = response.data?.find(
@@ -417,6 +454,21 @@ export const CoursePlayerPage: React.FC = () => {
       showSuccess('Lesson marked as complete!');
     } catch (err: any) {
       showError(err?.message || 'Failed to mark lesson as complete');
+    }
+  };
+
+  const handleQuizPass = async () => {
+    if (!currentLesson || !enrollment) return;
+    try {
+      await lessonProgressService.completeLesson(enrollment.id, currentLesson.id);
+      const allProgress = await lessonProgressService.getEnrollmentProgress(enrollment.id);
+      setAllLessonProgress(allProgress);
+      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
+      const found = response.data?.find((e) => e.courseId === Number(courseId));
+      if (found) setEnrollment(found);
+      showSuccess('Quiz passed! Lesson marked as complete.');
+    } catch (err: any) {
+      console.error('Error completing lesson after quiz pass:', err);
     }
   };
 
@@ -435,7 +487,10 @@ export const CoursePlayerPage: React.FC = () => {
     }
 
     setCurrentLesson(lesson);
+    setSearchParams({ lessonId: lesson.id.toString() }, { replace: true });
+    localStorage.setItem(`course_${courseId}_last_lesson`, lesson.id.toString());
     setVideoProgress(0);
+    setLessonHasQuiz(null);
   };
 
   const getNextLesson = (): LessonResponse | null => {
@@ -455,6 +510,20 @@ export const CoursePlayerPage: React.FC = () => {
     if (lesson) {
       handleLessonClick(lesson);
     }
+  };
+
+  const handleDownloadTranscript = () => {
+    const html = currentLesson?.articleContent ?? '';
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const plain = div.textContent || div.innerText || html;
+    const blob = new Blob([plain], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentLesson?.title ?? 'transcript'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // All lessons are always accessible; no locking by previous progress
@@ -592,10 +661,10 @@ export const CoursePlayerPage: React.FC = () => {
       <div className="flex relative">
         {/* Main Content */}
         <main className={`flex-1 ${sidebarOpen ? 'md:mr-80' : ''}`}>
-          {/* Video Player */}
-          <div className="bg-black aspect-video relative">
-            {currentLesson.contentType === ContentType.VIDEO && currentLesson.videoUrl ? (
-              <>
+          {/* Video Player - only for VIDEO type */}
+          {currentLesson.contentType === ContentType.VIDEO && (
+            <div className="bg-black aspect-video relative">
+              {currentLesson.videoUrl ? (
                 <ReactPlayer
                   ref={videoRef}
                   src={currentLesson.videoUrl}
@@ -607,29 +676,13 @@ export const CoursePlayerPage: React.FC = () => {
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
                 />
-                
-                {/* Video Overlay - Progress */}
-                {/* {videoProgress > 0 && videoProgress < 100 && (
-                  <div className="absolute bottom-20 left-4 right-4">
-                    <div className="bg-black/50 backdrop-blur-sm rounded-lg p-3">
-                      <p className="text-white text-sm mb-2">
-                        Progress: {Math.floor(videoProgress)}%
-                      </p>
-                      <ProgressBar progress={videoProgress} color="blue" size="sm" />
-                    </div>
-                  </div>
-                )} */}
-              </>
-            ) : currentLesson.contentType === ContentType.ARTICLE ? (
-              <div className="flex items-center justify-center h-full bg-gray-800">
-                <FileText className="w-20 h-20 text-gray-400" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full bg-gray-800">
-                <BookOpen className="w-20 h-20 text-gray-400" />
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <BookOpen className="w-20 h-20 text-gray-400" />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Lesson Content */}
           <div className="p-6 bg-white">
@@ -658,13 +711,67 @@ export const CoursePlayerPage: React.FC = () => {
               </div>
 
               {/* Lesson Content/Resources */}
-              {currentLesson.articleContent && (
-                <Card className="p-6 mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Lesson Content</h3>
-                  <div className="prose max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: currentLesson.articleContent }} />
-                  </div>
+              {currentLesson.articleContent && currentLesson.contentType === ContentType.ARTICLE && (
+                <Card className="p-8 mb-6">
+                  <ArticleViewer
+                    html={currentLesson.articleContent}
+                    title="Lesson Content"
+                  />
                 </Card>
+              )}
+
+              {currentLesson.articleContent && currentLesson.contentType === ContentType.VIDEO && (
+                <div className="flex items-center justify-between p-3.5 mb-6 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-lg text-slate-500">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Transcript</p>
+                      <p className="text-xs text-slate-500">Read the text version</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDownloadTranscript} 
+                    className="flex items-center gap-2 bg-white shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Download</span>
+                  </Button>
+                </div>
+              )}
+
+              {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}
+              {(currentLesson.contentType === ContentType.ARTICLE ||
+                currentLesson.contentType === ContentType.VIDEO) && (
+                <>
+                  <div className="mb-6">
+                    <Button
+                      variant="primary"
+                      onClick={quizModal.open}
+                      disabled={lessonHasQuiz !== true}
+                      className="flex items-center gap-2"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      Take Quiz
+                    </Button>
+                    {lessonHasQuiz === null && (
+                      <p className="text-xs text-gray-400 mt-1">Checking quiz availability…</p>
+                    )}
+                    {lessonHasQuiz === false && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        No quiz available for this lesson yet.
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* AI Lesson Summary */}
+                  <LessonSummaryPanel lessonId={currentLesson.id} />
+
+                  {/* AI Course Tutor is now accessed via floating button & overlay */}
+                </>
               )}
 
               {/* Resources */}
@@ -862,6 +969,55 @@ export const CoursePlayerPage: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* Quiz Taker Modal */}
+      {currentLesson && enrollment && (
+        <QuizTakerModal
+          isOpen={quizModal.isOpen}
+          onClose={quizModal.close}
+          lesson={currentLesson}
+          enrollmentId={enrollment.id}
+          onQuizPass={handleQuizPass}
+        />
+      )}
+
+      {/* AI Course Tutor: floating pill + overlay panel */}
+      {courseId && (
+        <>
+          {/* Mobile backdrop */}
+          {isChatOpen && (
+            <div
+              className="fixed inset-0 z-40 md:hidden"
+              onClick={closeChat}
+            />
+          )}
+
+          {/* Panel */}
+          {isChatOpen && (
+            <React.Suspense fallback={null}>
+              <AiChatPanel courseId={Number(courseId)} onClose={closeChat} />
+            </React.Suspense>
+          )}
+
+          {/* Floating pill trigger */}
+          <button
+            onClick={toggleChat}
+            className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3
+                       bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
+                       rounded-full shadow-lg transition-all duration-200
+                       md:bottom-6 md:right-6"
+          >
+            {isChatOpen ? (
+              <X className="w-4 h-4" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">
+              {isChatOpen ? 'Close' : 'AI Tutor'}
+            </span>
+          </button>
+        </>
+      )}
     </div>
   );
 };

@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 
 @Configuration
 @EnableWebSecurity
@@ -33,6 +34,9 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Allow async dispatches (used by SSE / Flux endpoints)
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
+                        
                         // Actuator endpoints
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
@@ -62,6 +66,9 @@ public class SecurityConfig {
 
                         // Preview lessons only - public
                         .requestMatchers(HttpMethod.GET, "/lessons/courses/{courseId}/preview").permitAll()
+
+                        // AI job status - authenticated (polling)
+                        .requestMatchers(HttpMethod.GET, "/ai/jobs/**").authenticated()
 
                         // Payment webhooks - public (called by external payment gateways)
                         .requestMatchers(HttpMethod.POST, "/payments/webhook/**").permitAll()

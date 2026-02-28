@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -240,6 +241,24 @@ public class GlobalExceptionHandler {
                 .build();
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<ErrorResponse> handleQueueFull(TaskRejectedException ex, HttpServletRequest request) {
+        String requestId = generateRequestId();
+        logger.warn("⚠️ [{}] Task rejected (queue full): {}", requestId, ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())
+                .success(false)
+                .error("Queue Full")
+                .message("AI processing queue is full. Please try again later.")
+                .timestamp(LocalDateTime.now())
+                .requestId(requestId)
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error);
     }
 
     @ExceptionHandler(Exception.class)

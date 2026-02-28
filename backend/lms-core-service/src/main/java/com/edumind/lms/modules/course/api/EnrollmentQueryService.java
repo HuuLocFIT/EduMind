@@ -16,5 +16,11 @@ public interface EnrollmentQueryService {
     List<Long> findEnrolledCourseIds(Long studentId, List<Long> courseIds);
 
     Optional<EnrollmentInfo> getEnrollmentInfo(Long courseId, Long studentId);
+
+    /**
+     * Check if student is enrolled and has ACTIVE or COMPLETED status.
+     * Used for quiz access validation.
+     */
+    boolean isEnrolledAndActive(Long courseId, Long userId);
 }
 

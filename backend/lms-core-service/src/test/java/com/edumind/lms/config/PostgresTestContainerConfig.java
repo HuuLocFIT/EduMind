@@ -36,16 +36,18 @@ public class PostgresTestContainerConfig {
      * Comma-separated list of schemas used by the LMS service.
      * These are created by Flyway migration V1__Create_schemas.sql
      */
-    private static final String SCHEMAS = "course,assessment,gamification,payment,notification,public";
+    private static final String SCHEMAS = "course,assessment,gamification,payment,notification,ai,public";
 
     /**
      * Singleton PostgreSQL container instance.
-     * Using postgres:16-alpine for consistency with production.
+     * Uses a Postgres image with the pgvector extension pre-installed so that
+     * AI-related Flyway migrations (V32__Create_ai_embeddings.sql) can run
+     * successfully in tests.
      */
     private static final PostgreSQLContainer<?> POSTGRES_CONTAINER;
 
     static {
-        POSTGRES_CONTAINER = new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"))
+        POSTGRES_CONTAINER = new PostgreSQLContainer<>(DockerImageName.parse("pgvector/pgvector:pg16"))
                 .withDatabaseName("lms_test")
                 .withUsername("test")
                 .withPassword("test")

@@ -138,6 +138,22 @@ spring:
         # ============================================
         # LMS CORE SERVICE ROUTES (CONSISTENT PATTERN)
         # ============================================
+
+        # AI Routes (job polling, quiz generation, summaries, chat - Phase 1+)
+        # External: /api/ai/** → Internal: /ai/**
+        - id: ai-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/ai/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/ai(?<segment>/?.*), /ai${segment}
         
         # Course Routes (17 endpoints)
         # PUBLIC: search, filter, browse, view details

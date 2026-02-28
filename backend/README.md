@@ -23,6 +23,9 @@ We use a modern Java ecosystem designed for enterprise-grade scalability.
 | **Security** | Spring Security + JWT | - |
 | **Migration** | Flyway | v10.x |
 | **Build** | Maven | 3.6+ |
+| **AI / LLM** | Spring AI + Google Gemini | 1.0.0 |
+| **Vector DB** | pgvector (PostgreSQL extension) | 0.8+ |
+| **Transcription** | Groq Whisper API (`whisper-large-v3-turbo`) | - |
 
 ---
 
@@ -31,7 +34,7 @@ We use a modern Java ecosystem designed for enterprise-grade scalability.
 The system follows a hybrid microservices architecture:
 
 1.  **Microservices**: For infrastructure/cross-cutting concerns (Gateway, Auth, Discovery).
-2.  **Modular Monolith (`lms-core-service`)**: Hosts core business logic to **minimize deployment costs** and operational overhead. It enforces strict isolation via **separate database schemas** (course, payment, gamification), ensuring easier extraction into independent microservices when scaling is required.
+2.  **Modular Monolith (`lms-core-service`)**: Hosts core business logic to **minimize deployment costs** and operational overhead. It enforces strict isolation via **separate database schemas** (`course`, `payment`, `ai`, `assessment`, `gamification`, `notification`), ensuring easier extraction into independent microservices when scaling is required.
 
 ### Service Landscape
 
@@ -40,9 +43,128 @@ The system follows a hybrid microservices architecture:
 | **Discovery Service** | `8761` | Service Registry (Eureka). |
 | **API Gateway** | `8080` | Entry point, Rate Limiting, Routing. |
 | **Auth Service** | `8081` | Identity, OAuth2, 2FA, JWT issuance. |
-| **LMS Core Service** | `8082`* | Core business logic (Course, Payment, Teacher). (*Default port, check config) |
+| **LMS Core Service** | `8083` | Core business logic (Courses, Payments, AI, future Assessments/Gamification). |
 
 *(Note: `common-lib` provides shared DTOs, utilities, and security configuration across all services)*
+
+---
+
+### Databases & Storage
+
+The backend uses two PostgreSQL databases plus Redis:
+
+- **Auth DB (`postgres-auth`, port 5432)**  
+  - Database: `edumind_auth`  
+  - Schema: `public`  
+  - Purpose: users, roles, user-role mappings, refresh tokens, verification tokens, password reset tokens.
+
+- **LMS Core DB (`postgres-lms-core`, port 5433)**  
+  - Database: `edumind_core`  
+  - Schemas:
+    - `course`: courses, sections, lessons, enrollments, categories, reviews, wishlists
+    - `payment`: cart items, orders, order items, invoices, earnings, payouts, refunds, platform config
+    - `ai`: AI job logs, lesson embeddings, lesson summaries, generated quizzes, quiz attempts, AI rate limits
+    - `assessment`, `gamification`, `notification`: reserved/partially prepared for future modules
+
+- **Redis (`redis`, port 6379)**  
+  - Rate limiting for API Gateway (IP-based).  
+  - Ready for future caching use cases.
+
+- **pgvector (PostgreSQL extension)**  
+  - Used in `ai.lesson_embeddings` for semantic search / RAG.  
+  - Vectors stored as `vector(768)` with ivfflat index (`vector_cosine_ops`).
+
+### Service Responsibilities
+
+- **Discovery Service (`discovery-service`)**
+  - Eureka registry – all other services register here.
+  - Gateway uses logical service names (`lb://AUTH-SERVICE`, `lb://LMS-CORE-SERVICE`).
+
+- **API Gateway (`api-gateway`)**
+  - Single public entry point on `8080`.
+  - Responsibilities:
+    - Routing to backend services via Eureka.
+    - IP-based rate limiting using Redis.
+    - CORS configuration for `localhost:3000` (React user app) and `localhost:4200` (Angular admin app).
+    - Request/response logging and health checks.
+  - Key routes (see `api-gateway/src/main/resources/application.yml` for exact rules):
+    - `/api/auth/**` → `auth-service`
+    - `/api/admin/**` → `auth-service` (admin endpoints)
+    - `/api/courses/**` → `lms-core-service`
+    - `/api/enrollments/**` → `lms-core-service`
+    - `/api/payments/**` → `lms-core-service`
+    - `/api/reviews/**` → `lms-core-service`
+    - `/api/ai/**` → `lms-core-service`
+
+- **Auth Service (`auth-service`)**
+  - User registration, login, and profile management.
+  - JWT issuance (access + refresh), token rotation on refresh.
+  - OAuth2 login (e.g. Google) and 2FA (TOTP).
+  - Email verification and password reset flows.
+  - Encrypts sensitive data (2FA secrets, OAuth tokens) via `EncryptionService`.
+
+- **LMS Core Service (`lms-core-service`)**
+  - Modular monolith implementing the main LMS domains:
+    - **Course module (`course` schema)**: courses, sections, lessons, enrollments, reviews, wishlists.
+    - **Payment module (`payment` schema)**: cart, checkout, orders, invoices, earnings, payouts, refunds.
+    - **AI module (`ai` schema)**: RAG chat, lesson embeddings, AI summaries, quiz generation & attempts, rate limits, Groq Whisper transcription.
+    - **Future**: `assessment`, `gamification`, `notification` modules (schemas already reserved).
+  - Follows strict layering per module: **Controller → Service → Repository → Entity**, with DTOs at the edges.
+  - Integrates with:
+    - Auth Service via OpenFeign (`UserClient`, etc.) and shared JWT validation.
+    - Cloudinary for media uploads (course thumbnails, lesson assets, etc.).
+
+### Shared Library: `common-lib`
+
+All services depend on `common-lib` for cross-cutting concerns:
+
+- **API contracts**
+  - `ApiResponse<T>` – standard success wrapper.
+  - `PagedResponse<T>` – pagination wrapper.
+  - `ErrorResponse`, `MessageResponse` – standard error / message formats.
+
+- **Error handling**
+  - `GlobalExceptionHandler` (`@RestControllerAdvice`) – centralizes error mapping.
+  - Shared exception types (`ResourceNotFoundException`, `BadRequestException`, etc.).
+
+- **Security utilities**
+  - `EncryptionService` – AES/GCM encryption; each service uses its own encryption key.
+  - JWT helpers used consistently across services.
+
+- **Constants & utilities**
+  - `ErrorCode`, `ResponseStatus`, and other reusable constants.
+  - Cloudinary integration helpers.
+
+### AI & RAG Overview (Backend Perspective)
+
+The AI feature set is implemented inside `lms-core-service` (under the `ai` module):
+
+- **RAG Chat**
+  - Lesson content is chunked and embedded using Google Gemini embeddings (`gemini-embedding-001`, 768 dimensions).
+  - Queries embed into the same space and perform vector similarity search via pgvector cosine distance.
+  - Confidence classification (HIGH / MEDIUM / GAP) based on distance thresholds; low-confidence queries are logged as knowledge gaps.
+  - Supports both standard JSON responses and SSE streaming for token-by-token responses.
+
+- **Lesson Summaries & Quizzes**
+  - Summaries: async jobs generate structured summaries (text, key points, vocabulary) per lesson.
+  - Quizzes: instructor-triggered quiz generation → multiple-choice questions with explanations; students only see options until submission.
+  - All AI generation follows an **async job pattern**: `202 Accepted` with `jobId`, then `GET /api/ai/jobs/{id}` to poll status.
+
+- **Groq Whisper Transcription**
+  - Instructors submit a lesson video URL; the service downloads the audio and sends it to Groq's Whisper API to produce a transcript, which is written back as the lesson's article content.
+  - **Supported sources:**
+    - **Cloudinary** – URL rewritten to extract MP3 (`vc_none,ac_mp3,br_32k` transformation) and downloaded as a temp file.
+    - **YouTube** – captions fetched first via `yt-dlp --write-auto-sub` (parsed from `.en.vtt`); falls back to `yt-dlp -x --audio-format mp3` if captions are absent.
+  - **25 MB limit** enforced before sending to Groq.
+  - Uses the same **async job pattern** (`202 Accepted` + `jobId`). Job states: `PENDING → PROCESSING → COMPLETED | FAILED | DELAYED`.
+  - **`DELAYED`** state: Groq HTTP 429 triggers retry scheduling. `TranscriptionRetryScheduler` re-queues eligible jobs every 30 s.
+  - Configured via `GROQ_API_KEY` (required) and `YTDLP_PATH` (optional, defaults to `yt-dlp` on PATH).
+  - Thread pool isolated from the Gemini pool: `whisperTaskExecutor` (capacity controlled by `WHISPER_QUEUE_CAPACITY`).
+
+- **AI Rate Limiting & Safety**
+  - Per-user daily limits (e.g., RAG chat requests) backed by Postgres with atomic UPSERTs.
+  - Async executors configured via `application.yml` + env vars (`AI_CORE_POOL_SIZE`, etc.).
+  - AI configuration is conditional: `GEMINI_API_KEY` for Gemini features, `GROQ_API_KEY` for transcription; the app starts without either but the respective AI endpoints will not work.
 
 ---
 
@@ -69,6 +191,11 @@ backend/
 - **Java**: JDK 21+
 - **Docker**: For running databases (PostgreSQL, Redis)
 - **Maven**: 3.6+
+- **yt-dlp** *(optional)*: Required only for YouTube-based Whisper transcription.
+  ```bash
+  brew install yt-dlp          # macOS
+  pip install yt-dlp           # Linux/Windows (pip)
+  ```
 
 ### 🐳 Docker Support
 
@@ -125,7 +252,7 @@ Start them in the following order to ensure dependencies are met:
 - **Authentication**: Stateless JWT Authentication.
 - **Authorization**: Role-Based Access Control (RBAC).
 - **Encryption**: Sensitive data encrypted at rest using `EncryptionService`.
-- **Communication**: Inter-service communication via Feign Clients (REST).
+- **Communication**: Inter-service communication via Feign Clients (REST) with JWT propagation via a shared `FeignConfig`.
 - **API Standards**:
     - Unified `ApiResponse<T>` wrapper.
     - Global Exception Handling (`common-lib`).
@@ -198,7 +325,33 @@ If you see connection errors:
 
 All requests should be routed through the **API Gateway** (`http://localhost:8080`).
 
-- **Auth**: `/api/auth/**` → Auth Service
-- **LMS**: `/api/lms/**` (example) → LMS Core Service
+- **Auth**  
+  - `/api/auth/**` → Auth Service (registration, login, refresh, profile, etc.)
+  - `/api/admin/**` → Auth Service (admin-only user/role management)
 
-Check `api-gateway/src/main/resources/application.yml` for exact routing rules.
+- **LMS Core** (all handled by `lms-core-service`)  
+  - `/api/courses/**` – course, section, lesson, category, review, wishlist APIs  
+  - `/api/enrollments/**` – enrollments, progress, access checks  
+  - `/api/payments/**` – cart, checkout, orders, earnings, invoices, refunds, payouts  
+  - `/api/reviews/**` – reviews/ratings where separated  
+  - `/api/ai/**` – RAG chat, AI summaries, AI quiz generation & attempts, Groq Whisper transcription (`POST /api/ai/transcribe/lessons/{lessonId}`)
+
+Exact routes and filters are defined in `api-gateway/src/main/resources/application.yml`. Always prefer going through the Gateway (even in local dev) to match production behavior.
+
+---
+
+## 🧪 Testing & Conventions (Backend-wide)
+
+- **Testing**
+  - Each service has its own test suite (`mvn test` from service root).
+  - LMS Core uses Testcontainers for Postgres + pgvector in AI and repository tests.
+  - Coverage reports can be generated with `mvn test jacoco:report` (where configured).
+
+- **Coding Patterns**
+  - Follow the standard Spring layering: **Controller → Service → Repository → Entity**.
+  - Use DTOs for request/response, never expose JPA entities directly over the wire.
+  - Always return `ApiResponse<T>` or `PagedResponse<T>` from controllers (via `common-lib`).
+  - Throw exceptions and rely on `GlobalExceptionHandler` instead of manual error responses.
+
+For deeper backend implementation details, see `backend/CLAUDE.md` and the per-service READMEs (especially `lms-core-service/README.md` and `api-gateway/README.md`).
+

@@ -230,6 +230,13 @@ export const payoutKeys = {
 } as const;
 
 // ============================================
+// AI
+// ============================================
+export const aiKeys = {
+  summary: (lessonId: number) => ['ai', 'summary', lessonId] as const,
+} as const;
+
+// ============================================
 // Helper: Get all keys for a resource
 // ============================================
 export const queryKeys = {
@@ -247,5 +254,6 @@ export const queryKeys = {
   earnings: earningKeys,
   refunds: refundKeys,
   payouts: payoutKeys,
+   ai: aiKeys,
 } as const;
 

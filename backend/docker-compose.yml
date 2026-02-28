@@ -43,7 +43,7 @@ services:
 
   # PostgreSQL for LMS Core Service
   postgres-lms-core:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: edumind-postgres-lms-core
     environment:
       POSTGRES_DB: ${LMS_CORE_DB_NAME:-edumind_core}

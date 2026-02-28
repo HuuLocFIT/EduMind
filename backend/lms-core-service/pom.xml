@@ -178,6 +178,16 @@
 			<artifactId>payouts-sdk</artifactId>
 			<version>1.1.1</version>
 		</dependency>
+
+		<!-- Spring AI - Google GenAI (AI Studio API key, free tier) -->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-google-genai</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-google-genai-embedding</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -222,7 +232,7 @@
 					<url>${env.LMS_CORE_DB_URL}</url>
 					<user>${env.LMS_CORE_DB_USERNAME}</user>
 					<password>${env.LMS_CORE_DB_PASSWORD}</password>
-					<schemas>course,assessment,gamification,payment,notification,public</schemas>
+					<schemas>course,assessment,gamification,payment,notification,ai,public</schemas>
 				</configuration>
 			</plugin>
 		</plugins>

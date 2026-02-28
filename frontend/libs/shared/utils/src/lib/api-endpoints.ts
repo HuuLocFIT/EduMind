@@ -436,6 +436,23 @@ export const ADMIN_ENDPOINTS = {
 } as const;
 
 /**
+ * AI endpoints
+ */
+export const AI_ENDPOINTS = {
+  QUIZ_GENERATE: `${API_BASE_PATH}/ai/quizzes/generate`,
+  JOB_STATUS: (jobId: number) => `${API_BASE_PATH}/ai/jobs/${jobId}`,
+  QUIZZES_BY_LESSON: (lessonId: number) => `${API_BASE_PATH}/ai/quizzes/lesson/${lessonId}`,
+  QUIZ_FOR_STUDENT: (lessonId: number) => `${API_BASE_PATH}/ai/quizzes/lesson/${lessonId}/take`,
+  SUBMIT_ATTEMPT: `${API_BASE_PATH}/ai/quizzes/attempts`,
+  MY_ATTEMPTS: (lessonId: number) => `${API_BASE_PATH}/ai/quizzes/lesson/${lessonId}/my-attempts`,
+  SUMMARY_BY_LESSON: (lessonId: number) => `${API_BASE_PATH}/ai/summaries/lesson/${lessonId}`,
+  CHAT: (courseId: number) => `${API_BASE_PATH}/ai/chat/courses/${courseId}`,
+  CHAT_STREAM: (courseId: number) => `${API_BASE_PATH}/ai/chat/courses/${courseId}/stream`,
+  TRANSCRIBE_LESSON: (lessonId: number) =>
+    `${API_BASE_PATH}/ai/transcribe/lessons/${lessonId}`,
+} as const;
+
+/**
  * Helper function to build full URL with base API URL
  * Uses environment configuration for default API URL
  */

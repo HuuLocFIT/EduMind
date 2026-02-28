@@ -1,7 +1,15 @@
 import React from "react";
+import { FileText, Wand2 } from "lucide-react";
+
+const stripHtml = (html: string) => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
+};
 import { ContentType } from "@edumind/shared-constants";
 import type { LessonResponse } from "@edumind/shared-types";
 import { Modal, Button, Input, Textarea } from "@edumind/user-ui";
+import { RichTextEditor } from "../../../ui/RichTextEditor";
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -31,6 +39,8 @@ interface LessonModalProps {
   editingLesson: { sectionId: number; lesson?: LessonResponse } | null;
   onSave: () => void;
   saving: boolean;
+  lessonId?: number | null;
+  onAutoTranscribeClick?: () => void;
 }
 
 export const LessonModal: React.FC<LessonModalProps> = ({
@@ -41,15 +51,19 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   editingLesson,
   onSave,
   saving,
+  lessonId,
+  onAutoTranscribeClick,
 }) => {
+  const isArticle = lessonForm.contentType === ContentType.ARTICLE;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={editingLesson?.lesson ? "Edit Lesson" : "Add Lesson"}
-      size="lg"
+      size="3xl"
     >
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+      <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Lesson Title <span className="text-red-500">*</span>
@@ -74,41 +88,88 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         {lessonForm.contentType === ContentType.VIDEO && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
-              <Input
-                value={lessonForm.videoUrl}
-                onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
-                placeholder="https://..."
-              />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
+                <Input
+                  value={lessonForm.videoUrl}
+                  onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duration (seconds)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={lessonForm.videoDuration || ""}
+                  onChange={(e) =>
+                    setLessonForm((p) => ({ ...p, videoDuration: Number(e.target.value) || 0 }))
+                  }
+                  placeholder="e.g., 600 (10 minutes)"
+                />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Duration (seconds)
-              </label>
-              <Input
-                type="number"
-                min={0}
-                value={lessonForm.videoDuration || ""}
-                onChange={(e) =>
-                  setLessonForm((p) => ({ ...p, videoDuration: Number(e.target.value) || 0 }))
-                }
-                placeholder="e.g., 600 (10 minutes)"
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Video Summary / Transcript{" "}
+                  <span className="text-xs text-gray-400 font-normal">
+                    (optional — used for quiz generation)
+                  </span>
+                </label>
+                {onAutoTranscribeClick && lessonId ? (
+                  <button
+                    type="button"
+                    onClick={onAutoTranscribeClick}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                      bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Auto-Transcribe
+                  </button>
+                ) : onAutoTranscribeClick && !lessonId ? (
+                  <span className="text-xs text-gray-400 italic">
+                    Save lesson first to transcribe
+                  </span>
+                ) : null}
+              </div>
+              <Textarea
+                value={stripHtml(lessonForm.articleContent ?? "")}
+                onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
+                rows={8}
+                placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
               />
             </div>
-          </div>
+          </>
         )}
 
-        {lessonForm.contentType === ContentType.ARTICLE && (
+        {isArticle && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Article Content</label>
-            <Textarea
-              value={lessonForm.articleContent}
-              onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
-              rows={10}
-              placeholder="Write your article content here..."
-            />
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-semibold text-gray-800">Article Content</span>
+              <span className="text-xs text-gray-400 ml-1">
+                Use the toolbar to format text, add headings and lists.
+              </span>
+            </div>
+            <div className="rounded-lg border border-gray-300 shadow-sm overflow-clip">
+              <RichTextEditor
+                value={lessonForm.articleContent ?? ""}
+                onChange={(html) =>
+                  setLessonForm((p) => ({
+                    ...p,
+                    articleContent: html,
+                  }))
+                }
+                placeholder="Start writing your article..."
+                rows={14}
+                borderless
+              />
+            </div>
           </div>
         )}
 
