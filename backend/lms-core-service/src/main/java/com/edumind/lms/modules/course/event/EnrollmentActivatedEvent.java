@@ -4,17 +4,15 @@ import com.edumind.lms.shared.event.DomainEvent;
 import lombok.Getter;
 
 @Getter
-public class StudentEnrolledEvent extends DomainEvent {
+public class EnrollmentActivatedEvent extends DomainEvent {
     private final Long enrollmentId;
     private final Long courseId;
     private final Long studentId;
-    private final boolean reEnrollment;
 
-    public StudentEnrolledEvent(Object source, Long enrollmentId, Long courseId, Long studentId, boolean reEnrollment) {
+    public EnrollmentActivatedEvent(Object source, Long enrollmentId, Long courseId, Long studentId) {
         super(source);
         this.enrollmentId = enrollmentId;
         this.courseId = courseId;
         this.studentId = studentId;
-        this.reEnrollment = reEnrollment;
     }
 }

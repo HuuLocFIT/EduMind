@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -136,4 +137,28 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
      */
     @Query("SELECT e.course.id FROM Enrollment e WHERE e.studentId = :userId AND e.course.id IN :courseIds AND e.status != 'DROPPED'")
     List<Long> findEnrolledCourseIds(@Param("userId") Long userId, @Param("courseIds") List<Long> courseIds);
+
+    /**
+     * Increment totalLessons for all ACTIVE enrollments on a course.
+     * Called when a new lesson is added to the course.
+     */
+    @Modifying
+    @Query("UPDATE Enrollment e SET e.totalLessons = e.totalLessons + 1 WHERE e.course.id = :courseId AND e.status = 'ACTIVE'")
+    void incrementTotalLessonsForCourse(@Param("courseId") Long courseId);
+
+    /**
+     * Decrement totalLessons for all ACTIVE enrollments on a course (floor at 0)
+     * and recalculate progressPercentage. Called when a lesson is deleted from the course.
+     */
+    @Modifying
+    @Query(value = """
+            UPDATE course.enrollments
+            SET total_lessons = GREATEST(total_lessons - 1, 0),
+                progress_percentage = CASE
+                    WHEN GREATEST(total_lessons - 1, 0) = 0 THEN 0
+                    ELSE ROUND(completed_lessons * 100.0 / GREATEST(total_lessons - 1, 0), 2)
+                END
+            WHERE course_id = :courseId AND status = 'ACTIVE'
+            """, nativeQuery = true)
+    void decrementTotalLessonsForCourse(@Param("courseId") Long courseId);
 }

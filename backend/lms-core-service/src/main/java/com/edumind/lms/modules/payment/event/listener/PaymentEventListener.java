@@ -1,8 +1,12 @@
 package com.edumind.lms.modules.payment.event.listener;
 
+import com.edumind.lms.modules.payment.event.OrderCancelledEvent;
 import com.edumind.lms.modules.payment.event.OrderCompletedEvent;
+import com.edumind.lms.modules.payment.event.OrderCreatedEvent;
 import com.edumind.lms.modules.payment.event.PaymentFailedEvent;
 import com.edumind.lms.modules.payment.event.PaymentPendingEvent;
+import com.edumind.lms.modules.payment.event.PayoutCompletedEvent;
+import com.edumind.lms.modules.payment.event.RefundRequestedEvent;
 import com.edumind.lms.modules.payment.service.CartService;
 import com.edumind.lms.modules.payment.service.EarningService;
 import com.edumind.lms.modules.payment.service.InvoiceService;
@@ -104,5 +108,40 @@ public class PaymentEventListener {
     public void handlePaymentPending(PaymentPendingEvent event) {
         log.warn("[AUDIT] Payment pending: orderId={}, orderNumber={}, userId={}",
                 event.getOrderId(), event.getOrderNumber(), event.getUserId());
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handleOrderCreated(OrderCreatedEvent event) {
+        log.info("[AUDIT] Order created: orderId={}, orderNumber={}, userId={}, totalAmount={} {}",
+                event.getOrderId(), event.getOrderNumber(), event.getUserId(),
+                event.getTotalAmount(), event.getCurrency());
+        // TODO: trigger notification when notification module is ready
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handleOrderCancelled(OrderCancelledEvent event) {
+        log.info("[AUDIT] Order cancelled: orderId={}, orderNumber={}, userId={}",
+                event.getOrderId(), event.getOrderNumber(), event.getUserId());
+        // TODO: trigger notification when notification module is ready
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handleRefundRequested(RefundRequestedEvent event) {
+        log.warn("[AUDIT] Refund requested: refundRequestId={}, orderId={}, orderNumber={}, userId={}, amount={} {}",
+                event.getRefundRequestId(), event.getOrderId(), event.getOrderNumber(),
+                event.getUserId(), event.getRequestedAmount(), event.getCurrency());
+        // TODO: trigger admin notification when notification module is ready
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handlePayoutCompleted(PayoutCompletedEvent event) {
+        log.info("[AUDIT] Payout completed: payoutId={}, payoutNumber={}, instructorId={}, totalAmount={} {}",
+                event.getPayoutId(), event.getPayoutNumber(), event.getInstructorId(),
+                event.getTotalAmount(), event.getCurrency());
+        // TODO: trigger notification when notification module is ready
     }
 }

@@ -5,6 +5,7 @@ import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.exception.*;
+import com.edumind.lms.shared.exception.BadRequestException;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentReportRequestRepository;
@@ -13,6 +14,10 @@ import com.edumind.lms.modules.course.repository.LessonProgressRepository;
 import com.edumind.lms.modules.course.entity.EnrollmentReportRequest;
 import com.edumind.lms.modules.course.enums.ReportRequestStatus;
 import com.edumind.lms.modules.course.event.CourseCompletedEvent;
+import com.edumind.lms.modules.course.event.EnrollmentActivatedEvent;
+import com.edumind.lms.modules.course.event.EnrollmentDroppedEvent;
+import com.edumind.lms.modules.course.event.EnrollmentReportCreatedEvent;
+import com.edumind.lms.modules.course.event.EnrollmentSuspendedEvent;
 import com.edumind.lms.modules.course.event.StudentEnrolledEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -147,11 +152,13 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         }
 
         // Publish event
+        boolean isReEnrollment = existingEnrollmentOpt.isPresent();
         eventPublisher.publishEvent(new StudentEnrolledEvent(
                 this,
                 savedEnrollment.getId(),
                 courseId,
-                studentId
+                studentId,
+                isReEnrollment
         ));
 
         // Remove course from wishlist if it exists
@@ -337,6 +344,15 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         enrollment.setStatus(EnrollmentStatus.SUSPENDED);
         enrollment.setSuspensionReason(reason);
         enrollmentRepository.save(enrollment);
+
+        eventPublisher.publishEvent(new EnrollmentSuspendedEvent(
+                this,
+                enrollmentId,
+                enrollment.getCourse().getId(),
+                enrollment.getStudentId(),
+                reason
+        ));
+
         log.info("Enrollment {} suspended successfully with reason: {}", enrollmentId, reason);
     }
 
@@ -354,11 +370,19 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         // Do not auto-activate expired/completed enrollments to avoid breaking business rules
         if (enrollment.getStatus() == EnrollmentStatus.EXPIRED || enrollment.getStatus() == EnrollmentStatus.COMPLETED) {
             log.warn("Cannot activate enrollment {} because status is {}", enrollmentId, enrollment.getStatus());
-            return;
+            throw new BadRequestException("Cannot activate enrollment with status: " + enrollment.getStatus());
         }
 
         enrollment.setStatus(EnrollmentStatus.ACTIVE);
         enrollmentRepository.save(enrollment);
+
+        eventPublisher.publishEvent(new EnrollmentActivatedEvent(
+                this,
+                enrollmentId,
+                enrollment.getCourse().getId(),
+                enrollment.getStudentId()
+        ));
+
         log.info("Enrollment {} activated successfully", enrollmentId);
     }
 
@@ -388,6 +412,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         enrollment.setStatus(EnrollmentStatus.DROPPED);
         enrollment.setLastAccessedAt(LocalDateTime.now());
         enrollmentRepository.save(enrollment);
+
+        eventPublisher.publishEvent(new EnrollmentDroppedEvent(
+                this,
+                enrollmentId,
+                course.getId(),
+                enrollment.getStudentId()
+        ));
+
         log.info("Enrollment {} marked as DROPPED successfully", enrollmentId);
     }
 
@@ -421,6 +453,15 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .build();
         
         reportRequestRepository.save(reportRequest);
+
+        eventPublisher.publishEvent(new EnrollmentReportCreatedEvent(
+                this,
+                reportRequest.getId(),
+                enrollmentId,
+                enrollment.getCourse().getId(),
+                teacherId
+        ));
+
         log.info("Report request {} created successfully for enrollment {}", reportRequest.getId(), enrollmentId);
     }
 
@@ -444,6 +485,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         enrollment.setStatus(EnrollmentStatus.DROPPED);
         enrollment.setLastAccessedAt(LocalDateTime.now());
         enrollmentRepository.save(enrollment);
+
+        eventPublisher.publishEvent(new EnrollmentDroppedEvent(
+                this,
+                enrollment.getId(),
+                courseId,
+                studentId
+        ));
+
         log.info("Enrollment {} dropped (refund revocation): courseId={}, studentId={}", enrollment.getId(), courseId, studentId);
     }
 
