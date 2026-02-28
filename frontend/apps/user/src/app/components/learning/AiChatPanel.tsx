@@ -268,15 +268,22 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
     const wasLoading = prevIsLoadingRef.current;
     prevIsLoadingRef.current = isLoading;
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     if (wasLoading && !isLoading) {
-      const timer = setTimeout(scrollToLastQuestion, 0);
-      return () => clearTimeout(timer);
+      timer = setTimeout(scrollToLastQuestion, 0);
     }
 
     if (messages.length > prevMessagesLengthRef.current || isLoading) {
       prevMessagesLengthRef.current = messages.length;
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [messages, isLoading]);
 
   // Auto-scroll to bottom as typewriter drips out text

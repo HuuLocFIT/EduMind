@@ -1,6 +1,6 @@
 # AI Module Workflows
 
-This document describes all AI-driven workflows implemented in the EduMind LMS system. The AI module provides four core features: **Lesson Embeddings**, **Lesson Summaries**, **Quiz Generation**, and **RAG Chat** — all built on Spring AI with Google Gemini.
+This document describes all AI-driven workflows implemented in the EduMind LMS system. The AI module provides five core features: **Lesson Embeddings**, **Lesson Summaries**, **Quiz Generation**, **RAG Chat**, and **Auto-Transcription** — built on Spring AI with Google Gemini and Groq Whisper API.
 
 ---
 
@@ -15,6 +15,7 @@ graph TB
         C3["/summaries/lesson/{id}"]
         C4["/jobs/{id}"]
         C5["/admin/reindex-embeddings"]
+        C6["/transcribe/lessons/{id}"]
     end
 
     subgraph Services["Service Layer"]
@@ -24,17 +25,30 @@ graph TB
         EmbSvc["EmbeddingServiceImpl<br>(Embedding)"]
         JobSvc["AiJobService<br>(Job Tracking)"]
         RateLimit["RateLimitHelper<br>(Rate Limiting)"]
+        TransSvc["WhisperTranscriptionServiceImpl<br>(Transcription)"]
     end
 
     subgraph AsyncLayer["Async Processors (@Async)"]
         EmbProc["AsyncEmbeddingProcessor"]
         SumProc["AsyncSummaryProcessor"]
         QuizProc["AsyncQuizProcessor"]
+        TransProc["WhisperTranscriptionServiceImpl<br>@Async whisperTaskExecutor<br>size=1, queue=10"]
     end
 
     subgraph Gemini["Google Gemini (Spring AI)"]
         ChatModel["gemini-2.5-flash-lite<br>temp=0.3, max=4096 tokens"]
         EmbModel["gemini-embedding-001<br>768 dimensions"]
+    end
+
+    subgraph Groq["Groq Whisper API"]
+        GroqAPI["whisper-large-v3-turbo<br>25MB limit, 28,800s/day free"]
+    end
+
+    subgraph SourceResolvers["Transcription Source Resolvers"]
+        Resolver["TranscriptionSourceResolver<br>(Strategy Pattern)"]
+        CldExt["CloudinaryAudioExtractor<br>on-the-fly vc_none,ac_mp3,br_32k"]
+        YtExt["YouTubeTranscriptExtractor<br>auto-captions first (free)"]
+        YtDlp["YtDlpAudioDownloader<br>fallback (yt-dlp binary)"]
     end
 
     subgraph DB["PostgreSQL — ai schema"]
@@ -56,6 +70,7 @@ graph TB
     C3 --> SumSvc
     C4 --> JobSvc
     C5 --> EmbSvc
+    C6 --> TransSvc
 
     Event --> EmbSvc
     Event --> SumSvc
@@ -69,10 +84,12 @@ graph TB
     QuizSvc --> JobSvc --> JobLog
     SumSvc --> JobSvc
     EmbSvc --> JobSvc
+    TransSvc --> JobSvc
 
     QuizSvc --> QuizProc
     SumSvc --> SumProc
     EmbSvc --> EmbProc
+    TransSvc --> TransProc
 
     QuizProc --> ChatModel
     QuizProc --> Quizzes
@@ -80,14 +97,23 @@ graph TB
     SumProc --> Summaries
     EmbProc --> EmbModel
     EmbProc --> Embeddings
+
+    TransProc --> Resolver
+    Resolver --> CldExt
+    Resolver --> YtExt
+    YtExt --> YtDlp
+    CldExt --> GroqAPI
+    YtDlp --> GroqAPI
+    TransProc --> Event
 ```
 
 ### Key Design Principles
 
-- **Async Job Pattern**: All generation tasks (`EMBEDDING`, `LESSON_SUMMARY`, `QUIZ_GENERATION`) return `202 Accepted` immediately with a `jobId`. Clients poll `GET /api/ai/jobs/{id}` for status.
-- **Event-Driven Triggers**: Embedding and summary generation fire automatically after lesson content is committed to the database via `@TransactionalEventListener(AFTER_COMMIT)`.
+- **Async Job Pattern**: All generation tasks (`EMBEDDING`, `LESSON_SUMMARY`, `QUIZ_GENERATION`, `TRANSCRIPTION`) return `202 Accepted` immediately with a `jobId`. Clients poll `GET /api/ai/jobs/{id}` for status.
+- **Event-Driven Triggers**: Embedding and summary generation fire automatically after lesson content is committed to the database via `@TransactionalEventListener(AFTER_COMMIT)`. Transcription completion also triggers this event via `LessonWriteService`.
 - **ACL Enforcement**: Every endpoint validates enrollment (student) or course ownership (instructor) via cross-module API contracts — never direct repository imports.
-- **Graceful Degradation**: `GEMINI_API_KEY` is optional at startup. The `ChatClient` and `EmbeddingModel` beans are `@ConditionalOnProperty` — the application boots without them, returning errors only when AI endpoints are called.
+- **Graceful Degradation**: `GEMINI_API_KEY` is optional at startup. The `ChatClient` and `EmbeddingModel` beans are `@ConditionalOnProperty` — the application boots without them. Similarly, `GROQ_API_KEY` is optional; transcription endpoint returns errors only when called.
+- **Sequential Transcription**: `whisperTaskExecutor` (size=1, queue=10) serializes Groq API calls to stay within the 20 req/min rate limit. Groq 429 responses flip the job to `DELAYED`; `TranscriptionRetryScheduler` re-queues every 30 seconds.
 
 ---
 
@@ -97,38 +123,269 @@ All AI generation operations share a unified job tracking system (`ai.ai_job_log
 
 ```mermaid
 stateDiagram-v2
-    state "DELAYED (future retry queue)" as DELAYED
-
     [*] --> PENDING : Job created (202 Accepted)
     PENDING --> PROCESSING : Async processor picks up job
-    PENDING --> DELAYED : Future enhancement
     PROCESSING --> COMPLETED : Generation successful
-    PROCESSING --> FAILED : Exception thrown / Gemini error
-    DELAYED --> PROCESSING : Retry scheduled
+    PROCESSING --> FAILED : Unrecoverable exception
+    PROCESSING --> DELAYED : Groq HTTP 429 (rate limit hit)
+    DELAYED --> PENDING : TranscriptionRetryScheduler picks up job<br>(every 30s, when nextRetryAt has passed)
+    PENDING --> PROCESSING : Re-queued by scheduler
     FAILED --> [*] : Terminal (no auto-retry)
     COMPLETED --> [*] : Terminal
-    DELAYED --> [*] : Abandoned
 ```
 
 | Status | Description |
 |--------|-------------|
 | `PENDING` | Job created, waiting for async thread |
-| `PROCESSING` | Async processor started, Gemini call in progress |
+| `PROCESSING` | Async processor started, API call in progress |
 | `COMPLETED` | Generation finished, result persisted |
-| `FAILED` | Exception occurred; `errorMessage` field populated |
-| `DELAYED` | Reserved for future retry queue (not yet active) |
+| `FAILED` | Unrecoverable exception; `errorMessage` field populated |
+| `DELAYED` | Groq rate limit hit (HTTP 429); `nextRetryAt` set to `now + retryDelaySeconds (60s)` |
 
 **Job ownership**: `GET /api/ai/jobs/{id}` validates the requesting user matches `AiJobLog.userId`. Cross-user access returns `403 Forbidden`.
 
-**Retry policy**: Spring AI retry is disabled (`max-attempts: 1`). Each processor catches exceptions, persists the error message to `AiJobLog`, and marks the job `FAILED`. Retrying requires re-triggering the original action.
+**Retry policy for non-transcription jobs**: Spring AI retry is disabled (`max-attempts: 1`). Each processor catches exceptions, persists the error message to `AiJobLog`, and marks the job `FAILED`. Retrying requires re-triggering the original action.
+
+**Retry policy for `TRANSCRIPTION` jobs**: `GroqRateLimitException` (HTTP 429) transitions the job to `DELAYED` with `nextRetryAt = now + 60s`. `TranscriptionRetryScheduler` polls every 30 seconds, picks up all `DELAYED` jobs whose `nextRetryAt` has passed, resets them to `PENDING`, and re-submits to `whisperTaskExecutor`. If the queue is full, the job stays `DELAYED` with `nextRetryAt = now + 30s`.
 
 ---
 
-## 3. Workflow 1 — Lesson Embedding
+## 3. Workflow 1 — Auto-Transcription (Groq Whisper)
+
+Teachers paste a Cloudinary video URL or a YouTube URL. The system extracts text, writes it into the lesson's `articleContent`, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
+
+**Why Groq instead of local Whisper**: The VPS has ~600 MB RAM left after the Spring Boot stack. Whisper medium needs 2 GB; Whisper base needs ~500 MB and is unstable under load. Groq API is free (28,800 s audio/day), ~10× faster than local inference, and consumes ≈ 0 MB VPS RAM.
+
+### 3.1 High-Level Transcription Flow
+
+```mermaid
+sequenceDiagram
+    participant Teacher
+    participant Controller as AiController<br>POST /ai/transcribe/lessons/{lessonId}
+    participant TransSvc as WhisperTranscriptionServiceImpl
+    participant LessonQuerySvc as LessonQueryService
+    participant JobRepo as AiJobLogRepository
+    participant Executor as whisperTaskExecutor<br>(size=1, queue=10)
+    participant Resolver as TranscriptionSourceResolver
+    participant LessonWriteSvc as LessonWriteService
+    participant EventBus as Spring Event Bus
+    participant DB as ai.ai_job_logs
+
+    Teacher->>Controller: POST { videoUrl } (TEACHER role)
+    Controller->>TransSvc: requestTranscription(lessonId, videoUrl, userId)
+
+    TransSvc->>LessonQuerySvc: getLessonInfo(lessonId)
+    alt Lesson not found
+        TransSvc-->>Controller: throw 404 Not Found
+    end
+    alt userId != lesson.instructorId
+        TransSvc-->>Controller: throw 403 Forbidden
+    end
+
+    TransSvc->>JobRepo: save(AiJobLog { TRANSCRIPTION, PENDING, metadata=videoUrl })
+    TransSvc->>Executor: processTranscriptionAsync(jobId, lessonId, videoUrl) [@Async]
+    TransSvc-->>Controller: AiJobResponse (jobId, PENDING)
+    Controller-->>Teacher: 202 Accepted { jobId }
+
+    Note over Executor: Runs on whisperTaskExecutor — single thread<br>serialises all Groq calls
+
+    Executor->>DB: update status=PROCESSING, startedAt=now
+    Executor->>Resolver: resolve(videoUrl)
+    Note over Resolver: Detects URL type and delegates<br>to correct AudioExtractor
+
+    alt TranscriptionInput.DirectText (YouTube captions)
+        Resolver-->>Executor: DirectText(text)
+        Note over Executor: No Groq call needed — free path
+    else TranscriptionInput.AudioFile (download required)
+        Resolver-->>Executor: AudioFile(tempFile)
+        Executor->>Executor: validate size < 25 MB
+        alt size > 25 MB
+            Executor->>DB: status=FAILED, errorMessage
+        else size OK
+            Executor->>Executor: sendToGroq(tempFile)
+        end
+    end
+
+    Executor->>LessonWriteSvc: updateArticleContent(lessonId, transcript)
+    LessonWriteSvc->>EventBus: publish LessonContentUpdatedEvent [AFTER_COMMIT]
+    Note over EventBus: Auto-triggers embedding + summary generation
+
+    Executor->>DB: status=COMPLETED, completedAt=now
+    Executor->>Executor: Files.deleteIfExists(tempFile) [finally block]
+
+    Teacher->>Controller: GET /api/ai/jobs/{jobId}
+    Controller-->>Teacher: { status: COMPLETED }
+```
+
+### 3.2 Source Resolution Strategy (Strategy Pattern)
+
+`TranscriptionSourceResolver` detects the URL type and delegates to the appropriate `AudioExtractor` implementation.
+
+```
+TranscriptionSourceResolver.resolve(url)
+  │
+  ├─ url.contains("res.cloudinary.com") ?
+  │    └─→ CloudinaryAudioExtractor.extract(url)
+  │         └─→ TranscriptionInput.AudioFile(tempFile)
+  │
+  ├─ url.contains("youtube.com/watch") or "youtu.be/" ?
+  │    └─→ YouTubeTranscriptExtractor.extract(url)
+  │         ├─ [Phase A] yt-dlp --write-auto-sub --skip-download → .vtt file
+  │         │    ├─ VTT found & non-empty → TranscriptionInput.DirectText(parsedText)
+  │         │    └─ VTT empty / not found → fallback to Phase B
+  │         └─ [Phase B] YtDlpAudioDownloader.download(url) → TranscriptionInput.AudioFile(mp3)
+  │
+  └─ else → BadRequestException("Unsupported URL type")
+```
+
+**`TranscriptionInput`** is a sealed interface with two permitted records:
+
+| Variant | Type | Description |
+|---------|------|-------------|
+| `DirectText(String text)` | No Groq call | YouTube auto-captions extracted from `.vtt` — free, instant |
+| `AudioFile(Path tempFile)` | Groq API call | Downloaded audio file requiring Whisper transcription |
+
+### 3.3 Cloudinary Audio Extraction
+
+Cloudinary supports server-side media transformation via URL parameters. The extractor inserts transformation parameters right after `/upload/` — **no server-side processing, no VPS RAM usage**.
+
+```
+Original:   https://res.cloudinary.com/demo/video/upload/sample.mp4
+Transformed: https://res.cloudinary.com/demo/video/upload/vc_none,ac_mp3,br_32k/sample.mp3
+                                                          ───────────────────────
+                                                          vc_none  = strip video
+                                                          ac_mp3   = audio codec mp3
+                                                          br_32k   = bitrate 32 kbps → ~14 MB/hour
+```
+
+The transformed URL is then downloaded to a temp file and returned as `TranscriptionInput.AudioFile`.
+
+### 3.4 YouTube Extraction Flow
+
+```mermaid
+sequenceDiagram
+    participant Extractor as YouTubeTranscriptExtractor
+    participant YtDlp as yt-dlp binary
+    participant Downloader as YtDlpAudioDownloader
+    participant TmpDir as /tmp
+
+    Extractor->>YtDlp: yt-dlp --write-auto-sub --sub-lang en --skip-download -o /tmp/ytdlp_sub_{uuid}_{%(id)s} <url>
+    YtDlp-->>TmpDir: *.en.vtt (if captions exist)
+
+    Extractor->>TmpDir: findGeneratedVtt(prefix)
+
+    alt .vtt found
+        Extractor->>Extractor: parseVttToText(vtt)
+        Note over Extractor: Strip WEBVTT header, timestamps,<br>NOTE blocks, HTML tags<br>Deduplicate consecutive identical lines
+        alt Parsed text non-empty
+            Extractor-->>Caller: DirectText(transcript)
+            Note over Extractor: Files.deleteIfExists(vtt) in finally
+        else Parsed text blank
+            Extractor->>Downloader: download(url) — fallback
+        end
+    else No .vtt file
+        Extractor->>Downloader: download(url) — fallback
+    end
+
+    Downloader->>YtDlp: yt-dlp -x --audio-format mp3 --audio-quality 32K -o /tmp/ytdlp_audio_{uuid}.%(ext)s <url>
+    YtDlp-->>TmpDir: ytdlp_audio_{uuid}.mp3
+    Downloader-->>Caller: AudioFile(/tmp/ytdlp_audio_{uuid}.mp3)
+```
+
+**Timeouts**:
+- Caption download: 5 minutes
+- Audio download: 10 minutes
+
+### 3.5 Groq API Call
+
+Groq's API is OpenAI-compatible (`/openai/v1/audio/transcriptions`). The `RestClient` bean is pre-configured with `Authorization: Bearer <GROQ_API_KEY>` via `GroqClientConfig`.
+
+```
+POST https://api.groq.com/openai/v1/audio/transcriptions
+Content-Type: multipart/form-data
+
+file     = <audio file>
+model    = whisper-large-v3-turbo
+language = en
+
+Response: { "text": "transcribed content..." }
+```
+
+**HTTP 429 handling**: The `RestClient` status handler detects `429 Too Many Requests` and throws `GroqRateLimitException`. The async processor catches it, sets `status=DELAYED`, and stores `nextRetryAt = now + 60s`.
+
+### 3.6 Rate Limit & Retry Scheduler
+
+```mermaid
+sequenceDiagram
+    participant Scheduler as TranscriptionRetryScheduler<br>@Scheduled(fixedDelay=30s)
+    participant JobRepo as AiJobLogRepository
+    participant Executor as whisperTaskExecutor
+    participant TransSvc as WhisperTranscriptionService
+
+    loop Every 30 seconds
+        Scheduler->>JobRepo: findByStatusAndNextRetryAtBefore(DELAYED, now)
+        alt No delayed jobs
+            Scheduler-->>Scheduler: return (no-op)
+        else Delayed jobs found
+            loop For each delayed job
+                Scheduler->>JobRepo: update status=PENDING, nextRetryAt=null
+                Scheduler->>Executor: processTranscriptionAsync(jobId, lessonId, videoUrl)
+                alt Executor queue full (TaskRejectedException)
+                    Scheduler->>JobRepo: status=DELAYED, nextRetryAt=now+30s
+                end
+            end
+        end
+    end
+```
+
+### 3.7 Post-Transcription Event Chain
+
+When transcription completes successfully, `LessonWriteService.updateArticleContent()` is called. This:
+
+1. Persists the transcript to `lesson.article_content`
+2. Detects content changed (old ≠ new)
+3. Publishes `LessonContentUpdatedEvent` after the transaction commits
+4. `AiEventListener` picks up the event on `taskExecutor` thread
+5. Triggers **embedding generation** + **summary generation** in parallel (Workflows 4 and 2)
+
+```
+transcription COMPLETED
+  └─→ LessonWriteService.updateArticleContent(lessonId, transcript)
+        └─→ [AFTER_COMMIT] LessonContentUpdatedEvent
+              └─→ AiEventListener.onLessonContentUpdated()
+                    ├─→ EmbeddingService.requestEmbedding(lesson)   [Workflow 4]
+                    └─→ AiSummaryService.requestSummaryGeneration(lesson) [Workflow 2]
+```
+
+### 3.8 File Lifecycle & Disk Safety
+
+All temp files created during transcription are deleted in `finally` blocks to prevent disk leaks:
+
+| File | Created by | Deleted in |
+|------|-----------|------------|
+| `cld_*.mp3` | `CloudinaryAudioExtractor` | `WhisperTranscriptionServiceImpl.processTranscriptionAsync` finally |
+| `ytdlp_sub_*_*.en.vtt` | `YouTubeTranscriptExtractor` | `YouTubeTranscriptExtractor.extract` finally |
+| `ytdlp_audio_*.mp3` | `YtDlpAudioDownloader` | `WhisperTranscriptionServiceImpl.processTranscriptionAsync` finally |
+
+### 3.9 Concurrency & Thread Pool
+
+```yaml
+ai:
+  executor:
+    whisper-queue-capacity: ${WHISPER_QUEUE_CAPACITY:10}  # Max queued transcription jobs
+  groq:
+    retry-delay-seconds: 60   # Seconds to wait before retrying after Groq 429
+```
+
+`whisperTaskExecutor` is configured as **size=1** (single thread). This serialises all Groq API calls, avoiding concurrent requests that would quickly exhaust the 20 req/min Groq rate limit. The queue holds up to 10 pending jobs; additional requests beyond queue capacity trigger `TaskRejectedException` and are kept `DELAYED` for the scheduler.
+
+---
+
+## 4. Workflow 2 — Lesson Embedding
 
 Lesson embeddings power the RAG Chat feature. They are generated automatically whenever lesson content changes and stored as 768-dimensional vectors in `ai.lesson_embeddings` using the `pgvector` extension.
 
-### 3.1 Trigger Flow — Event-Driven Embedding
+### 4.1 Trigger Flow — Event-Driven Embedding
 
 ```mermaid
 sequenceDiagram
@@ -172,7 +429,7 @@ sequenceDiagram
     end
 ```
 
-### 3.2 Chunking Strategy
+### 4.2 Chunking Strategy
 
 The chunking algorithm ensures context continuity at chunk boundaries through overlapping windows.
 
@@ -192,7 +449,7 @@ chunk_2: word[900] → word[1399]  (500 words, 50-word overlap)  │
 - **Step size**: 450 words (50-word backward overlap)
 - **Purpose**: Prevents important concepts at chunk boundaries from losing context
 
-### 3.3 Vector Storage (Native SQL)
+### 4.3 Vector Storage (Native SQL)
 
 Spring Data JPA does not natively support `pgvector` column types. The repository uses raw SQL for all vector operations:
 
@@ -206,7 +463,7 @@ CREATE INDEX ON ai.lesson_embeddings
     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 ```
 
-### 3.4 Admin Manual Reindex
+### 4.4 Admin Manual Reindex
 
 ```mermaid
 sequenceDiagram
@@ -230,11 +487,11 @@ sequenceDiagram
 
 ---
 
-## 4. Workflow 2 — Lesson Summary Generation
+## 5. Workflow 3 — Lesson Summary Generation
 
 Lesson summaries provide structured learning aids (`summaryText`, `keyPoints[]`, `vocabulary[]`). They are co-triggered by the same `LessonContentUpdatedEvent` as embeddings, running in parallel on separate async threads.
 
-### 4.1 Trigger Flow
+### 5.1 Trigger Flow
 
 ```mermaid
 sequenceDiagram
@@ -272,7 +529,7 @@ sequenceDiagram
     AsyncProc->>JobService: updateStatus(COMPLETED)
 ```
 
-### 4.2 Gemini Prompt Structure
+### 5.2 Gemini Prompt Structure
 
 ```
 System: You are an educational content expert. Analyze the following lesson content
@@ -291,7 +548,7 @@ User:   Lesson: {lessonTitle}
         }
 ```
 
-### 4.3 Summary Retrieval
+### 5.3 Summary Retrieval
 
 ```mermaid
 sequenceDiagram
@@ -324,11 +581,11 @@ sequenceDiagram
 
 ---
 
-## 5. Workflow 3 — Quiz Generation & Attempts
+## 6. Workflow 4 — Quiz Generation & Attempts
 
 Instructors generate multiple-choice quizzes from lesson content. Students take the quiz without seeing answers; correct answers and explanations are revealed only after submission.
 
-### 5.1 Quiz Generation Flow (Instructor)
+### 6.1 Quiz Generation Flow (Instructor)
 
 ```mermaid
 sequenceDiagram
@@ -387,7 +644,7 @@ sequenceDiagram
     Controller-->>Instructor: { status: COMPLETED, referenceId: quizId }
 ```
 
-### 5.2 Student Quiz Flow
+### 6.2 Student Quiz Flow
 
 ```mermaid
 sequenceDiagram
@@ -433,7 +690,7 @@ sequenceDiagram
     Controller-->>Student: 200 OK {<br>  score, totalQuestions, percentage,<br>  questions[{ question, options, correctIndex, explanation }]<br>}
 ```
 
-### 5.3 Instructor Quiz Review
+### 6.3 Instructor Quiz Review
 
 ```mermaid
 sequenceDiagram
@@ -456,7 +713,7 @@ sequenceDiagram
     Controller-->>Instructor: 200 OK (correctIndex + explanation included)
 ```
 
-### 5.4 Answer Masking Strategy
+### 6.4 Answer Masking Strategy
 
 | Field | Student View (`/take`) | Post-Submission (`/attempts`) | Instructor View |
 |-------|----------------------|-------------------------------|-----------------|
@@ -467,11 +724,11 @@ sequenceDiagram
 
 ---
 
-## 6. Workflow 4 — RAG Chat (Synchronous & SSE Streaming)
+## 7. Workflow 5 — RAG Chat (Synchronous & SSE Streaming)
 
 The Retrieval-Augmented Generation chat allows students and instructors to ask natural-language questions about course material. The system retrieves the most semantically relevant lesson chunks, classifies answer confidence, and generates a grounded response using Gemini.
 
-### 6.1 Full RAG Pipeline
+### 7.1 Full RAG Pipeline
 
 ```mermaid
 sequenceDiagram
@@ -540,7 +797,7 @@ sequenceDiagram
     Controller-->>Client: 200 OK
 ```
 
-### 6.2 SSE Streaming Flow
+### 7.2 SSE Streaming Flow
 
 ```mermaid
 sequenceDiagram
@@ -580,7 +837,7 @@ sequenceDiagram
     end
 ```
 
-### 6.3 Confidence Tier Classification
+### 7.3 Confidence Tier Classification
 
 Confidence is determined by the average cosine distance of the top-5 retrieved chunks. Cosine distance is in the range `[0, 2]` where `0` = identical vectors.
 
@@ -602,7 +859,7 @@ avgDistance = mean(chunk.distance for top-5 chunks)
 └─────────────────┴────────────────────┴───────────────────────────────────────┘
 ```
 
-### 6.4 Rate Limiting Detail
+### 7.4 Rate Limiting Detail
 
 Rate limiting is enforced per user per day using a PostgreSQL UPSERT — atomic and race-condition-free.
 
@@ -622,7 +879,7 @@ RETURNING message_count;
 | Enforcement | Pre-call; increments before Gemini call |
 | Error | `429 Too Many Requests` |
 
-### 6.5 SSE Security Context Propagation
+### 7.5 SSE Security Context Propagation
 
 Spring async threads do not inherit the `SecurityContext` from the request thread by default. This causes `NullPointerException` when `RagServiceImpl` calls `SecurityContextHolder.getContext()` inside the SSE thread.
 
@@ -644,12 +901,13 @@ sequenceDiagram
 
 ---
 
-## 7. Cross-Cutting Concerns
+## 8. Cross-Cutting Concerns
 
-### 7.1 ACL Enforcement Matrix
+### 8.1 ACL Enforcement Matrix
 
 | Feature | Endpoint | Instructor | Enrolled Student | Notes |
 |---------|----------|:----------:|:----------------:|-------|
+| Request transcription | `POST /transcribe/lessons/{id}` | ✅ | ❌ | Must own the lesson's course; TEACHER role |
 | Generate quiz | `POST /quizzes/generate` | ✅ | ❌ | Must own the lesson's course |
 | View all quizzes (with answers) | `GET /quizzes/lesson/{id}` | ✅ | ❌ | Full `correctIndex` + `explanation` |
 | Take latest quiz | `GET /quizzes/lesson/{id}/take` | ❌ | ✅ | Answers stripped |
@@ -663,25 +921,31 @@ sequenceDiagram
 
 All ACL checks use cross-module API interfaces (`LessonQueryService`, `EnrollmentQueryService`, `CourseQueryService`) — no direct imports of other modules' repositories.
 
-### 7.2 Thread Pool Configuration
+### 8.2 Thread Pool Configuration
 
 ```yaml
-# application.yml — AI async executor
+# application.yml — AI async executors
 ai:
   executor:
-    core-pool-size: 2      # Base threads always alive
-    max-pool-size: 5       # Max concurrent AI generation jobs
-    queue-capacity: 50     # Job queue depth before rejection
+    ai-core-pool-size: ${AI_CORE_POOL_SIZE:2}        # Base threads for Gemini jobs
+    ai-max-pool-size: ${AI_MAX_POOL_SIZE:5}          # Max concurrent Gemini jobs
+    ai-queue-capacity: ${AI_QUEUE_CAPACITY:50}       # Job queue depth before rejection
+    whisper-queue-capacity: ${WHISPER_QUEUE_CAPACITY:10}  # Max queued transcription jobs
+  groq:
+    retry-delay-seconds: 60              # Seconds before retrying a DELAYED job
+
+# whisperTaskExecutor — single thread, serialises Groq calls
+# Configured in AsyncConfig: corePoolSize=1, maxPoolSize=1, queueCapacity=whisper-queue-capacity
 
 # WebMvcConfig — SSE async executor
 WebMvcConfig:
   core: 4
   max: 10
   queue: 50
-  timeout: 300_000ms       # 5 minutes max SSE connection
+  timeout: 300_000ms                     # 5 minutes max SSE connection
 ```
 
-### 7.3 Gemini Configuration
+### 8.3 Gemini Configuration
 
 ```yaml
 # application.yml
@@ -701,9 +965,24 @@ spring:
       max-attempts: 1                    # No auto-retry; processors handle failures
 ```
 
+### 8.4 Groq Configuration
+
+```yaml
+# application.yml
+ai:
+  groq:
+    api-url: https://api.groq.com/openai/v1/audio/transcriptions
+    api-key: ${GROQ_API_KEY:}            # Optional at startup
+    model: whisper-large-v3-turbo
+    language: en
+    retry-delay-seconds: 60
+  ytdlp:
+    path: ${YTDLP_PATH:yt-dlp}           # Override with full path e.g. /usr/local/bin/yt-dlp
+```
+
 ---
 
-## 8. Database Schema
+## 9. Database Schema
 
 ### `ai.lesson_embeddings`
 
@@ -739,16 +1018,18 @@ CREATE TABLE ai.ai_rate_limits (
 
 ```sql
 CREATE TABLE ai.ai_job_logs (
-    id            UUID PRIMARY KEY,
-    job_type      VARCHAR,              -- EMBEDDING, LESSON_SUMMARY, QUIZ_GENERATION, TRANSCRIPTION
-    status        VARCHAR,              -- PENDING, PROCESSING, COMPLETED, FAILED, DELAYED
+    id            BIGSERIAL PRIMARY KEY,
+    job_type      VARCHAR(50),          -- EMBEDDING, LESSON_SUMMARY, QUIZ_GENERATION, TRANSCRIPTION
+    status        VARCHAR(20),          -- PENDING, PROCESSING, COMPLETED, FAILED, DELAYED
     user_id       BIGINT,
     reference_id  BIGINT,              -- lessonId on create; updated to quizId on quiz completion
     error_message TEXT,
-    retry_count   INT DEFAULT 0,
     started_at    TIMESTAMP,
     completed_at  TIMESTAMP,
-    created_at    TIMESTAMP DEFAULT now()
+    next_retry_at TIMESTAMP,           -- Set when status=DELAYED; TranscriptionRetryScheduler checks this
+    metadata      TEXT,               -- Job-specific data: videoUrl for TRANSCRIPTION jobs (V34 migration)
+    created_at    TIMESTAMP,
+    updated_at    TIMESTAMP
 );
 ```
 
@@ -808,7 +1089,7 @@ CREATE TABLE ai.quiz_attempts (
 
 ---
 
-## 9. API Reference
+## 10. API Reference
 
 All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 
@@ -840,6 +1121,14 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 | `POST` | `/ai/quizzes/attempts` | Student | `QuizAttemptResponse` | Submit answers, get scored results |
 | `GET` | `/ai/quizzes/lesson/{lessonId}/my-attempts` | Student | `List<QuizAttemptResponse>` | Student's attempt history |
 
+### Auto-Transcription
+
+| Method | Path | Auth | Response | Description |
+|--------|------|------|----------|-------------|
+| `POST` | `/ai/transcribe/lessons/{lessonId}` | Teacher (course owner) | `202 { jobId }` | Request transcription from Cloudinary or YouTube URL |
+
+Request body: `{ "videoUrl": "https://..." }`
+
 ### RAG Chat
 
 | Method | Path | Auth | Response | Description |
@@ -849,7 +1138,7 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 
 ---
 
-## 10. Error Scenarios
+## 11. Error Scenarios
 
 ### Job Processing Errors
 
@@ -860,6 +1149,20 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 | Gemini API error | Network or quota issue | Exception caught; Job → `FAILED(errorMessage)` |
 | JSON parse failure | Gemini returns malformed JSON | `AiResponseParseException` thrown; Job → `FAILED` |
 | Quiz count mismatch | Gemini returns fewer questions than requested | Validation throws; Job → `FAILED` |
+
+### Transcription Errors
+
+| Error | Cause | HTTP Status / Outcome |
+|-------|-------|----------------------|
+| Lesson not found | Invalid `lessonId` | `404 Not Found` (sync, before job created) |
+| Not lesson owner | `userId != lesson.instructorId` | `403 Forbidden` (sync, before job created) |
+| Unsupported URL type | URL is neither Cloudinary nor YouTube | Job → `FAILED("Unsupported URL type")` |
+| Audio file > 25 MB | Cloudinary/yt-dlp audio exceeds Groq limit | `AudioFileTooLargeException`; Job → `FAILED` |
+| Groq rate limit (429) | > 20 req/min to Groq API | `GroqRateLimitException`; Job → `DELAYED`, retried after 60s |
+| Groq API key missing | `GROQ_API_KEY` not set | Groq `RestClient` sends no auth header; Job → `FAILED(401)` |
+| yt-dlp not installed | Binary not found on PATH | `IOException("yt-dlp binary not found")`; Job → `FAILED` |
+| yt-dlp timeout | Video download exceeds 10 minutes | `IOException("Command timed out")`; Job → `FAILED` |
+| Scheduler queue full | `whisperTaskExecutor` queue at capacity | Job kept `DELAYED`, `nextRetryAt = now + 30s` |
 
 ### RAG Chat Errors
 
@@ -880,13 +1183,26 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 
 ---
 
-## 11. Key Implementation Details
+## 12. Key Implementation Details
 
 ### Idempotency
 
 - **Embeddings**: `AsyncEmbeddingProcessor` calls `deleteByLessonId()` before re-inserting chunks. Re-triggering the same lesson is safe.
 - **Summaries**: `LessonSummaryRepository.upsert()` uses `INSERT ... ON CONFLICT (lesson_id) DO UPDATE`. Re-triggering overwrites with the latest result.
 - **Quizzes**: Each generation creates a new `GeneratedQuiz` row. Multiple generations accumulate; students always receive the most recent one.
+- **Transcription**: Each call creates a new `AiJobLog`. Re-submitting the same lesson creates a new job but the end result is an `updateArticleContent` overwrite — safe to retry.
+
+### Transcription Temp File Lifecycle
+
+All transcription code paths write audio/subtitle files to the OS temp directory (`/tmp`) and **must** delete them in `finally` blocks to avoid disk leaks:
+
+```
+Cloudinary path:  cld_*.mp3           → deleted in WhisperTranscriptionServiceImpl finally
+YouTube captions: ytdlp_sub_*.en.vtt  → deleted in YouTubeTranscriptExtractor finally
+YouTube audio:    ytdlp_audio_*.mp3   → deleted in WhisperTranscriptionServiceImpl finally
+```
+
+The `Files.deleteIfExists(tempFile)` call is in `finally` so it runs even if the Groq call fails or throws `AudioFileTooLargeException`.
 
 ### Security Context in Async Threads
 
@@ -898,10 +1214,13 @@ The AI module never imports internal classes from the `course` module. It depend
 
 ```
 modules/course/api/
-  ├── LessonQueryService       (getLessonContent, findLesson, isInstructorOfLesson)
+  ├── LessonQueryService       (getLessonInfo, getLessonContent, findLesson, isInstructorOfLesson)
+  ├── LessonWriteService       (updateArticleContent) ← added for transcription
   ├── EnrollmentQueryService   (isEnrolled)
   └── CourseQueryService       (isInstructor, findCourse)
 ```
+
+`LessonWriteService.updateArticleContent()` is the write-side contract. It saves the transcript, then publishes `LessonContentUpdatedEvent` (only if content changed), which drives the downstream embedding and summary pipelines.
 
 Implementations live in `course/api/impl/` — hidden behind the interface boundary.
 
@@ -922,4 +1241,4 @@ The `<=>` operator computes cosine distance (not similarity). A lower value = mo
 ---
 
 **Last Updated**: Based on implementation in `modules/ai/` — `feature/ai-module` branch
-**Status**: Core functionality complete (Embedding, Summary, Quiz, RAG Chat)
+**Status**: Core functionality complete (Embedding, Summary, Quiz, RAG Chat, Auto-Transcription)

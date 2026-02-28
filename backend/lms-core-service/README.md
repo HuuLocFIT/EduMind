@@ -14,7 +14,8 @@ This service owns course, assessment, payment, and **AI‑assisted learning** do
 - **[Database Migrations](#database-migrations)**
 - **[Running the Service](#running-the-service)**
 - **[API Overview](#api-overview)**
-- **[Payments](#payments)**  
+- **[Groq Whisper Transcription](#groq-whisper-transcription)**
+- **[Payments](#payments)**
 - **[Logging & Monitoring](#logging--monitoring)**
 - **[Testing](#testing)**
 - **[Troubleshooting](#troubleshooting)**
@@ -35,6 +36,7 @@ The **LMS Core Service** is a Spring Boot microservice responsible for the main 
   - Per‑lesson AI summaries
   - Instructor‑driven quiz generation and student quiz attempts
   - Course‑scoped RAG chat with lesson embeddings, rate limiting, and SSE streaming
+  - **Groq Whisper transcription** — auto‑transcribe lesson videos (Cloudinary or YouTube) into article content via Groq's Whisper API, with rate‑limit retry scheduling
 
 **Planned / in progress (non‑AI):**
 
@@ -61,11 +63,11 @@ src/main/java/com/edumind/lms
 
 High‑level module mapping:
 
-| Module    | Schema    | Purpose                                                                 |
-|-----------|-----------|-------------------------------------------------------------------------|
-| `course`  | `course`  | Courses, sections, lessons, enrollments, reviews, wishlists            |
-| `payment` | `payment` | Cart, checkout, orders, refunds, payouts, earnings, invoices           |
-| `ai`      | `ai`      | AI job logs, lesson summaries, generated quizzes, embeddings, rate limits |
+| Module    | Schema    | Purpose                                                                                    |
+|-----------|-----------|--------------------------------------------------------------------------------------------|
+| `course`  | `course`  | Courses, sections, lessons, enrollments, reviews, wishlists                               |
+| `payment` | `payment` | Cart, checkout, orders, refunds, payouts, earnings, invoices                              |
+| `ai`      | `ai`      | AI job logs, lesson summaries, generated quizzes, embeddings, rate limits, transcriptions |
 
 Database schemas are separated per module and managed by Flyway:
 
@@ -103,6 +105,13 @@ This service:
   - Invoices (entities, services, controllers)
   - Webhook handling for payment gateway callbacks
   - Pluggable payment gateways with a fully working **mock gateway** and initial PayPal/SePay integration classes
+
+- **AI‑assisted learning** (full list)
+  - **Lesson Embeddings** – triggered automatically by `LessonContentUpdatedEvent` after lesson updates; splits content into 500-word chunks (50-word overlap), embeds with Gemini `gemini-embedding-001` (768 dims), stores vectors in `ai.lesson_embeddings` with ivfflat pgvector index
+  - **RAG Chat** – vector search over lesson embeddings, context-aware answers streamed via SSE, rate-limited to 20 queries/day/user; low-confidence answers logged as knowledge gaps
+  - **Lesson Summaries** – async Gemini job produces `summaryText`, `keyPoints`, and `vocabulary` JSON; stored with upsert in `ai.lesson_summaries`
+  - **Quiz Generation** – async Gemini job produces N multiple-choice questions with options, `correctIndex`, and `explanation`; students receive questions without answers, full results returned after attempt submission
+  - **Groq Whisper Transcription** – instructor submits a video URL; service downloads audio (Cloudinary or YouTube) and sends to Groq's Whisper API to generate a transcript, which is written back as the lesson's article content
 
 - **Operational**
   - **Service Discovery** via Eureka
@@ -229,6 +238,12 @@ export REVIEW_AUTO_APPROVE_THRESHOLD="0"
 # AI / Google GenAI (Spring AI)
 export GEMINI_API_KEY="your-gemini-api-key"   # required for AI chat/embeddings/quizzes/summaries
 
+# Groq Whisper Transcription
+export GROQ_API_KEY="your-groq-api-key"       # required for Groq Whisper transcription
+
+# yt-dlp binary path (only needed for YouTube transcription; defaults to 'yt-dlp' on PATH)
+export YTDLP_PATH="yt-dlp"                    # or full absolute path, e.g. /usr/local/bin/yt-dlp
+
 # Optional AI executor tuning (defaults are usually fine)
 export AI_CORE_POOL_SIZE="2"
 export AI_MAX_POOL_SIZE="5"
@@ -290,6 +305,15 @@ Key sections:
   - Chat model (`gemini-2.5-flash-lite`) and options
   - Embedding model (`gemini-embedding-001`, 768 dimensions)
   - Retry behavior (`max-attempts: 1`, custom error handling in AI processors)
+
+- **`ai.groq`** – Groq Whisper transcription settings
+  - `api-key` (`GROQ_API_KEY`) – Bearer token for Groq API; app starts without it but transcription endpoints will fail
+  - `api-url` – defaults to `https://api.groq.com/openai/v1/audio/transcriptions`
+  - `model` – defaults to `whisper-large-v3-turbo`
+  - `language` – defaults to `en`
+  - `retry-delay-seconds` – seconds to wait before retrying a rate-limited job (default `60`)
+
+- **`ai.ytdlp.path`** – Path to the `yt-dlp` binary (default `yt-dlp`, must be on PATH)
 
 - **`eureka`**
   - Configuration for Eureka client registration and discovery.
@@ -453,6 +477,16 @@ High‑level examples (exact paths may vary by implementation):
   - `POST /ai/chat/courses/{courseId}` – course‑scoped RAG chat (JSON response with answer + source lessons)
   - `POST /ai/chat/courses/{courseId}/stream` – SSE streaming RAG chat for incremental tokens + metadata
   - `POST /ai/admin/reindex-embeddings` – admin‑only endpoint to backfill lesson embeddings
+  - `POST /ai/transcribe/lessons/{lessonId}` – instructor requests Groq Whisper transcription for a lesson (async job, returns 202 with job ID)
+
+  **Transcription request body:**
+  ```json
+  { "videoUrl": "https://res.cloudinary.com/.../video.mp4" }
+  ```
+  Supported URL types: **Cloudinary** (`res.cloudinary.com`) and **YouTube** (`youtube.com/watch`, `youtu.be/`).
+
+  **Transcription job states:** `PENDING → PROCESSING → COMPLETED | FAILED | DELAYED`
+  `DELAYED` means Groq returned HTTP 429 (rate limit). The scheduler retries every 30 s once `nextRetryAt` has passed.
 
 - **Payment**
   - `GET /cart` / `POST /cart/items` / `DELETE /cart/items/{id}`
@@ -461,6 +495,77 @@ High‑level examples (exact paths may vary by implementation):
   - `GET /earnings` – teacher/admin earnings dashboards
 
 Refer to the controllers under `com.edumind.lms.modules.*.controller` for exact contracts.
+
+## Groq Whisper Transcription
+
+Instructors can convert a lesson video into article text in one click. The workflow:
+
+```
+POST /api/ai/transcribe/lessons/{lessonId}
+Body: { "videoUrl": "<Cloudinary or YouTube URL>" }
+→ 202 Accepted  { "jobId": 42, "status": "PENDING", ... }
+
+GET /api/ai/jobs/42
+→ { "status": "PROCESSING" | "COMPLETED" | "FAILED" | "DELAYED", ... }
+```
+
+### Audio Sources
+
+| Source | Strategy | Details |
+|--------|----------|---------|
+| **Cloudinary** | Direct audio download | URL is rewritten to insert `vc_none,ac_mp3,br_32k` transformation before `/upload/`, then downloaded as a temp `.mp3` file |
+| **YouTube** | Caption-first, then audio | `yt-dlp --write-auto-sub` fetches English auto-captions (`.en.vtt`). VTT is parsed to plain text (timestamps, tags, and duplicate lines removed). If captions are absent or empty, `yt-dlp -x --audio-format mp3 --audio-quality 32K` downloads the audio instead |
+
+### Processing Pipeline
+
+```
+requestTranscription()        (HTTP handler)
+  └─ creates AiJobLog (PENDING, metadata = videoUrl)
+  └─ processTranscriptionAsync() via @Async("whisperTaskExecutor")
+       └─ TranscriptionSourceResolver.resolve(videoUrl)
+            ├─ CloudinaryAudioExtractor  → TranscriptionInput.AudioFile
+            └─ YouTubeTranscriptExtractor
+                 ├─ DirectText  (captions found)
+                 └─ AudioFile   (yt-dlp fallback)
+       └─ if AudioFile: enforce 25 MB limit, then sendToGroq()
+       └─ if DirectText: use text as-is
+       └─ LessonWriteService.updateArticleContent(lessonId, transcript)
+       └─ mark job COMPLETED / FAILED / DELAYED (HTTP 429)
+```
+
+### Rate Limit Retry
+
+When Groq returns HTTP 429 the job transitions to **DELAYED** and `nextRetryAt` is set to `now + retryDelaySeconds` (default 60 s).
+`TranscriptionRetryScheduler` runs every **30 seconds** and re-queues all DELAYED jobs whose `nextRetryAt` is in the past.
+If the executor queue is full the job stays DELAYED with a new `nextRetryAt` 30 s later.
+
+### Groq RestClient Bean
+
+`GroqClientConfig` registers a `RestClient` bean (`groqRestClient`) that:
+- sets `baseUrl` to `https://api.groq.com`
+- adds `Authorization: Bearer {GROQ_API_KEY}` if the key is non-blank
+
+The `whisperTaskExecutor` thread pool is configured separately via `WHISPER_QUEUE_CAPACITY`.
+
+### Prerequisites for YouTube Transcription
+
+`yt-dlp` must be available on the server:
+
+```bash
+# macOS
+brew install yt-dlp
+
+# Linux (pip)
+pip install yt-dlp
+
+# Linux (standalone binary)
+curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+chmod +x /usr/local/bin/yt-dlp
+```
+
+Set `YTDLP_PATH` if the binary is not on PATH.
+
+---
 
 ## Payments
 
@@ -614,7 +719,32 @@ Invalid cloud_name or api_key
 - Verify `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
 - Ensure the Cloudinary account is active and not over quota.
 
-### 6. Payment anomalies
+### 6. Transcription job stays FAILED – `yt-dlp binary not found`
+
+**Symptom (example):**
+
+```text
+yt-dlp binary not found at path: 'yt-dlp'. Install it (brew install yt-dlp) or set the YTDLP_PATH environment variable.
+```
+
+**Checklist:**
+
+- Install `yt-dlp` (`brew install yt-dlp` on macOS, `pip install yt-dlp` on Linux).
+- Set `YTDLP_PATH` to the absolute path if the binary is not on the system PATH.
+- This error only occurs for YouTube URLs; Cloudinary transcriptions do not require `yt-dlp`.
+
+### 7. Transcription job stays DELAYED indefinitely
+
+**Symptom:** `status: "DELAYED"` and `nextRetryAt` keeps advancing.
+
+**Checklist:**
+
+- Groq is rate-limiting your key (HTTP 429). Check your Groq usage dashboard.
+- `GROQ_API_KEY` is set correctly. A missing key results in an unauthorized error at startup.
+- `WHISPER_QUEUE_CAPACITY` might be too small — increase it if many jobs are queued simultaneously.
+- Check `errorMessage` in the job log for the exact Groq response.
+
+### 8. Payment anomalies
 
 - Review `PAYMENT_BUGS.md` for known issues and mitigation steps, especially around:
   - Order creation with invalid/removed courses

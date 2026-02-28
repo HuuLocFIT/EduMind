@@ -4,6 +4,7 @@ import com.edumind.common.response.ApiResponse;
 import com.edumind.lms.modules.ai.dto.request.ChatRequest;
 import com.edumind.lms.modules.ai.dto.request.GenerateQuizRequest;
 import com.edumind.lms.modules.ai.dto.request.SubmitQuizAttemptRequest;
+import com.edumind.lms.modules.ai.dto.request.TranscribeRequest;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.dto.response.ChatResponse;
 import com.edumind.lms.modules.ai.dto.response.GeneratedQuizResponse;
@@ -14,6 +15,7 @@ import com.edumind.lms.modules.ai.service.AiQuizService;
 import com.edumind.lms.modules.ai.service.AiSummaryService;
 import com.edumind.lms.modules.ai.service.EmbeddingService;
 import com.edumind.lms.modules.ai.service.RagService;
+import com.edumind.lms.modules.ai.service.transcription.WhisperTranscriptionService;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,7 @@ public class AiController {
     private final AiSummaryService aiSummaryService;
     private final RagService ragService;
     private final EmbeddingService embeddingService;
+    private final WhisperTranscriptionService whisperTranscriptionService;
 
     /**
      * Get AI job status - used for polling after async job submission.
@@ -156,6 +159,22 @@ public class AiController {
         int count = embeddingService.reindexAll();
         return ResponseEntity.accepted()
                 .body(ApiResponse.success("Queued embedding jobs for " + count + " lessons"));
+    }
+
+    /**
+     * Request transcription for a lesson video URL.
+     * Returns 202 Accepted with job ID for polling.
+     */
+    @PostMapping("/transcribe/lessons/{lessonId}")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<AiJobResponse>> transcribeLesson(
+            @PathVariable Long lessonId,
+            @Valid @RequestBody TranscribeRequest request,
+            Authentication authentication
+    ) {
+        Long userId = extractUserId(authentication);
+        AiJobResponse response = whisperTranscriptionService.requestTranscription(lessonId, request.videoUrl(), userId);
+        return ResponseEntity.accepted().body(ApiResponse.success(response));
     }
 
     private Long extractUserId(Authentication authentication) {

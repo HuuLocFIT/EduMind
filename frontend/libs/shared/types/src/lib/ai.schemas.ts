@@ -5,6 +5,7 @@ export enum AiJobStatus {
   PROCESSING = "PROCESSING",
   COMPLETED = "COMPLETED",
   FAILED = "FAILED",
+  DELAYED = "DELAYED",
 }
 
 export const AiJobStatusSchema = z.nativeEnum(AiJobStatus);
@@ -112,3 +113,9 @@ export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type SourceLessonDto = z.infer<typeof SourceLessonDtoSchema>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
+
+export const TranscribeRequestSchema = z.object({
+  videoUrl: z.string().url("Must be a valid URL"),
+});
+
+export type TranscribeRequest = z.infer<typeof TranscribeRequestSchema>;

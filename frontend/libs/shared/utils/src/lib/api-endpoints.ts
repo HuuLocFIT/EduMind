@@ -448,6 +448,8 @@ export const AI_ENDPOINTS = {
   SUMMARY_BY_LESSON: (lessonId: number) => `${API_BASE_PATH}/ai/summaries/lesson/${lessonId}`,
   CHAT: (courseId: number) => `${API_BASE_PATH}/ai/chat/courses/${courseId}`,
   CHAT_STREAM: (courseId: number) => `${API_BASE_PATH}/ai/chat/courses/${courseId}/stream`,
+  TRANSCRIBE_LESSON: (lessonId: number) =>
+    `${API_BASE_PATH}/ai/transcribe/lessons/${lessonId}`,
 } as const;
 
 /**

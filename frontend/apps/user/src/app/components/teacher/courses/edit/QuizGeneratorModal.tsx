@@ -96,6 +96,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   const statusProgress: Record<AiJobStatus, number> = {
     [AiJobStatus.PENDING]: 10,
     [AiJobStatus.PROCESSING]: 60,
+    [AiJobStatus.DELAYED]: 30,
     [AiJobStatus.COMPLETED]: 100,
     [AiJobStatus.FAILED]: 100,
   };
@@ -103,6 +104,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   const statusLabel: Record<AiJobStatus, string> = {
     [AiJobStatus.PENDING]: "Waiting to start...",
     [AiJobStatus.PROCESSING]: "Generating questions...",
+    [AiJobStatus.DELAYED]: "Rate limited — will retry automatically in ~60s",
     [AiJobStatus.COMPLETED]: "Done!",
     [AiJobStatus.FAILED]: "Failed",
   };

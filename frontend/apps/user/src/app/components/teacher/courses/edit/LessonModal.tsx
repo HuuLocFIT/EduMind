@@ -1,5 +1,11 @@
 import React from "react";
-import { FileText } from "lucide-react";
+import { FileText, Wand2 } from "lucide-react";
+
+const stripHtml = (html: string) => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
+};
 import { ContentType } from "@edumind/shared-constants";
 import type { LessonResponse } from "@edumind/shared-types";
 import { Modal, Button, Input, Textarea } from "@edumind/user-ui";
@@ -33,6 +39,8 @@ interface LessonModalProps {
   editingLesson: { sectionId: number; lesson?: LessonResponse } | null;
   onSave: () => void;
   saving: boolean;
+  lessonId?: number | null;
+  onAutoTranscribeClick?: () => void;
 }
 
 export const LessonModal: React.FC<LessonModalProps> = ({
@@ -43,6 +51,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   editingLesson,
   onSave,
   saving,
+  lessonId,
+  onAutoTranscribeClick,
 }) => {
   const isArticle = lessonForm.contentType === ContentType.ARTICLE;
 
@@ -104,24 +114,35 @@ export const LessonModal: React.FC<LessonModalProps> = ({
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Video Summary / Transcript{" "}
-                <span className="text-xs text-gray-400 font-normal">(optional — used for quiz generation)</span>
-              </label>
-              <div className="rounded-lg border border-gray-300 shadow-sm overflow-clip">
-                <RichTextEditor
-                  value={lessonForm.articleContent ?? ""}
-                  onChange={(html) =>
-                    setLessonForm((p) => ({
-                      ...p,
-                      articleContent: html,
-                    }))
-                  }
-                  placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
-                  rows={14}
-                  borderless
-                />
-                </div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Video Summary / Transcript{" "}
+                  <span className="text-xs text-gray-400 font-normal">
+                    (optional — used for quiz generation)
+                  </span>
+                </label>
+                {onAutoTranscribeClick && lessonId ? (
+                  <button
+                    type="button"
+                    onClick={onAutoTranscribeClick}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                      bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Auto-Transcribe
+                  </button>
+                ) : onAutoTranscribeClick && !lessonId ? (
+                  <span className="text-xs text-gray-400 italic">
+                    Save lesson first to transcribe
+                  </span>
+                ) : null}
+              </div>
+              <Textarea
+                value={stripHtml(lessonForm.articleContent ?? "")}
+                onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
+                rows={8}
+                placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
+              />
             </div>
           </>
         )}

@@ -35,6 +35,7 @@ import {
   X,
   ChevronDown,
   Sparkles,
+  Download,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import ReactPlayer from 'react-player';
@@ -511,6 +512,20 @@ export const CoursePlayerPage: React.FC = () => {
     }
   };
 
+  const handleDownloadTranscript = () => {
+    const html = currentLesson?.articleContent ?? '';
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const plain = div.textContent || div.innerText || html;
+    const blob = new Blob([plain], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentLesson?.title ?? 'transcript'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // All lessons are always accessible; no locking by previous progress
   const isLessonLocked = (_lesson: LessonResponse): boolean => {
     return false;
@@ -696,13 +711,36 @@ export const CoursePlayerPage: React.FC = () => {
               </div>
 
               {/* Lesson Content/Resources */}
-              {currentLesson.articleContent && (
+              {currentLesson.articleContent && currentLesson.contentType === ContentType.ARTICLE && (
                 <Card className="p-8 mb-6">
                   <ArticleViewer
                     html={currentLesson.articleContent}
                     title="Lesson Content"
                   />
                 </Card>
+              )}
+
+              {currentLesson.articleContent && currentLesson.contentType === ContentType.VIDEO && (
+                <div className="flex items-center justify-between p-3.5 mb-6 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-lg text-slate-500">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Transcript</p>
+                      <p className="text-xs text-slate-500">Read the text version</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDownloadTranscript} 
+                    className="flex items-center gap-2 bg-white shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Download</span>
+                  </Button>
+                </div>
               )}
 
               {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}

@@ -17,6 +17,7 @@ import {
   type ChatRequest,
   type ChatResponse,
   type SourceLessonDto,
+  TranscribeRequestSchema,
 } from "@edumind/shared-types";
 import { AI_ENDPOINTS, buildApiUrl } from "@edumind/shared-utils";
 
@@ -98,6 +99,15 @@ export const aiService = {
       // 404 = not yet generated; silently return null
       return null;
     }
+  },
+
+  async transcribeLesson(lessonId: number, videoUrl: string): Promise<AiJobResponse> {
+    const payload = TranscribeRequestSchema.parse({ videoUrl });
+    const response = await apiClient.post<AiJobResponse>(
+      AI_ENDPOINTS.TRANSCRIBE_LESSON(lessonId),
+      payload
+    );
+    return AiJobResponseSchema.parse(response.data);
   },
 
   async chat(courseId: number, request: ChatRequest): Promise<ChatResponse> {

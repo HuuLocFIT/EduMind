@@ -47,6 +47,9 @@ public class AiJobLog {
     @Column(name = "next_retry_at")
     private LocalDateTime nextRetryAt;
 
+    @Column(name = "metadata", columnDefinition = "TEXT")
+    private String metadata;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

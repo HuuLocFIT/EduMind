@@ -23,6 +23,7 @@ import com.edumind.lms.modules.payment.exception.PaymentFailedException;
 import com.edumind.lms.modules.payment.gateway.exception.PaymentGatewayException;
 import org.springframework.core.task.TaskRejectedException;
 import com.edumind.common.exception.TooManyRequestsException;
+import com.edumind.lms.modules.ai.exception.AudioFileTooLargeException;
 @Slf4j
 @RestControllerAdvice(basePackages = "com.edumind.lms")
 public class LmsGlobalExceptionHandler {
@@ -169,6 +170,14 @@ public class LmsGlobalExceptionHandler {
         log.warn("AI response parse error: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "AI Response Error", ex.getMessage(), request));
+    }
+
+    @ExceptionHandler(AudioFileTooLargeException.class)
+    public ResponseEntity<ErrorResponse> handleAudioTooLarge(AudioFileTooLargeException ex,
+                                                             HttpServletRequest request) {
+        log.warn("Audio file too large: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, "Audio Too Large", ex.getMessage(), request));
     }
 
     @ExceptionHandler(TooManyRequestsException.class)

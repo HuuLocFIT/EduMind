@@ -23,6 +23,9 @@ We use a modern Java ecosystem designed for enterprise-grade scalability.
 | **Security** | Spring Security + JWT | - |
 | **Migration** | Flyway | v10.x |
 | **Build** | Maven | 3.6+ |
+| **AI / LLM** | Spring AI + Google Gemini | 1.0.0 |
+| **Vector DB** | pgvector (PostgreSQL extension) | 0.8+ |
+| **Transcription** | Groq Whisper API (`whisper-large-v3-turbo`) | - |
 
 ---
 
@@ -104,7 +107,7 @@ The backend uses two PostgreSQL databases plus Redis:
   - Modular monolith implementing the main LMS domains:
     - **Course module (`course` schema)**: courses, sections, lessons, enrollments, reviews, wishlists.
     - **Payment module (`payment` schema)**: cart, checkout, orders, invoices, earnings, payouts, refunds.
-    - **AI module (`ai` schema)**: RAG chat, lesson embeddings, AI summaries, quiz generation & attempts, rate limits.
+    - **AI module (`ai` schema)**: RAG chat, lesson embeddings, AI summaries, quiz generation & attempts, rate limits, Groq Whisper transcription.
     - **Future**: `assessment`, `gamification`, `notification` modules (schemas already reserved).
   - Follows strict layering per module: **Controller → Service → Repository → Entity**, with DTOs at the edges.
   - Integrates with:
@@ -147,10 +150,21 @@ The AI feature set is implemented inside `lms-core-service` (under the `ai` modu
   - Quizzes: instructor-triggered quiz generation → multiple-choice questions with explanations; students only see options until submission.
   - All AI generation follows an **async job pattern**: `202 Accepted` with `jobId`, then `GET /api/ai/jobs/{id}` to poll status.
 
+- **Groq Whisper Transcription**
+  - Instructors submit a lesson video URL; the service downloads the audio and sends it to Groq's Whisper API to produce a transcript, which is written back as the lesson's article content.
+  - **Supported sources:**
+    - **Cloudinary** – URL rewritten to extract MP3 (`vc_none,ac_mp3,br_32k` transformation) and downloaded as a temp file.
+    - **YouTube** – captions fetched first via `yt-dlp --write-auto-sub` (parsed from `.en.vtt`); falls back to `yt-dlp -x --audio-format mp3` if captions are absent.
+  - **25 MB limit** enforced before sending to Groq.
+  - Uses the same **async job pattern** (`202 Accepted` + `jobId`). Job states: `PENDING → PROCESSING → COMPLETED | FAILED | DELAYED`.
+  - **`DELAYED`** state: Groq HTTP 429 triggers retry scheduling. `TranscriptionRetryScheduler` re-queues eligible jobs every 30 s.
+  - Configured via `GROQ_API_KEY` (required) and `YTDLP_PATH` (optional, defaults to `yt-dlp` on PATH).
+  - Thread pool isolated from the Gemini pool: `whisperTaskExecutor` (capacity controlled by `WHISPER_QUEUE_CAPACITY`).
+
 - **AI Rate Limiting & Safety**
   - Per-user daily limits (e.g., RAG chat requests) backed by Postgres with atomic UPSERTs.
   - Async executors configured via `application.yml` + env vars (`AI_CORE_POOL_SIZE`, etc.).
-  - AI configuration is conditional on `GEMINI_API_KEY`; the app can start without AI but AI endpoints will not work until configured.
+  - AI configuration is conditional: `GEMINI_API_KEY` for Gemini features, `GROQ_API_KEY` for transcription; the app starts without either but the respective AI endpoints will not work.
 
 ---
 
@@ -177,6 +191,11 @@ backend/
 - **Java**: JDK 21+
 - **Docker**: For running databases (PostgreSQL, Redis)
 - **Maven**: 3.6+
+- **yt-dlp** *(optional)*: Required only for YouTube-based Whisper transcription.
+  ```bash
+  brew install yt-dlp          # macOS
+  pip install yt-dlp           # Linux/Windows (pip)
+  ```
 
 ### 🐳 Docker Support
 
@@ -315,7 +334,7 @@ All requests should be routed through the **API Gateway** (`http://localhost:808
   - `/api/enrollments/**` – enrollments, progress, access checks  
   - `/api/payments/**` – cart, checkout, orders, earnings, invoices, refunds, payouts  
   - `/api/reviews/**` – reviews/ratings where separated  
-  - `/api/ai/**` – RAG chat, AI summaries, AI quiz generation & attempts
+  - `/api/ai/**` – RAG chat, AI summaries, AI quiz generation & attempts, Groq Whisper transcription (`POST /api/ai/transcribe/lessons/{lessonId}`)
 
 Exact routes and filters are defined in `api-gateway/src/main/resources/application.yml`. Always prefer going through the Gateway (even in local dev) to match production behavior.
 

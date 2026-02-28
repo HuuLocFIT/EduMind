@@ -1,6 +1,6 @@
-# 🧠 EduMind Frontend Monorepo
+# EduMind Frontend Monorepo
 
-> **Status:** 🚀 Active Development
+> **Status:** Active Development
 > **Monorepo Strategy:** [Nx](https://nx.dev)
 > **Engine:** Node.js v24+
 
@@ -8,9 +8,7 @@ Welcome to the **EduMind** frontend repository. This workspace follows a unified
 
 ---
 
-## 🛠 Technology Stack
-
-We leverage a modern, bleeding-edge stack to ensure performance, scalability, and developer experience.
+## Technology Stack
 
 | Domain | Technology | Version |
 | :--- | :--- | :--- |
@@ -21,32 +19,33 @@ We leverage a modern, bleeding-edge stack to ensure performance, scalability, an
 | **Styling** | Tailwind CSS | v3.4 |
 | **Testing** | Vitest | v3.0 |
 
-### 🎓 User Application (`apps/user`)
-A high-performance consumer-facing learning platform.
+### User Application (`apps/user`)
 
-- **Core**: React 19, Vite, TypeScript.
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand) (Client state), [TanStack Query v5](https://tanstack.com/query) (Server state).
-- **Forms & Validation**: React Hook Form + Zod.
-- **UI System**: Tailwind CSS, Headless UI, Lucide React (Icons).
-- **Utilities**: Date-fns, Axios, JWT Decode.
-- **Testing**: Vitest (Unit/Integration).
+A consumer-facing learning platform.
 
-### 🛡️ Admin Application (`apps/admin`)
-A robust enterprise management console.
+- **Core**: React 19, Vite, TypeScript
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand) (client state), [TanStack Query v5](https://tanstack.com/query) (server state)
+- **Forms & Validation**: React Hook Form + Zod
+- **UI System**: Tailwind CSS, Headless UI, Lucide React (icons)
+- **Utilities**: Date-fns, Axios, JWT Decode
+- **Testing**: Vitest (unit/integration)
 
-- **Core**: Angular 20 (Zone.js enabled).
-- **Reactive Programming**: RxJS 7.8.
-- **Architecture**: Modular layout with separation of Core, Features, and Layouts.
-- **Bundler**: Angular CLI (@angular/build).
+### Admin Application (`apps/admin`)
+
+A management console for platform operators.
+
+- **Core**: Angular 20 (Zone.js enabled)
+- **Reactive Programming**: RxJS 7.8
+- **Architecture**: Modular layout with separation of Core, Features, and Layouts
+- **Bundler**: Angular CLI (`@angular/build`)
 
 ---
 
-## 🏗 Architecture & Path Aliases
+## Architecture & Path Aliases
 
 This project uses **strict module boundaries**, **workspace libraries**, and **path aliases** to maintain clean imports and separation of concerns.
 
 ### Path Mapping
-Instead of deep relative imports (`../../../../`), we use explicit path aliases defined in `tsconfig.base.json`:
 
 | Alias | Resolves To | Purpose |
 | :--- | :--- | :--- |
@@ -67,7 +66,7 @@ Instead of deep relative imports (`../../../../`), we use explicit path aliases 
 
 ### User App Architecture (React, `apps/user`)
 
-**Directory layout (simplified):**
+**Directory layout:**
 
 ```text
 apps/user/src/app/
@@ -80,23 +79,17 @@ apps/user/src/app/
 ```
 
 - **State management**:
-  - **TanStack Query v5** for all server-side data (courses, lessons, orders, payouts, etc.).
-  - **Zustand** only for client/UI state (auth snapshot, cart state, modals, layout toggles).
+  - **TanStack Query v5** for all server-side data (courses, lessons, orders, etc.)
+  - **Zustand** only for client/UI state (auth snapshot, cart state, modals, layout toggles, AI chat history)
 - **API layer**:
-  - All HTTP traffic goes through `api-client.service.ts` and domain services in `services/`.
-  - `@edumind/shared-utils` provides `API_URL`, endpoint constants, and helpers like `unwrapApiResponse`.
+  - All HTTP traffic goes through `api-client.service.ts` and domain services in `services/`
+  - `@edumind/shared-utils` provides `API_URL`, endpoint constants (`AI_ENDPOINTS`, etc.), and `unwrapApiResponse`
 - **Routing**:
-  - Central router in `app.tsx`, with lazy-loaded pages and guards (`ProtectedRoute`, teacher guards).
-- **AI & streaming**:
-  - AI learning features (chat, summaries, quizzes) use streaming endpoints and SSE helpers in `services/` and `components/learning/`.
-
-For reference-quality patterns, see:
-- `apps/user/src/app/services/auth.service.ts`
-- `apps/user/src/app/pages/auth/LoginPage.tsx`
+  - Central router in `app.tsx`, with lazy-loaded pages (`createLazyRoute()`) and guards (`ProtectedRoute`, `TeacherGuard`)
 
 ### Admin App Architecture (Angular, `apps/admin`)
 
-**Directory layout (simplified):**
+**Directory layout:**
 
 ```text
 apps/admin/src/app/
@@ -106,19 +99,10 @@ apps/admin/src/app/
 └── app.routes.ts      # Top-level route configuration
 ```
 
-- **Feature modules**:
-  - Each domain (auth, courses, categories, teachers, payments) lives under `features/` as a coherent module.
-  - Components, routes, and services stay co-located inside each feature.
-- **Core responsibilities**:
-  - Auth, users, payouts, refunds, categories, courses, teacher applications (`core/services`).
-  - HTTP interceptors (JWT injection, error handling) and route guards (`core/interceptors`, `core/guards`).
-- **Reactive patterns**:
-  - HTTP via Angular `HttpClient` + RxJS.
-  - Components prefer `async` pipes in templates and focused observables for view-models.
+- Each domain lives under `features/` as a coherent module with co-located components, routes, and services
+- HTTP via Angular `HttpClient` + RxJS; components prefer `async` pipes and focused observables
 
 ### Shared Libraries
-
-Common, framework-agnostic logic lives in `libs/` and is shared across both apps:
 
 | Library | Path | Purpose |
 | :--- | :--- | :--- |
@@ -129,7 +113,99 @@ Common, framework-agnostic logic lives in `libs/` and is shared across both apps
 
 ---
 
-## 📦 Project Structure
+## AI Features
+
+The user app integrates five AI capabilities, all backed by the `ai.service.ts` service and Zod schemas in `@edumind/shared-types`.
+
+### Async Job Pattern
+
+All generation operations are asynchronous. Every trigger returns `202 Accepted` with a `jobId`. State machine:
+
+```
+PENDING → PROCESSING → COMPLETED / FAILED / DELAYED
+```
+
+- `DELAYED`: rate limit hit on the backend (Groq 429); job will be retried automatically
+- `pollJobUntilDone(jobId, onTick, intervalMs)` in `ai.service.ts` polls until a terminal state
+- Progress UI is handled inside each modal component
+
+### 1. RAG Chat (`AiChatPanel.tsx`)
+
+Floating AI Course Tutor panel for students. Sends questions + conversation history to a vector-search backed chat endpoint.
+
+- **Endpoint**: `GET /api/ai/chat/courses/{courseId}/stream` (SSE)
+- **Rate limit**: 20 questions/day per user; HTTP 429 shows "20 questions/day limit reached"
+- **SSE event types**:
+  - `event: metadata` — JSON with source lessons and confidence tier (`HIGH`/`MEDIUM`/`GAP`)
+  - `event: error` — JSON error message
+  - `data: <token>` — streamed LLM token
+- **Typewriter effect**: Tokens are buffered and flushed at 60 fps via `setInterval`
+- **Conversation history**: Last 4 turns sent to backend for context
+- **Source attribution**: Source lesson badges displayed per response with confidence tier color coding
+- **Markdown rendering**: `react-markdown` + `rehype-raw` + syntax highlighter with copy buttons
+- **Persistence**: Chat history persisted per course via Zustand (`useAiChatStore`)
+- **Cancellation**: `AbortController` signal passed to `chatStream()`; fallback to non-streaming API on network error
+
+### 2. Video Transcription (`TranscriptionModal.tsx`)
+
+Teachers can auto-transcribe video lessons. Supports Cloudinary-hosted videos and YouTube URLs.
+
+- **Endpoint**: `POST /api/ai/transcribe/lessons/{lessonId}` — teacher-only
+- **Sources**:
+  - Cloudinary: extracts MP3 audio via URL transformation
+  - YouTube: tries auto-captions first (fast/free), falls back to audio download
+- **Rate limiting**: If Groq returns 429, job status becomes `DELAYED` — the UI shows "will retry automatically"
+- **On success**: Transcribed text is applied to the lesson's article content field, which triggers embedding + summary generation automatically on the backend
+- **Phases**: `config → processing → completed / failed`
+
+### 3. Quiz Generation (`QuizGeneratorModal.tsx`)
+
+Teachers can generate multiple-choice quizzes from lesson content.
+
+- **Endpoint**: `POST /api/ai/quizzes/generate` (triggers async job)
+- **Configurable**: 1–20 questions via slider
+- **Teacher view**: Correct answer highlighted + collapsible explanation per question
+- **Student view**: Correct answers and explanations hidden until after attempt submission
+- **History**: Previous quizzes for the lesson shown in an accordion
+- **Phases**: `config → generating → completed / failed`
+
+### 4. Lesson Summary (`LessonSummaryPanel`)
+
+Auto-generated structured summaries displayed on the course player page.
+
+- **Endpoint**: `GET /api/ai/summaries/lesson/{lessonId}`
+- **Format**: `summaryText`, `keyPoints[]`, `vocabulary[]`
+- Generated automatically when lesson content is updated (triggered server-side by `LessonContentUpdatedEvent`)
+
+### 5. Quiz Taking (`CoursePlayerPage.tsx`)
+
+Students can take quizzes directly in the course player.
+
+- "Take Quiz" button enabled only when a quiz exists for the lesson (`aiService.getQuizForStudent()`)
+- `QuizTakerModal` handles the attempt flow
+- On passing: lesson is marked complete
+
+---
+
+## Schemas (`libs/shared/types/src/lib/ai.schemas.ts`)
+
+All AI request/response types are Zod schemas:
+
+| Schema | Purpose |
+| :--- | :--- |
+| `AiJobStatus` | Enum: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `DELAYED` |
+| `AiJobResponseSchema` | Job state, error message, retry timestamps |
+| `QuizQuestionDtoSchema` | Question, 4 options, optional `correctIndex` + `explanation` |
+| `GeneratedQuizResponseSchema` | Quiz with all questions for a lesson |
+| `SubmitQuizAttemptRequestSchema` | Lesson/quiz IDs + selected answer indices |
+| `QuizAttemptResponseSchema` | Score, percentage, full question review |
+| `LessonSummaryResponseSchema` | Summary text, key points, vocabulary |
+| `ChatRequestSchema` | Question + optional conversation history |
+| `TranscribeRequestSchema` | Video URL (validated as URL) |
+
+---
+
+## Project Structure
 
 ```text
 frontend/
@@ -141,41 +217,35 @@ frontend/
 │   ├── shared/              # Shared logic (types, utils, constants)
 │   └── user/                # User-specific libraries
 ├── tools/                   # Workspace scripts
-├── nx.json                  # Nx Configuration
+├── nx.json                  # Nx configuration
 ├── package.json             # Root dependencies
-└── tsconfig.base.json       # Base TS config & Path Aliases
+└── tsconfig.base.json       # Base TS config & path aliases
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v24.x (Checked via `node -v`)
-- **Package Manager**: npm (ships with `package-lock.json`)
+- **Node.js**: v24.x
+- **Package Manager**: npm
 
 ### Installation
 ```sh
-# Install dependencies
 npm install
 ```
 
 ### Environment & Backend Integration
 
-Both frontends talk to the **API Gateway** on `http://localhost:8080` (see backend docs for startup order and routing).
+Both frontends talk to the **API Gateway** on `http://localhost:8080`.
 
-- **User App (React)**:
-  - Uses `VITE_API_URL` at build/runtime, wired via `@edumind/shared-utils/env.config`.
-  - Create `apps/user/.env` (or `.env.local`) and set:
-    - `VITE_API_URL=http://localhost:8080`
-- **Admin App (Angular)**:
-  - Uses Angular environment files:
-    - `apps/admin/src/environments/environment.ts` (dev)
-    - `apps/admin/src/environments/environment.prod.ts` (prod)
-  - Default dev `apiUrl` is `http://localhost:8080`; adjust per deployment environment.
+- **User App (React)**: Create `apps/user/.env` (or `.env.local`):
+  ```
+  VITE_API_URL=http://localhost:8080
+  ```
+- **Admin App (Angular)**: Edit `apps/admin/src/environments/environment.ts` — default `apiUrl` is `http://localhost:8080`.
 
 ### Development Server
-Run the applications locally:
 
 ```sh
 # Start User App (http://localhost:3000)
@@ -184,77 +254,68 @@ npm run start:user
 # Start Admin App (http://localhost:4200)
 npm run start:admin
 
-# Start Both (Parallel)
+# Start both in parallel
 npm start
 ```
 
 ### Quality Checks
+
 ```sh
-# Run Linting (ESLint 9 + TypeScript-ESLint) for all apps/libs
+# Lint all apps and libs
 npm run lint
 
-# Run User App tests (React + Vitest)
+# User app tests (Vitest)
 npm run test:user
+npm run test:user:watch      # watch mode
+npm run test:user:coverage   # with coverage
 
-# Run Admin App tests (Angular + Vitest)
+# Run a single test file
+nx test user -- apps/user/src/app/services/ai.service.test.ts
+
+# Admin app tests
 npm run test:admin
 
-# Run all tests via Nx (all configured projects)
+# All tests
 npm test
 ```
-
-For deeper testing patterns and examples, see:
-- `apps/user/TESTING_GUIDE.md`
-- `apps/admin/TESTING_GUIDE.md`
 
 ### Build for Production
 
 ```sh
-# Build only the User App
-npm run build:user
-
-# Build only the Admin App
-npm run build:admin
-
-# Build all frontend projects in the workspace
-npm run build
+npm run build:user    # User app only
+npm run build:admin   # Admin app only
+npm run build         # All projects
 ```
 
 ---
 
-## 🤝 Contribution Guidelines
+## Contribution Guidelines
 
-1.  **Strict Typing**: No `any`. Define interfaces in `@edumind/shared-types` if reused.
-2.  **State Management**:
-    - Use **Zustand** for global client interaction (Sidebar, Modals).
-    - Use **TanStack Query** for all API data fetching and caching.
-3.  **Components**:
-    - **User App**: Favor small, functional components with hooks.
-    - **Admin App**: Use standalone components where possible.
-4.  **Commits**: Follow conventional commits (e.g., `feat:`, `fix:`, `chore:`).
+1. **Strict Typing**: No `any`. Define interfaces as Zod schemas in `@edumind/shared-types` if reused across files.
+2. **State Management**:
+   - **Zustand** for global client/UI state (modals, sidebar, AI chat history).
+   - **TanStack Query** for all server data fetching and caching. Never store server data in Zustand.
+3. **API Calls**: All HTTP calls go through service files (`*.service.ts`) using `apiClient`. Never call `axios` directly from components.
+4. **Routing**: All page routes use `createLazyRoute()` for code splitting.
+5. **Commits**: Follow conventional commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
 
 ---
 
-## 📚 Commands Reference
+## Commands Reference
 
 | Command | Action |
 | :--- | :--- |
 | `npm run start:user` | Start React dev server (`apps/user`, port 3000) |
 | `npm run start:admin` | Start Angular dev server (`apps/admin`, port 4200) |
-| `npm start` | Run all `serve` targets via Nx (`nx run-many -t serve`) |
+| `npm start` | Run all `serve` targets via Nx |
 | `npm run build:user` | Production build for the React user app |
 | `npm run build:admin` | Production build for the Angular admin app |
-| `npm run build` | Build all frontend projects (`nx run-many -t build`) |
+| `npm run build` | Build all frontend projects |
 | `npm run test:user` | Run Vitest tests for the user app |
-| `npm run test:admin` | Run Vitest tests for the admin app |
-| `npm test` | Run Nx `test` target for all projects |
-| `npm run lint` | Lint all apps and libs (`nx run-many -t lint`) |
-| `nx serve user` | Serve user app directly via Nx |
-| `nx serve admin` | Serve admin app directly via Nx |
-| `nx build user` | Build user app directly via Nx |
-| `nx build admin` | Build admin app directly via Nx |
-| `nx test user` | Run user app tests directly via Nx |
-| `nx run-many -t test` | Run tests for all configured projects |
+| `npm run test:user:watch` | Watch mode for user app tests |
+| `npm run test:user:coverage` | Coverage report for user app tests |
+| `npm run test:admin` | Run tests for the admin app |
+| `npm test` | Run all tests via Nx |
+| `npm run lint` | Lint all apps and libs |
 | `nx graph` | Visualize project and dependency graph |
-| `nx reset` | Clear the Nx cache (useful if tasks behave unexpectedly) |
-
+| `nx reset` | Clear the Nx cache |

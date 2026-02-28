@@ -122,6 +122,14 @@ ai:
     ai-max-pool-size: ${AI_MAX_POOL_SIZE:5}
     ai-queue-capacity: ${AI_QUEUE_CAPACITY:50}
     whisper-queue-capacity: ${WHISPER_QUEUE_CAPACITY:10}
+  groq:
+    api-url: https://api.groq.com/openai/v1/audio/transcriptions
+    api-key: ${GROQ_API_KEY:}
+    model: whisper-large-v3-turbo
+    language: en
+    retry-delay-seconds: 60
+  ytdlp:
+    path: ${YTDLP_PATH:yt-dlp}   # override with full path e.g. /usr/local/bin/yt-dlp
 
 app:
   encryption:
