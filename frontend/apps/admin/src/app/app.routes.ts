@@ -61,6 +61,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: ADMIN_ROUTES.STUDENTS.replace('/', ''),
+        loadComponent: () =>
+          import('./features/students/students.component').then(
+            (m) => m.StudentsComponent
+          ),
+      },
+      {
         path: ADMIN_ROUTES.REFUNDS_PENDING.replace('/', ''),
         loadComponent: () =>
           import('./features/payments/refunds/pending-refunds.component').then(
@@ -86,6 +93,13 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./features/payments/payouts/create-payout.component').then(
             (m) => m.CreatePayoutComponent
+          ),
+      },
+      {
+        path: ADMIN_ROUTES.ENROLLMENT_REPORTS.replace('/', ''),
+        loadComponent: () =>
+          import('./features/enrollment-reports/enrollment-reports.component').then(
+            (m) => m.EnrollmentReportsComponent
           ),
       },
     ],

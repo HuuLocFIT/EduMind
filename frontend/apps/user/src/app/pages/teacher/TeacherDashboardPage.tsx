@@ -1,24 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/auth.store";
 import { useTeacherStatus } from "../../components/teacher/TeacherGuard";
-import { teacherCourseService } from '../../services/teacher-course.service';
+import { teacherCourseService } from "../../services/teacher-course.service";
+import { useTeacherAnalytics } from "./analytics/hooks/useTeacherAnalytics";
+import { AnalyticsOverviewCards } from "./analytics/components/AnalyticsOverviewCards";
+import { EnrollmentTrendChart } from "./analytics/components/EnrollmentTrendChart";
+import { EarningsTrendChart } from "./analytics/components/EarningsTrendChart";
+import { StudentEngagementChart } from "./analytics/components/StudentEngagementChart";
+import { RatingDistributionChart } from "./analytics/components/RatingDistributionChart";
+import { CoursePerformanceTable } from "./analytics/components/CoursePerformanceTable";
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import { CourseStatus } from "@edumind/shared-constants";
-import type {
-  InstructorStatsResponse,
-  CourseResponse,
-} from "@edumind/shared-types";
-import {
-  Button,
-  Skeleton,
-  Alert
-} from "@edumind/user-ui";
+import type { CourseResponse } from "@edumind/shared-types";
+import { Button, Skeleton, Alert } from "@edumind/user-ui";
 import {
   BookOpen,
   Users,
   Star,
-  TrendingUp,
   Plus,
   Eye,
   Edit,
@@ -27,17 +27,8 @@ import {
   CheckCircle,
   FileText,
   ArrowRight,
+  DollarSign,
 } from "lucide-react";
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface DashboardData {
-  stats: InstructorStatsResponse | null;
-  recentCourses: CourseResponse[];
-  // recentReviews: ReviewResponse[]; // Future: when API available
-}
 
 // ============================================================================
 // HELPER COMPONENTS
@@ -70,34 +61,17 @@ const CourseStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const { bg, text, icon } = config[status] || config[CourseStatus.DRAFT];
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${bg} ${text}`}
-    >
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${bg} ${text}`}>
       {icon}
       {status.replace("_", " ")}
     </span>
   );
 };
 
-const StatsLoading: React.FC = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    {[...Array(4)].map((_, i) => (
-      <div key={i} className="bg-white rounded-xl p-6 border">
-        <Skeleton className="h-4 w-24 mb-3" />
-        <Skeleton className="h-8 w-16 mb-2" />
-        <Skeleton className="h-3 w-32" />
-      </div>
-    ))}
-  </div>
-);
-
 const CoursesLoading: React.FC = () => (
   <div className="space-y-3">
     {[...Array(3)].map((_, i) => (
-      <div
-        key={i}
-        className="flex items-center gap-4 p-4 bg-white rounded-lg border"
-      >
+      <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-lg border">
         <Skeleton className="w-16 h-16 rounded-lg" />
         <div className="flex-1">
           <Skeleton className="h-4 w-48 mb-2" />
@@ -118,43 +92,14 @@ export const TeacherDashboardPage: React.FC = () => {
   const { user } = useAuthStore();
   const { isTrialTeacher, trialDaysRemaining, isTrialExpired } = useTeacherStatus();
 
-  const [data, setData] = useState<DashboardData>({
-    stats: null,
-    recentCourses: [],
+  const { data: analytics, isLoading: analyticsLoading, isError, error } = useTeacherAnalytics();
+
+  const { data: coursesPage, isLoading: coursesLoading } = useQuery({
+    queryKey: ["teacher-recent-courses", user?.id],
+    queryFn: () => teacherCourseService.getMyCourses(user!.id, { page: 0, size: 5 }),
+    enabled: !!user?.id,
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!user?.id) return;
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch stats and courses in parallel
-        const [statsResponse, coursesResponse] = await Promise.all([
-          teacherCourseService.getMyStats(user.id),
-          teacherCourseService.getMyCourses(user.id, { page: 0, size: 5 }),
-        ]);
-
-        setData({
-          stats: statsResponse,
-          recentCourses: coursesResponse.data || [],
-        });
-      } catch (err: any) {
-        console.error("Failed to fetch dashboard data:", err);
-        setError(err.message || "Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, [user?.id]);
-
-  const { stats, recentCourses } = data;
+  const recentCourses: CourseResponse[] = coursesPage?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -165,7 +110,7 @@ export const TeacherDashboardPage: React.FC = () => {
             Welcome back, {user?.firstName || "Teacher"}! 👋
           </h1>
           <p className="text-gray-600 mt-1">
-            Here's what's happening with your courses today.
+            Here's an overview of your teaching performance.
           </p>
         </div>
         <Button
@@ -191,93 +136,37 @@ export const TeacherDashboardPage: React.FC = () => {
         />
       )}
 
-      {/* Error Alert */}
-      {error && (
+      {/* Analytics Error */}
+      {isError && (
         <Alert
           variant="error"
-          title="Error Loading Dashboard"
-          message={error}
-          onClose={() => setError(null)}
+          title="Failed to load analytics"
+          message={error?.message || "An error occurred while loading analytics data."}
         />
       )}
 
-      {/* Stats Cards */}
-      {loading ? (
-        <StatsLoading />
-      ) : stats ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Courses */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100">
-                <BookOpen className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Courses</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {stats.totalCourses ?? 0}
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Overview Cards */}
+      <AnalyticsOverviewCards data={analytics} loading={analyticsLoading} />
 
-          {/* Total Students */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100">
-                <Users className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Students</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {stats.totalStudents ?? 0}
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Charts Row 1: Enrollment & Earnings Trends */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <EnrollmentTrendChart data={analytics?.monthlyEnrollments ?? []} loading={analyticsLoading} />
+        <EarningsTrendChart data={analytics?.monthlyEarnings ?? []} loading={analyticsLoading} />
+      </div>
 
-          {/* Total Reviews */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-100">
-                <Star className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Reviews</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {stats.totalReviews ?? 0}
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Charts Row 2: Student Engagement & Rating Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StudentEngagementChart data={analytics?.enrollmentStatusBreakdown ?? []} loading={analyticsLoading} />
+        <RatingDistributionChart data={analytics?.ratingDistribution ?? []} loading={analyticsLoading} />
+      </div>
 
-          {/* Average Rating */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-100">
-                <TrendingUp className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Average Rating</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {stats.averageRating?.toFixed(1) ?? "N/A"}
-                  {stats.averageRating && <span className="text-sm text-gray-500 ml-1">/5</span>}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Main Content Grid */}
+      {/* Recent Courses + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Courses - Takes 2 columns */}
+        {/* Recent Courses - 2 columns */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl border">
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Recent Courses
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900">Recent Courses</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -289,14 +178,12 @@ export const TeacherDashboardPage: React.FC = () => {
             </div>
 
             <div className="p-4">
-              {loading ? (
+              {coursesLoading ? (
                 <CoursesLoading />
               ) : recentCourses.length === 0 ? (
                 <div className="text-center py-8">
                   <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-4">
-                    You haven't created any courses yet.
-                  </p>
+                  <p className="text-gray-600 mb-4">You haven't created any courses yet.</p>
                   <Button
                     variant="primary"
                     onClick={() => navigate(TEACHER_ROUTES.COURSE_CREATE)}
@@ -313,7 +200,6 @@ export const TeacherDashboardPage: React.FC = () => {
                       key={course.id}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
                     >
-                      {/* Thumbnail */}
                       <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
                         {course.thumbnailUrl ? (
                           <img
@@ -328,11 +214,8 @@ export const TeacherDashboardPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">
-                          {course.title}
-                        </h3>
+                        <h3 className="font-medium text-gray-900 truncate">{course.title}</h3>
                         <div className="flex items-center gap-3 mt-1">
                           <CourseStatusBadge status={course.status} />
                           <span className="text-sm text-gray-500">
@@ -347,21 +230,16 @@ export const TeacherDashboardPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() =>
-                            navigate(TeacherRouteHelpers.courseDetail(course.id))
-                          }
+                          onClick={() => navigate(TeacherRouteHelpers.courseDetail(course.id))}
                           className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
                           title="View Course"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() =>
-                            navigate(TeacherRouteHelpers.courseEdit(course.id))
-                          }
+                          onClick={() => navigate(TeacherRouteHelpers.courseEdit(course.id))}
                           className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
                           title="Edit Course"
                         >
@@ -376,94 +254,67 @@ export const TeacherDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Actions & Tips - Takes 1 column */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl border p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Quick Actions
-            </h2>
-            <div className="space-y-2">
-              <button
-                onClick={() => navigate(TEACHER_ROUTES.COURSE_CREATE)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Create Course</p>
-                  <p className="text-sm text-gray-500">Start a new course</p>
-                </div>
-              </button>
+        {/* Quick Actions - 1 column */}
+        <div className="bg-white rounded-xl border p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate(TEACHER_ROUTES.COURSE_CREATE)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <Plus className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Create Course</p>
+                <p className="text-sm text-gray-500">Start a new course</p>
+              </div>
+            </button>
 
-              <button
-                onClick={() => navigate(TEACHER_ROUTES.COURSES)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Manage Courses</p>
-                  <p className="text-sm text-gray-500">Edit your courses</p>
-                </div>
-              </button>
+            <button
+              onClick={() => navigate(TEACHER_ROUTES.COURSES)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Manage Courses</p>
+                <p className="text-sm text-gray-500">Edit your courses</p>
+              </div>
+            </button>
 
-              <button
-                onClick={() => navigate(TEACHER_ROUTES.STUDENTS)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">View Students</p>
-                  <p className="text-sm text-gray-500">See enrolled students</p>
-                </div>
-              </button>
+            <button
+              onClick={() => navigate(TEACHER_ROUTES.STUDENTS)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">View Students</p>
+                <p className="text-sm text-gray-500">See enrolled students</p>
+              </div>
+            </button>
 
-              <button
-                onClick={() => navigate(TEACHER_ROUTES.ANALYTICS)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              >
-                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Analytics</p>
-                  <p className="text-sm text-gray-500">View performance</p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Tips */}
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 p-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
-              💡 Tips for Success
-            </h2>
-            <ul className="space-y-2 text-sm text-gray-700">
-              <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>Create engaging video content with clear audio</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>Break down lessons into 5-15 minute segments</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>Respond to student questions promptly</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <span>Update course content regularly</span>
-              </li>
-            </ul>
+            <button
+              onClick={() => navigate(TEACHER_ROUTES.EARNINGS)}
+              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Earnings</p>
+                <p className="text-sm text-gray-500">Track your revenue</p>
+              </div>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Course Performance Table */}
+      <CoursePerformanceTable data={analytics?.topCourses ?? []} loading={analyticsLoading} />
     </div>
   );
 };

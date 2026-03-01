@@ -312,7 +312,7 @@ class AdminServiceTest {
             when(userRepository.findByRolesContaining(eq(studentRole), any(Pageable.class))).thenReturn(userPage);
 
             // When
-            Page<UserListResponse> result = adminService.getUsersByRole("ROLE_STUDENT", 0, 10);
+            Page<UserListResponse> result = adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null);
 
             // Then
             assertNotNull(result);
@@ -327,7 +327,7 @@ class AdminServiceTest {
 
             // When/Then
             assertThrows(ResourceNotFoundException.class, () -> 
-                adminService.getUsersByRole("ROLE_STUDENT", 0, 10));
+                adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null));
         }
     }
 }

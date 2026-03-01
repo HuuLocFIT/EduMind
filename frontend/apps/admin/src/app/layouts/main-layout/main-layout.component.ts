@@ -54,8 +54,7 @@ export class MainLayoutComponent {
         { label: 'Create Payout', path: ADMIN_ROUTES.PAYOUT_CREATE, icon: 'add_circle' },
       ],
     },
-    { label: 'Reports', path: '/reports', icon: 'analytics' },
-    { label: 'Settings', path: '/settings', icon: 'settings' },
+    { label: 'Reports', path: ADMIN_ROUTES.ENROLLMENT_REPORTS, icon: 'task' }
   ];
 
   constructor() {

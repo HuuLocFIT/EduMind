@@ -48,9 +48,12 @@ export class AdminUserService {
 
   getUsersByRole(
     roleName: string,
-    options?: { page?: number; size?: number }
+    options?: { page?: number; size?: number; isActive?: boolean }
   ): Observable<AdminUserListResponse> {
-    const params = this.buildPaginationParams(options);
+    let params = this.buildPaginationParams(options);
+    if (options?.isActive !== undefined) {
+      params = params.set('isActive', String(options.isActive));
+    }
     return this.http.get<AdminUserListResponse>(
       `${this.API_URL}${ADMIN_ENDPOINTS.USERS_BY_ROLE(roleName)}`,
       { params }

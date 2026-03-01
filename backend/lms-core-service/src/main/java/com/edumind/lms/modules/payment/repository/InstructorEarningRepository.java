@@ -91,6 +91,14 @@ public interface InstructorEarningRepository extends JpaRepository<InstructorEar
             "GROUP BY e.courseId ORDER BY total DESC")
     List<Object[]> findTopCoursesByEarnings(@Param("instructorId") Long instructorId, Pageable pageable);
 
+    // Get net earnings per course for instructor
+    @Query("SELECT e.courseId, COALESCE(SUM(e.netAmount), 0) FROM InstructorEarning e " +
+            "WHERE e.instructorId = :instructorId AND e.status = :status " +
+            "GROUP BY e.courseId")
+    List<Object[]> sumNetAmountByCourseIdAndInstructorId(
+            @Param("instructorId") Long instructorId,
+            @Param("status") EarningStatus status);
+
     // Find the most common currency for an instructor's earnings
     @Query("SELECT e.currency FROM InstructorEarning e WHERE e.instructorId = :instructorId " +
             "GROUP BY e.currency ORDER BY COUNT(e.currency) DESC LIMIT 1")

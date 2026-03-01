@@ -69,6 +69,33 @@ export const EnrollmentPagedResponseSchema = createPagedResponseSchema(
   EnrollmentResponseSchema
 );
 
+export const ReportRequestStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED']);
+
+export const EnrollmentReportResponseSchema = z.object({
+  id: z.number(),
+  status: ReportRequestStatusSchema,
+  reason: z.string(),
+  adminNotes: z.string().optional().nullable(),
+  requestedAt: z.string(),
+  reviewedAt: z.string().optional().nullable(),
+  reviewedByAdminId: z.number().optional().nullable(),
+  teacherId: z.number(),
+  enrollmentId: z.number(),
+  courseId: z.number(),
+  courseTitle: z.string(),
+  studentId: z.number(),
+  studentName: z.string().optional().nullable(),
+  studentEmail: z.string().optional().nullable(),
+});
+
+export const ReviewReportRequestSchema = z.object({
+  adminNotes: z.string().max(1000).optional(),
+});
+
+export const EnrollmentReportPagedResponseSchema = createPagedResponseSchema(
+  EnrollmentReportResponseSchema
+);
+
 export type EnrollRequest = z.infer<typeof EnrollRequestSchema>;
 export type SuspendEnrollmentRequest = z.infer<typeof SuspendEnrollmentRequestSchema>;
 export type ReportToAdminRequest = z.infer<typeof ReportToAdminRequestSchema>;
@@ -78,3 +105,7 @@ export type EnrollmentStatsResponse = z.infer<
 >;
 export type EnrollmentListResponse = z.infer<typeof EnrollmentListSchema>;
 export type EnrollmentPagedResponse = z.infer<typeof EnrollmentPagedResponseSchema>;
+export type ReportRequestStatus = z.infer<typeof ReportRequestStatusSchema>;
+export type EnrollmentReportResponse = z.infer<typeof EnrollmentReportResponseSchema>;
+export type ReviewReportRequest = z.infer<typeof ReviewReportRequestSchema>;
+export type EnrollmentReportPagedResponse = z.infer<typeof EnrollmentReportPagedResponseSchema>;

@@ -1,45 +1,272 @@
-import { Component } from "@angular/core";
-import { CommonModule } from "@angular/common";
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { NgApexchartsModule } from 'ng-apexcharts';
+import {
+  AlertComponent,
+  type BadgeVariant,
+} from '@edumind/admin-ui';
+import { AdminDashboardService } from '../../core/services/admin-dashboard.service';
+import { AdminUserService } from '../../core/services/admin-user.service';
+import { AdminEnrollmentService } from '../../core/services/admin-enrollment.service';
+import {
+  DashboardStats,
+  EnrollmentReportResponse,
+  TeacherApplicationResponse,
+} from '@edumind/shared-types';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
+import type { ApexOptions } from 'apexcharts';
+
+type ReportRow = EnrollmentReportResponse;
 
 @Component({
-  selector: "app-dashboard",
+  selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
-  template: `
-    <div>
-      <h1 class="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
-
-      <!-- Stats Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-sm font-medium text-gray-500">Total Students</h3>
-          <p class="text-3xl font-bold text-gray-900 mt-2">1,234</p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-sm font-medium text-gray-500">Active Teachers</h3>
-          <p class="text-3xl font-bold text-gray-900 mt-2">56</p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-sm font-medium text-gray-500">Total Courses</h3>
-          <p class="text-3xl font-bold text-gray-900 mt-2">89</p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-sm font-medium text-gray-500">
-            Revenue (This Month)
-          </h3>
-          <p class="text-3xl font-bold text-gray-900 mt-2">$12,345</p>
-        </div>
-      </div>
-
-      <!-- Recent Activities -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Recent Activities</h2>
-        <p class="text-gray-500">No recent activities</p>
-      </div>
-    </div>
-  `,
+  imports: [
+    CommonModule,
+    RouterModule,
+    NgApexchartsModule,
+    AlertComponent,
+  ],
+  templateUrl: './dashboard.component.html',
 })
-export class DashboardComponent {}
+export class DashboardComponent implements OnInit {
+  private dashboardService = inject(AdminDashboardService);
+  private adminUserService = inject(AdminUserService);
+  private adminEnrollmentService = inject(AdminEnrollmentService);
+
+  isLoading = signal(true);
+  errorMessage = signal('');
+
+  stats = signal<DashboardStats | null>(null);
+  totalStudents = signal(0);
+  totalTeachers = signal(0);
+  pendingAppsCount = signal(0);
+  recentReports = signal<ReportRow[]>([]);
+  recentApplications = signal<TeacherApplicationResponse[]>([]);
+  lastUpdated = signal<Date>(new Date());
+
+  // Derived metrics
+  completionRate = computed(() => {
+    const s = this.stats();
+    if (!s || s.totalEnrollments === 0) return 0;
+    return (s.completedEnrollments / s.totalEnrollments) * 100;
+  });
+
+  coursePublishRate = computed(() => {
+    const s = this.stats();
+    if (!s || s.totalCourses === 0) return 0;
+    return (s.publishedCourses / s.totalCourses) * 100;
+  });
+
+  avgRevenuePerEnrollment = computed(() => {
+    const s = this.stats();
+    if (!s || s.totalEnrollments === 0) return 0;
+    return s.totalRevenue / s.totalEnrollments;
+  });
+
+  // Chart options
+  enrollmentChartOptions = computed<ApexOptions>(() => {
+    const statsData = this.stats();
+    if (!statsData) return this.getEmptyChartOptions();
+
+    return {
+      chart: { type: 'area' as const, height: 280, toolbar: { show: false }, zoom: { enabled: false } },
+      dataLabels: { enabled: false },
+      stroke: { curve: 'smooth', width: 2 },
+      fill: {
+        type: 'gradient',
+        gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] },
+      },
+      colors: ['#6366f1'],
+      series: [{ name: 'Enrollments', data: statsData.monthlyEnrollments.map((m) => m.count ?? 0) }],
+      xaxis: {
+        categories: statsData.monthlyEnrollments.map((m) => m.month),
+        labels: { style: { colors: '#9ca3af', fontSize: '12px' } },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '12px' } } },
+      grid: { borderColor: '#f3f4f6', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+      tooltip: { theme: 'light' },
+    };
+  });
+
+  revenueChartOptions = computed<ApexOptions>(() => {
+    const statsData = this.stats();
+    if (!statsData) return this.getEmptyChartOptions();
+
+    return {
+      chart: { type: 'bar' as const, height: 280, toolbar: { show: false } },
+      plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+      dataLabels: { enabled: false },
+      colors: ['#10b981'],
+      series: [{ name: 'Revenue ($)', data: statsData.monthlyRevenue.map((m) => Number(m.amount ?? 0)) }],
+      xaxis: {
+        categories: statsData.monthlyRevenue.map((m) => m.month),
+        labels: { style: { colors: '#9ca3af', fontSize: '12px' } },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      yaxis: {
+        labels: {
+          style: { colors: '#9ca3af', fontSize: '12px' },
+          formatter: (val: number) => `$${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`,
+        },
+      },
+      grid: { borderColor: '#f3f4f6', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+      tooltip: { theme: 'light', y: { formatter: (val: number) => `$${val.toLocaleString()}` } },
+    };
+  });
+
+  courseStatusChartOptions = computed<ApexOptions>(() => {
+    const statsData = this.stats();
+    if (!statsData) return this.getEmptyChartOptions();
+
+    return {
+      chart: { type: 'donut' as const, height: 280 },
+      colors: ['#10b981', '#f59e0b', '#6366f1', '#9ca3af'],
+      labels: ['Published', 'Pending Review', 'Draft', 'Archived'],
+      series: [
+        statsData.publishedCourses,
+        statsData.pendingReviewCourses,
+        statsData.draftCourses,
+        statsData.archivedCourses,
+      ],
+      legend: { position: 'bottom', labels: { colors: '#6b7280' } },
+      dataLabels: { enabled: true, formatter: (val: number) => `${Math.round(val)}%` },
+      plotOptions: { pie: { donut: { size: '65%' } } },
+      tooltip: { theme: 'light' },
+    };
+  });
+
+  categoryChartOptions = computed<ApexOptions>(() => {
+    const statsData = this.stats();
+    if (!statsData) return this.getEmptyChartOptions();
+
+    const categories = statsData.coursesByCategory.slice(0, 8);
+    return {
+      chart: { type: 'bar' as const, height: 280, toolbar: { show: false } },
+      plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } },
+      colors: ['#6366f1'],
+      dataLabels: { enabled: true, style: { fontSize: '11px' } },
+      series: [{ name: 'Courses', data: categories.map((c) => c.courseCount) }],
+      xaxis: {
+        categories: categories.map((c) => c.categoryName),
+        labels: { style: { colors: '#9ca3af', fontSize: '11px' } },
+      },
+      yaxis: { labels: { style: { colors: '#6b7280', fontSize: '12px' } } },
+      grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
+      tooltip: { theme: 'light' },
+    };
+  });
+
+  readonly ADMIN_ROUTES = ADMIN_ROUTES;
+  readonly skeletonItems = [1, 2, 3, 4, 5, 6];
+  readonly skeletonHealthItems = [1, 2, 3, 4];
+  readonly skeletonChartItems = [1, 2];
+
+  ngOnInit(): void {
+    this.loadDashboardData();
+  }
+
+  loadDashboardData(): void {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+
+    forkJoin({
+      stats: this.dashboardService.getDashboardStats(),
+      students: this.adminUserService.getUsersByRole('ROLE_STUDENT', { page: 0, size: 1 }),
+      teachers: this.adminUserService.getUsersByRole('ROLE_TEACHER', { page: 0, size: 1 }),
+      pendingApps: this.adminUserService.getApplications({ status: 'PENDING', page: 0, size: 1 }),
+      pendingReports: this.adminEnrollmentService.getReports({ status: 'PENDING', page: 0, size: 5 }),
+    }).subscribe({
+      next: ({ stats, students, teachers, pendingApps, pendingReports }) => {
+        this.stats.set(stats);
+        this.totalStudents.set(students.pagination?.totalElements ?? 0);
+        this.totalTeachers.set(teachers.pagination?.totalElements ?? 0);
+        this.pendingAppsCount.set(pendingApps.pagination?.totalElements ?? 0);
+        this.recentReports.set(pendingReports.data ?? []);
+        this.recentApplications.set(pendingApps.data ?? []);
+        this.lastUpdated.set(new Date());
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('Failed to load dashboard data. Please try again.');
+        this.isLoading.set(false);
+      },
+    });
+  }
+
+  getPendingTasksCount(): number {
+    const stats = this.stats();
+    if (!stats) return 0;
+    return stats.pendingEnrollmentReports + stats.pendingRefunds + this.pendingAppsCount();
+  }
+
+  getRevenueChange(): { value: number; isPositive: boolean } {
+    const stats = this.stats();
+    if (!stats || stats.revenueLastMonth === 0) return { value: 0, isPositive: true };
+    const change = ((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth) * 100;
+    return { value: Math.abs(change), isPositive: change >= 0 };
+  }
+
+  getEnrollmentChange(): { value: number; isPositive: boolean } {
+    const s = this.stats();
+    if (!s || s.monthlyEnrollments.length < 2) return { value: 0, isPositive: true };
+    const last = s.monthlyEnrollments[s.monthlyEnrollments.length - 1]?.count ?? 0;
+    const prev = s.monthlyEnrollments[s.monthlyEnrollments.length - 2]?.count ?? 0;
+    if (prev === 0) return { value: 0, isPositive: true };
+    const change = ((last - prev) / prev) * 100;
+    return { value: Math.abs(change), isPositive: change >= 0 };
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+
+  formatDate(date: string): string {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  getStatusVariant(status: string): BadgeVariant {
+    switch (status) {
+      case 'PENDING': return 'warning';
+      case 'APPROVED': return 'success';
+      case 'REJECTED': return 'error';
+      default: return 'default';
+    }
+  }
+
+  getInitials(name: string): string {
+    return name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase();
+  }
+
+  private getEmptyChartOptions(): ApexOptions {
+    return {
+      chart: { type: 'line' as const, height: 280 },
+      series: [{ name: '', data: [] }],
+      xaxis: { categories: [] },
+      dataLabels: { enabled: false },
+      colors: [],
+      grid: { borderColor: '#f3f4f6' },
+      tooltip: { theme: 'light' },
+    };
+  }
+}

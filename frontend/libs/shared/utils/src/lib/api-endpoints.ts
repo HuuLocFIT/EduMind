@@ -347,6 +347,13 @@ export const EARNING_ENDPOINTS = {
 } as const;
 
 /**
+ * Teacher Analytics endpoints
+ */
+export const TEACHER_ANALYTICS_ENDPOINTS = {
+  ANALYTICS: `${API_BASE_PATH}/teacher/analytics`,
+} as const;
+
+/**
  * Refund endpoints
  */
 export const REFUND_ENDPOINTS = {
@@ -433,6 +440,11 @@ export const ADMIN_ENDPOINTS = {
   // Reports
   REPORTS: `${API_BASE_PATH}/admin/reports`,
   REPORT_GENERATE: (reportType: string) => `${API_BASE_PATH}/admin/reports/${reportType}`,
+
+  // Enrollment Reports
+  ENROLLMENT_REPORTS: `${API_BASE_PATH}/enrollments/reports`,
+  ENROLLMENT_REPORT_APPROVE: (id: string | number) => `${API_BASE_PATH}/enrollments/reports/${id}/approve`,
+  ENROLLMENT_REPORT_REJECT: (id: string | number) => `${API_BASE_PATH}/enrollments/reports/${id}/reject`,
 } as const;
 
 /**

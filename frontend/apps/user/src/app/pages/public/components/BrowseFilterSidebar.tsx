@@ -1,142 +1,300 @@
-import React from 'react';
-import { Filter } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Input } from '@edumind/user-ui';
 import { CategoryFilter } from '../../../components/course-module';
+import { PriceRangeSlider } from './PriceRangeSlider';
 import type { CategoryResponse } from '@edumind/shared-types';
 
 interface BrowseFilterSidebarProps {
   categories: CategoryResponse[];
-  selectedCategoryId: number | null;
-  onCategoryChange: (id: number | null) => void;
-  selectedLevel: string | null;
-  onLevelChange: (level: string | null) => void;
+  selectedCategoryIds: number[];
+  onCategoryChange: (id: number) => void;
+  selectedLevels: string[];
+  onLevelChange: (level: string) => void;
   minPrice: string;
   maxPrice: string;
   setMinPrice: (val: string) => void;
   setMaxPrice: (val: string) => void;
+  minRating?: number;
+  setMinRating: (rating: number | undefined) => void;
   filterType: 'all' | 'free';
   setPage: (page: number) => void;
   onClearFilters: () => void;
   showClearButton: boolean;
 }
 
+interface FilterSectionProps {
+  title: string;
+  count?: number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+const FilterSection: React.FC<FilterSectionProps> = ({
+  title,
+  count,
+  defaultOpen = true,
+  children,
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between py-2 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+          {count !== undefined && count > 0 && (
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+              {count}
+            </span>
+          )}
+        </div>
+        {isOpen ? (
+          <ChevronUp className="w-4 h-4 text-gray-500" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-gray-500" />
+        )}
+      </button>
+      {isOpen && <div className="mt-3">{children}</div>}
+    </div>
+  );
+};
+
 export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
   categories,
-  selectedCategoryId,
+  selectedCategoryIds,
   onCategoryChange,
-  selectedLevel,
+  selectedLevels,
   onLevelChange,
   minPrice,
   maxPrice,
   setMinPrice,
   setMaxPrice,
+  minRating,
+  setMinRating,
   filterType,
   setPage,
   onClearFilters,
   showClearButton,
 }) => {
+  const PRICE_MIN = 0;
+  const PRICE_MAX = 200;
+
+  // Convert string prices to numbers for slider
+  const priceRange: [number, number] = useMemo(() => {
+    const min = minPrice ? Number(minPrice) : PRICE_MIN;
+    const max = maxPrice ? Number(maxPrice) : PRICE_MAX;
+    return [Math.max(PRICE_MIN, min), Math.min(PRICE_MAX, max)];
+  }, [minPrice, maxPrice]);
+
+  const handlePriceRangeChange = (value: [number, number]) => {
+    const [newMin, newMax] = value;
+    setMinPrice(newMin === PRICE_MIN ? "" : String(newMin));
+    setMaxPrice(newMax === PRICE_MAX ? "" : String(newMax));
+    setPage(0);
+  };
+
+  const handleMinPriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMinPrice(e.target.value);
+    setPage(0);
+  };
+
+  const handleMaxPriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMaxPrice(e.target.value);
+    setPage(0);
+  };
+
+  const handleFreeToggle = () => {
+    if (filterType === "free") {
+      // Already free, do nothing or could reset
+      return;
+    }
+    // This would need to be handled by parent, but for now we'll just set prices to 0
+    setMinPrice("0");
+    setMaxPrice("0");
+    setPage(0);
+  };
+
+  const ratingOptions = [
+    { value: 4.5, label: "4.5 & up", stars: "★★★★★" },
+    { value: 4.0, label: "4.0 & up", stars: "★★★★☆" },
+    { value: 3.0, label: "3.0 & up", stars: "★★★☆☆" },
+  ];
+
+  const levelOptions = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
+
   return (
     <aside className="w-full lg:w-64 lg:flex-shrink-0 mb-8 lg:mb-0">
-      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 lg:sticky lg:top-8 space-y-6 shadow-sm">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 lg:sticky lg:top-8 space-y-4 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-5 h-5 text-gray-600" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
+
         {/* Category Filter */}
-        <CategoryFilter
-          categories={categories}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={onCategoryChange}
-        />
+        <FilterSection
+          title="Categories"
+          count={selectedCategoryIds.length}
+          defaultOpen={true}
+        >
+          <CategoryFilter
+            categories={categories}
+            selectedCategoryIds={selectedCategoryIds}
+            onSelectCategory={onCategoryChange}
+          />
+        </FilterSection>
 
         {/* Level Filter */}
-        <div>
-          <h3 className="font-semibold text-gray-900 mb-3">Level</h3>
+        <FilterSection
+          title="Level"
+          count={selectedLevels.length}
+          defaultOpen={true}
+        >
           <div className="space-y-2">
-            {["BEGINNER", "INTERMEDIATE", "ADVANCED"].map((level) => (
-              <button
-                key={level}
-                onClick={() =>
-                  onLevelChange(
-                    selectedLevel === level ? null : level
-                  )
-                }
-                className={`w-full text-left px-4 py-2.5 rounded-lg transition-all duration-200 font-medium ${
-                  selectedLevel === level
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "hover:bg-gray-100 text-gray-700 border border-gray-200 hover:border-gray-300"
-                }`}
+            {levelOptions.map((level) => {
+              const isSelected = selectedLevels.includes(level);
+              return (
+                <label
+                  key={level}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => onLevelChange(level)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    {level.charAt(0) + level.slice(1).toLowerCase()}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </FilterSection>
+
+        {/* Price Range Filter */}
+        <FilterSection
+          title="Price Range"
+          count={minPrice || maxPrice ? 1 : 0}
+          defaultOpen={true}
+        >
+          <div className="space-y-4">
+            {/* Free Only Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filterType === "free"}
+                onChange={handleFreeToggle}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">Free only</span>
+            </label>
+
+            {filterType !== "free" && (
+              <>
+                {/* Range Slider */}
+                <PriceRangeSlider
+                  min={PRICE_MIN}
+                  max={PRICE_MAX}
+                  value={priceRange}
+                  onChange={handlePriceRangeChange}
+                />
+
+                {/* Number Inputs for Precise Control */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Min ($)
+                    </label>
+                    <Input
+                      type="number"
+                      min={PRICE_MIN}
+                      max={PRICE_MAX}
+                      step="0.01"
+                      value={minPrice}
+                      onChange={handleMinPriceInputChange}
+                      placeholder="0"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Max ($)
+                    </label>
+                    <Input
+                      type="number"
+                      min={PRICE_MIN}
+                      max={PRICE_MAX}
+                      step="0.01"
+                      value={maxPrice}
+                      onChange={handleMaxPriceInputChange}
+                      placeholder="No limit"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {filterType === "free" && (
+              <p className="text-xs text-gray-500">
+                Showing free courses only (price = $0)
+              </p>
+            )}
+          </div>
+        </FilterSection>
+
+        {/* Rating Filter */}
+        <FilterSection
+          title="Rating"
+          count={minRating ? 1 : 0}
+          defaultOpen={false}
+        >
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+              <input
+                type="radio"
+                name="rating"
+                checked={!minRating}
+                onChange={() => setMinRating(undefined)}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">All Ratings</span>
+            </label>
+            {ratingOptions.map((option) => (
+              <label
+                key={option.value}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
               >
-                {level.charAt(0) + level.slice(1).toLowerCase()}
-              </button>
+                <input
+                  type="radio"
+                  name="rating"
+                  checked={minRating === option.value}
+                  onChange={() => {
+                    setMinRating(option.value);
+                    setPage(0);
+                  }}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="flex items-center gap-2 text-sm text-gray-700">
+                  <span className="text-yellow-500">{option.stars}</span>
+                  <span>{option.label}</span>
+                </span>
+              </label>
             ))}
           </div>
-        </div>
-
-        {/* Price Filter */}
-        <div>
-          <h3 className="font-semibold text-gray-900 mb-3">
-            Price Range
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                Min Price ($)
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={minPrice}
-                onChange={(e) => {
-                  setMinPrice(e.target.value);
-                  setPage(0);
-                }}
-                placeholder="0"
-                disabled={filterType === "free"}
-                title={
-                  filterType === "free"
-                    ? "Price filter is set to free (0) when viewing free courses"
-                    : undefined
-                }
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                Max Price ($)
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={maxPrice}
-                onChange={(e) => {
-                  setMaxPrice(e.target.value);
-                  setPage(0);
-                }}
-                placeholder="No limit"
-                disabled={filterType === "free"}
-                title={
-                  filterType === "free"
-                    ? "Price filter is set to free (0) when viewing free courses"
-                    : undefined
-                }
-              />
-            </div>
-          </div>
-          {filterType === "free" && (
-            <p className="text-xs text-gray-500 mt-2">
-              Showing free courses only (price = $0)
-            </p>
-          )}
-        </div>
+        </FilterSection>
 
         {/* Clear Filters */}
         {showClearButton && (
           <Button
             variant="secondary"
             onClick={onClearFilters}
-            className="w-full"
+            className="w-full mt-4"
           >
             Clear All Filters
           </Button>

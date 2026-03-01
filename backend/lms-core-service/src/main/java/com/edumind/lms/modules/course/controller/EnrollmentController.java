@@ -3,13 +3,16 @@ package com.edumind.lms.modules.course.controller;
 import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.dto.request.EnrollRequest;
+import com.edumind.lms.modules.course.dto.request.ReviewReportRequest;
 import com.edumind.lms.modules.course.dto.request.SuspendEnrollmentRequest;
 import com.edumind.lms.modules.course.dto.request.ReportToAdminRequest;
+import com.edumind.lms.modules.course.dto.response.EnrollmentReportResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.enums.ReportRequestStatus;
 import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.course.util.EnrollmentMapper;
@@ -348,6 +351,62 @@ public class EnrollmentController {
         enrollmentService.reportToAdmin(id, teacherId, request.getReason());
         
         return ResponseEntity.ok(ApiResponse.success("Report submitted successfully. Admin will review your request.", null));
+    }
+    
+    // =========================================================================
+    // Helper methods
+    // =========================================================================
+    
+    // =========================================================================
+    // Admin endpoints for enrollment reports
+    // =========================================================================
+
+    @GetMapping("/reports")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PagedResponse<EnrollmentReportResponse>> getAdminReports(
+            @RequestParam(required = false) ReportRequestStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") @Max(100) int size,
+            Authentication authentication) {
+        log.info("Admin getting enrollment reports with status: {}", status);
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by("requestedAt").descending());
+        Page<EnrollmentReportResponse> reportPage = enrollmentService.getAdminReports(status, pageable);
+        
+        return ResponseEntity.ok(PagedResponse.of(
+                reportPage.getContent(),
+                reportPage.getNumber(),
+                reportPage.getSize(),
+                reportPage.getTotalElements(),
+                reportPage.getTotalPages()));
+    }
+
+    @PostMapping("/reports/{reportId}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> approveReport(
+            @PathVariable Long reportId,
+            @Valid @RequestBody ReviewReportRequest request,
+            Authentication authentication) {
+        log.info("Admin approving report {}", reportId);
+        
+        Long adminId = Long.valueOf(authentication.getPrincipal().toString());
+        enrollmentService.approveReport(reportId, adminId, request.getAdminNotes());
+        
+        return ResponseEntity.ok(ApiResponse.success("Report approved successfully", null));
+    }
+
+    @PostMapping("/reports/{reportId}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> rejectReport(
+            @PathVariable Long reportId,
+            @Valid @RequestBody ReviewReportRequest request,
+            Authentication authentication) {
+        log.info("Admin rejecting report {}", reportId);
+        
+        Long adminId = Long.valueOf(authentication.getPrincipal().toString());
+        enrollmentService.rejectReport(reportId, adminId, request.getAdminNotes());
+        
+        return ResponseEntity.ok(ApiResponse.success("Report rejected successfully", null));
     }
     
     // =========================================================================

@@ -8,7 +8,6 @@ import {
   BookOpen,
   Users,
   Star,
-  BarChart3,
   Settings,
   Menu,
   X,
@@ -52,20 +51,10 @@ const navItems: NavItem[] = [
     icon: <Star className="w-5 h-5" />,
   },
   {
-    label: "Analytics",
-    path: TEACHER_ROUTES.ANALYTICS,
-    icon: <BarChart3 className="w-5 h-5" />,
-  },
-  {
     label: "Earnings",
     path: TEACHER_ROUTES.EARNINGS,
     icon: <DollarSign className="w-5 h-5" />,
-  },
-  {
-    label: "Settings",
-    path: TEACHER_ROUTES.SETTINGS,
-    icon: <Settings className="w-5 h-5" />,
-  },
+  }
 ];
 
 export const TeacherLayout: React.FC = () => {

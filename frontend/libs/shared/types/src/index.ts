@@ -21,3 +21,5 @@ export * from './lib/earning.schemas.js';
 export * from './lib/refund.schemas.js';
 export * from './lib/payout.schemas.js';
 export * from './lib/ai.schemas.js';
+export * from './lib/dashboard.schemas.js';
+export * from './lib/teacher-analytics.schemas.js';

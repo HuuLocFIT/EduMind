@@ -113,11 +113,18 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         {/* Rating & Meta Row */}
         <div className="flex items-center text-sm text-gray-500 mb-5 gap-2">
           {/* Rating */}
-          <div className="flex items-center gap-1.5">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="font-extrabold text-gray-900 text-base">{course.averageRating?.toFixed(1) || "0.0"}</span>
-            <span className="text-gray-500">({new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(course.totalReviews || 0)})</span>
-          </div>
+          {course.averageRating ? (
+            <div className="flex items-center gap-1.5">
+              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+              <span className="font-extrabold text-gray-900 text-base">{course.averageRating.toFixed(1)}</span>
+              <span className="text-gray-500">({new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(course.totalReviews || 0)})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-gray-300" />
+              <span className="text-gray-400 italic text-sm">No rating yet</span>
+            </div>
+          )}
 
           <span className="text-gray-300 mx-1">•</span>
 

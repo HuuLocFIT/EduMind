@@ -31,3 +31,5 @@ export { orderService } from './order.service';
 export { invoiceService } from './invoice.service';
 
 export { earningService } from './earning.service';
+
+export { teacherAnalyticsService } from './teacher-analytics.service';

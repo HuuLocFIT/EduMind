@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
   ToastProvider,
@@ -30,10 +30,7 @@ import { HomePage } from "./pages/public/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
 // Placeholder pages from teacher (inline components, no lazy needed)
-import {
-  TeacherAnalyticsPage,
-  TeacherSettingsPage,
-} from "./pages/teacher";
+import { TeacherSettingsPage } from "./pages/teacher";
 
 // Auth Pages
 const LoginPage = createLazyRoute(() => import("./pages/auth/LoginPage"));
@@ -479,10 +476,10 @@ function AppContent() {
                 }
               />
 
-              {/* Analytics */}
+              {/* Analytics - redirected to dashboard */}
               <Route
                 path={TEACHER_ROUTES.ANALYTICS}
-                element={<TeacherAnalyticsPage />}
+                element={<Navigate to={TEACHER_ROUTES.DASHBOARD} replace />}
               />
               
               {/* Earnings */}

@@ -8,14 +8,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CourseRepository extends JpaRepository<Course, Long> {
+public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecificationExecutor<Course> {
     /**
      * Find course by ID with category fetched (no pagination - use JOIN FETCH)
      */
@@ -153,24 +156,18 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Page<Course> findNewestCourses(Pageable pageable);
 
     /**
-     * Complex filter query - with pagination, use @EntityGraph
-     * Using string concatenation with || operator to avoid type casting issues
+     * Note: findCoursesWithFilters has been replaced with JPA Specifications.
+     * Use CourseSpecifications to build dynamic queries and call repository.findAll(spec, pageable)
+     * This allows for multi-select filters and better composability.
      */
+
+    /**
+     * Override to apply entity graph — ensures category is eagerly loaded
+     * when using Specification-based queries (e.g., filterCourses).
+     */
+    @Override
     @EntityGraph("Course.withCategory")
-    @Query("SELECT c FROM Course c WHERE c.status = 'PUBLISHED' " +
-            "AND (:categoryId IS NULL OR c.category.id = :categoryId) " +
-            "AND (:level IS NULL OR c.level = :level) " +
-            "AND (:minPrice IS NULL OR c.price >= :minPrice) " +
-            "AND (:maxPrice IS NULL OR c.price <= :maxPrice) " +
-            "AND (:keyword IS NULL OR :keyword = '' OR LOWER(c.title) LIKE '%' || LOWER(:keyword) || '%')")
-    Page<Course> findCoursesWithFilters(
-            @Param("categoryId") Long categoryId,
-            @Param("level") CourseLevel level,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice,
-            @Param("keyword") String keyword,
-            Pageable pageable
-    );
+    Page<Course> findAll(Specification<Course> spec, Pageable pageable);
 
     /**
      * Count courses by instructor
@@ -203,4 +200,15 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     """)
     Optional<InstructorStatsProjection> getInstructorStats(
             @Param("instructorId") Long instructorId);
+
+    /**
+     * Count courses by status
+     */
+    long countByStatus(CourseStatus status);
+
+    /**
+     * Count courses by category
+     */
+    @Query("SELECT cat.name, COUNT(c) FROM Course c JOIN c.category cat GROUP BY cat.name ORDER BY COUNT(c) DESC")
+    List<Object[]> countCoursesByCategory();
 }

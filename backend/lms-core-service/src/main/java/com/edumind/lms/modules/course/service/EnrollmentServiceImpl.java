@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.dto.response.EnrollmentReportResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Enrollment;
@@ -16,7 +17,9 @@ import com.edumind.lms.modules.course.enums.ReportRequestStatus;
 import com.edumind.lms.modules.course.event.CourseCompletedEvent;
 import com.edumind.lms.modules.course.event.EnrollmentActivatedEvent;
 import com.edumind.lms.modules.course.event.EnrollmentDroppedEvent;
+import com.edumind.lms.modules.course.event.EnrollmentReportApprovedEvent;
 import com.edumind.lms.modules.course.event.EnrollmentReportCreatedEvent;
+import com.edumind.lms.modules.course.event.EnrollmentReportRejectedEvent;
 import com.edumind.lms.modules.course.event.EnrollmentSuspendedEvent;
 import com.edumind.lms.modules.course.event.StudentEnrolledEvent;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -463,6 +467,119 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         ));
 
         log.info("Report request {} created successfully for enrollment {}", reportRequest.getId(), enrollmentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EnrollmentReportResponse> getAdminReports(ReportRequestStatus status, Pageable pageable) {
+        log.info("Getting admin reports with status: {}", status);
+        
+        Page<EnrollmentReportRequest> reportPage;
+        if (status != null) {
+            reportPage = reportRequestRepository.findAllByStatus(status, pageable);
+        } else {
+            reportPage = reportRequestRepository.findAll(pageable);
+        }
+        
+        return reportPage.map(this::toReportResponse);
+    }
+
+    @Override
+    @Transactional
+    public void approveReport(Long reportId, Long adminId, String adminNotes) {
+        log.info("Admin {} approving report {}", adminId, reportId);
+        
+        EnrollmentReportRequest report = reportRequestRepository.findById(reportId)
+                .orElseThrow(() -> new BadRequestException("Report not found: " + reportId));
+        
+        if (report.getStatus() != ReportRequestStatus.PENDING) {
+            throw new BadRequestException("Report is not pending: " + report.getStatus());
+        }
+        
+        // Unenroll the student
+        unenrollStudent(report.getEnrollment().getId());
+        
+        // Update report status
+        report.setStatus(ReportRequestStatus.APPROVED);
+        report.setReviewedAt(LocalDateTime.now());
+        report.setReviewedByAdminId(adminId);
+        if (StringUtils.hasText(adminNotes)) {
+            report.setAdminNotes(adminNotes);
+        }
+        
+        reportRequestRepository.save(report);
+
+        Enrollment enrollment = report.getEnrollment();
+        eventPublisher.publishEvent(new EnrollmentReportApprovedEvent(
+                this,
+                report.getId(),
+                enrollment.getId(),
+                enrollment.getCourse().getId(),
+                enrollment.getStudentId(),
+                report.getTeacherId(),
+                adminId
+        ));
+
+        log.info("Report {} approved successfully by admin {}", reportId, adminId);
+    }
+
+    @Override
+    @Transactional
+    public void rejectReport(Long reportId, Long adminId, String adminNotes) {
+        log.info("Admin {} rejecting report {}", adminId, reportId);
+        
+        if (!StringUtils.hasText(adminNotes)) {
+            throw new BadRequestException("Admin notes are required when rejecting a report");
+        }
+        
+        EnrollmentReportRequest report = reportRequestRepository.findById(reportId)
+                .orElseThrow(() -> new BadRequestException("Report not found: " + reportId));
+        
+        if (report.getStatus() != ReportRequestStatus.PENDING) {
+            throw new BadRequestException("Report is not pending: " + report.getStatus());
+        }
+        
+        // Update report status
+        report.setStatus(ReportRequestStatus.REJECTED);
+        report.setReviewedAt(LocalDateTime.now());
+        report.setReviewedByAdminId(adminId);
+        report.setAdminNotes(adminNotes);
+        
+        reportRequestRepository.save(report);
+
+        Enrollment enrollment = report.getEnrollment();
+        eventPublisher.publishEvent(new EnrollmentReportRejectedEvent(
+                this,
+                report.getId(),
+                enrollment.getId(),
+                enrollment.getCourse().getId(),
+                enrollment.getStudentId(),
+                report.getTeacherId(),
+                adminId
+        ));
+
+        log.info("Report {} rejected successfully by admin {}", reportId, adminId);
+    }
+
+    private EnrollmentReportResponse toReportResponse(EnrollmentReportRequest report) {
+        Enrollment enrollment = report.getEnrollment();
+        Course course = enrollment != null ? enrollment.getCourse() : null;
+        
+        return EnrollmentReportResponse.builder()
+                .id(report.getId())
+                .status(report.getStatus())
+                .reason(report.getReason())
+                .adminNotes(report.getAdminNotes())
+                .requestedAt(report.getRequestedAt())
+                .reviewedAt(report.getReviewedAt())
+                .reviewedByAdminId(report.getReviewedByAdminId())
+                .teacherId(report.getTeacherId())
+                .enrollmentId(enrollment != null ? enrollment.getId() : null)
+                .courseId(course != null ? course.getId() : null)
+                .courseTitle(course != null ? course.getTitle() : null)
+                .studentId(enrollment != null ? enrollment.getStudentId() : null)
+                // studentName and studentEmail would need to be populated via UserClient if needed
+                .build();
     }
 
     /**
