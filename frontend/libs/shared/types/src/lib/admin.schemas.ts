@@ -161,6 +161,8 @@ export const TeacherApplicationResponseSchema = z.object({
   bio: z.string().nullable().optional(),
   motivation: z.string().nullable().optional(),
   status: ApplicationStatusSchema,
+  approvalType: TeacherTypeSchema.nullable().optional(),
+  trialEndDate: z.string().nullable().optional(),
   rejectionReason: z.string().nullable().optional(),
   adminNotes: z.string().nullable().optional(),
   createdAt: z.string(),

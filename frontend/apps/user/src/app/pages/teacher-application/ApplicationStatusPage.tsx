@@ -1,40 +1,30 @@
 import { Alert, Button, Card, CardBody, CardHeader } from '@edumind/user-ui';
 import { teacherApplicationService } from '../../services/teacher-application.service';
 import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@edumind/user-ui';
 import { TEACHER_ROUTES, USER_ROUTES, formatDate } from '@edumind/shared-utils';
 import { DocumentInfo, StatusHistoryResponse } from '@edumind/shared-types';
+import { queryKeys } from '../../lib/query-keys';
+import { useAuthStore } from '../../stores/auth.store';
+import { useQuery } from '@tanstack/react-query';
 
 export function ApplicationStatusPage() {
-  const [application, setApplication] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { error: showError, info: showInfo } = useToast();
 
-  useEffect(() => {
-    loadApplication();
-  }, []);
-
-  const loadApplication = async () => {
-    try {
-      const data = await teacherApplicationService.getMyApplication();
-      
-      if (!data) {
-        showInfo('No application found. Please submit one.');
-        navigate(USER_ROUTES.TEACHER_APPLICATION);
-        return;
+  const { data: application, isLoading: loading } = useQuery({
+    queryKey: queryKeys.teacherApplication.myApplication(user?.id),
+    queryFn: async () => {
+      try {
+        return await teacherApplicationService.getMyApplication();
+      } catch (error: any) {
+        return null;
       }
-
-      setApplication(data);
-    } catch (error) {
-      console.error('Failed to load application', error);
-      showError('Failed to load application');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -107,7 +97,16 @@ const getStatusStyle = (status?: string | null) => {
   }
 
   if (!application) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">No application data found.</p>
+          <Button variant="outline" onClick={() => navigate(USER_ROUTES.ROOT)}>
+            Back to Home
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const statusConfig = getStatusConfig(application.status);
@@ -216,7 +215,7 @@ const getStatusStyle = (status?: string | null) => {
             <div>
               <p className="text-sm text-gray-500 mb-2">Uploaded Documents</p>
               <div className="space-y-2">
-                {application.documents.map((document: DocumentInfo, index: number) => (
+                {(application.documents ?? []).map((document: DocumentInfo, index: number) => (
                   <a
                     key={index}
                     href={document.url}

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { 
+import { useQueryClient } from '@tanstack/react-query';
+import {
   TeacherApplicationRequestSchema,
   type TeacherApplicationRequest,
   type DocumentType,
@@ -23,8 +24,10 @@ import {
 
 import { FileUpload, UploadedFile } from '@edumind/user-ui';
 import { teacherApplicationService } from '../../services/teacher-application.service';
-import { fileUploadService } from '../../services/file-upload.service'; 
+import { fileUploadService } from '../../services/file-upload.service';
 import { USER_ROUTES } from '@edumind/shared-utils';
+import { queryKeys } from '../../lib/query-keys';
+import { useAuthStore } from '../../stores/auth.store';
 
 // Form schema matching TeacherApplicationRequest
 const applicationSchema = z.object({
@@ -80,11 +83,12 @@ type ApplicationFormData = z.infer<typeof applicationSchema>;
 
 export function TeacherApplicationPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [isChecking, setIsChecking] = useState(true);
-  const { success: showSuccess, error: showError, info: showInfo } = useToast();
-  
+  const { success: showSuccess, error: showError } = useToast();
+
   const [cvFiles, setCvFiles] = useState<UploadedFile[]>([]);
   const [certificateFiles, setCertificateFiles] = useState<UploadedFile[]>([]);
   const [degreeFiles, setDegreeFiles] = useState<UploadedFile[]>([]);
@@ -97,27 +101,6 @@ export function TeacherApplicationPage() {
   } = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
   });
-
-  // Check if user already has an application
-  useEffect(() => {
-    checkExistingApplication();
-  }, []);
-
-  const checkExistingApplication = async () => {
-    try {
-      setIsChecking(true);
-      const application = await teacherApplicationService.getMyApplication();
-      if (application) {
-        showInfo('You already have an application. Redirecting...');
-        setTimeout(() => navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS), 2000);
-      }
-    } catch (error: any) {
-      // User doesn't have application yet, can proceed
-      console.log('No existing application');
-    } finally {
-      setIsChecking(false);
-    }
-  };
 
   const uploadFiles = async (
     files: UploadedFile[],
@@ -218,11 +201,16 @@ export function TeacherApplicationPage() {
       // Submit application
       await teacherApplicationService.submitApplication(validatedData);
 
+      // Invalidate cached application data so route guards re-fetch fresh data
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teacherApplication.myApplication(user?.id),
+      });
+
       showSuccess('Application submitted successfully!');
-      
+
       // Redirect to status page
       setTimeout(() => {
-        navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS);
+        navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS, { replace: true });
       }, 1500);
 
     } catch (err: any) {
@@ -233,17 +221,6 @@ export function TeacherApplicationPage() {
       setIsSubmitting(false);
     }
   };
-
-  if (isChecking) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Checking application status...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
