@@ -1,8 +1,10 @@
 package com.edumind.lms.modules.course.service;
 
+import com.edumind.lms.modules.course.dto.response.EnrollmentReportResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.enums.ReportRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -117,4 +119,32 @@ public interface EnrollmentService {
      * @param studentId the student being dropped
      */
     void dropStudent(Long courseId, Long studentId);
+
+    /**
+     * Get enrollment reports for admin review (ADMIN only)
+     * 
+     * @param status The status filter (null for all statuses)
+     * @param pageable Pagination parameters
+     * @return Page of enrollment report responses
+     */
+    Page<EnrollmentReportResponse> getAdminReports(ReportRequestStatus status, Pageable pageable);
+
+    /**
+     * Approve an enrollment report request (ADMIN only)
+     * This will unenroll the student and mark the report as APPROVED
+     * 
+     * @param reportId The report ID
+     * @param adminId The admin ID approving the report
+     * @param adminNotes Optional admin notes
+     */
+    void approveReport(Long reportId, Long adminId, String adminNotes);
+
+    /**
+     * Reject an enrollment report request (ADMIN only)
+     * 
+     * @param reportId The report ID
+     * @param adminId The admin ID rejecting the report
+     * @param adminNotes Required admin notes explaining the rejection
+     */
+    void rejectReport(Long reportId, Long adminId, String adminNotes);
 }

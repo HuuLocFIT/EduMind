@@ -1,0 +1,358 @@
+<div class="space-y-5 md:space-y-6 text-gray-900">
+  <!-- Page Header -->
+  <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+    <div class="space-y-1">
+      <h1 class="text-2xl font-bold text-gray-900">Enrollment Reports</h1>
+      <p class="text-gray-600 text-sm">Review and manage teacher requests to unenroll students from paid courses.</p>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  @if (successMessage()) {
+    <app-alert variant="success" [message]="successMessage()" [dismissible]="true" (onClose)="successMessage.set('')" />
+  }
+  @if (errorMessage()) {
+    <app-alert variant="error" [message]="errorMessage()" [dismissible]="true" (onClose)="errorMessage.set('')" />
+  }
+
+  <!-- Stats Row -->
+  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <div class="rounded-xl p-4 border border-gray-200 bg-white">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Pending</p>
+            <p class="text-2xl font-bold text-yellow-600 mt-1">{{ stats().pending }}</p>
+            <p class="text-xs text-gray-500 mt-1">Awaiting review</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl p-4 border border-gray-200 bg-white">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Approved</p>
+            <p class="text-2xl font-bold text-green-600 mt-1">{{ stats().approved }}</p>
+            <p class="text-xs text-gray-500 mt-1">Processed</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl p-4 border border-gray-200 bg-white">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Rejected</p>
+            <p class="text-2xl font-bold text-red-600 mt-1">{{ stats().rejected }}</p>
+            <p class="text-xs text-gray-500 mt-1">Declined</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </app-card>
+
+  <!-- Status Filter Tabs -->
+  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
+    <div class="flex flex-wrap gap-1.5 md:gap-2">
+      <app-button
+        size="sm"
+        variant="outline"
+        [ngClass]="{
+          'border-blue-300 bg-blue-50 text-blue-800': statusFilter() === 'ALL'
+        }"
+        (click)="onStatusFilterChange('ALL')"
+      >
+        All
+      </app-button>
+      <app-button
+        size="sm"
+        variant="outline"
+        [ngClass]="{
+          'border-yellow-300 bg-yellow-50 text-yellow-800': statusFilter() === 'PENDING'
+        }"
+        (click)="onStatusFilterChange('PENDING')"
+      >
+        Pending
+      </app-button>
+      <app-button
+        size="sm"
+        variant="outline"
+        [ngClass]="{
+          'border-green-300 bg-green-50 text-green-800': statusFilter() === 'APPROVED'
+        }"
+        (click)="onStatusFilterChange('APPROVED')"
+      >
+        Approved
+      </app-button>
+      <app-button
+        size="sm"
+        variant="outline"
+        [ngClass]="{
+          'border-red-300 bg-red-50 text-red-800': statusFilter() === 'REJECTED'
+        }"
+        (click)="onStatusFilterChange('REJECTED')"
+      >
+        Rejected
+      </app-button>
+    </div>
+  </app-card>
+
+  <!-- Table -->
+  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
+    <app-data-table
+      [columns]="columns"
+      [data]="reports()"
+      [isLoading]="isLoading()"
+      [showActions]="true"
+      [actionsSticky]="actionsSticky()"
+      [actionsStickyOffset]="actionsSticky() ? '0px' : undefined"
+      [actionsWidth]="'180px'"
+      [showPagination]="true"
+      [totalItems]="totalItems()"
+      [pageSize]="pageSize"
+      [currentPage]="currentPage()"
+      emptyMessage="No enrollment reports found"
+      (pageChange)="onPageChange($event.page)"
+    >
+      <ng-template #actions let-row>
+        <div class="flex items-center justify-center gap-2">
+          <app-button variant="outline" size="sm" (click)="openDetailModal(row)">
+            View
+          </app-button>
+          @if (row.status === 'PENDING') {
+            <app-button variant="primary" size="sm" (click)="openApproveModal(row)">
+              Approve
+            </app-button>
+            <app-button variant="danger" size="sm" (click)="openRejectModal(row)">
+              Reject
+            </app-button>
+          }
+        </div>
+      </ng-template>
+    </app-data-table>
+  </app-card>
+
+  <!-- Templates -->
+  <ng-template #studentTpl let-row>
+    <div class="text-sm">
+      <p class="font-semibold text-gray-900">
+        {{ row.studentName || `Student #${row.studentId}` }}
+      </p>
+      @if (row.studentEmail) {
+        <p class="text-xs text-gray-500">{{ row.studentEmail }}</p>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #courseTpl let-row>
+    <div class="text-sm">
+      <p class="font-medium text-gray-900 line-clamp-2" [title]="row.courseTitle">
+        {{ row.courseTitle }}
+      </p>
+      <p class="text-xs text-gray-500">Course ID: {{ row.courseId }}</p>
+    </div>
+  </ng-template>
+
+  <ng-template #reasonTpl let-row>
+    <div class="text-sm text-gray-600 line-clamp-2" [title]="row.reason">
+      {{ truncateText(row.reason, 80) }}
+    </div>
+  </ng-template>
+
+  <ng-template #statusTpl let-row>
+    <app-badge [variant]="getStatusVariant(row.status)" size="sm">
+      {{ row.status }}
+    </app-badge>
+  </ng-template>
+
+  <ng-template #requestedAtTpl let-row>
+    <div class="text-sm text-gray-700">
+      {{ formatDate(row.requestedAt) }}
+    </div>
+  </ng-template>
+
+  <!-- Detail Modal -->
+  <app-modal
+    [isOpen]="showDetailModal()"
+    title="Enrollment Report Details"
+    size="md"
+    (close)="showDetailModal.set(false)"
+  >
+    @if (selectedReport()) {
+      <div class="space-y-4 text-gray-800">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Report ID</p>
+            <p class="text-sm font-semibold text-gray-900">#{{ selectedReport()!.id }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Status</p>
+            <app-badge [variant]="getStatusVariant(selectedReport()!.status)" size="sm">
+              {{ selectedReport()!.status }}
+            </app-badge>
+          </div>
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Student</p>
+            <p class="text-sm font-semibold text-gray-900">
+              {{ selectedReport()!.studentName || `Student #${selectedReport()!.studentId}` }}
+            </p>
+            @if (selectedReport()!.studentEmail) {
+              <p class="text-xs text-gray-500">{{ selectedReport()!.studentEmail }}</p>
+            }
+          </div>
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Course</p>
+            <p class="text-sm font-semibold text-gray-900">{{ selectedReport()!.courseTitle }}</p>
+            <p class="text-xs text-gray-500">ID: {{ selectedReport()!.courseId }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Enrollment ID</p>
+            <p class="text-sm text-gray-900">#{{ selectedReport()!.enrollmentId }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Teacher ID</p>
+            <p class="text-sm text-gray-900">#{{ selectedReport()!.teacherId }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Requested At</p>
+            <p class="text-sm text-gray-900">{{ formatDate(selectedReport()!.requestedAt) }}</p>
+          </div>
+          @if (selectedReport()!.reviewedAt) {
+            <div>
+              <p class="text-xs uppercase text-gray-500 font-medium mb-1">Reviewed At</p>
+              <p class="text-sm text-gray-900">{{ formatDate(selectedReport()!.reviewedAt!) }}</p>
+            </div>
+          }
+          @if (selectedReport()!.reviewedByAdminId) {
+            <div>
+              <p class="text-xs uppercase text-gray-500 font-medium mb-1">Reviewed By</p>
+              <p class="text-sm text-gray-900">Admin #{{ selectedReport()!.reviewedByAdminId }}</p>
+            </div>
+          }
+        </div>
+        <div>
+          <p class="text-xs uppercase text-gray-500 font-medium mb-1">Reason</p>
+          <p class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
+            {{ selectedReport()!.reason }}
+          </p>
+        </div>
+        @if (selectedReport()!.adminNotes) {
+          <div>
+            <p class="text-xs uppercase text-gray-500 font-medium mb-1">Admin Notes</p>
+            <p class="text-sm text-gray-900 bg-blue-50 p-3 rounded-md border border-blue-200">
+              {{ selectedReport()!.adminNotes }}
+            </p>
+          </div>
+        }
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+        @if (selectedReport()!.status === 'PENDING') {
+          <app-button variant="primary" (click)="showDetailModal.set(false); openApproveModal(selectedReport()!)">
+            Approve
+          </app-button>
+          <app-button variant="danger" (click)="showDetailModal.set(false); openRejectModal(selectedReport()!)">
+            Reject
+          </app-button>
+        }
+        <app-button variant="outline" (click)="showDetailModal.set(false)">Close</app-button>
+      </div>
+    }
+  </app-modal>
+
+  <!-- Approve Modal -->
+  <app-modal
+    [isOpen]="showApproveModal()"
+    title="Approve Enrollment Report"
+    size="sm"
+    (close)="showApproveModal.set(false)"
+  >
+    <div class="space-y-4 text-gray-800">
+      <p class="text-gray-600">
+        Approve this enrollment report? The student will be unenrolled from the course.
+      </p>
+      @if (selectedReport()) {
+        <div class="p-3 bg-yellow-50 rounded-md border border-yellow-200">
+          <p class="text-sm text-yellow-900">
+            <strong>Course:</strong> {{ selectedReport()!.courseTitle }}
+          </p>
+          <p class="text-sm text-yellow-900">
+            <strong>Student:</strong> {{ selectedReport()!.studentName || `Student #${selectedReport()!.studentId}` }}
+          </p>
+        </div>
+      }
+      <div>
+        <app-textarea
+          label="Admin Notes (Optional)"
+          placeholder="Add notes about this approval..."
+          [(ngModel)]="approveNotes"
+          [rows]="3"
+        />
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+      <app-button variant="outline" (click)="showApproveModal.set(false)">Cancel</app-button>
+      <app-button variant="primary" (click)="approveReport()">
+        Confirm Approve
+      </app-button>
+    </div>
+  </app-modal>
+
+  <!-- Reject Modal -->
+  <app-modal
+    [isOpen]="showRejectModal()"
+    title="Reject Enrollment Report"
+    size="sm"
+    (close)="showRejectModal.set(false)"
+  >
+    <div class="space-y-4 text-gray-800">
+      <p class="text-gray-600">
+        Please provide a reason for rejecting this enrollment report.
+      </p>
+      @if (selectedReport()) {
+        <div class="p-3 bg-red-50 rounded-md border border-red-200">
+          <p class="text-sm text-red-900">
+            <strong>Course:</strong> {{ selectedReport()!.courseTitle }}
+          </p>
+          <p class="text-sm text-red-900">
+            <strong>Student:</strong> {{ selectedReport()!.studentName || `Student #${selectedReport()!.studentId}` }}
+          </p>
+        </div>
+      }
+      <div>
+        <app-textarea
+          label="Rejection Reason"
+          placeholder="Explain why this report is being rejected (required)..."
+          [(ngModel)]="rejectNotes"
+          [rows]="3"
+          [required]="true"
+        />
+        @if (rejectNotesError()) {
+          <p class="text-xs text-red-600 mt-1">{{ rejectNotesError() }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+      <app-button variant="outline" (click)="showRejectModal.set(false)">Cancel</app-button>
+      <app-button variant="danger" (click)="rejectReport()" [disabled]="!rejectNotes.trim()">
+        Confirm Reject
+      </app-button>
+    </div>
+  </app-modal>
+</div>

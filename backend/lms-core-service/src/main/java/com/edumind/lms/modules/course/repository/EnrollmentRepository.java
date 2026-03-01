@@ -161,4 +161,47 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             WHERE course_id = :courseId AND status = 'ACTIVE'
             """, nativeQuery = true)
     void decrementTotalLessonsForCourse(@Param("courseId") Long courseId);
+
+    /**
+     * Count enrollments by status
+     */
+    @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.status = :status")
+    long countByStatus(@Param("status") EnrollmentStatus status);
+
+    /**
+     * Get monthly enrollment counts for the last 6 months
+     */
+    @Query(value = """
+            SELECT TO_CHAR(DATE_TRUNC('month', e.enrolled_at), 'Mon YYYY') as month,
+                   COUNT(*) as count
+            FROM course.enrollments e
+            WHERE e.enrolled_at >= NOW() - INTERVAL '6 months'
+            GROUP BY DATE_TRUNC('month', e.enrolled_at)
+            ORDER BY DATE_TRUNC('month', e.enrolled_at)
+            """, nativeQuery = true)
+    List<Object[]> getMonthlyEnrollmentCounts();
+
+    /**
+     * Get monthly enrollment counts for instructor's courses (last 6 months)
+     */
+    @Query("""
+            SELECT TO_CHAR(DATE_TRUNC('month', e.enrolledAt), 'Mon YYYY'), COUNT(e)
+            FROM Enrollment e JOIN e.course c
+            WHERE c.instructorId = :instructorId
+              AND e.enrolledAt >= :startDate
+            GROUP BY TO_CHAR(DATE_TRUNC('month', e.enrolledAt), 'Mon YYYY'), DATE_TRUNC('month', e.enrolledAt)
+            ORDER BY DATE_TRUNC('month', e.enrolledAt)
+            """)
+    List<Object[]> getMonthlyEnrollmentCountsByInstructor(@Param("instructorId") Long instructorId, @Param("startDate") LocalDateTime startDate);
+
+    /**
+     * Get enrollment status breakdown for instructor's courses
+     */
+    @Query("""
+            SELECT e.status, COUNT(e)
+            FROM Enrollment e JOIN e.course c
+            WHERE c.instructorId = :instructorId
+            GROUP BY e.status
+            """)
+    List<Object[]> getEnrollmentStatusBreakdownByInstructor(@Param("instructorId") Long instructorId);
 }

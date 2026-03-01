@@ -1,7 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ModalComponent } from '../modal/modal.component';
-import { ModalFooterComponent } from '../modal-footer/modal-footer.component';
 
 export type ConfirmDialogVariant = 'danger' | 'warning' | 'info' | 'success';
 
@@ -15,7 +14,7 @@ interface VariantConfig {
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
-  imports: [CommonModule, ModalComponent, ModalFooterComponent],
+  imports: [CommonModule, ModalComponent],
   templateUrl: './confirm-dialog.component.html',
 })
 export class ConfirmDialogComponent {

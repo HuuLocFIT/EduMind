@@ -33,6 +33,7 @@ export const ADMIN_ROUTES = {
   PAYOUTS_PENDING: '/payments/payouts/pending',
   PAYOUT_CREATE: '/payments/payouts/create',
   REPORTS: '/reports',
+  ENROLLMENT_REPORTS: '/enrollment-reports',
   SETTINGS: '/settings',
 } as const;
 
