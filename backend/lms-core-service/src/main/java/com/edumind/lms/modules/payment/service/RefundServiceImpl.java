@@ -24,6 +24,7 @@ import com.edumind.lms.modules.payment.gateway.PaymentGateway;
 import com.edumind.lms.modules.payment.gateway.config.PaymentGatewayRegistry;
 import com.edumind.lms.modules.payment.repository.*;
 import com.edumind.lms.modules.payment.event.RefundCompletedEvent;
+import com.edumind.lms.modules.payment.event.RefundRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -155,6 +156,16 @@ public class RefundServiceImpl implements RefundService {
             return toResponseDto(existing);
         }
         log.info("Refund request created: {}", refundRequestEntity.getId());
+
+        eventPublisher.publishEvent(new RefundRequestedEvent(
+                this,
+                refundRequestEntity.getId(),
+                order.getId(),
+                order.getOrderNumber(),
+                userId,
+                refundAmount,
+                order.getCurrency()
+        ));
 
         // 5. Auto-approve if eligible
         if (!policy.isRequiresAdminApproval()) {

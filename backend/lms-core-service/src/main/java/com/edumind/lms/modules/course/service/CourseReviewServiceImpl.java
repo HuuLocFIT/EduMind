@@ -6,8 +6,12 @@ import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.CourseReview;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.event.InstructorRepliedToReviewEvent;
 import com.edumind.lms.modules.course.event.ReviewApprovedEvent;
 import com.edumind.lms.modules.course.event.ReviewCreatedEvent;
+import com.edumind.lms.modules.course.event.ReviewDeletedEvent;
+import com.edumind.lms.modules.course.event.ReviewRejectedEvent;
+import com.edumind.lms.modules.course.event.ReviewUpdatedEvent;
 import com.edumind.lms.modules.course.exception.DuplicateReviewException;
 import com.edumind.lms.modules.course.exception.InvalidRatingException;
 import com.edumind.lms.modules.course.exception.NotEnrolledException;
@@ -146,6 +150,13 @@ public class CourseReviewServiceImpl implements CourseReviewService {
                 .orElse(updatedReview);
         log.info("Review updated successfully");
 
+        eventPublisher.publishEvent(new ReviewUpdatedEvent(
+                this,
+                reviewId,
+                reloaded.getCourse().getId(),
+                studentId
+        ));
+
         return reloaded;
     }
 
@@ -170,7 +181,12 @@ public class CourseReviewServiceImpl implements CourseReviewService {
             log.info("Course {} totalReviews updated to: {}", course.getId(), course.getTotalReviews());
         }
 
+        Long reviewCourseId = review.getCourse().getId();
+        Long reviewStudentId = review.getStudentId();
         reviewRepository.delete(review);
+
+        eventPublisher.publishEvent(new ReviewDeletedEvent(this, reviewId, reviewCourseId, reviewStudentId, false));
+
         log.info("Review deleted successfully");
     }
 
@@ -223,20 +239,22 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         if (!review.getIsApproved()) {
             review.setIsApproved(true);
             reviewRepository.save(review);
-            
+
             // Refresh aggregates after approval
             refreshCourseAggregates(review.getCourse());
+
+            // Reload with associations to ensure they're available
+            CourseReview reloaded = reviewRepository.findByIdWithAssociations(reviewId)
+                    .orElse(review);
+            log.info("Review approved successfully");
+
+            eventPublisher.publishEvent(new ReviewApprovedEvent(this, reloaded));
+
+            return reloaded;
         }
-        
-        // Reload with associations to ensure they're available
-        CourseReview reloaded = reviewRepository.findByIdWithAssociations(reviewId)
-                .orElse(review);
-        log.info("Review approved successfully");
 
-        // Publish event
-        eventPublisher.publishEvent(new ReviewApprovedEvent(this, reloaded));
-
-        return reloaded;
+        log.info("Review {} is already approved — no-op", reviewId);
+        return reviewRepository.findByIdWithAssociations(reviewId).orElse(review);
     }
 
     @Override
@@ -249,12 +267,17 @@ public class CourseReviewServiceImpl implements CourseReviewService {
 
         // If review was approved, refresh aggregates after removal
         Course course = review.getCourse();
+        Long rejectedReviewCourseId = course.getId();
+        Long rejectedReviewStudentId = review.getStudentId();
         boolean wasApproved = Boolean.TRUE.equals(review.getIsApproved());
 
         reviewRepository.delete(review);
         if (wasApproved) {
             refreshCourseAggregates(course);
         }
+
+        eventPublisher.publishEvent(new ReviewRejectedEvent(this, reviewId, rejectedReviewCourseId, rejectedReviewStudentId));
+
         log.info("Review rejected and deleted");
     }
 
@@ -268,12 +291,17 @@ public class CourseReviewServiceImpl implements CourseReviewService {
 
         // If review was approved, refresh aggregates after removal
         Course course = review.getCourse();
+        Long adminDeletedCourseId = course.getId();
+        Long adminDeletedStudentId = review.getStudentId();
         boolean wasApproved = Boolean.TRUE.equals(review.getIsApproved());
 
         reviewRepository.delete(review);
         if (wasApproved) {
             refreshCourseAggregates(course);
         }
+
+        eventPublisher.publishEvent(new ReviewDeletedEvent(this, reviewId, adminDeletedCourseId, adminDeletedStudentId, true));
+
         log.info("Review deleted by admin successfully");
     }
 
@@ -385,7 +413,17 @@ public class CourseReviewServiceImpl implements CourseReviewService {
         log.info("Instructor {} replied to review {} on course {}",
                 instructorId, reviewId, review.getCourse().getId());
 
-        return reviewRepository.save(review);
+        CourseReview savedReview = reviewRepository.save(review);
+
+        eventPublisher.publishEvent(new InstructorRepliedToReviewEvent(
+                this,
+                reviewId,
+                review.getCourse().getId(),
+                review.getStudentId(),
+                instructorId
+        ));
+
+        return savedReview;
     }
 
     @Override

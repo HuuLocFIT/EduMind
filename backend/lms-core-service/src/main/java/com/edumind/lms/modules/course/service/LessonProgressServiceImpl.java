@@ -11,6 +11,7 @@ import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonProgressRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.event.LessonCompletedEvent;
+import com.edumind.lms.modules.course.event.LessonStartedEvent;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,14 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                     // Update last accessed
                     enrollmentService.updateLastAccessed(enrollmentId);
 
+                    eventPublisher.publishEvent(new LessonStartedEvent(
+                            this,
+                            lessonId,
+                            lesson.getCourse().getId(),
+                            enrollmentId,
+                            studentId
+                    ));
+
                     log.info("Lesson progress created: {}", saved.getId());
                     // Reload with associations to ensure they're available
                     return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
@@ -146,6 +155,15 @@ public class LessonProgressServiceImpl implements LessonProgressService {
                             .build();
 
                     LessonProgress saved = lessonProgressRepository.save(newProgress);
+
+                    eventPublisher.publishEvent(new LessonStartedEvent(
+                            this,
+                            lessonId,
+                            lesson.getCourse().getId(),
+                            enrollmentId,
+                            enrollment.getStudentId()
+                    ));
+
                     // Reload with associations
                     return lessonProgressRepository.findByEnrollmentIdAndLessonIdWithAssociations(enrollmentId, lessonId)
                             .orElse(saved);

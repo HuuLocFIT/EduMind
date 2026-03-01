@@ -1,12 +1,17 @@
 package com.edumind.lms.modules.course.event.listener;
 
 import com.edumind.lms.modules.course.api.EnrollmentCommandService;
+import com.edumind.lms.modules.course.event.LessonCreatedEvent;
+import com.edumind.lms.modules.course.event.LessonDeletedEvent;
+import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.payment.event.OrderCompletedEvent;
 import com.edumind.lms.modules.payment.event.RefundCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -16,6 +21,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class CourseEventListener {
 
     private final EnrollmentCommandService enrollmentCommandService;
+    private final EnrollmentRepository enrollmentRepository;
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -71,6 +77,22 @@ public class CourseEventListener {
         }
         log.info("Enrollment revocation for refund orderId={}: succeeded={}, failed={}",
                 event.getOrderId(), succeeded, failed);
+    }
+
+    @EventListener
+    @Transactional
+    public void handleLessonCreated(LessonCreatedEvent event) {
+        Long courseId = event.getLesson().getSection().getCourse().getId();
+        enrollmentRepository.incrementTotalLessonsForCourse(courseId);
+        log.debug("Incremented totalLessons for all active enrollments on courseId={}", courseId);
+    }
+
+    @EventListener
+    @Transactional
+    public void handleLessonDeleted(LessonDeletedEvent event) {
+        Long courseId = event.getLesson().getSection().getCourse().getId();
+        enrollmentRepository.decrementTotalLessonsForCourse(courseId);
+        log.debug("Decremented totalLessons for all active enrollments on courseId={}", courseId);
     }
 }
 

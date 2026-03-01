@@ -1,6 +1,10 @@
 package com.edumind.lms.modules.course.service;
 
 import com.edumind.lms.modules.course.entity.Category;
+import com.edumind.lms.modules.course.event.CategoryCreatedEvent;
+import com.edumind.lms.modules.course.event.CategoryDeletedEvent;
+import com.edumind.lms.modules.course.event.CategoryStatusChangedEvent;
+import com.edumind.lms.modules.course.event.CategoryUpdatedEvent;
 import com.edumind.lms.modules.course.exception.CategoryAlreadyExistsException;
 import com.edumind.lms.modules.course.exception.CategoryNotFoundException;
 import com.edumind.lms.modules.course.repository.CategoryRepository;
@@ -8,6 +12,7 @@ import com.edumind.lms.shared.exception.BadRequestException;
 import com.edumind.lms.shared.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +24,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -41,6 +47,9 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         Category savedCategory = categoryRepository.save(category);
+
+        eventPublisher.publishEvent(new CategoryCreatedEvent(this, savedCategory.getId(), savedCategory.getName()));
+
         log.info("Category created successfully: {}", savedCategory.getId());
         return savedCategory;
     }
@@ -73,6 +82,9 @@ public class CategoryServiceImpl implements CategoryService {
         existingCategory.setIconUrl(categoryUpdate.getIconUrl());
 
         Category updatedCategory = categoryRepository.save(existingCategory);
+
+        eventPublisher.publishEvent(new CategoryUpdatedEvent(this, categoryId, updatedCategory.getName()));
+
         log.info("Category updated successfully: {}", categoryId);
         return updatedCategory;
     }
@@ -92,6 +104,9 @@ public class CategoryServiceImpl implements CategoryService {
 
         category.setIsActive(false);
         categoryRepository.save(category);
+
+        eventPublisher.publishEvent(new CategoryDeletedEvent(this, categoryId, category.getName()));
+
         log.info("Category deleted successfully: {}", categoryId);
     }
 
@@ -134,6 +149,10 @@ public class CategoryServiceImpl implements CategoryService {
         category.setIsActive(!category.getIsActive());
 
         Category updatedCategory = categoryRepository.save(category);
+
+        eventPublisher.publishEvent(new CategoryStatusChangedEvent(
+                this, categoryId, updatedCategory.getName(), updatedCategory.getIsActive()));
+
         log.info("Category status toggled: {} -> {}", categoryId, updatedCategory.getIsActive());
         return updatedCategory;
     }

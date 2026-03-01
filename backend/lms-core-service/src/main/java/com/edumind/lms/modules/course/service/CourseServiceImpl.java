@@ -10,8 +10,11 @@ import com.edumind.lms.modules.course.enums.CourseStatus;
 import com.edumind.lms.modules.course.exception.*;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.event.CourseArchivedEvent;
 import com.edumind.lms.modules.course.event.CourseCreatedEvent;
+import com.edumind.lms.modules.course.event.CourseDeletedEvent;
 import com.edumind.lms.modules.course.event.CoursePublishedEvent;
+import com.edumind.lms.modules.course.event.CourseUpdatedEvent;
 import com.edumind.lms.shared.client.UserClient;
 import com.edumind.lms.shared.exception.BadRequestException;
 import com.edumind.lms.shared.exception.ConflictException;
@@ -119,6 +122,9 @@ public class CourseServiceImpl implements CourseService {
         }
 
         Course updatedCourse = courseRepository.save(existingCourse);
+
+        eventPublisher.publishEvent(new CourseUpdatedEvent(this, courseId, instructorId));
+
         log.info("Course updated successfully: {}", courseId);
         return updatedCourse;
     }
@@ -175,6 +181,14 @@ public class CourseServiceImpl implements CourseService {
         course.setStatus(CourseStatus.ARCHIVED);
         Course archivedCourse = courseRepository.save(course);
 
+        eventPublisher.publishEvent(new CourseArchivedEvent(
+                this,
+                courseId,
+                course.getTitle(),
+                course.getInstructorId(),
+                userId
+        ));
+
         log.info("Course archived successfully: {}", courseId);
         return archivedCourse;
     }
@@ -201,6 +215,15 @@ public class CourseServiceImpl implements CourseService {
 
         course.setStatus(CourseStatus.ARCHIVED);
         courseRepository.save(course);
+
+        eventPublisher.publishEvent(new CourseDeletedEvent(
+                this,
+                courseId,
+                course.getTitle(),
+                course.getInstructorId(),
+                true
+        ));
+
         log.info("Course archived (soft-delete): {}", courseId);
     }
 

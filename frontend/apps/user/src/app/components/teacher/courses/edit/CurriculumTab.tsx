@@ -24,7 +24,7 @@ import type {
   CreateLessonRequest,
   LessonResponse,
 } from "@edumind/shared-types";
-import { Button, useModal, useToast } from "@edumind/user-ui";
+import { Button, useModal, useToast, ConfirmDialog } from "@edumind/user-ui";
 import { Plus, BookOpen, GripVertical } from "lucide-react";
 import { SortableSection } from "./SortableSection";
 import { LessonModal } from "./LessonModal";
@@ -64,6 +64,10 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
   const [saving, setSaving] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
+  const [deletingSectionId, setDeletingSectionId] = useState<number | null>(null);
+  const [deletingLessonId, setDeletingLessonId] = useState<number | null>(null);
+  const deleteSectionConfirm = useModal();
+  const deleteLessonConfirm = useModal();
 
   // Section form
   const [sectionForm, setSectionForm] = useState({ title: "", description: "" });
@@ -158,15 +162,22 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     }
   };
 
-  const handleDeleteSection = async (sectionId: number) => {
-    if (!confirm("Delete this section and all its lessons?")) return;
+  const handleDeleteSection = (sectionId: number) => {
+    setDeletingSectionId(sectionId);
+    deleteSectionConfirm.open();
+  };
 
+  const confirmDeleteSection = async () => {
+    if (!deletingSectionId) return;
     try {
-      await teacherCourseService.deleteSection(sectionId);
+      await teacherCourseService.deleteSection(deletingSectionId);
       showSuccess("Section deleted");
       onRefresh();
     } catch (err: any) {
       showError(err.message || "Failed to delete section");
+    } finally {
+      deleteSectionConfirm.close();
+      setDeletingSectionId(null);
     }
   };
 
@@ -234,15 +245,22 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     }
   };
 
-  const handleDeleteLesson = async (lessonId: number) => {
-    if (!confirm("Delete this lesson?")) return;
+  const handleDeleteLesson = (lessonId: number) => {
+    setDeletingLessonId(lessonId);
+    deleteLessonConfirm.open();
+  };
 
+  const confirmDeleteLesson = async () => {
+    if (!deletingLessonId) return;
     try {
-      await teacherCourseService.deleteLesson(lessonId);
+      await teacherCourseService.deleteLesson(deletingLessonId);
       showSuccess("Lesson deleted");
       onRefresh();
     } catch (err: any) {
       showError(err.message || "Failed to delete lesson");
+    } finally {
+      deleteLessonConfirm.close();
+      setDeletingLessonId(null);
     }
   };
 
@@ -410,6 +428,28 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         onClose={transcribeModal.close}
         lesson={transcribeTargetLesson}
         onTranscriptionApplied={handleTranscriptionApplied}
+      />
+
+      {/* Delete Section Confirm */}
+      <ConfirmDialog
+        isOpen={deleteSectionConfirm.isOpen}
+        onClose={deleteSectionConfirm.close}
+        onConfirm={confirmDeleteSection}
+        title="Delete Section"
+        message="Are you sure you want to delete this section and all its lessons? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
+
+      {/* Delete Lesson Confirm */}
+      <ConfirmDialog
+        isOpen={deleteLessonConfirm.isOpen}
+        onClose={deleteLessonConfirm.close}
+        onConfirm={confirmDeleteLesson}
+        title="Delete Lesson"
+        message="Are you sure you want to delete this lesson? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
       />
     </div>
   );

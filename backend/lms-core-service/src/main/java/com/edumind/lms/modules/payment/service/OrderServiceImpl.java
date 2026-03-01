@@ -19,10 +19,13 @@ import com.edumind.lms.modules.payment.exception.InvalidOrderStateException;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
 import com.edumind.lms.modules.payment.repository.OrderItemRepository;
 import com.edumind.lms.modules.payment.repository.OrderRepository;
+import com.edumind.lms.modules.payment.event.OrderCancelledEvent;
+import com.edumind.lms.modules.payment.event.OrderCreatedEvent;
 import com.edumind.lms.shared.client.UserClient;
 import com.edumind.lms.shared.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -47,7 +50,8 @@ public class OrderServiceImpl implements OrderService {
     private final NumberGeneratorService numberGeneratorService;
     private final CourseQueryService courseQueryService;
     private final EnrollmentQueryService enrollmentQueryService;
-    private final UserClient userClient; // Injected
+    private final UserClient userClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -202,6 +206,8 @@ public class OrderServiceImpl implements OrderService {
         order.setUpdatedAt(LocalDateTime.now());
 
         orderRepository.save(order);
+
+        eventPublisher.publishEvent(new OrderCancelledEvent(this, orderId, order.getOrderNumber(), userId));
 
         log.info("Order {} cancelled by user {}", order.getOrderNumber(), userId);
         return buildOrderResponse(order);
@@ -374,7 +380,18 @@ public class OrderServiceImpl implements OrderService {
         order.setDiscountTotal(totalDiscount);
         order.setTotalAmount(subtotal.subtract(totalDiscount));
 
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+
+        eventPublisher.publishEvent(new OrderCreatedEvent(
+                this,
+                savedOrder.getId(),
+                savedOrder.getOrderNumber(),
+                userId,
+                savedOrder.getTotalAmount(),
+                savedOrder.getCurrency()
+        ));
+
+        return savedOrder;
     }
 
     /**
@@ -428,7 +445,18 @@ public class OrderServiceImpl implements OrderService {
         order.setDiscountTotal(discount);
         order.setTotalAmount(effectivePrice);
 
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+
+        eventPublisher.publishEvent(new OrderCreatedEvent(
+                this,
+                savedOrder.getId(),
+                savedOrder.getOrderNumber(),
+                userId,
+                savedOrder.getTotalAmount(),
+                savedOrder.getCurrency()
+        ));
+
+        return savedOrder;
     }
 
     // ===== Private Helpers =====

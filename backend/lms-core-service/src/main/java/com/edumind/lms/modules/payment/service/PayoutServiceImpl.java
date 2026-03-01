@@ -18,6 +18,7 @@ import com.edumind.lms.modules.payment.gateway.GatewayPayoutResult;
 import com.edumind.lms.modules.payment.gateway.GatewayPayoutStatus;
 import com.edumind.lms.modules.payment.gateway.PaymentGateway;
 import com.edumind.lms.modules.payment.gateway.config.PaymentGatewayRegistry;
+import com.edumind.lms.modules.payment.event.PayoutCompletedEvent;
 import com.edumind.lms.modules.payment.repository.InstructorEarningRepository;
 import com.edumind.lms.modules.payment.repository.InstructorPayoutSettingsRepository;
 import com.edumind.lms.modules.payment.repository.PayoutItemRepository;
@@ -25,6 +26,7 @@ import com.edumind.lms.modules.payment.repository.PayoutRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class PayoutServiceImpl implements PayoutService {
     private final PaymentGatewayRegistry gatewayRegistry;
     private final NumberGeneratorService numberGeneratorService;
     private final EarningService earningService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${payment.payout.minimum-amount:50}")
     private BigDecimal minimumPayoutAmount;
@@ -264,6 +267,14 @@ public class PayoutServiceImpl implements PayoutService {
                     payout.markAsCompleted(existingStatus.getPayoutTransactionId(), existingStatus.getRawResponse());
                     payout = payoutRepository.save(payout);
                     markEarningsAsPaid(payoutId);
+                    eventPublisher.publishEvent(new PayoutCompletedEvent(
+                            this,
+                            payout.getId(),
+                            payout.getPayoutNumber(),
+                            payout.getInstructorId(),
+                            payout.getTotalAmount(),
+                            payout.getCurrency()
+                    ));
                     return toResponseDto(payout);
                 }
 
@@ -307,6 +318,14 @@ public class PayoutServiceImpl implements PayoutService {
             payout.markAsCompleted(result.getPayoutTransactionId(), result.getRawResponse());
             payout = payoutRepository.save(payout);
             markEarningsAsPaid(payoutId);
+            eventPublisher.publishEvent(new PayoutCompletedEvent(
+                    this,
+                    payout.getId(),
+                    payout.getPayoutNumber(),
+                    payout.getInstructorId(),
+                    payout.getTotalAmount(),
+                    payout.getCurrency()
+            ));
             log.info("Payout processed successfully: {}", payout.getPayoutNumber());
         } else if (!result.isSuccess() && result.getStatus() == GatewayPayoutStatus.PENDING) {
             // Gateway cannot auto-process (e.g., SePay bank transfer)
@@ -338,6 +357,14 @@ public class PayoutServiceImpl implements PayoutService {
                         payout.markAsCompleted(batchStatus.getPayoutTransactionId(), batchStatus.getRawResponse());
                         payout = payoutRepository.save(payout);
                         markEarningsAsPaid(payoutId);
+                        eventPublisher.publishEvent(new PayoutCompletedEvent(
+                                this,
+                                payout.getId(),
+                                payout.getPayoutNumber(),
+                                payout.getInstructorId(),
+                                payout.getTotalAmount(),
+                                payout.getCurrency()
+                        ));
                         return toResponseDto(payout);
                     }
                 } catch (Exception e) {
@@ -612,6 +639,15 @@ public class PayoutServiceImpl implements PayoutService {
         // Mark all associated earnings as paid
         markEarningsAsPaid(payoutId);
 
+        eventPublisher.publishEvent(new PayoutCompletedEvent(
+                this,
+                payout.getId(),
+                payout.getPayoutNumber(),
+                payout.getInstructorId(),
+                payout.getTotalAmount(),
+                payout.getCurrency()
+        ));
+
         log.info("Manual payout confirmed and completed: {}", payout.getPayoutNumber());
         return toResponseDto(payout);
     }
@@ -663,6 +699,14 @@ public class PayoutServiceImpl implements PayoutService {
                         "Confirmed via webhook: " + eventType);
                 payoutRepository.save(payout);
                 markEarningsAsPaid(payout.getId());
+                eventPublisher.publishEvent(new PayoutCompletedEvent(
+                        this,
+                        payout.getId(),
+                        payout.getPayoutNumber(),
+                        payout.getInstructorId(),
+                        payout.getTotalAmount(),
+                        payout.getCurrency()
+                ));
             }
             case "FAILED", "BLOCKED", "DENIED", "RETURNED", "CANCELED", "BATCH.DENIED" -> {
                 log.warn("Payout webhook: {} marked as FAILED via {}", payout.getPayoutNumber(), eventType);
@@ -789,6 +833,14 @@ public class PayoutServiceImpl implements PayoutService {
                     payout.markAsCompleted(result.getPayoutTransactionId(), result.getRawResponse());
                     payoutRepository.save(payout);
                     markEarningsAsPaid(payout.getId());
+                    eventPublisher.publishEvent(new PayoutCompletedEvent(
+                            this,
+                            payout.getId(),
+                            payout.getPayoutNumber(),
+                            payout.getInstructorId(),
+                            payout.getTotalAmount(),
+                            payout.getCurrency()
+                    ));
                     log.info("Processing payout {} confirmed as COMPLETED", payout.getPayoutNumber());
 
                 } else if (!result.isSuccess() && result.getStatus() == GatewayPayoutStatus.FAILED) {
