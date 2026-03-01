@@ -5,5 +5,4 @@ export { TeacherCourseDetailPage } from './TeacherCourseDetailPage';
 export { TeacherCourseEditPage } from './TeacherCourseEditPage';
 export { TeacherStudentsPage } from './TeacherStudentsPage';
 
-export const TeacherAnalyticsPage = () => <div>Analytics Page - Coming Soon</div>;
 export const TeacherSettingsPage = () => <div>Settings Page - Coming Soon</div>;

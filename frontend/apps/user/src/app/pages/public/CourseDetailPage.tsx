@@ -281,9 +281,11 @@ export const CourseDetailPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-6 mb-6">
                 <div className="flex items-center gap-2">
                   <RatingStars rating={course.averageRating || 0} size="md" />
-                  <span className="text-lg font-semibold">
-                    {course.averageRating?.toFixed(1) || "0.0"}
-                  </span>
+                  { course.averageRating? 
+                    <span className="text-lg font-semibold">
+                      {course.averageRating?.toFixed(1) || "0.0"}
+                    </span> : <span className="text italic">No rating yet</span>
+                   }
                   <span className="text-blue-200">
                     ({course.totalReviews || 0}{" "}
                     {course.totalReviews === 1 ? "review" : "reviews"})

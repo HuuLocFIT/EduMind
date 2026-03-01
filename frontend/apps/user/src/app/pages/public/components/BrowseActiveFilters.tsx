@@ -5,10 +5,10 @@ import type { CategoryResponse } from '@edumind/shared-types';
 interface BrowseActiveFiltersProps {
   activeFiltersCount: number;
   filterType: 'all' | 'free';
-  selectedCategory: CategoryResponse | undefined;
-  onCategoryChange: (id: number | null) => void;
-  selectedLevel: string | null;
-  onLevelChange: (level: string | null) => void;
+  selectedCategories: CategoryResponse[];
+  onCategoryChange: (id: number) => void;
+  selectedLevels: string[];
+  onLevelChange: (level: string) => void;
   minPrice: string;
   maxPrice: string;
   setMinPrice: (val: string) => void;
@@ -21,9 +21,9 @@ interface BrowseActiveFiltersProps {
 export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
   activeFiltersCount,
   filterType,
-  selectedCategory,
+  selectedCategories,
   onCategoryChange,
-  selectedLevel,
+  selectedLevels,
   onLevelChange,
   minPrice,
   maxPrice,
@@ -43,29 +43,34 @@ export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
           Free Courses
         </span>
       )}
-      {selectedCategory && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-          Category: {selectedCategory.name}
+      {selectedCategories.map((category) => (
+        <span
+          key={category.id}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium"
+        >
+          Category: {category.name}
           <button
-            onClick={() => onCategoryChange(null)}
+            onClick={() => onCategoryChange(category.id)}
             className="hover:bg-green-200 rounded-full p-0.5 transition-colors"
           >
             <X className="w-3 h-3" />
           </button>
         </span>
-      )}
-      {selectedLevel && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-          Level:{" "}
-          {selectedLevel.charAt(0) + selectedLevel.slice(1).toLowerCase()}
+      ))}
+      {selectedLevels.map((level) => (
+        <span
+          key={level}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+        >
+          Level: {level.charAt(0) + level.slice(1).toLowerCase()}
           <button
-            onClick={() => onLevelChange(null)}
+            onClick={() => onLevelChange(level)}
             className="hover:bg-purple-200 rounded-full p-0.5 transition-colors"
           >
             <X className="w-3 h-3" />
           </button>
         </span>
-      )}
+      ))}
       {(minPrice || maxPrice) && (
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
           Price: ${minPrice || "0"} - {maxPrice ? `$${maxPrice}` : "∞"}

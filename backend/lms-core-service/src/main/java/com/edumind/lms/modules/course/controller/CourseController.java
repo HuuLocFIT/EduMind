@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -172,18 +173,19 @@ public class CourseController {
 
         @GetMapping("/filter")
         public ResponseEntity<PagedResponse<CourseResponse>> filterCourses(
-                        @RequestParam(required = false) Long categoryId,
-                        @RequestParam(required = false) CourseLevel level,
+                        @RequestParam(required = false) List<Long> categoryIds,
+                        @RequestParam(required = false) List<CourseLevel> levels,
                         @RequestParam(required = false) BigDecimal minPrice,
                         @RequestParam(required = false) BigDecimal maxPrice,
                         @RequestParam(required = false) String keyword,
+                        @RequestParam(required = false) Double minRating,
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(defaultValue = "createdAt") String sortBy,
                         @RequestParam(defaultValue = "DESC") String sortDir) {
 
-                log.info("Filtering courses - category: {}, level: {}, price: {}-{}, sort: {} {}",
-                                categoryId, level, minPrice, maxPrice, sortBy, sortDir);
+                log.info("Filtering courses - categories: {}, levels: {}, price: {}-{}, keyword: {}, minRating: {}, sort: {} {}",
+                                categoryIds, levels, minPrice, maxPrice, keyword, minRating, sortBy, sortDir);
 
                 Sort.Direction direction = sortDir.equalsIgnoreCase("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC;
                 Sort sort;
@@ -211,7 +213,7 @@ public class CourseController {
                 Pageable pageable = PageRequest.of(page, size, sort);
 
                 Page<Course> coursePage = courseService.getCoursesWithFilters(
-                                categoryId, level, minPrice, maxPrice, keyword, pageable);
+                                categoryIds, levels, minPrice, maxPrice, keyword, minRating, pageable);
                 Page<CourseResponse> responsePage = coursePage.map(courseMapper::toResponse);
 
                 return ResponseEntity.ok(PagedResponse.of(

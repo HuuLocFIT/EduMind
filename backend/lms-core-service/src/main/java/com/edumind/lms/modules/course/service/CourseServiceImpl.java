@@ -9,6 +9,8 @@ import com.edumind.lms.modules.course.enums.CourseLevel;
 import com.edumind.lms.modules.course.enums.CourseStatus;
 import com.edumind.lms.modules.course.exception.*;
 import com.edumind.lms.modules.course.repository.CourseRepository;
+import com.edumind.lms.modules.course.repository.CourseSpecifications;
+import org.springframework.data.jpa.domain.Specification;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.event.CourseArchivedEvent;
 import com.edumind.lms.modules.course.event.CourseCreatedEvent;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -265,18 +268,47 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Page<Course> getCoursesWithFilters(
-            Long categoryId,
-            CourseLevel level,
+            List<Long> categoryIds,
+            List<CourseLevel> levels,
             BigDecimal minPrice,
             BigDecimal maxPrice,
             String keyword,
+            Double minRating,
             Pageable pageable) {
 
-        log.debug("Getting courses with filters - category: {}, level: {}, price: {}-{}, keyword: {}",
-                categoryId, level, minPrice, maxPrice, keyword);
+        log.debug("Getting courses with filters - categories: {}, levels: {}, price: {}-{}, keyword: {}, minRating: {}",
+                categoryIds, levels, minPrice, maxPrice, keyword, minRating);
 
-        return courseRepository.findCoursesWithFilters(
-                categoryId, level, minPrice, maxPrice, keyword, pageable);
+        // Build specification by composing predicates
+        Specification<Course> spec = CourseSpecifications.hasStatus(CourseStatus.PUBLISHED);
+
+        // Add category filter
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            spec = spec.and(CourseSpecifications.inCategories(categoryIds));
+        }
+
+        // Add level filter
+        if (levels != null && !levels.isEmpty()) {
+            spec = spec.and(CourseSpecifications.inLevels(levels));
+        }
+
+        // Add price range filter
+        if (minPrice != null || maxPrice != null) {
+            spec = spec.and(CourseSpecifications.inPriceRange(minPrice, maxPrice));
+        }
+
+        // Add keyword filter
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            spec = spec.and(CourseSpecifications.hasKeyword(keyword));
+        }
+
+        // Add rating filter
+        if (minRating != null) {
+            spec = spec.and(CourseSpecifications.minRating(minRating));
+        }
+
+        // Execute query with specifications
+        return courseRepository.findAll(spec, pageable);
     }
 
     @Override

@@ -45,6 +45,24 @@ public class CourseAuditEventListener {
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handleEnrollmentReportApproved(EnrollmentReportApprovedEvent event) {
+        log.warn("[AUDIT] Enrollment report approved: reportId={}, enrollmentId={}, courseId={}, studentId={}, teacherId={}, approvedByAdminId={}",
+                event.getReportRequestId(), event.getEnrollmentId(), event.getCourseId(),
+                event.getStudentId(), event.getTeacherId(), event.getApprovedByAdminId());
+        // TODO: notify teacher + student when notification module is ready
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void handleEnrollmentReportRejected(EnrollmentReportRejectedEvent event) {
+        log.warn("[AUDIT] Enrollment report rejected: reportId={}, enrollmentId={}, courseId={}, studentId={}, teacherId={}, rejectedByAdminId={}",
+                event.getReportRequestId(), event.getEnrollmentId(), event.getCourseId(),
+                event.getStudentId(), event.getTeacherId(), event.getRejectedByAdminId());
+        // TODO: notify teacher when notification module is ready
+    }
+
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleCourseArchived(CourseArchivedEvent event) {
         log.warn("[AUDIT] Course archived: courseId={}, courseTitle={}, instructorId={}, archivedByUserId={}",
                 event.getCourseId(), event.getCourseTitle(), event.getInstructorId(), event.getArchivedByUserId());

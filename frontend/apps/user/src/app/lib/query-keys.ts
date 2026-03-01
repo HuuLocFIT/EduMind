@@ -38,22 +38,24 @@ export const coursesKeys = {
     filterType: string;
     page: number;
     size: number;
-    categoryId?: number | null;
-    level?: string | null;
+    categoryIds?: number[];
+    levels?: string[];
     keyword?: string;
     minPrice?: number;
     maxPrice?: number;
+    minRating?: number;
     sortBy: string;
   }) => [
     'courses',
     params.filterType,
     params.page,
     params.size,
-    params.categoryId,
-    params.level,
+    params.categoryIds,
+    params.levels,
     params.keyword,
     params.minPrice,
     params.maxPrice,
+    params.minRating,
     params.sortBy,
   ] as const,
   reviews: (courseId: string | number) => 

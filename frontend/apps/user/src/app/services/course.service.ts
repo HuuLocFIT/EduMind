@@ -23,11 +23,12 @@ export interface CourseSearchParams extends CoursePaginationParams {
 }
 
 export interface CourseFilterParams extends CoursePaginationParams {
-  categoryId?: number;
-  level?: string;
+  categoryIds?: number[];
+  levels?: string[];
   minPrice?: number;
   maxPrice?: number;
   keyword?: string;
+  minRating?: number;
   sortBy?: string;
   sortDir?: "ASC" | "DESC" | "asc" | "desc";
 }

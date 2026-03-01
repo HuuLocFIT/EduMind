@@ -38,6 +38,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Page<User> findByRolesContaining(Role role, Pageable pageable);
 
+    Page<User> findByRolesContainingAndIsActive(Role role, Boolean isActive, Pageable pageable);
+
     List<User> findByRolesContaining(Role role);
 
     @Query("SELECT COUNT(u) FROM User u JOIN u.roles r WHERE r.name = :roleName AND u.deletedAt IS NULL")

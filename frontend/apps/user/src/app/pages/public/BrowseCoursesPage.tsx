@@ -2,13 +2,14 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@edumind/user-ui";
-import { Sparkles, Gift } from "lucide-react";
+import { Filter } from "lucide-react";
 import {
   BrowseHeroSection,
   BrowseFilterSidebar,
   BrowseActiveFilters,
   BrowseCourseList,
 } from "./components";
+import { MobileFilterDrawer } from "./components/MobileFilterDrawer";
 import { courseService } from '../../services/course.service';
 import { categoryService } from '../../services/category.service';
 import { enrollmentService } from '../../services/enrollment.service';
@@ -37,25 +38,31 @@ export const BrowseCoursesPage: React.FC = () => {
     (searchParams.get("filter") as FilterType) || "all"
   );
 
-  // Filters
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    searchParams.get("category") ? Number(searchParams.get("category")) : null
-  );
+  // Filters - using arrays for multi-select
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(() => {
+    const categories = searchParams.get("categories");
+    return categories ? categories.split(",").map(Number).filter(Boolean) : [];
+  });
   const [searchKeyword, setSearchKeyword] = useState<string>(
     searchParams.get("q") || ""
   );
   const [debouncedKeyword, setDebouncedKeyword] = useState<string>(
     searchParams.get("q") || ""
   );
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(
-    searchParams.get("level")
-  );
+  const [selectedLevels, setSelectedLevels] = useState<string[]>(() => {
+    const levels = searchParams.get("levels");
+    return levels ? levels.split(",").filter(Boolean) : [];
+  });
   const [minPrice, setMinPrice] = useState<string>(
     searchParams.get("minPrice") || ""
   );
   const [maxPrice, setMaxPrice] = useState<string>(
     searchParams.get("maxPrice") || ""
   );
+  const [minRating, setMinRating] = useState<number | undefined>(() => {
+    const rating = searchParams.get("minRating");
+    return rating ? Number(rating) : undefined;
+  });
   const [sortBy, setSortBy] = useState<string>(
     searchParams.get("sort") || "latest"
   );
@@ -63,6 +70,9 @@ export const BrowseCoursesPage: React.FC = () => {
   // Pagination
   const [page, setPage] = useState(0);
   const pageSize = 12;
+
+  // Mobile drawer state
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   // Debounce search to avoid spamming requests
   useEffect(() => {
@@ -74,21 +84,23 @@ export const BrowseCoursesPage: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     if (filterType !== "all") params.set("filter", filterType);
-    if (selectedCategoryId) params.set("category", String(selectedCategoryId));
+    if (selectedCategoryIds.length > 0) params.set("categories", selectedCategoryIds.join(","));
     if (debouncedKeyword) params.set("q", debouncedKeyword);
-    if (selectedLevel) params.set("level", selectedLevel);
+    if (selectedLevels.length > 0) params.set("levels", selectedLevels.join(","));
     if (minPrice) params.set("minPrice", minPrice);
     if (maxPrice) params.set("maxPrice", maxPrice);
+    if (minRating) params.set("minRating", String(minRating));
     if (sortBy !== "latest") params.set("sort", sortBy);
     setSearchParams(params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filterType,
-    selectedCategoryId,
+    selectedCategoryIds,
     debouncedKeyword,
-    selectedLevel,
+    selectedLevels,
     minPrice,
     maxPrice,
+    minRating,
     sortBy,
     // setSearchParams is stable and doesn't need to be in dependencies
   ]);
@@ -111,22 +123,24 @@ export const BrowseCoursesPage: React.FC = () => {
       filterType,
       page,
       size: pageSize,
-      categoryId: selectedCategoryId,
-      level: selectedLevel,
+      categoryIds: selectedCategoryIds,
+      levels: selectedLevels,
       keyword: debouncedKeyword,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      minRating,
       sortBy,
     }),
     queryFn: async () => {
       const baseParams = {
         page,
         size: pageSize,
-        categoryId: selectedCategoryId || undefined,
-        level: selectedLevel || undefined,
+        categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
+        levels: selectedLevels.length > 0 ? selectedLevels : undefined,
         keyword: debouncedKeyword || undefined,
         minPrice: minPrice ? Number(minPrice) : undefined,
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        minRating,
       };
 
       // Determine sort direction based on sortBy
@@ -183,26 +197,28 @@ export const BrowseCoursesPage: React.FC = () => {
   const totalPages = coursesResponse?.pagination?.totalPages || 1;
   const totalElements = coursesResponse?.pagination?.totalElements || 0;
 
-  // Get selected category name
-  const selectedCategory = useMemo(() => {
-    return categories.find((cat) => cat.id === selectedCategoryId);
-  }, [categories, selectedCategoryId]);
+  // Get selected categories
+  const selectedCategories = useMemo(() => {
+    return categories.filter((cat) => selectedCategoryIds.includes(cat.id));
+  }, [categories, selectedCategoryIds]);
 
   // Active filters count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (filterType !== "all") count++;
-    if (selectedCategoryId) count++;
-    if (selectedLevel) count++;
+    if (selectedCategoryIds.length > 0) count++;
+    if (selectedLevels.length > 0) count++;
     if (minPrice || maxPrice) count++;
+    if (minRating) count++;
     if (searchKeyword) count++;
     return count;
   }, [
     filterType,
-    selectedCategoryId,
-    selectedLevel,
+    selectedCategoryIds,
+    selectedLevels,
     minPrice,
     maxPrice,
+    minRating,
     searchKeyword,
   ]);
 
@@ -217,18 +233,25 @@ export const BrowseCoursesPage: React.FC = () => {
     setPage(0); // Reset to first page
   };
 
-  const handleCategoryChange = (categoryId: number | null) => {
-    setSelectedCategoryId(categoryId);
+  const handleCategoryChange = (categoryId: number) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(categoryId)) {
+        return prev.filter((id) => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
     setPage(0);
   };
 
-  const handleLevelChange = (level: string | null) => {
-    setSelectedLevel(level);
-    setPage(0);
-  };
-
-  const handleFilterTypeChange = (type: FilterType) => {
-    setFilterType(type);
+  const handleLevelChange = (level: string) => {
+    setSelectedLevels((prev) => {
+      if (prev.includes(level)) {
+        return prev.filter((l) => l !== level);
+      } else {
+        return [...prev, level];
+      }
+    });
     setPage(0);
   };
 
@@ -239,11 +262,12 @@ export const BrowseCoursesPage: React.FC = () => {
 
   const clearFilters = () => {
     setFilterType("all");
-    setSelectedCategoryId(null);
+    setSelectedCategoryIds([]);
     setSearchKeyword("");
-    setSelectedLevel(null);
+    setSelectedLevels([]);
     setMinPrice("");
     setMaxPrice("");
+    setMinRating(undefined);
     setSortBy("latest");
     setPage(0);
   };
@@ -353,40 +377,12 @@ export const BrowseCoursesPage: React.FC = () => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Quick Filter Buttons & Active Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
-           {/* These buttons could also be in a component, but keeping here for now as they toggle main filterType */}
-           <button
-             onClick={() => handleFilterTypeChange("all")}
-             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
-               filterType === "all"
-                 ? "bg-blue-600 text-white shadow-md"
-                 : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 hover:border-gray-400 hover:shadow-sm"
-             }`}
-           >
-             <Sparkles className="w-4 h-4" />
-             <span className="hidden sm:inline">All Courses</span>
-             <span className="sm:hidden">All</span>
-           </button>
-           <button
-             onClick={() => handleFilterTypeChange("free")}
-             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
-               filterType === "free"
-                 ? "bg-blue-600 text-white shadow-md"
-                 : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 hover:border-gray-400 hover:shadow-sm"
-             }`}
-           >
-             <Gift className="w-4 h-4" />
-             Free Courses
-           </button>
-        </div>
-
         <BrowseActiveFilters
           activeFiltersCount={activeFiltersCount}
           filterType={filterType}
-          selectedCategory={selectedCategory}
+          selectedCategories={selectedCategories}
           onCategoryChange={handleCategoryChange}
-          selectedLevel={selectedLevel}
+          selectedLevels={selectedLevels}
           onLevelChange={handleLevelChange}
           minPrice={minPrice}
           maxPrice={maxPrice}
@@ -397,21 +393,67 @@ export const BrowseCoursesPage: React.FC = () => {
           setSearchKeyword={setSearchKeyword}
         />
 
+        {/* Mobile Filter Button */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+            {activeFiltersCount > 0 && (
+              <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          <BrowseFilterSidebar
+          {/* Desktop Sidebar - Hidden on mobile */}
+          <div className="hidden lg:block">
+            <BrowseFilterSidebar
+              categories={categories}
+              selectedCategoryIds={selectedCategoryIds}
+              onCategoryChange={handleCategoryChange}
+              selectedLevels={selectedLevels}
+              onLevelChange={handleLevelChange}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              setMinPrice={setMinPrice}
+              setMaxPrice={setMaxPrice}
+              minRating={minRating}
+              setMinRating={setMinRating}
+              filterType={filterType}
+              setPage={setPage}
+              onClearFilters={clearFilters}
+              showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
+            />
+          </div>
+
+          {/* Mobile Drawer */}
+          <MobileFilterDrawer
+            isOpen={isMobileDrawerOpen}
+            onClose={() => setIsMobileDrawerOpen(false)}
+            onApply={() => {
+              setIsMobileDrawerOpen(false);
+              setPage(0);
+            }}
             categories={categories}
-            selectedCategoryId={selectedCategoryId}
+            selectedCategoryIds={selectedCategoryIds}
             onCategoryChange={handleCategoryChange}
-            selectedLevel={selectedLevel}
+            selectedLevels={selectedLevels}
             onLevelChange={handleLevelChange}
             minPrice={minPrice}
             maxPrice={maxPrice}
             setMinPrice={setMinPrice}
             setMaxPrice={setMaxPrice}
+            minRating={minRating}
+            setMinRating={setMinRating}
             filterType={filterType}
             setPage={setPage}
             onClearFilters={clearFilters}
-            showClearButton={Boolean(selectedCategoryId || searchKeyword || selectedLevel || minPrice || maxPrice || filterType !== "all")}
+            showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
           />
 
           <BrowseCourseList
