@@ -116,11 +116,12 @@ public class AdminController {
             @PathVariable String roleName,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Boolean isActive,
             HttpServletRequest request) {
 
-        logger.info("📥 GET /admin/users/role/{} - Fetching users", roleName);
+        logger.info("📥 GET /admin/users/role/{} - Fetching users with isActive: {}", roleName, isActive);
 
-        Page<UserListResponse> users = adminService.getUsersByRole(roleName.toUpperCase(), page, size);
+        Page<UserListResponse> users = adminService.getUsersByRole(roleName.toUpperCase(), page, size, isActive);
 
         PagedResponse<UserListResponse> response = PagedResponse.of(
                 users.getContent(),

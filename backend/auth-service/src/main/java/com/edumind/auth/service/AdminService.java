@@ -153,14 +153,20 @@ public class AdminService {
     /**
      * Get users by role
      */
-    public Page<UserListResponse> getUsersByRole(String roleName, int page, int size) {
-        logger.info("🔄 Admin fetching users with role: {}", roleName);
+    public Page<UserListResponse> getUsersByRole(String roleName, int page, int size, Boolean isActive) {
+        logger.info("🔄 Admin fetching users with role: {}, isActive: {}", roleName, isActive);
 
         Role role = roleRepository.findByName(RoleName.valueOf(roleName))
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<User> usersPage = userRepository.findByRolesContaining(role, pageable);
+        
+        Page<User> usersPage;
+        if (isActive != null) {
+            usersPage = userRepository.findByRolesContainingAndIsActive(role, isActive, pageable);
+        } else {
+            usersPage = userRepository.findByRolesContaining(role, pageable);
+        }
 
         return usersPage.map(user -> UserListResponse.builder()
                 .id(user.getId())
