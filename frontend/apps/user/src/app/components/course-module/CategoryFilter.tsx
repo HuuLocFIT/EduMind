@@ -42,14 +42,6 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      <div className="flex items-center justify-between">
-        {selectedCategoryIds.length > 0 && (
-          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
-            {selectedCategoryIds.length}
-          </span>
-        )}
-      </div>
-
       {/* Selected Categories as Chips */}
       {selectedCategories.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
