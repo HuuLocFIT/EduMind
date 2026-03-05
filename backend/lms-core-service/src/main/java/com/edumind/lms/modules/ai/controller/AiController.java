@@ -5,6 +5,7 @@ import com.edumind.lms.modules.ai.dto.request.ChatRequest;
 import com.edumind.lms.modules.ai.dto.request.GenerateQuizRequest;
 import com.edumind.lms.modules.ai.dto.request.SubmitQuizAttemptRequest;
 import com.edumind.lms.modules.ai.dto.request.TranscribeRequest;
+import com.edumind.lms.modules.ai.dto.request.UpdateQuizQuestionsRequest;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.dto.response.ChatResponse;
 import com.edumind.lms.modules.ai.dto.response.GeneratedQuizResponse;
@@ -81,6 +82,19 @@ public class AiController {
             @PathVariable Long lessonId,
             Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(aiQuizService.getQuizzesByLesson(lessonId, extractUserId(authentication))));
+    }
+
+    /**
+     * Update questions for an existing quiz (teacher only).
+     */
+    @PutMapping("/quizzes/{quizId}/questions")
+    @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
+    public ResponseEntity<ApiResponse<GeneratedQuizResponse>> updateQuizQuestions(
+            @PathVariable Long quizId,
+            @RequestBody @Valid UpdateQuizQuestionsRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                aiQuizService.updateQuizQuestions(quizId, extractUserId(authentication), request)));
     }
 
     /**

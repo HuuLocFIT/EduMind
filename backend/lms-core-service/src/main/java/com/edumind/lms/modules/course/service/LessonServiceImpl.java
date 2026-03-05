@@ -67,6 +67,12 @@ public class LessonServiceImpl implements LessonService {
         // Publish event
         eventPublisher.publishEvent(new LessonCreatedEvent(this, savedLesson));
 
+        // Trigger AI processing when article content is provided at creation time
+        if (savedLesson.getArticleContent() != null && !savedLesson.getArticleContent().isBlank()) {
+            eventPublisher.publishEvent(new LessonContentUpdatedEvent(this, savedLesson));
+            log.info("LessonContentUpdatedEvent published for newly created lesson {}", savedLesson.getId());
+        }
+
         return savedLesson;
     }
 

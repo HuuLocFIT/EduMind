@@ -11,6 +11,7 @@ import {
   type GeneratedQuizResponse,
   type QuizAttemptResponse,
   type SubmitQuizAttemptRequest,
+  type QuizQuestionDto,
   LessonSummaryResponseSchema,
   type LessonSummaryResponse,
   ChatResponseSchema,
@@ -86,6 +87,14 @@ export const aiService = {
       AI_ENDPOINTS.MY_ATTEMPTS(lessonId)
     );
     return QuizAttemptListResponseSchema.parse(response.data);
+  },
+
+  async updateQuizQuestions(quizId: number, questions: QuizQuestionDto[]): Promise<GeneratedQuizResponse> {
+    const response = await apiClient.put<GeneratedQuizResponse>(
+      AI_ENDPOINTS.UPDATE_QUIZ_QUESTIONS(quizId),
+      { questions }
+    );
+    return GeneratedQuizResponseSchema.parse(response.data);
   },
 
   async getSummaryByLesson(lessonId: number): Promise<LessonSummaryResponse | null> {

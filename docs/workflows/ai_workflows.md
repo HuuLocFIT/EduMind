@@ -110,7 +110,7 @@ graph TB
 ### Key Design Principles
 
 - **Async Job Pattern**: All generation tasks (`EMBEDDING`, `LESSON_SUMMARY`, `QUIZ_GENERATION`, `TRANSCRIPTION`) return `202 Accepted` immediately with a `jobId`. Clients poll `GET /api/ai/jobs/{id}` for status.
-- **Event-Driven Triggers**: Embedding and summary generation fire automatically after lesson content is committed to the database via `@TransactionalEventListener(AFTER_COMMIT)`. Transcription completion also triggers this event via `LessonWriteService`.
+- **Event-Driven Triggers**: Embedding and summary generation fire automatically after lesson content is committed to the database via `@TransactionalEventListener(AFTER_COMMIT)`. Three sources publish `LessonContentUpdatedEvent`: (1) lesson creation with non-blank `articleContent`, (2) lesson update when `articleContent` changes, and (3) transcription completion via `LessonWriteService`.
 - **ACL Enforcement**: Every endpoint validates enrollment (student) or course ownership (instructor) via cross-module API contracts — never direct repository imports.
 - **Graceful Degradation**: `GEMINI_API_KEY` is optional at startup. The `ChatClient` and `EmbeddingModel` beans are `@ConditionalOnProperty` — the application boots without them. Similarly, `GROQ_API_KEY` is optional; transcription endpoint returns errors only when called.
 - **Sequential Transcription**: `whisperTaskExecutor` (size=1, queue=10) serializes Groq API calls to stay within the 20 req/min rate limit. Groq 429 responses flip the job to `DELAYED`; `TranscriptionRetryScheduler` re-queues every 30 seconds.
@@ -383,7 +383,7 @@ ai:
 
 ## 4. Workflow 2 — Lesson Embedding
 
-Lesson embeddings power the RAG Chat feature. They are generated automatically whenever lesson content changes and stored as 768-dimensional vectors in `ai.lesson_embeddings` using the `pgvector` extension.
+Lesson embeddings power the RAG Chat feature. They are generated automatically whenever lesson content is available — on creation (if `articleContent` is supplied) or on update (when content changes) — and stored as 768-dimensional vectors in `ai.lesson_embeddings` using the `pgvector` extension.
 
 ### 4.1 Trigger Flow — Event-Driven Embedding
 
@@ -399,10 +399,10 @@ sequenceDiagram
     participant Gemini as Gemini Embedding API<br/>(gemini-embedding-001)
     participant DB as ai.lesson_embeddings
 
-    Instructor->>LessonService: Save/update lesson content
+    Instructor->>LessonService: Create lesson with articleContent, OR update articleContent
     LessonService->>LessonService: Commit transaction
     LessonService->>EventBus: publish LessonContentUpdatedEvent(lessonId, userId)
-    Note over EventBus: AFTER_COMMIT — fires only after DB commit succeeds
+    Note over EventBus: AFTER_COMMIT — fires only after DB commit succeeds<br/>Triggers on: create (non-blank content) | update (content changed) | transcription done
 
     EventBus->>AiEventListener: onLessonContentUpdated()
     AiEventListener->>EmbeddingService: requestEmbedding(lessonId, userId)
@@ -1240,5 +1240,5 @@ The `<=>` operator computes cosine distance (not similarity). A lower value = mo
 
 ---
 
-**Last Updated**: Based on implementation in `modules/ai/` — `feature/ai-module` branch
+**Last Updated**: 2026-03-04 — Added lesson-creation trigger for `LessonContentUpdatedEvent` (`LessonServiceImpl.createLesson`)
 **Status**: Core functionality complete (Embedding, Summary, Quiz, RAG Chat, Auto-Transcription)
