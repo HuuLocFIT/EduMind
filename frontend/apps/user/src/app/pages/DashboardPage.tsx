@@ -164,7 +164,7 @@ export const DashboardPage: React.FC = () => {
         <CategoriesSection
           categories={categories}
           onCategoryClick={(categoryId) =>
-            navigate(`${USER_ROUTES.COURSES}?category=${categoryId}`)
+            navigate(`${USER_ROUTES.COURSES}?categories=${categoryId}`)
           }
         />
 
