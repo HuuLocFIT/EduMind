@@ -2,6 +2,7 @@ package com.edumind.lms.modules.ai.service;
 
 import com.edumind.lms.modules.ai.dto.request.GenerateQuizRequest;
 import com.edumind.lms.modules.ai.dto.request.SubmitQuizAttemptRequest;
+import com.edumind.lms.modules.ai.dto.request.UpdateQuizQuestionsRequest;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.dto.response.GeneratedQuizResponse;
 import com.edumind.lms.modules.ai.dto.response.QuizAttemptResponse;
@@ -76,6 +77,29 @@ public class AiQuizServiceImpl implements AiQuizService {
         return aiJobService.getJobStatus(job.getId());
         // NOTE: Multiple generations per lesson are intentional — teachers can regenerate.
         // Duplicate guard not added per design decision; all versions are stored.
+    }
+
+    @Override
+    @Transactional
+    public GeneratedQuizResponse updateQuizQuestions(Long quizId, Long userId, UpdateQuizQuestionsRequest request) {
+        GeneratedQuiz quiz = generatedQuizRepository.findById(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found: " + quizId));
+
+        LessonInfo lessonInfo = lessonQueryService.getLessonInfo(quiz.getLessonId())
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + quiz.getLessonId()));
+
+        if (!lessonInfo.instructorId().equals(userId)) {
+            throw new UnauthorizedException("You do not own this lesson's course");
+        }
+
+        try {
+            quiz.setQuestionsJson(objectMapper.writeValueAsString(request.getQuestions()));
+        } catch (Exception e) {
+            log.error("Failed to serialize updated quiz questions", e);
+            throw new RuntimeException("Failed to serialize quiz questions", e);
+        }
+
+        return toResponse(generatedQuizRepository.save(quiz));
     }
 
     @Override

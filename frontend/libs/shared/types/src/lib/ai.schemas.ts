@@ -44,6 +44,11 @@ export const GenerateQuizRequestSchema = z.object({
   questionCount: z.number().min(1).max(20).default(5),
 });
 
+export const UpdateQuizQuestionsRequestSchema = z.object({
+  questions: z.array(QuizQuestionDtoSchema),
+});
+export type UpdateQuizQuestionsRequest = z.infer<typeof UpdateQuizQuestionsRequestSchema>;
+
 export const GeneratedQuizListResponseSchema = z.array(GeneratedQuizResponseSchema);
 
 export const SubmitQuizAttemptRequestSchema = z.object({

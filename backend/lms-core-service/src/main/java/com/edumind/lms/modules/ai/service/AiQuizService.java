@@ -2,6 +2,7 @@ package com.edumind.lms.modules.ai.service;
 
 import com.edumind.lms.modules.ai.dto.request.GenerateQuizRequest;
 import com.edumind.lms.modules.ai.dto.request.SubmitQuizAttemptRequest;
+import com.edumind.lms.modules.ai.dto.request.UpdateQuizQuestionsRequest;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.dto.response.GeneratedQuizResponse;
 import com.edumind.lms.modules.ai.dto.response.QuizAttemptResponse;
@@ -11,6 +12,7 @@ import java.util.List;
 public interface AiQuizService {
     AiJobResponse requestQuizGeneration(GenerateQuizRequest request, Long userId);
     List<GeneratedQuizResponse> getQuizzesByLesson(Long lessonId, Long userId);
+    GeneratedQuizResponse updateQuizQuestions(Long quizId, Long userId, UpdateQuizQuestionsRequest request);
     
     /**
      * Get the latest quiz for a student to take.
