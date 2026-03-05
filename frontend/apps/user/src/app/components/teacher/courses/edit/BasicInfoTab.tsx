@@ -6,6 +6,7 @@ import type {
   CategoryResponse,
 } from "@edumind/shared-types";
 import { Button, Input, Textarea } from "@edumind/user-ui";
+import { RichTextEditor } from "@user/components/ui/RichTextEditor";
 import { Save } from "lucide-react";
 
 interface BasicInfoTabProps {
@@ -86,10 +87,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Full Description
             </label>
-            <Textarea
+            <RichTextEditor
               value={formData.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              placeholder="Detailed description"
+              onChange={(html) => handleChange("description", html)}
               rows={8}
             />
           </div>

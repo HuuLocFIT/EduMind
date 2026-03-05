@@ -16,3 +16,4 @@ export * from "./PasswordTab";
 export * from "./NotificationsTab";
 export * from "./SecurityTab";
 export * from "./CertificateCard";
+export * from "./CourseDescriptionViewer";
