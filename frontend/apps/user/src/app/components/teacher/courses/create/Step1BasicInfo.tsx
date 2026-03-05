@@ -1,6 +1,7 @@
 import React from "react";
 import { CourseLevel } from "@edumind/shared-constants";
 import { Input, Textarea } from "@edumind/user-ui";
+import { RichTextEditor } from "@user/components/ui/RichTextEditor";
 import type { StepProps } from "./types";
 
 export const Step1BasicInfo: React.FC<StepProps> = ({
@@ -71,13 +72,14 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Full Description <span className="text-red-500">*</span>
         </label>
-        <Textarea
+        <RichTextEditor
           value={data.description || ""}
-          onChange={(e) => onChange({ description: e.target.value })}
-          placeholder="Detailed description of what students will learn..."
+          onChange={(html) => onChange({ description: html })}
           rows={6}
-          error={errors["description"]}
         />
+        {errors["description"] && (
+          <p className="text-sm text-red-600 mt-1">{errors["description"]}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

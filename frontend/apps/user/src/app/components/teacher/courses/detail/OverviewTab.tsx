@@ -1,6 +1,7 @@
 import React from "react";
 import type { CourseDetailResponse } from "@edumind/shared-types";
 import { CourseStatusBadge } from "../CourseStatusBadge";
+import { CourseDescriptionViewer } from "../../../course-module/CourseDescriptionViewer";
 import { Users, Star, FileText, Clock, BookOpen } from "lucide-react";
 
 interface OverviewTabProps {
@@ -56,9 +57,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ course }) => {
           {/* Description */}
           <div className="bg-white rounded-lg border p-6">
             <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
-            <p className="text-gray-600 whitespace-pre-wrap">
-              {course.description}
-            </p>
+            <CourseDescriptionViewer description={course.description} />
           </div>
 
           {/* Short Description */}

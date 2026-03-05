@@ -17,6 +17,7 @@ import {
   ReviewCard,
   ReviewForm,
   CurriculumAccordion,
+  CourseDescriptionViewer,
 } from "../../components/course-module";
 import { AddToCartButton } from "../../components/payment-module";
 import { courseService } from '../../services/course.service';
@@ -480,11 +481,7 @@ export const CourseDetailPage: React.FC = () => {
                   <h2 className="text-3xl font-bold text-gray-900 mb-6">
                     About this course
                   </h2>
-                  <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
-                    <div className="whitespace-pre-wrap">
-                      {course.description}
-                    </div>
-                  </div>
+                  <CourseDescriptionViewer description={course.description} />
                 </Card>
               </div>
             )}
