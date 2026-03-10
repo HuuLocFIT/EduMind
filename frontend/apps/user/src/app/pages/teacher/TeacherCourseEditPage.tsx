@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { categoryService } from '../../services/category.service';
 import { teacherCourseService } from '../../services/teacher-course.service';
@@ -32,6 +32,7 @@ export const TeacherCourseEditPage: React.FC = () => {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const isInitialLoad = useRef(true);
 
   const activeTab = (searchParams.get("tab") as TabId) || "basic";
 
@@ -39,7 +40,7 @@ export const TeacherCourseEditPage: React.FC = () => {
     if (!courseId) return;
 
     try {
-      setLoading(true);
+      if (isInitialLoad.current) setLoading(true);
       const [courseData, sectionsData, categoriesData] = await Promise.all([
         teacherCourseService.getCourseDetail(Number(courseId)),
         teacherCourseService.getCourseSectionsWithLessons(Number(courseId)),
@@ -48,6 +49,7 @@ export const TeacherCourseEditPage: React.FC = () => {
       setCourse(courseData);
       setSections(sectionsData);
       setCategories(categoriesData);
+      isInitialLoad.current = false;
     } catch (err: any) {
       showError(err.message || "Failed to load course");
     } finally {

@@ -23,7 +23,7 @@ export const ArticleViewer: React.FC<ArticleViewerProps> = ({ html, title }) => 
         </p>
       )}
       <div
-        className="article-viewer__content"
+        className="article-viewer__content min-w-0"
         dangerouslySetInnerHTML={{ __html: sanitized }}
       />
     </article>

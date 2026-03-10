@@ -607,7 +607,7 @@ export const CoursePlayerPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
+      <header className="bg-gray-800 border-b border-gray-700 sticky top-16 z-20">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -685,10 +685,10 @@ export const CoursePlayerPage: React.FC = () => {
           )}
 
           {/* Lesson Content */}
-          <div className="p-6 bg-white">
+          <div className="p-3 sm:p-6 bg-white">
             <div className="max-w-4xl mx-auto">
               {/* Lesson Header */}
-              <div className="flex items-start justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
                     {currentLesson.title}
@@ -712,7 +712,7 @@ export const CoursePlayerPage: React.FC = () => {
 
               {/* Lesson Content/Resources */}
               {currentLesson.articleContent && currentLesson.contentType === ContentType.ARTICLE && (
-                <Card className="p-8 mb-6">
+                <Card className="p-4 sm:p-8 mb-6">
                   <ArticleViewer
                     html={currentLesson.articleContent}
                     title="Lesson Content"
@@ -830,7 +830,7 @@ export const CoursePlayerPage: React.FC = () => {
           `}
           style={{ top: '57px' }} // Height of header
         >
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto pb-20">
             <div className="p-4 border-b bg-gray-50">
               <h3 className="font-semibold text-gray-900">Course Content</h3>
               <p className="text-sm text-gray-600 mt-1">

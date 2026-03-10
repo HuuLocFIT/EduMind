@@ -87,6 +87,7 @@ export const SortableSection: React.FC<SortableSectionProps> = ({
     <div
       ref={setNodeRef}
       style={style}
+      data-section-id={section.id}
       className={`bg-white rounded-lg border ${isDragging ? "shadow-xl ring-2 ring-green-500" : ""}`}
     >
       {/* Section Header */}
