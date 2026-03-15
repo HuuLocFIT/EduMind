@@ -4,5 +4,5 @@
 
 export const environment = {
   production: true,
-  apiUrl: 'https://api.edumind.com'
+  apiUrl: 'https://api.edumind.nguyenloc.dev'
 };
