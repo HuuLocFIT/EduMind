@@ -104,7 +104,6 @@ export const CoursePlayerPage: React.FC = () => {
   // Check whether the current lesson has a generated quiz available for the student
   useEffect(() => {
     if (!currentLesson) return;
-    setLessonHasQuiz(null);
     aiService.getQuizForStudent(currentLesson.id)
       .then((quiz) => setLessonHasQuiz(quiz !== null))
       .catch(() => setLessonHasQuiz(false));
