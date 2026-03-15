@@ -84,6 +84,7 @@ services:
     build:
       context: .
       dockerfile: auth-service/Dockerfile
+    env_file: .env
     container_name: edumind-auth-service
     ports:
       - "${AUTH_SERVICE_PORT:-8081}:8081"
@@ -132,6 +133,7 @@ services:
     build:
       context: .
       dockerfile: lms-core-service/Dockerfile
+    env_file: .env
     container_name: edumind-lms-core-service
     ports:
       - "${LMS_CORE_SERVICE_PORT:-8083}:8083"
@@ -149,6 +151,7 @@ services:
       - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       postgres-lms-core:
         condition: service_healthy
@@ -157,13 +160,12 @@ services:
     networks:
       - edumind-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/actuator/health || exit 0"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 90s
     restart: unless-stopped
-
   # API Gateway
   api-gateway:
     build:
@@ -179,6 +181,8 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - REDIS_TIMEOUT=${REDIS_TIMEOUT:-60000ms}
       - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - ADMIN_URL=${ADMIN_URL:-http://localhost:4200}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       discovery-service:
         condition: service_healthy

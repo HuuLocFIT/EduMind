@@ -4,6 +4,7 @@
 
 # Environment files
 .env
+.env.prod
 
 ### STS ###
 .apt_generated
