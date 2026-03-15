@@ -15,7 +15,6 @@ export const LessonSummaryPanel: React.FC<LessonSummaryPanelProps> = ({ lessonId
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    setSummary(null);
 
     aiService
       .getSummaryByLesson(lessonId)
@@ -54,7 +53,7 @@ export const LessonSummaryPanel: React.FC<LessonSummaryPanelProps> = ({ lessonId
         </div>
       </div>
 
-      {loading && (
+      {loading && !summary && (
         <div className="space-y-2 animate-pulse">
           <div className="h-3 bg-gray-200 rounded w-3/4" />
           <div className="h-3 bg-gray-200 rounded w-2/3" />
@@ -68,8 +67,8 @@ export const LessonSummaryPanel: React.FC<LessonSummaryPanelProps> = ({ lessonId
         </p>
       )}
 
-      {!loading && summary && (
-        <div className="space-y-4">
+      {summary && (
+        <div className={`space-y-4 transition-opacity duration-200 ${loading ? 'opacity-50' : 'opacity-100'}`}>
           {/* Summary Text */}
           <section>
             <h4 className="font-semibold text-gray-900 mb-1">Summary</h4>

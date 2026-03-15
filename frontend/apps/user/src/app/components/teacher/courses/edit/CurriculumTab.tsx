@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -52,6 +52,34 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
   const [expandedSections, setExpandedSections] = useState<Set<number>>(
     new Set(sections.map((s) => s.id))
   );
+  const seenSectionIds = useRef(new Set(sections.map((s) => s.id)));
+  const pendingScrollTo = useRef<number | null>(null);
+
+  useEffect(() => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      sections.forEach((s) => {
+        if (!seenSectionIds.current.has(s.id)) {
+          seenSectionIds.current.add(s.id);
+          next.add(s.id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [sections]);
+
+  useEffect(() => {
+    if (pendingScrollTo.current === null) return;
+    const id = pendingScrollTo.current;
+    pendingScrollTo.current = null;
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-section-id="${id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [sections]);
   const [editingSection, setEditingSection] = useState<SectionDetailResponse | null>(null);
   const [editingLesson, setEditingLesson] = useState<{
     sectionId: number;
@@ -150,7 +178,8 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         await teacherCourseService.updateSection(editingSection.id, sectionForm);
         showSuccess("Section updated");
       } else {
-        await teacherCourseService.createSection(courseId, sectionForm);
+        const created = await teacherCourseService.createSection(courseId, sectionForm);
+        pendingScrollTo.current = created.id;
         showSuccess("Section created");
       }
       sectionModal.close();
@@ -234,6 +263,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         showSuccess("Lesson updated");
       } else {
         await teacherCourseService.createLesson(editingLesson.sectionId, data);
+        pendingScrollTo.current = editingLesson.sectionId;
         showSuccess("Lesson created");
       }
       lessonModal.close();
@@ -374,6 +404,14 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
               ))}
             </div>
           </SortableContext>
+
+          <button
+            onClick={openAddSection}
+            className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-green-500 hover:text-green-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Section
+          </button>
 
           {/* Drag Overlay for Section */}
           <DragOverlay>
