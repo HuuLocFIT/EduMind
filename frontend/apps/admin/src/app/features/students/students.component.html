@@ -74,7 +74,7 @@
             Status: {{ statusFilter() }}
           </span>
           <span class="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-800">
-            {{ visibleStudents().length }} students
+            {{ totalItems() }} students
           </span>
           @if (searchQuery()) {
             <span class="px-2 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
@@ -126,7 +126,7 @@
   <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900'">
     <app-data-table
       [columns]="columns"
-      [data]="visibleStudents()"
+      [data]="students()"
       [isLoading]="isLoading()"
       [showActions]="true"
       [actionsSticky]="actionsSticky()"

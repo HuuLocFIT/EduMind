@@ -1,6 +1,8 @@
-import { Component, OnInit, TemplateRef, ViewChild, inject, signal, computed } from '@angular/core';
+import { Component, DestroyRef, OnInit, TemplateRef, ViewChild, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import {
   AlertComponent,
   BadgeComponent,
@@ -47,6 +49,8 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 })
 export class StudentsComponent implements OnInit {
   private adminUserService = inject(AdminUserService);
+  private destroyRef = inject(DestroyRef);
+  private searchSubject = new Subject<string>();
 
   // ── Utilities ────────────────────────────────────────────────────────────
   private pagination = injectPagination<StudentRow>();
@@ -79,17 +83,6 @@ export class StudentsComponent implements OnInit {
   statsActive   = signal(0);
   statsInactive = signal(0);
 
-  visibleStudents = computed(() => {
-    const query = this.searchQuery().trim().toLowerCase();
-    if (!query) return this.students();
-    return this.students().filter(
-      (s) =>
-        s.username.toLowerCase().includes(query) ||
-        s.email.toLowerCase().includes(query) ||
-        `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().includes(query),
-    );
-  });
-
   // ── Table ─────────────────────────────────────────────────────────────────
   columns: TableColumn<StudentRow>[] = [];
   actionsSticky = signal<'left' | 'right' | undefined>('right');
@@ -103,6 +96,15 @@ export class StudentsComponent implements OnInit {
     this.buildColumns();
     this.loadStats();
     this.loadStudents();
+
+    this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      this.pagination.resetPage();
+      this.loadStudents();
+    });
   }
 
   private buildColumns(): void {
@@ -135,9 +137,10 @@ export class StudentsComponent implements OnInit {
     const page = this.currentPage() - 1;
     const status = this.statusFilter();
     const isActiveFilter = status === 'ACTIVE' ? true : status === 'INACTIVE' ? false : undefined;
+    const search = this.searchQuery().trim() || undefined;
 
     this.async.execute(
-      this.adminUserService.getUsersByRole('ROLE_STUDENT', { page, size: this.pageSize, isActive: isActiveFilter }),
+      this.adminUserService.getUsersByRole('ROLE_STUDENT', { page, size: this.pageSize, isActive: isActiveFilter, search }),
       {
         errorMsg: 'Failed to load students',
         onSuccess: (response: AdminUserListResponse) => {
@@ -149,6 +152,7 @@ export class StudentsComponent implements OnInit {
 
   onSearch(query: string): void {
     this.searchQuery.set(query);
+    this.searchSubject.next(query);
   }
 
   onStatusFilterChange(filter: StatusFilter): void {

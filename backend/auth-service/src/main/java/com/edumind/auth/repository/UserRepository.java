@@ -62,9 +62,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r = :role AND u.deletedAt IS NULL " +
            "AND (LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<User> findByRolesContainingAndSearch(@Param("role") Role role, @Param("search") String search, Pageable pageable);
+
+    @Query("SELECT u FROM User u JOIN u.roles r WHERE r = :role AND u.isActive = :isActive AND u.deletedAt IS NULL " +
+           "AND (LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> findByRolesContainingAndIsActiveAndSearch(@Param("role") Role role, @Param("isActive") Boolean isActive, @Param("search") String search, Pageable pageable);
 
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r = :role AND u.deletedAt IS NULL " +
            "AND u.trialEndDate BETWEEN :from AND :to")

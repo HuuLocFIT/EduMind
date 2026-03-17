@@ -153,7 +153,7 @@ class AdminControllerTest {
                     .build();
             Page<UserListResponse> page = new PageImpl<>(List.of(user));
 
-            when(adminService.getUsersByRole(eq("ROLE_TEACHER"), anyInt(), anyInt(), any())).thenReturn(page);
+            when(adminService.getUsersByRole(eq("ROLE_TEACHER"), anyInt(), anyInt(), any(), any())).thenReturn(page);
 
             mockMvc.perform(get("/admin/users/role/ROLE_TEACHER"))
                     .andExpect(status().isOk())
