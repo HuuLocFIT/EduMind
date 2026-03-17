@@ -1,7 +1,18 @@
-import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnInit,
+  TemplateRef,
+  ViewChild,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { EMPTY, Subject } from 'rxjs';
+import { catchError, debounceTime, switchMap } from 'rxjs/operators';
 import {
   AlertComponent,
   BadgeComponent,
@@ -17,8 +28,9 @@ import {
 import { CourseService, type CoursePagedResponse } from '../../core/services/course.service';
 import { CategoryService } from '../../core/services/category.service';
 import { CourseResponse } from '@edumind/shared-types';
-import { CourseLevel, CourseStatus } from '@edumind/shared-constants';
-import { type BadgeVariant } from '@edumind/admin-ui';
+import { CourseLevel } from '@edumind/shared-constants';
+import { StatusVariantPipe } from './status-variant.pipe';
+import { injectAsyncState, injectMediaQuery, injectModal, injectPagination } from '../../core/utils';
 
 type CourseRow = CourseResponse;
 
@@ -37,18 +49,35 @@ type CourseRow = CourseResponse;
     SearchBarComponent,
     SelectComponent,
     ConfirmDialogComponent,
+    StatusVariantPipe,
   ],
   templateUrl: './courses.component.html',
 })
-export class CoursesComponent implements OnInit, OnDestroy {
+export class CoursesComponent implements OnInit {
   private courseService = inject(CourseService);
   private categoryService = inject(CategoryService);
+  private destroyRef = inject(DestroyRef);
+  private filter$ = new Subject<void>();
 
-  courses = signal<CourseRow[]>([]);
-  isLoading = signal(true);
-  errorMessage = signal('');
-  successMessage = signal('');
+  // ── Utilities ────────────────────────────────────────────────────────────
+  private pagination = injectPagination<CourseRow>();
+  currentPage = this.pagination.currentPage;
+  totalItems = this.pagination.totalItems;
+  readonly pageSize = this.pagination.pageSize;
 
+  private async = injectAsyncState();
+  isLoading = this.async.isLoading;
+  isSubmitting = this.async.isSubmitting;
+  errorMessage = this.async.errorMessage;
+  successMessage = this.async.successMessage;
+
+  isMobile = injectMediaQuery('(max-width: 768px)');
+
+  private deleteModal = injectModal<CourseRow>();
+  showDeleteModal = this.deleteModal.isOpen;
+  selectedCourse = this.deleteModal.data;
+
+  // ── Filters ───────────────────────────────────────────────────────────────
   searchQuery = signal('');
   selectedCategory = signal<string>('');
   selectedLevel = signal<string>('');
@@ -59,86 +88,69 @@ export class CoursesComponent implements OnInit, OnDestroy {
     label: level.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
   }));
 
-  pageSize = 10;
-  currentPage = signal(1);
-  totalItems = signal(0);
+  // ── Data ─────────────────────────────────────────────────────────────────
+  courses = signal<CourseRow[]>([]);
 
+  // ── Table ─────────────────────────────────────────────────────────────────
   columns: TableColumn<CourseRow>[] = [];
   actionsSticky = signal<'left' | 'right' | undefined>('right');
-  isMobile = signal(false);
-  private mediaQuery: MediaQueryList | null = null;
-  private mediaQueryHandler = (e: MediaQueryListEvent) => {
-    this.isMobile.set(e.matches);
-    this.buildColumns();
-  };
 
-  @ViewChild('titleTpl', { static: true })
-  titleTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
-  @ViewChild('priceTpl', { static: true })
-  priceTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
-  @ViewChild('statusTpl', { static: true })
-  statusTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
-  @ViewChild('levelTpl', { static: true })
-  levelTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
-  @ViewChild('createdTpl', { static: true })
-  createdTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
-  @ViewChild('idTpl', { static: true })
-  idTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
-
-  // Delete modal
-  showDeleteModal = signal(false);
-  selectedCourse = signal<CourseRow | null>(null);
-  isSubmitting = signal(false);
+  @ViewChild('titleTpl', { static: true }) titleTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
+  @ViewChild('priceTpl', { static: true }) priceTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
+  @ViewChild('statusTpl', { static: true }) statusTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
+  @ViewChild('levelTpl', { static: true }) levelTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
+  @ViewChild('createdTpl', { static: true }) createdTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
+  @ViewChild('idTpl', { static: true }) idTpl!: TemplateRef<{ $implicit: CourseRow; row: CourseRow; index: number }>;
 
   ngOnInit(): void {
-    this.mediaQuery = window.matchMedia('(max-width: 768px)');
-    this.isMobile.set(this.mediaQuery.matches);
-    this.mediaQuery.addEventListener('change', this.mediaQueryHandler);
-
     this.buildColumns();
     this.loadCategories();
-    this.loadCourses();
-  }
 
-  ngOnDestroy(): void {
-    if (this.mediaQuery) {
-      this.mediaQuery.removeEventListener('change', this.mediaQueryHandler);
-    }
+    // Reactive filter pipeline with debounce + switchMap (cancels in-flight requests)
+    this.filter$
+      .pipe(
+        debounceTime(300),
+        switchMap(() => {
+          this.isLoading.set(true);
+          const page = this.currentPage() - 1;
+          const categoryId = this.selectedCategory() !== '' ? Number(this.selectedCategory()) : undefined;
+          const level = this.selectedLevel() || undefined;
+
+          return this.courseService
+            .filterCourses({ keyword: this.searchQuery() || undefined, categoryId, level, page, size: this.pageSize })
+            .pipe(
+              catchError(() => {
+                this.errorMessage.set('Failed to load courses');
+                this.isLoading.set(false);
+                return EMPTY;
+              }),
+            );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((response: CoursePagedResponse) => {
+        this.pagination.applyPagedResponse(response, (items) => this.courses.set(items));
+        this.isLoading.set(false);
+      });
+
+    this.filter$.next();
   }
 
   private buildColumns(): void {
     const stickyLeft: 'left' | undefined = this.isMobile() ? undefined : 'left';
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
-
     const idWidth = '90px';
     const titleWidth = '260px';
 
     this.columns = [
-      {
-        key: 'id',
-        header: 'ID',
-        template: this.idTpl,
-        sortable: true,
-        width: idWidth,
-        align: 'left',
-        sticky: stickyLeft,
-        stickyOffset: stickyLeft ? '0px' : undefined,
-      },
-      {
-        key: 'title',
-        header: 'Title',
-        template: this.titleTpl,
-        sortable: true,
-        width: titleWidth,
-        sticky: stickyLeft,
-        stickyOffset: stickyLeft ? idWidth : undefined,
-      },
+      { key: 'id', header: 'ID', template: this.idTpl, sortable: true, width: idWidth, align: 'left', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'title', header: 'Title', template: this.titleTpl, sortable: true, width: titleWidth, sticky: stickyLeft, stickyOffset: stickyLeft ? idWidth : undefined },
       { key: 'categoryName', header: 'Category', sortable: true },
       { key: 'instructorName', header: 'Instructor', sortable: true },
       { key: 'price', header: 'Pricing', template: this.priceTpl, sortable: true },
       { key: 'level', header: 'Level', template: this.levelTpl },
       { key: 'status', header: 'Status', template: this.statusTpl },
-      { key: 'totalStudents', header: 'Students', sortable: true},
+      { key: 'totalStudents', header: 'Students', sortable: true },
       { key: 'averageRating', header: 'Rating', sortable: true },
       { key: 'createdAt', header: 'Created', sortable: true, template: this.createdTpl },
     ];
@@ -147,104 +159,63 @@ export class CoursesComponent implements OnInit, OnDestroy {
   }
 
   loadCategories(): void {
-    this.categoryService.getAllCategories().subscribe({
-      next: (res) => {
-        const options: SelectOption[] = [{ value: '', label: 'All categories' }];
-        res.forEach((cat) => options.push({ value: cat.id, label: cat.name }));
-        this.categoriesOptions.set(options);
-      },
-      error: () => {
-        this.categoriesOptions.set([{ value: '', label: 'All categories' }]);
-      },
-    });
-  }
-
-  loadCourses(): void {
-    this.isLoading.set(true);
-    const page = this.currentPage() - 1;
-    const categoryId =
-      this.selectedCategory() !== '' ? Number(this.selectedCategory()) : undefined;
-    const level = this.selectedLevel() || undefined;
-
-    this.courseService
-      .filterCourses({
-        keyword: this.searchQuery() || undefined,
-        categoryId,
-        level,
-        page,
-        size: this.pageSize,
-      })
+    this.categoryService
+      .getAllCategories()
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (response: CoursePagedResponse) => {
-          const items = response.data ?? [];
-          this.courses.set(items);
-          const total = response.pagination?.totalElements ?? items.length;
-          const pageIndex = response.pagination?.page ?? page;
-          this.totalItems.set(total);
-          this.currentPage.set(pageIndex + 1);
-          this.isLoading.set(false);
+        next: (res) => {
+          const options: SelectOption[] = [{ value: '', label: 'All categories' }];
+          res.forEach((cat) => options.push({ value: cat.id, label: cat.name }));
+          this.categoriesOptions.set(options);
         },
         error: () => {
-          this.errorMessage.set('Failed to load courses');
-          this.isLoading.set(false);
+          this.categoriesOptions.set([{ value: '', label: 'All categories' }]);
         },
       });
   }
 
   onSearch(query: string): void {
     this.searchQuery.set(query);
-    this.currentPage.set(1);
-    this.loadCourses();
+    this.pagination.resetPage();
+    this.filter$.next();
   }
 
   onCategoryChange(value: string | number): void {
     this.selectedCategory.set(String(value));
-    this.currentPage.set(1);
-    this.loadCourses();
+    this.pagination.resetPage();
+    this.filter$.next();
   }
 
   onLevelChange(value: string | number): void {
     this.selectedLevel.set(String(value));
-    this.currentPage.set(1);
-    this.loadCourses();
+    this.pagination.resetPage();
+    this.filter$.next();
   }
 
   onPageChange(page: number): void {
-    this.currentPage.set(page);
-    this.loadCourses();
+    this.pagination.goToPage(page);
+    this.filter$.next();
   }
 
   openDeleteModal(course: CourseRow): void {
-    this.selectedCourse.set(course);
-    this.showDeleteModal.set(true);
+    this.deleteModal.open(course);
   }
 
   deleteCourse(): void {
     const course = this.selectedCourse();
     if (!course) return;
-    this.isSubmitting.set(true);
-    this.courseService.deleteCourse(course.id).subscribe({
-      next: () => {
-        this.successMessage.set('Course deleted successfully');
-        this.showDeleteModal.set(false);
-        this.loadCourses();
-        this.isSubmitting.set(false);
-      },
-      error: () => {
-        this.errorMessage.set('Failed to delete course');
-        this.isSubmitting.set(false);
-      },
-    });
-  }
 
-  getStatusVariant(status: CourseResponse['status']): BadgeVariant {
-    const mapping: Record<(typeof CourseStatus)[keyof typeof CourseStatus], BadgeVariant> = {
-      DRAFT: 'secondary',
-      PENDING_REVIEW: 'warning',
-      PUBLISHED: 'success',
-      ARCHIVED: 'secondary',
-    };
-    return mapping[status] ?? 'secondary';
+    this.async.execute(
+      this.courseService.deleteCourse(course.id),
+      {
+        submitting: true,
+        successMsg: 'Course deleted successfully',
+        errorMsg: 'Failed to delete course',
+        onSuccess: () => {
+          this.deleteModal.close();
+          this.filter$.next();
+        },
+      },
+    );
   }
 }
-

@@ -15,6 +15,7 @@ import {
   TeacherApplicationListResponse,
   TrialTeachersResponse,
   UpgradeTrialRequest,
+  UserRoleStats,
 } from '@edumind/shared-types';
 import { environment } from '../../../environments/environment';
 
@@ -82,6 +83,12 @@ export class AdminUserService {
   deleteUser(userId: number): Observable<AdminMessageResponse> {
     return this.http.delete<AdminMessageResponse>(
       `${this.API_URL}${ADMIN_ENDPOINTS.USER_DELETE(userId)}`
+    );
+  }
+
+  getUserRoleStats(roleName: string): Observable<UserRoleStats> {
+    return this.http.get<UserRoleStats>(
+      `${this.API_URL}${ADMIN_ENDPOINTS.USER_ROLE_STATS(roleName)}`
     );
   }
 

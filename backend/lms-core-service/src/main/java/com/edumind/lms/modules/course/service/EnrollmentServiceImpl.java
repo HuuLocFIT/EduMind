@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.course.service;
 
 import com.edumind.lms.modules.course.dto.response.EnrollmentReportResponse;
+import com.edumind.lms.modules.course.dto.response.EnrollmentReportStatsResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Enrollment;
@@ -559,6 +560,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         ));
 
         log.info("Report {} rejected successfully by admin {}", reportId, adminId);
+    }
+
+    @Override
+    public EnrollmentReportStatsResponse getReportStats() {
+        long pending = reportRequestRepository.countByStatus(ReportRequestStatus.PENDING);
+        long approved = reportRequestRepository.countByStatus(ReportRequestStatus.APPROVED);
+        long rejected = reportRequestRepository.countByStatus(ReportRequestStatus.REJECTED);
+        return new EnrollmentReportStatsResponse(pending, approved, rejected);
     }
 
     private EnrollmentReportResponse toReportResponse(EnrollmentReportRequest report) {

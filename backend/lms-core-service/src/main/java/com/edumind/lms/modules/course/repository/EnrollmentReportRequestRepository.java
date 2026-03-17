@@ -25,5 +25,7 @@ public interface EnrollmentReportRequestRepository extends JpaRepository<Enrollm
     @Override
     @EntityGraph(attributePaths = {"enrollment", "enrollment.course"})
     Page<EnrollmentReportRequest> findAll(Pageable pageable);
+
+    long countByStatus(ReportRequestStatus status);
 }
 

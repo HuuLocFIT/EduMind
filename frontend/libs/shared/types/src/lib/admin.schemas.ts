@@ -171,6 +171,27 @@ export const TeacherApplicationResponseSchema = z.object({
   statusHistory: z.array(StatusHistoryResponseSchema).optional().nullable(),
 });
 
+export const UserRoleStatsSchema = z.object({
+  total: z.number(),
+  active: z.number(),
+  inactive: z.number(),
+});
+export type UserRoleStats = z.infer<typeof UserRoleStatsSchema>;
+
+export const ApplicationStatsSchema = z.object({
+  totalPending: z.number(),
+  totalApproved: z.number(),
+  totalRejected: z.number(),
+  totalTrialTeachers: z.number(),
+  expiringThisWeek: z.number(),
+  activeTrialTeachers: z.number(),
+  expiredTrialTeachers: z.number(),
+});
+
+export const ApplicationStatsResponseSchema = createApiResponseSchema(
+  ApplicationStatsSchema
+);
+
 export const AdminUserListResponseSchema = createPagedResponseSchema(
   UserListItemSchema
 );
@@ -214,4 +235,6 @@ export type AdminMessageResponse = z.infer<typeof AdminMessageResponseSchema>;
 export type TeacherApplicationDetailResponse = z.infer<
   typeof TeacherApplicationDetailResponseSchema
 >;
+export type ApplicationStats = z.infer<typeof ApplicationStatsSchema>;
+export type ApplicationStatsResponse = z.infer<typeof ApplicationStatsResponseSchema>;
 

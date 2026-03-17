@@ -105,7 +105,7 @@
   </ng-template>
 
   <ng-template #statusTpl let-row>
-    <app-badge [variant]="getStatusVariant(row.status)" size="sm">
+    <app-badge [variant]="row.status | statusVariant" size="sm">
       {{ row.status }}
     </app-badge>
   </ng-template>

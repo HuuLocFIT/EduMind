@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -12,7 +13,10 @@ import {
   TextareaComponent,
 } from '@edumind/admin-ui';
 import { TeacherApplicationService } from '../../../core/services/teacher-application.service';
-import { TrialStatusResponse, TrialTeachersResponse, AdminMessageResponse } from '@edumind/shared-types';
+import { ApplicationStats, TrialStatusResponse, TrialTeachersResponse, AdminMessageResponse } from '@edumind/shared-types';
+import { Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
+import { injectAsyncState, injectModal, injectPagination } from '../../../core/utils';
 
 @Component({
   selector: 'app-trial-teachers',
@@ -33,165 +37,157 @@ import { TrialStatusResponse, TrialTeachersResponse, AdminMessageResponse } from
 })
 export class TrialTeachersComponent implements OnInit {
   private applicationService = inject(TeacherApplicationService);
+  private destroyRef = inject(DestroyRef);
 
-  // State
+  // ── Utilities ────────────────────────────────────────────────────────────
+  private pagination = injectPagination<TrialStatusResponse>();
+  currentPage = this.pagination.currentPage;
+  totalItems = this.pagination.totalItems;
+  totalPages = this.pagination.totalPages;
+  readonly pageSize = this.pagination.pageSize;
+
+  private async = injectAsyncState();
+  isLoading = this.async.isLoading;
+  errorMessage = this.async.errorMessage;
+  successMessage = this.async.successMessage;
+
+  private upgradeModal = injectModal<TrialStatusResponse>();
+  showUpgradeModal = this.upgradeModal.isOpen;
+  selectedTeacher = this.upgradeModal.data;
+
+  // ── Data ─────────────────────────────────────────────────────────────────
   teachers = signal<TrialStatusResponse[]>([]);
-  expiringTeachers = signal<TrialStatusResponse[]>([]);
-  isLoading = signal(true);
-  currentPage = signal(1);
-  totalItems = signal(0);
-  pageSize = 10;
+  trialStats = signal<ApplicationStats | null>(null);
+  adminNotes = '';
 
   showExpiringOnly = signal(false);
   showExpiredFilter = false;
   searchQuery = '';
 
-  // Modals
-  showUpgradeModal = signal(false);
-  selectedTeacher = signal<TrialStatusResponse | null>(null);
-  adminNotes = '';
+  // ── Search debounce ───────────────────────────────────────────────────────
+  private searchSubject = new Subject<string>();
 
-  successMessage = signal('');
-  errorMessage = signal('');
+  // ── Computed ──────────────────────────────────────────────────────────────
+  activeCount = computed(() => this.trialStats()?.activeTrialTeachers ?? 0);
+  expiredCount = computed(() => this.trialStats()?.expiredTrialTeachers ?? 0);
 
-  // Computed
-  totalPages = computed(() => Math.ceil(this.totalItems() / this.pageSize));
-  activeCount = computed(() => this.teachers().filter(t => !t.isExpired).length);
-  expiredCount = computed(() => this.teachers().filter(t => t.isExpired).length);
-  
   displayedTeachers = computed(() => {
-    let filtered = this.showExpiringOnly() ? this.expiringTeachers() : this.teachers();
-    
-    // Filter by expired if needed
-    if (!this.showExpiredFilter) {
-      filtered = filtered.filter((t: TrialStatusResponse) => !t.isExpired);
-    }
-    
-    // Filter by search query
-    if (this.searchQuery.trim()) {
-      const query = this.searchQuery.toLowerCase();
-      filtered = filtered.filter((t: TrialStatusResponse) => {
-        const fullName = `${t.firstName || ''} ${t.lastName || ''}`.toLowerCase();
-        const username = (t.username || '').toLowerCase();
-        return fullName.includes(query) || username.includes(query);
-      });
-    }
-    
-    return filtered;
+    const filtered = this.teachers();
+    if (this.showExpiredFilter) return filtered;
+    return filtered.filter((t) => !t.isExpired);
   });
 
   ngOnInit(): void {
     this.loadTeachers();
+    this.loadStats();
+
+    this.searchSubject
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe((query) => {
+        this.searchQuery = query;
+        this.pagination.resetPage();
+        this.loadTeachers();
+      });
   }
 
-  loadTeachers(): void {
-    this.isLoading.set(true);
-    this.applicationService.getTrialTeachers({
-      page: this.currentPage() - 1,
-      size: this.pageSize,
-    }).subscribe({
-      next: (response: TrialTeachersResponse) => {
-        const teachers: TrialStatusResponse[] = response.data || [];
-        this.teachers.set(teachers);
-        this.totalItems.set(response.pagination?.totalElements || teachers.length);
-        this.currentPage.set((response.pagination?.page || 0) + 1);
-        
-        // Calculate expiring teachers from loaded data
-        const expiring = teachers.filter((t: TrialStatusResponse) => 
-          typeof t.daysRemaining === 'number' && 
-          t.daysRemaining >= 0 && 
-          t.daysRemaining <= 7 &&
-          !t.isExpired
-        );
-        this.expiringTeachers.set(expiring);
-        
-        this.isLoading.set(false);
-      },
-      error: () => {
-        this.errorMessage.set('Failed to load trial teachers');
-        this.isLoading.set(false);
-      },
+  loadStats(): void {
+    this.async.execute(this.applicationService.getStats(), {
+      silent: true,
+      onSuccess: (stats) => this.trialStats.set(stats),
     });
   }
 
+  loadTeachers(): void {
+    this.async.execute(
+      this.applicationService.getTrialTeachers({
+        page: this.currentPage() - 1,
+        size: this.pageSize,
+        search: this.searchQuery.trim() || undefined,
+        expiringSoon: this.showExpiringOnly(),
+      }),
+      {
+        errorMsg: 'Failed to load trial teachers',
+        onSuccess: (response: TrialTeachersResponse) => {
+          this.pagination.applyPagedResponse(response, (items) => this.teachers.set(items));
+        },
+      },
+    );
+  }
+
   onSearch(query: string): void {
-    this.searchQuery = query;
+    this.searchSubject.next(query);
   }
 
-  onFilterChange(): void {
-    // Filter is handled in computed property
-  }
-
-  goToPage(page: number): void {
-    this.currentPage.set(page);
+  setExpiringOnly(val: boolean): void {
+    this.showExpiringOnly.set(val);
+    this.pagination.resetPage();
     this.loadTeachers();
   }
 
-  getStartIndex(): number { return (this.currentPage() - 1) * this.pageSize + 1; }
-  getEndIndex(): number { return Math.min(this.currentPage() * this.pageSize, this.totalItems()); }
+  onFilterChange(): void {
+    this.pagination.resetPage();
+    this.loadTeachers();
+  }
+
+  goToPage(page: number): void {
+    this.pagination.goToPage(page);
+    this.loadTeachers();
+  }
+
+  getStartIndex(): number { return this.pagination.getStartIndex(); }
+  getEndIndex(): number { return this.pagination.getEndIndex(); }
   displayTotalItems(): number { return this.totalItems(); }
 
   getTrialProgress(teacher: TrialStatusResponse): number {
     if (teacher.isExpired) return 100;
     if (typeof teacher.daysRemaining !== 'number' || teacher.daysRemaining === null) return 0;
-    
     const totalDays = 30;
-    // Ensure daysRemaining is within valid range
     const daysRemaining = Math.max(0, Math.min(totalDays, teacher.daysRemaining));
-    const usedDays = totalDays - daysRemaining;
-    const progress = (usedDays / totalDays) * 100;
-    
-    // Clamp between 0 and 100
-    return Math.max(0, Math.min(100, Math.round(progress)));
+    return Math.max(0, Math.min(100, Math.round(((totalDays - daysRemaining) / totalDays) * 100)));
   }
 
   getProgressBarStyle(teacher: TrialStatusResponse): { [key: string]: string } {
     const width = this.getTrialProgress(teacher) + '%';
-    let background = '';
-    
+    let background: string;
+
     if (teacher.isExpired) {
-      background = '#ef4444'; // red-500
+      background = '#ef4444';
     } else if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 3) {
-      background = 'linear-gradient(to right, #ef4444, #f87171)'; // red-500 to red-400
+      background = 'linear-gradient(to right, #ef4444, #f87171)';
     } else if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 7) {
-      background = 'linear-gradient(to right, #f97316, #fb923c)'; // orange-500 to orange-400
+      background = 'linear-gradient(to right, #f97316, #fb923c)';
     } else {
-      background = 'linear-gradient(to right, #3b82f6, #60a5fa)'; // blue-500 to blue-400
+      background = 'linear-gradient(to right, #3b82f6, #60a5fa)';
     }
-    
-    return {
-      'width': width,
-      'min-width': '0',
-      'display': 'block',
-      'background': background
-    };
+
+    return { width, 'min-width': '0', display: 'block', background };
   }
 
   getFullName(teacher: TrialStatusResponse): string {
-    const firstName = teacher.firstName || '';
-    const lastName = teacher.lastName || '';
-    return `${firstName} ${lastName}`.trim() || teacher.username;
+    return `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.username;
   }
 
   openUpgradeModal(teacher: TrialStatusResponse): void {
-    this.selectedTeacher.set(teacher);
     this.adminNotes = '';
-    this.showUpgradeModal.set(true);
+    this.upgradeModal.open(teacher);
   }
 
   upgradeTeacher(): void {
     const teacher = this.selectedTeacher();
-    if (teacher) {
-      this.applicationService.upgradeTrialToFull(teacher.userId, {
-        adminNotes: this.adminNotes || undefined,
-      }).subscribe({
-        next: (res: AdminMessageResponse) => {
+    if (!teacher) return;
+
+    this.async.execute(
+      this.applicationService.upgradeTrialToFull(teacher.userId, { adminNotes: this.adminNotes || undefined }),
+      {
+        submitting: true,
+        errorMsg: 'Failed to upgrade teacher',
+        onSuccess: (res: AdminMessageResponse) => {
           this.successMessage.set(res.message || 'Teacher upgraded to full access');
-          this.showUpgradeModal.set(false);
+          this.upgradeModal.close();
           this.loadTeachers();
+          this.loadStats();
         },
-        error: () => this.errorMessage.set('Failed to upgrade teacher'),
-      });
-    }
+      },
+    );
   }
 }

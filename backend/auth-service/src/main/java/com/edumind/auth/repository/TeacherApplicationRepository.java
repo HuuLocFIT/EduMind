@@ -42,7 +42,30 @@ public interface TeacherApplicationRepository extends JpaRepository<TeacherAppli
     @Override
     Optional<TeacherApplication> findById(Long id);
 
+    @EntityGraph(attributePaths = {"user", "reviewedBy"})
+    @org.springframework.data.jpa.repository.Query("SELECT a FROM TeacherApplication a WHERE a.status = :status AND " +
+           "(LOWER(a.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(a.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(a.user.username) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<TeacherApplication> findByStatusAndSearch(
+            @org.springframework.data.repository.query.Param("status") ApplicationStatus status,
+            @org.springframework.data.repository.query.Param("search") String search,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "reviewedBy"})
+    @org.springframework.data.jpa.repository.Query("SELECT a FROM TeacherApplication a WHERE " +
+           "(LOWER(a.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(a.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(a.user.username) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<TeacherApplication> findAllWithSearch(
+            @org.springframework.data.repository.query.Param("search") String search,
+            Pageable pageable);
+
     List<TeacherApplication> findByStatusOrderByCreatedAtDesc(ApplicationStatus status);
+
+    long countByStatus(ApplicationStatus status);
 
     Boolean existsByUser(User user);
 

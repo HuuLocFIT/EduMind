@@ -22,7 +22,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Pending</p>
-            <p class="text-2xl font-bold text-yellow-600 mt-1">{{ stats().pending }}</p>
+            <p class="text-2xl font-bold text-yellow-600 mt-1">{{ statsPending() }}</p>
             <p class="text-xs text-gray-500 mt-1">Awaiting review</p>
           </div>
           <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center">
@@ -37,7 +37,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Approved</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ stats().approved }}</p>
+            <p class="text-2xl font-bold text-green-600 mt-1">{{ statsApproved() }}</p>
             <p class="text-xs text-gray-500 mt-1">Processed</p>
           </div>
           <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
@@ -52,7 +52,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Rejected</p>
-            <p class="text-2xl font-bold text-red-600 mt-1">{{ stats().rejected }}</p>
+            <p class="text-2xl font-bold text-red-600 mt-1">{{ statsRejected() }}</p>
             <p class="text-xs text-gray-500 mt-1">Declined</p>
           </div>
           <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
@@ -120,7 +120,6 @@
       [showActions]="true"
       [actionsSticky]="actionsSticky()"
       [actionsStickyOffset]="actionsSticky() ? '0px' : undefined"
-      [actionsWidth]="'180px'"
       [showPagination]="true"
       [totalItems]="totalItems()"
       [pageSize]="pageSize"
@@ -169,7 +168,7 @@
 
   <ng-template #reasonTpl let-row>
     <div class="text-sm text-gray-600 line-clamp-2" [title]="row.reason">
-      {{ truncateText(row.reason, 80) }}
+      {{ row.reason }}
     </div>
   </ng-template>
 

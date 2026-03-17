@@ -92,6 +92,12 @@ export const ReviewReportRequestSchema = z.object({
   adminNotes: z.string().max(1000).optional(),
 });
 
+export const EnrollmentReportStatsSchema = z.object({
+  pending: z.number(),
+  approved: z.number(),
+  rejected: z.number(),
+});
+
 export const EnrollmentReportPagedResponseSchema = createPagedResponseSchema(
   EnrollmentReportResponseSchema
 );
@@ -109,3 +115,4 @@ export type ReportRequestStatus = z.infer<typeof ReportRequestStatusSchema>;
 export type EnrollmentReportResponse = z.infer<typeof EnrollmentReportResponseSchema>;
 export type ReviewReportRequest = z.infer<typeof ReviewReportRequestSchema>;
 export type EnrollmentReportPagedResponse = z.infer<typeof EnrollmentReportPagedResponseSchema>;
+export type EnrollmentReportStats = z.infer<typeof EnrollmentReportStatsSchema>;

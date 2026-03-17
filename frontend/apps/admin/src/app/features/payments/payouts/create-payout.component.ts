@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -10,12 +10,11 @@ import {
   SelectComponent,
   SelectOption,
 } from '@edumind/admin-ui';
-import {
-  CreatePayoutRequest,
-} from '@edumind/shared-types';
+import { CreatePayoutRequest } from '@edumind/shared-types';
 import { PayoutMethod } from '@edumind/shared-constants';
 import { AdminPayoutService } from '../../../core/services/admin-payout.service';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
+import { injectAsyncState } from '../../../core/utils';
 
 @Component({
   selector: 'app-create-payout',
@@ -36,10 +35,14 @@ export class CreatePayoutComponent implements OnInit {
   private readonly payoutService = inject(AdminPayoutService);
   private readonly router = inject(Router);
 
+  // ── Utilities ────────────────────────────────────────────────────────────
+  private async = injectAsyncState();
+  isSubmitting = this.async.isSubmitting;
+  errorMessage = this.async.errorMessage;
+  successMessage = this.async.successMessage;
+
   payoutForm!: FormGroup;
-  successMessage = signal('');
-  errorMessage = signal('');
-  
+
   readonly PayoutMethod = PayoutMethod;
   readonly paymentMethodOptions: SelectOption[] = [
     { value: PayoutMethod.BANK_TRANSFER, label: 'Bank Transfer' },
@@ -58,7 +61,6 @@ export class CreatePayoutComponent implements OnInit {
       paypalEmail: ['', [Validators.email]],
     });
 
-    // Update validators based on payment method
     this.payoutForm.get('paymentMethod')?.valueChanges.subscribe((method) => {
       const bankAccountControl = this.payoutForm.get('bankAccount');
       const bankNameControl = this.payoutForm.get('bankName');
@@ -121,16 +123,12 @@ export class CreatePayoutComponent implements OnInit {
       paypalEmail: formValue.paypalEmail || undefined,
     };
 
-    this.payoutService.createPayout(data).subscribe({
-      next: () => {
-        this.successMessage.set('Payout created successfully');
-        setTimeout(() => {
-          this.router.navigate([ADMIN_ROUTES.PAYOUTS_ALL]);
-        }, 1500);
-      },
-      error: (error) => {
-        this.errorMessage.set(error.error?.message || 'Failed to create payout');
-        setTimeout(() => this.errorMessage.set(''), 5000);
+    this.async.execute(this.payoutService.createPayout(data), {
+      submitting: true,
+      successMsg: 'Payout created successfully',
+      errorMsg: 'Failed to create payout',
+      onSuccess: () => {
+        setTimeout(() => this.router.navigate([ADMIN_ROUTES.PAYOUTS_ALL]), 1500);
       },
     });
   }
@@ -141,19 +139,10 @@ export class CreatePayoutComponent implements OnInit {
 
   getFieldError(fieldName: string): string {
     const control = this.payoutForm.get(fieldName);
-    if (!control || !control.touched || !control.errors) {
-      return '';
-    }
-
-    if (control.errors['required']) {
-      return `${fieldName} is required`;
-    }
-    if (control.errors['email']) {
-      return 'Invalid email address';
-    }
-    if (control.errors['min']) {
-      return 'Instructor ID must be greater than 0';
-    }
+    if (!control || !control.touched || !control.errors) return '';
+    if (control.errors['required']) return `${fieldName} is required`;
+    if (control.errors['email']) return 'Invalid email address';
+    if (control.errors['min']) return 'Instructor ID must be greater than 0';
     return '';
   }
 

@@ -251,7 +251,7 @@ class AdminControllerTest {
                     .build();
             Page<TeacherApplicationResponse> page = new PageImpl<>(List.of(app));
 
-            when(applicationService.getAllApplications(any(), anyInt(), anyInt(), anyString())).thenReturn(page);
+            when(applicationService.getAllApplications(any(), anyInt(), anyInt(), anyString(), any())).thenReturn(page);
 
             mockMvc.perform(get("/admin/users/applications"))
                     .andExpect(status().isOk())
@@ -353,7 +353,7 @@ class AdminControllerTest {
                     .build();
             Page<TrialStatusResponse> page = new PageImpl<>(List.of(trial));
 
-            when(applicationService.getTrialTeachers(anyInt(), anyInt())).thenReturn(page);
+            when(applicationService.getTrialTeachers(anyInt(), anyInt(), any(), anyBoolean())).thenReturn(page);
 
             mockMvc.perform(get("/admin/users/trial-teachers"))
                     .andExpect(status().isOk())

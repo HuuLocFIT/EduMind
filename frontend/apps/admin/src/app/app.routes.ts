@@ -19,6 +19,11 @@ export const appRoutes: Route[] = [
       ),
     children: [
       {
+        path: '',
+        redirectTo: ADMIN_ROUTES.DASHBOARD.replace('/', ''),
+        pathMatch: 'full',
+      },
+      {
         path: ADMIN_ROUTES.DASHBOARD.replace('/', ''),
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then(

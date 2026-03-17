@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.course.service;
 
 import com.edumind.lms.modules.course.dto.response.EnrollmentReportResponse;
+import com.edumind.lms.modules.course.dto.response.EnrollmentReportStatsResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
@@ -141,10 +142,15 @@ public interface EnrollmentService {
 
     /**
      * Reject an enrollment report request (ADMIN only)
-     * 
+     *
      * @param reportId The report ID
      * @param adminId The admin ID rejecting the report
      * @param adminNotes Required admin notes explaining the rejection
      */
     void rejectReport(Long reportId, Long adminId, String adminNotes);
+
+    /**
+     * Get counts of enrollment reports grouped by status (ADMIN only)
+     */
+    EnrollmentReportStatsResponse getReportStats();
 }

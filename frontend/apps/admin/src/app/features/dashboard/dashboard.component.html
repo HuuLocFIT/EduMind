@@ -91,7 +91,7 @@
   @if (!isLoading() && stats()) {
 
     <!-- Urgent Attention Banner -->
-    @if (getPendingTasksCount() > 0) {
+    @if (pendingTasksCount() > 0) {
       <div class="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4">
         <div class="flex items-start gap-3">
           <div class="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -103,7 +103,7 @@
             <p class="font-semibold text-amber-900 flex items-center gap-2 flex-wrap">
               Action Required
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white">
-                {{ getPendingTasksCount() }}
+                {{ pendingTasksCount() }}
               </span>
             </p>
             <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
@@ -169,13 +169,13 @@
           <div class="flex-1">
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Revenue This Month</p>
             <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ formatCurrency(stats()!.revenueThisMonth) }}</p>
-            <p class="text-xs mt-1.5 flex items-center gap-1" [class]="getRevenueChange().isPositive ? 'text-emerald-600' : 'text-red-500'">
-              @if (getRevenueChange().isPositive) {
+            <p class="text-xs mt-1.5 flex items-center gap-1" [class]="revenueChange().isPositive ? 'text-emerald-600' : 'text-red-500'">
+              @if (revenueChange().isPositive) {
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
               } @else {
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
               }
-              {{ getRevenueChange().value | number: '1.1-1' }}% vs last month
+              {{ revenueChange().value | number: '1.1-1' }}% vs last month
             </p>
           </div>
           <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
@@ -192,13 +192,13 @@
           <div class="flex-1">
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Active Enrollments</p>
             <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ stats()!.activeEnrollments | number }}</p>
-            <p class="text-xs mt-1.5 flex items-center gap-1" [class]="getEnrollmentChange().isPositive ? 'text-emerald-600' : 'text-red-500'">
-              @if (getEnrollmentChange().isPositive) {
+            <p class="text-xs mt-1.5 flex items-center gap-1" [class]="enrollmentChange().isPositive ? 'text-emerald-600' : 'text-red-500'">
+              @if (enrollmentChange().isPositive) {
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
               } @else {
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
               }
-              {{ getEnrollmentChange().value | number: '1.1-1' }}% vs last month
+              {{ enrollmentChange().value | number: '1.1-1' }}% vs last month
             </p>
           </div>
           <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
@@ -238,13 +238,13 @@
 
       <!-- Pending Tasks -->
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5"
-           [class]="getPendingTasksCount() > 0 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-gray-200'">
+           [class]="pendingTasksCount() > 0 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-gray-200'">
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1">
             <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Pending Tasks</p>
             <p class="text-3xl font-bold mt-2 tabular-nums"
-               [class]="getPendingTasksCount() > 0 ? 'text-red-600' : 'text-gray-900'">
-              {{ getPendingTasksCount() | number }}
+               [class]="pendingTasksCount() > 0 ? 'text-red-600' : 'text-gray-900'">
+              {{ pendingTasksCount() | number }}
             </p>
             <div class="mt-1.5 flex flex-wrap gap-1.5">
               @if (pendingAppsCount() > 0) {
@@ -262,14 +262,14 @@
                   {{ stats()!.pendingRefunds }} refunds
                 </span>
               }
-              @if (getPendingTasksCount() === 0) {
+              @if (pendingTasksCount() === 0) {
                 <span class="text-xs text-gray-400">All clear</span>
               }
             </div>
           </div>
           <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-               [class]="getPendingTasksCount() > 0 ? 'bg-red-50' : 'bg-gray-50'">
-            <svg class="w-5 h-5" [class]="getPendingTasksCount() > 0 ? 'text-red-500' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               [class]="pendingTasksCount() > 0 ? 'bg-red-50' : 'bg-gray-50'">
+            <svg class="w-5 h-5" [class]="pendingTasksCount() > 0 ? 'text-red-500' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
@@ -340,17 +340,18 @@
           <h3 class="text-base font-semibold text-gray-900">Enrollment Trends</h3>
           <p class="text-xs text-gray-500 mt-0.5">Monthly new enrollments over the last 6 months</p>
         </div>
+        @let enrollOpts = enrollmentChartOptions();
         <apx-chart
-          [series]="enrollmentChartOptions().series!"
-          [chart]="$any(enrollmentChartOptions().chart)"
-          [xaxis]="enrollmentChartOptions().xaxis!"
-          [yaxis]="enrollmentChartOptions().yaxis!"
-          [dataLabels]="enrollmentChartOptions().dataLabels!"
-          [stroke]="enrollmentChartOptions().stroke!"
-          [fill]="enrollmentChartOptions().fill!"
-          [colors]="enrollmentChartOptions().colors!"
-          [grid]="enrollmentChartOptions().grid!"
-          [tooltip]="enrollmentChartOptions().tooltip!"
+          [series]="enrollOpts.series!"
+          [chart]="$any(enrollOpts.chart)"
+          [xaxis]="enrollOpts.xaxis!"
+          [yaxis]="enrollOpts.yaxis!"
+          [dataLabels]="enrollOpts.dataLabels!"
+          [stroke]="enrollOpts.stroke!"
+          [fill]="enrollOpts.fill!"
+          [colors]="enrollOpts.colors!"
+          [grid]="enrollOpts.grid!"
+          [tooltip]="enrollOpts.tooltip!"
         ></apx-chart>
       </div>
 
@@ -360,15 +361,16 @@
           <h3 class="text-base font-semibold text-gray-900">Course Status Distribution</h3>
           <p class="text-xs text-gray-500 mt-0.5">Breakdown of all {{ stats()!.totalCourses | number }} courses by status</p>
         </div>
+        @let courseStatusOpts = courseStatusChartOptions();
         <apx-chart
-          [series]="courseStatusChartOptions().series!"
-          [chart]="$any(courseStatusChartOptions().chart)"
-          [labels]="courseStatusChartOptions().labels!"
-          [colors]="courseStatusChartOptions().colors!"
-          [legend]="courseStatusChartOptions().legend!"
-          [dataLabels]="courseStatusChartOptions().dataLabels!"
-          [plotOptions]="courseStatusChartOptions().plotOptions!"
-          [tooltip]="courseStatusChartOptions().tooltip!"
+          [series]="courseStatusOpts.series!"
+          [chart]="$any(courseStatusOpts.chart)"
+          [labels]="courseStatusOpts.labels!"
+          [colors]="courseStatusOpts.colors!"
+          [legend]="courseStatusOpts.legend!"
+          [dataLabels]="courseStatusOpts.dataLabels!"
+          [plotOptions]="courseStatusOpts.plotOptions!"
+          [tooltip]="courseStatusOpts.tooltip!"
         ></apx-chart>
       </div>
 
@@ -389,16 +391,17 @@
             <p class="text-xs text-gray-400">all time</p>
           </div>
         </div>
+        @let revenueOpts = revenueChartOptions();
         <apx-chart
-          [series]="revenueChartOptions().series!"
-          [chart]="$any(revenueChartOptions().chart)"
-          [xaxis]="revenueChartOptions().xaxis!"
-          [yaxis]="revenueChartOptions().yaxis!"
-          [dataLabels]="revenueChartOptions().dataLabels!"
-          [plotOptions]="revenueChartOptions().plotOptions!"
-          [colors]="revenueChartOptions().colors!"
-          [grid]="revenueChartOptions().grid!"
-          [tooltip]="revenueChartOptions().tooltip!"
+          [series]="revenueOpts.series!"
+          [chart]="$any(revenueOpts.chart)"
+          [xaxis]="revenueOpts.xaxis!"
+          [yaxis]="revenueOpts.yaxis!"
+          [dataLabels]="revenueOpts.dataLabels!"
+          [plotOptions]="revenueOpts.plotOptions!"
+          [colors]="revenueOpts.colors!"
+          [grid]="revenueOpts.grid!"
+          [tooltip]="revenueOpts.tooltip!"
         ></apx-chart>
       </div>
 
@@ -408,16 +411,17 @@
           <h3 class="text-base font-semibold text-gray-900">Top Categories</h3>
           <p class="text-xs text-gray-500 mt-0.5">Categories with the most published courses</p>
         </div>
+        @let categoryOpts = categoryChartOptions();
         <apx-chart
-          [series]="categoryChartOptions().series!"
-          [chart]="$any(categoryChartOptions().chart)"
-          [xaxis]="categoryChartOptions().xaxis!"
-          [yaxis]="categoryChartOptions().yaxis!"
-          [dataLabels]="categoryChartOptions().dataLabels!"
-          [plotOptions]="categoryChartOptions().plotOptions!"
-          [colors]="categoryChartOptions().colors!"
-          [grid]="categoryChartOptions().grid!"
-          [tooltip]="categoryChartOptions().tooltip!"
+          [series]="categoryOpts.series!"
+          [chart]="$any(categoryOpts.chart)"
+          [xaxis]="categoryOpts.xaxis!"
+          [yaxis]="categoryOpts.yaxis!"
+          [dataLabels]="categoryOpts.dataLabels!"
+          [plotOptions]="categoryOpts.plotOptions!"
+          [colors]="categoryOpts.colors!"
+          [grid]="categoryOpts.grid!"
+          [tooltip]="categoryOpts.tooltip!"
         ></apx-chart>
       </div>
 
@@ -461,7 +465,7 @@
               <li class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
                 <!-- Initials Avatar -->
                 <div class="w-9 h-9 rounded-full bg-purple-100 text-purple-700 text-sm font-bold flex items-center justify-center flex-shrink-0">
-                  {{ getInitials((app.firstName && app.lastName) ? (app.firstName + ' ' + app.lastName) : app.email) }}
+                  {{ ((app.firstName && app.lastName) ? (app.firstName + ' ' + app.lastName) : app.email) | getInitials }}
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 truncate">
@@ -515,7 +519,7 @@
                   <div class="flex-1 min-w-0">
                     <p class="text-xs text-gray-600 truncate mt-0.5">{{ report.courseTitle }}</p>
                     <p class="text-xs text-gray-400 line-clamp-1 mt-0.5">{{ report.reason }} <span class="text-gray-500 font-bold">[Student #{{ report.studentId }}]</span></p>
-                    <p class="text-xs text-gray-400 mt-1">{{ formatDate(report.requestedAt) }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ report.requestedAt | date: 'mediumDate' }}</p>
                   </div>
                   <div class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex-shrink-0">
                     Pending

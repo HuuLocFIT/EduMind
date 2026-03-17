@@ -3,6 +3,7 @@ package com.edumind.auth.service;
 import com.edumind.auth.dto.request.CreateUserRequest;
 import com.edumind.auth.dto.request.UpdateUserRoleRequest;
 import com.edumind.auth.dto.response.UserListResponse;
+import com.edumind.auth.dto.response.UserRoleStatsResponse;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.entity.User;
@@ -148,6 +149,16 @@ public class AdminService {
                 .updatedAt(user.getUpdatedAt())
                 .isActive(user.getIsActive())
                 .build());
+    }
+
+    /**
+     * Get user count stats by role
+     */
+    public UserRoleStatsResponse getUserRoleStats(String roleName) {
+        RoleName role = RoleName.valueOf(roleName.toUpperCase());
+        long active = userRepository.countByRolesNameAndIsActive(role, true);
+        long inactive = userRepository.countByRolesNameAndIsActive(role, false);
+        return new UserRoleStatsResponse(active + inactive, active, inactive);
     }
 
     /**

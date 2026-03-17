@@ -22,7 +22,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Total Students</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats().total }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ statsTotal() }}</p>
             <p class="text-xs text-gray-500 mt-1">All registered students</p>
           </div>
           <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -37,7 +37,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Active</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ stats().active }}</p>
+            <p class="text-2xl font-bold text-green-600 mt-1">{{ statsActive() }}</p>
             <p class="text-xs text-gray-500 mt-1">Currently active</p>
           </div>
           <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
@@ -52,7 +52,7 @@
         <div class="flex items-start justify-between gap-2">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Inactive</p>
-            <p class="text-2xl font-bold text-red-600 mt-1">{{ stats().inactive }}</p>
+            <p class="text-2xl font-bold text-red-600 mt-1">{{ statsInactive() }}</p>
             <p class="text-xs text-gray-500 mt-1">Deactivated accounts</p>
           </div>
           <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
@@ -132,7 +132,7 @@
       [actionsSticky]="actionsSticky()"
       [actionsStickyOffset]="actionsSticky() ? '0px' : undefined"
       [showPagination]="true"
-      [totalItems]="displayTotalItems()"
+      [totalItems]="totalItems()"
       [pageSize]="pageSize"
       [currentPage]="currentPage()"
       emptyMessage="No students found"

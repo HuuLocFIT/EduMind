@@ -3,6 +3,7 @@ package com.edumind.auth.service;
 import com.edumind.auth.dto.request.ReviewApplicationRequest;
 import com.edumind.auth.dto.request.TeacherApplicationRequest;
 import com.edumind.auth.dto.request.UpgradeTrialRequest;
+import com.edumind.auth.dto.response.ApplicationStatsResponse;
 import com.edumind.auth.dto.response.StatusHistoryResponse;
 import com.edumind.auth.dto.response.TeacherApplicationResponse;
 import com.edumind.auth.dto.response.TrialStatusResponse;
@@ -210,20 +211,27 @@ public class TeacherApplicationService {
     }
 
     /**
-     * Admin: Get all applications with filtering
+     * Admin: Get all applications with filtering and optional search
      */
     public Page<TeacherApplicationResponse> getAllApplications(
-            String status, int page, int size, String sortBy) {
+            String status, int page, int size, String sortBy, String search) {
 
-        logger.info("🔄 Admin fetching applications - status: {}", status);
+        logger.info("🔄 Admin fetching applications - status: {}, search: {}", status, search);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).descending());
 
+        boolean hasStatus = status != null && !status.isEmpty();
+        boolean hasSearch = search != null && !search.trim().isEmpty();
+
         Page<TeacherApplication> applications;
-        if (status != null && !status.isEmpty()) {
-            ApplicationStatus appStatus =
-                    ApplicationStatus.valueOf(status.toUpperCase());
+        if (hasStatus && hasSearch) {
+            ApplicationStatus appStatus = ApplicationStatus.valueOf(status.toUpperCase());
+            applications = applicationRepository.findByStatusAndSearch(appStatus, search.trim(), pageable);
+        } else if (hasStatus) {
+            ApplicationStatus appStatus = ApplicationStatus.valueOf(status.toUpperCase());
             applications = applicationRepository.findByStatus(appStatus, pageable);
+        } else if (hasSearch) {
+            applications = applicationRepository.findAllWithSearch(search.trim(), pageable);
         } else {
             applications = applicationRepository.findAll(pageable);
         }
@@ -440,16 +448,48 @@ public class TeacherApplicationService {
     }
 
     /**
-     * Get trial teachers (for admin to monitor)
+     * Admin: Get application statistics
      */
-    public Page<TrialStatusResponse> getTrialTeachers(int page, int size) {
-        logger.info("🔄 Admin fetching trial teachers");
+    public ApplicationStatsResponse getApplicationStats() {
+        long pending  = applicationRepository.countByStatus(ApplicationStatus.PENDING);
+        long approved = applicationRepository.countByStatus(ApplicationStatus.APPROVED);
+        long rejected = applicationRepository.countByStatus(ApplicationStatus.REJECTED);
+        long trial    = userRepository.countByRolesName(RoleName.ROLE_TEACHER_TRIAL);
+        LocalDateTime now = LocalDateTime.now();
+        long expiring = userRepository.countExpiringTrialTeachers(
+                RoleName.ROLE_TEACHER_TRIAL,
+                now,
+                now.plusDays(7)
+        );
+        long active  = userRepository.countActiveTrialTeachers(RoleName.ROLE_TEACHER_TRIAL, now);
+        long expired = userRepository.countExpiredTrialTeachers(RoleName.ROLE_TEACHER_TRIAL, now);
+        return new ApplicationStatsResponse(pending, approved, rejected, trial, expiring, active, expired);
+    }
+
+    /**
+     * Get trial teachers (for admin to monitor) with optional search and expiringSoon filter
+     */
+    public Page<TrialStatusResponse> getTrialTeachers(int page, int size, String search, boolean expiringSoon) {
+        logger.info("🔄 Admin fetching trial teachers - search: {}, expiringSoon: {}", search, expiringSoon);
 
         Role trialRole = roleRepository.findByName(RoleName.ROLE_TEACHER_TRIAL)
                 .orElseThrow(() -> new ResourceNotFoundException("TEACHER_TRIAL role not found"));
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("trialEndDate").ascending());
-        Page<User> trialUsers = userRepository.findByRolesContaining(trialRole, pageable);
+        boolean hasSearch = search != null && !search.trim().isEmpty();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.plusDays(7);
+
+        Page<User> trialUsers;
+        if (expiringSoon && hasSearch) {
+            trialUsers = userRepository.findExpiringTrialTeachersWithSearch(trialRole, search.trim(), now, cutoff, pageable);
+        } else if (expiringSoon) {
+            trialUsers = userRepository.findExpiringTrialTeachers(trialRole, now, cutoff, pageable);
+        } else if (hasSearch) {
+            trialUsers = userRepository.findByRolesContainingAndSearch(trialRole, search.trim(), pageable);
+        } else {
+            trialUsers = userRepository.findByRolesContaining(trialRole, pageable);
+        }
 
         return trialUsers.map(user -> {
             long daysRemaining = 0;

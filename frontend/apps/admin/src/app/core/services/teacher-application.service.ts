@@ -6,11 +6,13 @@ import { ADMIN_ENDPOINTS } from '@edumind/shared-utils';
 import {
   AdminMessageResponse,
   AdminMessageResponseSchema,
+  ApplicationStats,
+  ApplicationStatsSchema,
   ReviewApplicationRequest,
-  TeacherApplicationDetailResponse,
-  TeacherApplicationDetailResponseSchema,
   TeacherApplicationListResponse,
   TeacherApplicationListResponseSchema,
+  TeacherApplicationResponse,
+  TeacherApplicationResponseSchema,
   TrialTeachersResponse,
   TrialTeachersResponseSchema,
   UpgradeTrialRequest,
@@ -22,6 +24,7 @@ export type ApplicationQueryParams = {
   page?: number;
   size?: number;
   sortBy?: string;
+  search?: string;
 };
 
 @Injectable({
@@ -45,6 +48,9 @@ export class TeacherApplicationService {
     if (params.sortBy) {
       httpParams = httpParams.set('sortBy', params.sortBy);
     }
+    if (params.search) {
+      httpParams = httpParams.set('search', params.search);
+    }
 
     return this.http
       .get<TeacherApplicationListResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.APPLICATIONS}`, {
@@ -57,12 +63,12 @@ export class TeacherApplicationService {
       );
   }
 
-  getApplicationById(id: number): Observable<TeacherApplicationDetailResponse> {
+  getApplicationById(id: number): Observable<TeacherApplicationResponse> {
     return this.http
-      .get<TeacherApplicationDetailResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.APPLICATION_DETAIL(id)}`)
+      .get<TeacherApplicationResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.APPLICATION_DETAIL(id)}`)
       .pipe(
-        map((response: TeacherApplicationDetailResponse) =>
-          TeacherApplicationDetailResponseSchema.parse(response)
+        map((response: TeacherApplicationResponse) =>
+          TeacherApplicationResponseSchema.parse(response)
         )
       );
   }
@@ -76,7 +82,7 @@ export class TeacherApplicationService {
       .pipe(map((response: AdminMessageResponse) => AdminMessageResponseSchema.parse(response)));
   }
 
-  getTrialTeachers(options?: { page?: number; size?: number }): Observable<TrialTeachersResponse> {
+  getTrialTeachers(options?: { page?: number; size?: number; search?: string; expiringSoon?: boolean }): Observable<TrialTeachersResponse> {
     let params = new HttpParams();
     if (options?.page !== undefined) {
       params = params.set('page', options.page.toString());
@@ -84,12 +90,24 @@ export class TeacherApplicationService {
     if (options?.size !== undefined) {
       params = params.set('size', options.size.toString());
     }
+    if (options?.search) {
+      params = params.set('search', options.search);
+    }
+    if (options?.expiringSoon) {
+      params = params.set('expiringSoon', 'true');
+    }
 
     return this.http
       .get<TrialTeachersResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.TRIAL_TEACHERS}`, { params })
       .pipe(
         map((response: TrialTeachersResponse) => TrialTeachersResponseSchema.parse(response))
       );
+  }
+
+  getStats(): Observable<ApplicationStats> {
+    return this.http
+      .get<ApplicationStats>(`${this.API_URL}${ADMIN_ENDPOINTS.APPLICATION_STATS}`)
+      .pipe(map((response: ApplicationStats) => ApplicationStatsSchema.parse(response)));
   }
 
   upgradeTrialToFull(
