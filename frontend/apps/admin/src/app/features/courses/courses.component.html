@@ -27,22 +27,20 @@
         />
       </div>
 
-      <app-select
+      <app-multi-select
         label="Category"
         [options]="categoriesOptions()"
         placeholder="All categories"
         size="sm"
-        [ngModel]="selectedCategory()"
-        (ngModelChange)="onCategoryChange($event)"
+        (selectionChange)="onCategoriesChange($event)"
       />
 
-      <app-select
+      <app-multi-select
         label="Level"
         [options]="levelOptions"
         placeholder="All levels"
         size="sm"
-        [ngModel]="selectedLevel()"
-        (ngModelChange)="onLevelChange($event)"
+        (selectionChange)="onLevelsChange($event)"
       />
     </div>
   </app-card>

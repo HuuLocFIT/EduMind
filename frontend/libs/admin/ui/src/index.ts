@@ -14,6 +14,7 @@ export * from './lib/empty-state/index';
 export * from './lib/data-table/index';
 export * from './lib/search-bar/index';
 export * from './lib/select/index';
+export * from './lib/multi-select/index';
 export * from './lib/badge/index';
 export * from './lib/modal-footer/modal-footer.component';
 export * from './lib/confirm-dialog/confirm-dialog.component';

@@ -9,7 +9,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
 import { catchError, debounceTime, switchMap } from 'rxjs/operators';
@@ -21,8 +20,8 @@ import {
   ConfirmDialogComponent,
   DataTableComponent,
   type TableColumn,
+  MultiSelectComponent,
   SearchBarComponent,
-  SelectComponent,
   type SelectOption,
 } from '@edumind/admin-ui';
 import { CourseService, type CoursePagedResponse } from '../../core/services/course.service';
@@ -39,7 +38,6 @@ type CourseRow = CourseResponse;
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterLink,
     CardComponent,
     ButtonComponent,
@@ -47,7 +45,7 @@ type CourseRow = CourseResponse;
     AlertComponent,
     DataTableComponent,
     SearchBarComponent,
-    SelectComponent,
+    MultiSelectComponent,
     ConfirmDialogComponent,
     StatusVariantPipe,
   ],
@@ -79,8 +77,8 @@ export class CoursesComponent implements OnInit {
 
   // ── Filters ───────────────────────────────────────────────────────────────
   searchQuery = signal('');
-  selectedCategory = signal<string>('');
-  selectedLevel = signal<string>('');
+  selectedCategories = signal<number[]>([]);
+  selectedLevels = signal<string[]>([]);
 
   categoriesOptions = signal<SelectOption[]>([]);
   levelOptions: SelectOption[] = Object.values(CourseLevel).map((level) => ({
@@ -113,11 +111,11 @@ export class CoursesComponent implements OnInit {
         switchMap(() => {
           this.isLoading.set(true);
           const page = this.currentPage() - 1;
-          const categoryId = this.selectedCategory() !== '' ? Number(this.selectedCategory()) : undefined;
-          const level = this.selectedLevel() || undefined;
+          const categoryIds = this.selectedCategories().length > 0 ? this.selectedCategories() : undefined;
+          const levels = this.selectedLevels().length > 0 ? this.selectedLevels() : undefined;
 
           return this.courseService
-            .filterCourses({ keyword: this.searchQuery() || undefined, categoryId, level, page, size: this.pageSize })
+            .filterCourses({ keyword: this.searchQuery() || undefined, categoryIds, levels, page, size: this.pageSize })
             .pipe(
               catchError(() => {
                 this.errorMessage.set('Failed to load courses');
@@ -164,12 +162,11 @@ export class CoursesComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
-          const options: SelectOption[] = [{ value: '', label: 'All categories' }];
-          res.forEach((cat) => options.push({ value: cat.id, label: cat.name }));
+          const options: SelectOption[] = res.map((cat) => ({ value: cat.id, label: cat.name }));
           this.categoriesOptions.set(options);
         },
         error: () => {
-          this.categoriesOptions.set([{ value: '', label: 'All categories' }]);
+          this.categoriesOptions.set([]);
         },
       });
   }
@@ -180,14 +177,14 @@ export class CoursesComponent implements OnInit {
     this.filter$.next();
   }
 
-  onCategoryChange(value: string | number): void {
-    this.selectedCategory.set(String(value));
+  onCategoriesChange(values: (string | number)[]): void {
+    this.selectedCategories.set(values.map(Number));
     this.pagination.resetPage();
     this.filter$.next();
   }
 
-  onLevelChange(value: string | number): void {
-    this.selectedLevel.set(String(value));
+  onLevelsChange(values: (string | number)[]): void {
+    this.selectedLevels.set(values.map(String));
     this.pagination.resetPage();
     this.filter$.next();
   }
