@@ -62,7 +62,7 @@ public class AsyncConfig implements AsyncConfigurer {
      * Executor for AI LLM jobs (Gemini API calls).
      */
     @Bean(name = "aiTaskExecutor")
-    public Executor aiTaskExecutor() {
+    public ThreadPoolTaskExecutor aiTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(aiCorePoolSize);
         executor.setMaxPoolSize(aiMaxPoolSize);
