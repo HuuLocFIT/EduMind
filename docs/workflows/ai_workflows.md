@@ -15,6 +15,7 @@ graph TB
         C3["/summaries/lesson/{id}"]
         C4["/jobs/{id}"]
         C5["/admin/reindex-embeddings"]
+        C7["/admin/reindex-summaries"]
         C6["/transcribe/lessons/{id}"]
     end
 
@@ -473,6 +474,7 @@ sequenceDiagram
     participant SummaryService as AiSummaryService
     participant LessonQueryService
 
+    Note over Admin,LessonQueryService: Endpoint 1 — reindex embeddings only
     Admin->>Controller: POST /api/ai/admin/reindex-embeddings
     Controller->>EmbeddingService: reindexAll()
     EmbeddingService->>LessonQueryService: findAllWithArticleContent()
@@ -481,6 +483,10 @@ sequenceDiagram
         Note over EmbeddingService: Creates PENDING job per lesson<br/>and fires @Async processor
     end
     EmbeddingService-->>Controller: count
+    Controller-->>Admin: 202 Accepted { "Queued N embedding jobs" }
+
+    Note over Admin,LessonQueryService: Endpoint 2 — reindex summaries only
+    Admin->>Controller: POST /api/ai/admin/reindex-summaries
     Controller->>SummaryService: reindexAll()
     SummaryService->>LessonQueryService: findAllWithArticleContent()
     loop For each lesson with non-empty content
@@ -488,7 +494,7 @@ sequenceDiagram
         Note over SummaryService: Creates PENDING job per lesson<br/>and fires @Async processor
     end
     SummaryService-->>Controller: count
-    Controller-->>Admin: 202 Accepted { "Queued embedding and summary jobs for N lessons" }
+    Controller-->>Admin: 202 Accepted { "Queued N summary jobs" }
 ```
 
 **Use case**: Run after initial deployment to backfill embeddings and summaries for existing lessons, or after a bulk content migration.
@@ -925,7 +931,8 @@ sequenceDiagram
 | RAG chat (sync) | `POST /chat/courses/{id}` | ✅ | ✅ | Rate-limited |
 | RAG chat (stream) | `POST /chat/courses/{id}/stream` | ✅ | ✅ | Rate-limited |
 | Poll job status | `GET /jobs/{id}` | ✅ | — | Job owner only |
-| Reindex embeddings & summaries | `POST /admin/reindex-embeddings` | — | — | Admin role |
+| Reindex embeddings | `POST /admin/reindex-embeddings` | — | — | Admin role |
+| Reindex summaries | `POST /admin/reindex-summaries` | — | — | Admin role |
 
 All ACL checks use cross-module API interfaces (`LessonQueryService`, `EnrollmentQueryService`, `CourseQueryService`) — no direct imports of other modules' repositories.
 
@@ -1111,7 +1118,8 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 
 | Method | Path | Auth | Response | Description |
 |--------|------|------|----------|-------------|
-| `POST` | `/ai/admin/reindex-embeddings` | Admin | `202 Accepted` | Backfill embeddings and summaries for all lessons |
+| `POST` | `/ai/admin/reindex-embeddings` | Admin | `202 Accepted` | Backfill embeddings for all lessons with article content |
+| `POST` | `/ai/admin/reindex-summaries` | Admin | `202 Accepted` | Backfill summaries for all lessons with article content |
 
 ### Lesson Summaries
 
