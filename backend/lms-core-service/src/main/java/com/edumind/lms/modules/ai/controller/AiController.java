@@ -171,9 +171,19 @@ public class AiController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<String>> reindexEmbeddings() {
         int count = embeddingService.reindexAll();
-        aiSummaryService.reindexAll();
         return ResponseEntity.accepted()
-                .body(ApiResponse.success("Queued embedding and summary jobs for " + count + " lessons"));
+                .body(ApiResponse.success("Queued " + count + " embedding jobs"));
+    }
+
+    /**
+     * Backfill summaries for all lessons that have article content but no summaries yet.
+     */
+    @PostMapping("/admin/reindex-summaries")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<String>> reindexSummaries() {
+        int count = aiSummaryService.reindexAll();
+        return ResponseEntity.accepted()
+                .body(ApiResponse.success("Queued " + count + " summary jobs"));
     }
 
     /**

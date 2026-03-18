@@ -1,6 +1,7 @@
 package com.edumind.lms.modules.ai.service;
 
 import com.edumind.lms.modules.ai.entity.AiJobLog;
+import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.enums.AiJobType;
 import com.edumind.lms.modules.course.api.LessonQueryService;
 import com.edumind.lms.modules.course.api.dto.LessonInfo;
@@ -58,11 +59,15 @@ public class EmbeddingServiceImpl implements EmbeddingService {
 
         log.info("Backfilling embeddings for {} lessons with article content", lessons.size());
         for (LessonInfo info : lessons) {
+            AiJobLog job = null;
             try {
-                AiJobLog job = aiJobService.createJob(AiJobType.EMBEDDING, 0L, info.id());
+                job = aiJobService.createJob(AiJobType.EMBEDDING, 0L, info.id());
                 asyncEmbeddingProcessor.process(job.getId(), info.id(), info.courseId(), info.articleContent());
             } catch (Exception e) {
                 log.error("Failed to queue embedding for lesson {}: {}", info.id(), e.getMessage());
+                if (job != null) {
+                    aiJobService.updateStatus(job.getId(), AiJobStatus.FAILED, "Task rejected: " + e.getMessage());
+                }
             }
         }
         return lessons.size();

@@ -3,6 +3,7 @@ package com.edumind.lms.modules.ai.service;
 import com.edumind.lms.modules.ai.dto.response.LessonSummaryResponse;
 import com.edumind.lms.modules.ai.entity.AiJobLog;
 import com.edumind.lms.modules.ai.entity.LessonSummary;
+import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.enums.AiJobType;
 import com.edumind.lms.modules.ai.repository.LessonSummaryRepository;
 import com.edumind.lms.modules.course.api.EnrollmentQueryService;
@@ -65,11 +66,15 @@ public class AiSummaryServiceImpl implements AiSummaryService {
 
         log.info("Backfilling summaries for {} lessons with article content", lessons.size());
         for (LessonInfo info : lessons) {
+            AiJobLog job = null;
             try {
-                AiJobLog job = aiJobService.createJob(AiJobType.LESSON_SUMMARY, 0L, info.id());
+                job = aiJobService.createJob(AiJobType.LESSON_SUMMARY, 0L, info.id());
                 asyncSummaryProcessor.process(job.getId(), info.id(), info.title(), info.articleContent());
             } catch (Exception e) {
                 log.error("Failed to queue summary for lesson {}: {}", info.id(), e.getMessage());
+                if (job != null) {
+                    aiJobService.updateStatus(job.getId(), AiJobStatus.FAILED, "Task rejected: " + e.getMessage());
+                }
             }
         }
         return lessons.size();
