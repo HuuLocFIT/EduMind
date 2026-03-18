@@ -31,7 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -312,7 +312,7 @@ class AdminServiceTest {
             when(userRepository.findByRolesContaining(eq(studentRole), any(Pageable.class))).thenReturn(userPage);
 
             // When
-            Page<UserListResponse> result = adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null);
+            Page<UserListResponse> result = adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null, null);
 
             // Then
             assertNotNull(result);
@@ -326,8 +326,38 @@ class AdminServiceTest {
             when(roleRepository.findByName(any())).thenReturn(Optional.empty());
 
             // When/Then
-            assertThrows(ResourceNotFoundException.class, () -> 
-                adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null));
+            assertThrows(ResourceNotFoundException.class, () ->
+                adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null, null));
+        }
+
+        @Test
+        @DisplayName("Should search users by keyword")
+        void getUsersByRole_WithSearch() {
+            PageImpl<User> userPage = new PageImpl<>(List.of(testUser));
+            when(roleRepository.findByName(RoleName.ROLE_STUDENT)).thenReturn(Optional.of(studentRole));
+            when(userRepository.findByRolesContainingAndSearch(eq(studentRole), eq("john"), any(Pageable.class)))
+                    .thenReturn(userPage);
+
+            Page<UserListResponse> result = adminService.getUsersByRole("ROLE_STUDENT", 0, 10, null, "john");
+
+            assertNotNull(result);
+            assertEquals(1, result.getTotalElements());
+            verify(userRepository).findByRolesContainingAndSearch(eq(studentRole), eq("john"), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("Should search users by keyword with active filter")
+        void getUsersByRole_WithSearch_AndActiveFilter() {
+            PageImpl<User> userPage = new PageImpl<>(List.of(testUser));
+            when(roleRepository.findByName(RoleName.ROLE_STUDENT)).thenReturn(Optional.of(studentRole));
+            when(userRepository.findByRolesContainingAndIsActiveAndSearch(eq(studentRole), eq(true), eq("john"), any(Pageable.class)))
+                    .thenReturn(userPage);
+
+            Page<UserListResponse> result = adminService.getUsersByRole("ROLE_STUDENT", 0, 10, true, "john");
+
+            assertNotNull(result);
+            assertEquals(1, result.getTotalElements());
+            verify(userRepository).findByRolesContainingAndIsActiveAndSearch(eq(studentRole), eq(true), eq("john"), any(Pageable.class));
         }
     }
 }

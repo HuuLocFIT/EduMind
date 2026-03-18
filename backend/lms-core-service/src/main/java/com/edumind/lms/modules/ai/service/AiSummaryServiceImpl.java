@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -55,6 +56,23 @@ public class AiSummaryServiceImpl implements AiSummaryService {
                 lesson.getTitle(),
                 lesson.getArticleContent()
         );
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public int reindexAll() {
+        List<LessonInfo> lessons = lessonQueryService.findAllWithArticleContent();
+
+        log.info("Backfilling summaries for {} lessons with article content", lessons.size());
+        for (LessonInfo info : lessons) {
+            try {
+                AiJobLog job = aiJobService.createJob(AiJobType.LESSON_SUMMARY, 0L, info.id());
+                asyncSummaryProcessor.process(job.getId(), info.id(), info.title(), info.articleContent());
+            } catch (Exception e) {
+                log.error("Failed to queue summary for lesson {}: {}", info.id(), e.getMessage());
+            }
+        }
+        return lessons.size();
     }
 
     @Override

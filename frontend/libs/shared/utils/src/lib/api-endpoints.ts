@@ -396,6 +396,7 @@ export const ADMIN_ENDPOINTS = {
   // User Management (Auth Service)
   USERS: `${API_BASE_PATH}/admin/users`,
   USERS_BY_ROLE: (roleName: string) => `${API_BASE_PATH}/admin/users/role/${roleName}`,
+  USER_ROLE_STATS: (roleName: string) => `${API_BASE_PATH}/admin/users/role/${roleName}/stats`,
   USER_DETAIL: (userId: string | number) => `${API_BASE_PATH}/admin/users/${userId}`,
   USER_CREATE_TEACHER: `${API_BASE_PATH}/admin/users/teacher`,
   USER_CREATE_ADMIN: `${API_BASE_PATH}/admin/users/admin`,
@@ -407,6 +408,7 @@ export const ADMIN_ENDPOINTS = {
 
   // Teacher applications
   APPLICATIONS: `${API_BASE_PATH}/admin/users/applications`,
+  APPLICATION_STATS: `${API_BASE_PATH}/admin/users/applications/stats`,
   APPLICATION_DETAIL: (applicationId: string | number) =>
     `${API_BASE_PATH}/admin/users/applications/${applicationId}`,
   APPLICATION_REVIEW: (applicationId: string | number) =>
@@ -443,6 +445,7 @@ export const ADMIN_ENDPOINTS = {
 
   // Enrollment Reports
   ENROLLMENT_REPORTS: `${API_BASE_PATH}/enrollments/reports`,
+  ENROLLMENT_REPORT_STATS: `${API_BASE_PATH}/enrollments/reports/stats`,
   ENROLLMENT_REPORT_APPROVE: (id: string | number) => `${API_BASE_PATH}/enrollments/reports/${id}/approve`,
   ENROLLMENT_REPORT_REJECT: (id: string | number) => `${API_BASE_PATH}/enrollments/reports/${id}/reject`,
 } as const;

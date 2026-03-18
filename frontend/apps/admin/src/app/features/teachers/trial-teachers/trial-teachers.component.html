@@ -23,11 +23,11 @@
   }
 
   <!-- Expiring Soon Warning -->
-  @if (expiringTeachers().length > 0 && !showExpiringOnly()) {
+  @if ((trialStats()?.expiringThisWeek ?? 0) > 0 && !showExpiringOnly()) {
     <app-alert variant="warning" [dismissible]="false">
       <div class="flex items-center justify-between">
-        <span>⚠️ {{ expiringTeachers().length }} teacher(s) trial expiring within 7 days</span>
-        <app-button variant="outline" size="sm" (click)="showExpiringOnly.set(true)">
+        <span>⚠️ {{ trialStats()?.expiringThisWeek ?? 0 }} teacher(s) trial expiring within 7 days</span>
+        <app-button variant="outline" size="sm" (click)="setExpiringOnly(true)">
           Show Expiring Only
         </app-button>
       </div>
@@ -55,7 +55,7 @@
         <div class="flex items-start justify-between">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Expiring Soon</p>
-            <p class="text-2xl font-bold text-orange-600 mt-1">{{ expiringTeachers().length }}</p>
+            <p class="text-2xl font-bold text-orange-600 mt-1">{{ trialStats()?.expiringThisWeek ?? 0 }}</p>
             <p class="text-xs text-gray-500 mt-1">Within 7 days</p>
           </div>
           <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
@@ -113,7 +113,7 @@
             [ngClass]="{
               'border-orange-300 bg-orange-50 text-orange-800': showExpiringOnly()
             }"
-            (click)="showExpiringOnly.set(!showExpiringOnly())"
+            (click)="setExpiringOnly(!showExpiringOnly())"
           >
             {{ showExpiringOnly() ? 'Show All' : 'Show Expiring Only' }}
           </app-button>

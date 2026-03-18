@@ -7,6 +7,7 @@ import com.edumind.lms.modules.course.dto.request.ReviewReportRequest;
 import com.edumind.lms.modules.course.dto.request.SuspendEnrollmentRequest;
 import com.edumind.lms.modules.course.dto.request.ReportToAdminRequest;
 import com.edumind.lms.modules.course.dto.response.EnrollmentReportResponse;
+import com.edumind.lms.modules.course.dto.response.EnrollmentReportStatsResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentResponse;
 import com.edumind.lms.modules.course.dto.response.EnrollmentStatsResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
@@ -360,6 +361,13 @@ public class EnrollmentController {
     // =========================================================================
     // Admin endpoints for enrollment reports
     // =========================================================================
+
+    @GetMapping("/reports/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<EnrollmentReportStatsResponse>> getReportStats() {
+        log.info("Admin getting enrollment report stats");
+        return ResponseEntity.ok(ApiResponse.success(enrollmentService.getReportStats()));
+    }
 
     @GetMapping("/reports")
     @PreAuthorize("hasRole('ADMIN')")

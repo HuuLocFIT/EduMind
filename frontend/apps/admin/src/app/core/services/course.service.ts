@@ -61,8 +61,8 @@ export class CourseService {
   }
 
   filterCourses(options: {
-    categoryId?: number;
-    level?: string;
+    categoryIds?: number[];
+    levels?: string[];
     minPrice?: number;
     maxPrice?: number;
     keyword?: string;
@@ -168,8 +168,8 @@ export class CourseService {
   }
 
   private buildFilterParams(options: {
-    categoryId?: number;
-    level?: string;
+    categoryIds?: number[];
+    levels?: string[];
     minPrice?: number;
     maxPrice?: number;
     keyword?: string;
@@ -177,11 +177,11 @@ export class CourseService {
     size?: number;
   }): HttpParams {
     let params = this.buildPaginationParams(options);
-    if (options.categoryId !== undefined) {
-      params = params.set('categoryId', options.categoryId.toString());
+    for (const id of options.categoryIds ?? []) {
+      params = params.append('categoryIds', id.toString());
     }
-    if (options.level) {
-      params = params.set('level', options.level);
+    for (const level of options.levels ?? []) {
+      params = params.append('levels', level);
     }
     if (options.minPrice !== undefined) {
       params = params.set('minPrice', options.minPrice.toString());

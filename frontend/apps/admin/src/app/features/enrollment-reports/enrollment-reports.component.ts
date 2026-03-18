@@ -1,7 +1,6 @@
-import { Component, OnInit, TemplateRef, ViewChild, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
 import {
   AlertComponent,
   BadgeComponent,
@@ -14,10 +13,8 @@ import {
   type BadgeVariant,
 } from '@edumind/admin-ui';
 import { AdminEnrollmentService } from '../../core/services/admin-enrollment.service';
-import {
-  EnrollmentReportResponse,
-  ReportRequestStatus,
-} from '@edumind/shared-types';
+import { EnrollmentReportResponse, ReportRequestStatus } from '@edumind/shared-types';
+import { injectAsyncState, injectModal, injectPagination, getStatusVariant, injectMediaQuery } from '../../core/utils';
 
 type ReportRow = EnrollmentReportResponse;
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -41,53 +38,46 @@ type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 export class EnrollmentReportsComponent implements OnInit {
   private adminEnrollmentService = inject(AdminEnrollmentService);
 
+  // ── Utilities ────────────────────────────────────────────────────────────
+  private pagination = injectPagination<ReportRow>();
+  currentPage = this.pagination.currentPage;
+  totalItems = this.pagination.totalItems;
+  readonly pageSize = this.pagination.pageSize;
+
+  private async = injectAsyncState();
+  isLoading = this.async.isLoading;
+  errorMessage = this.async.errorMessage;
+  successMessage = this.async.successMessage;
+
+  private detailModal = injectModal<ReportRow>();
+  private approveModal = injectModal<ReportRow>();
+  private rejectModal = injectModal<ReportRow>();
+  showDetailModal = this.detailModal.isOpen;
+  showApproveModal = this.approveModal.isOpen;
+  showRejectModal = this.rejectModal.isOpen;
+  /** Shared selection — kept in sync by all open* methods */
+  selectedReport = this.detailModal.data;
+
+  // ── Data ─────────────────────────────────────────────────────────────────
   reports = signal<ReportRow[]>([]);
-  isLoading = signal(true);
-  errorMessage = signal('');
-  successMessage = signal('');
-
   statusFilter = signal<StatusFilter>('ALL');
-  pageSize = 10;
-  currentPage = signal(1);
-  totalItems = signal(0);
 
-  // Stats from server
   statsPending = signal(0);
   statsApproved = signal(0);
   statsRejected = signal(0);
 
-  // Stats computed
-  stats = computed(() => {
-    return {
-      pending: this.statsPending(),
-      approved: this.statsApproved(),
-      rejected: this.statsRejected(),
-    };
-  });
-
-  // Table columns
+  // ── Table ─────────────────────────────────────────────────────────────────
+  isMobile = injectMediaQuery('(max-width: 768px)');
   columns: TableColumn<ReportRow>[] = [];
   actionsSticky = signal<'left' | 'right' | undefined>('right');
 
-  // Templates
-  @ViewChild('studentTpl', { static: true })
-  studentTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
-  @ViewChild('courseTpl', { static: true })
-  courseTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
-  @ViewChild('reasonTpl', { static: true })
-  reasonTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
-  @ViewChild('statusTpl', { static: true })
-  statusTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
-  @ViewChild('requestedAtTpl', { static: true })
-  requestedAtTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
+  @ViewChild('studentTpl', { static: true }) studentTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
+  @ViewChild('courseTpl', { static: true }) courseTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
+  @ViewChild('reasonTpl', { static: true }) reasonTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
+  @ViewChild('statusTpl', { static: true }) statusTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
+  @ViewChild('requestedAtTpl', { static: true }) requestedAtTpl!: TemplateRef<{ $implicit: ReportRow; row: ReportRow; index: number }>;
 
-  // Modals
-  showDetailModal = signal(false);
-  showApproveModal = signal(false);
-  showRejectModal = signal(false);
-  selectedReport = signal<ReportRow | null>(null);
-
-  // Form state
+  // ── Form state ────────────────────────────────────────────────────────────
   approveNotes = '';
   rejectNotes = '';
   rejectNotesError = signal('');
@@ -99,140 +89,91 @@ export class EnrollmentReportsComponent implements OnInit {
   }
 
   private buildColumns(): void {
+    const stickyLeft: 'left' | undefined = this.isMobile() ? undefined : 'left';
+    const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
     this.columns = [
-      {
-        key: 'studentId',
-        header: 'Student',
-        template: this.studentTpl,
-        sortable: true,
-        width: '150px',
-      },
-      {
-        key: 'courseTitle',
-        header: 'Course',
-        template: this.courseTpl,
-        sortable: true,
-        width: '250px',
-      },
-      {
-        key: 'reason',
-        header: 'Reason',
-        template: this.reasonTpl,
-        width: '300px',
-      },
-      {
-        key: 'status',
-        header: 'Status',
-        template: this.statusTpl,
-        sortable: true,
-        width: '120px',
-      },
-      {
-        key: 'requestedAt',
-        header: 'Requested At',
-        template: this.requestedAtTpl,
-        sortable: true,
-        width: '150px',
-      },
+      { key: 'studentId', header: 'Student', template: this.studentTpl, sortable: true, width: '150px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'courseTitle', header: 'Course', template: this.courseTpl, sortable: true, width: '250px' },
+      { key: 'reason', header: 'Reason', template: this.reasonTpl, width: '300px' },
+      { key: 'status', header: 'Status', template: this.statusTpl, sortable: true, width: '120px' },
+      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: true, width: '150px' },
     ];
+    this.actionsSticky.set(stickyRight);
   }
 
   loadStats(): void {
-    // Load stats in parallel: pending, approved, rejected
-    forkJoin({
-      pending: this.adminEnrollmentService.getReports({ status: 'PENDING', page: 0, size: 1 }),
-      approved: this.adminEnrollmentService.getReports({ status: 'APPROVED', page: 0, size: 1 }),
-      rejected: this.adminEnrollmentService.getReports({ status: 'REJECTED', page: 0, size: 1 }),
-    }).subscribe({
-      next: ({ pending, approved, rejected }) => {
-        this.statsPending.set(pending.pagination?.totalElements ?? 0);
-        this.statsApproved.set(approved.pagination?.totalElements ?? 0);
-        this.statsRejected.set(rejected.pagination?.totalElements ?? 0);
-      },
-      error: () => {
-        // Silently fail stats loading, don't show error
+    this.async.execute(this.adminEnrollmentService.getReportStats(), {
+      silent: true,
+      onSuccess: (stats) => {
+        this.statsPending.set(stats.pending);
+        this.statsApproved.set(stats.approved);
+        this.statsRejected.set(stats.rejected);
       },
     });
   }
 
   loadReports(): void {
-    this.isLoading.set(true);
     const page = this.currentPage() - 1;
     const status = this.statusFilter();
+    const statusFilter = status === 'ALL' ? undefined : status as ReportRequestStatus;
 
-    const statusFilter: ReportRequestStatus | undefined =
-      status === 'PENDING' ? 'PENDING' :
-      status === 'APPROVED' ? 'APPROVED' :
-      status === 'REJECTED' ? 'REJECTED' :
-      undefined;
-
-    this.adminEnrollmentService.getReports({
-      status: statusFilter,
-      page,
-      size: this.pageSize,
-    }).subscribe({
-      next: (response) => {
-        const items = response.data ?? [];
-        this.reports.set(items);
-        const total = response.pagination?.totalElements ?? items.length;
-        const pageIndex = response.pagination?.page ?? page;
-        this.totalItems.set(total);
-        this.currentPage.set(pageIndex + 1);
-        this.isLoading.set(false);
+    this.async.execute(
+      this.adminEnrollmentService.getReports({ status: statusFilter, page, size: this.pageSize }),
+      {
+        errorMsg: 'Failed to load enrollment reports',
+        onSuccess: (response) => {
+          this.pagination.applyPagedResponse(response, (items) => this.reports.set(items));
+        },
       },
-      error: () => {
-        this.errorMessage.set('Failed to load enrollment reports');
-        this.isLoading.set(false);
-      },
-    });
+    );
   }
 
   onStatusFilterChange(filter: StatusFilter): void {
     this.statusFilter.set(filter);
-    this.currentPage.set(1);
+    this.pagination.resetPage();
     this.loadReports();
   }
 
   onPageChange(page: number): void {
-    this.currentPage.set(page);
+    this.pagination.goToPage(page);
     this.loadReports();
   }
 
   openDetailModal(report: ReportRow): void {
-    this.selectedReport.set(report);
-    this.showDetailModal.set(true);
+    this.detailModal.open(report);
   }
 
   openApproveModal(report: ReportRow): void {
     this.selectedReport.set(report);
     this.approveNotes = '';
-    this.showApproveModal.set(true);
+    this.approveModal.open(report);
   }
 
   openRejectModal(report: ReportRow): void {
     this.selectedReport.set(report);
     this.rejectNotes = '';
     this.rejectNotesError.set('');
-    this.showRejectModal.set(true);
+    this.rejectModal.open(report);
   }
 
   approveReport(): void {
     const report = this.selectedReport();
     if (!report) return;
 
-    this.adminEnrollmentService.approveReport(report.id, this.approveNotes || undefined).subscribe({
-      next: () => {
-        this.successMessage.set('Report approved successfully');
-        this.showApproveModal.set(false);
-        this.loadStats();
-        this.loadReports();
-        setTimeout(() => this.successMessage.set(''), 5000);
+    this.async.execute(
+      this.adminEnrollmentService.approveReport(report.id, this.approveNotes || undefined),
+      {
+        submitting: true,
+        successMsg: 'Report approved successfully',
+        errorMsg: 'Failed to approve report',
+        onSuccess: () => {
+          this.approveModal.close();
+          this.statsPending.update(v => v - 1);
+          this.statsApproved.update(v => v + 1);
+          this.loadReports();
+        },
       },
-      error: () => {
-        this.errorMessage.set('Failed to approve report');
-        setTimeout(() => this.errorMessage.set(''), 5000);
-      },
-    });
+    );
   }
 
   rejectReport(): void {
@@ -243,49 +184,31 @@ export class EnrollmentReportsComponent implements OnInit {
       this.rejectNotesError.set('Rejection reason is required');
       return;
     }
-
     this.rejectNotesError.set('');
 
-    this.adminEnrollmentService.rejectReport(report.id, this.rejectNotes).subscribe({
-      next: () => {
-        this.successMessage.set('Report rejected successfully');
-        this.showRejectModal.set(false);
-        this.loadStats();
-        this.loadReports();
-        setTimeout(() => this.successMessage.set(''), 5000);
+    this.async.execute(
+      this.adminEnrollmentService.rejectReport(report.id, this.rejectNotes),
+      {
+        submitting: true,
+        successMsg: 'Report rejected successfully',
+        errorMsg: 'Failed to reject report',
+        onSuccess: () => {
+          this.rejectModal.close();
+          this.statsPending.update(v => v - 1);
+          this.statsRejected.update(v => v + 1);
+          this.loadReports();
+        },
       },
-      error: () => {
-        this.errorMessage.set('Failed to reject report');
-        setTimeout(() => this.errorMessage.set(''), 5000);
-      },
-    });
+    );
   }
 
   getStatusVariant(status: ReportRequestStatus): BadgeVariant {
-    switch (status) {
-      case 'PENDING':
-        return 'warning';
-      case 'APPROVED':
-        return 'success';
-      case 'REJECTED':
-        return 'error';
-      default:
-        return 'default';
-    }
-  }
-
-  truncateText(text: string, maxLength: number): string {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    return getStatusVariant(status);
   }
 
   formatDate(date: string): string {
     return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   }
 }

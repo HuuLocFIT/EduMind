@@ -82,7 +82,7 @@
             Status: {{ activeStatus() }}
           </span>
           <span class="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-800">
-            {{ displayTotalItems() }} applications
+            {{ totalItems() }} applications
           </span>
           @if (searchQuery()) {
             <span class="px-2 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
@@ -145,7 +145,7 @@
           </div>
         </app-card>
       }
-    } @else if (visibleApplications().length === 0) {
+    } @else if (applications().length === 0) {
       <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900'">
         <div class="text-center py-12">
           <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,7 +156,7 @@
         </div>
       </app-card>
     } @else {
-      @for (app of visibleApplications(); track app.id) {
+      @for (app of applications(); track app.id) {
         <app-card
           [padding]="'sm'"
           [customClass]="'border border-gray-200 bg-white shadow-sm text-gray-900 hover:shadow-md transition-shadow duration-200 mb-4'"
@@ -269,10 +269,10 @@
   </div>
 
   <!-- Pagination -->
-  @if (!searchQuery() && displayTotalItems() > pageSize) {
+  @if (totalItems() > pageSize) {
     <div class="flex items-center justify-between">
       <p class="text-sm text-gray-600">
-        Showing {{ getStartIndex() }} to {{ getEndIndex() }} of {{ displayTotalItems() }} applications
+        Showing {{ getStartIndex() }} to {{ getEndIndex() }} of {{ totalItems() }} applications
       </p>
       <div class="flex gap-2">
         <app-button variant="outline" size="sm" [disabled]="currentPage() === 1" (click)="goToPage(currentPage() - 1)">

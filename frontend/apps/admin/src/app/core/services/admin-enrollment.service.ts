@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { ADMIN_ENDPOINTS } from '@edumind/shared-utils';
 import {
   EnrollmentReportPagedResponse,
+  EnrollmentReportStats,
   ReviewReportRequest,
 } from '@edumind/shared-types';
 import { environment } from '../../../environments/environment';
@@ -35,6 +36,12 @@ export class AdminEnrollmentService {
     return this.http.get<EnrollmentReportPagedResponse>(
       `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORTS}`,
       { params: httpParams }
+    );
+  }
+
+  getReportStats(): Observable<EnrollmentReportStats> {
+    return this.http.get<EnrollmentReportStats>(
+      `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_STATS}`
     );
   }
 

@@ -171,8 +171,9 @@ public class AiController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<String>> reindexEmbeddings() {
         int count = embeddingService.reindexAll();
+        aiSummaryService.reindexAll();
         return ResponseEntity.accepted()
-                .body(ApiResponse.success("Queued embedding jobs for " + count + " lessons"));
+                .body(ApiResponse.success("Queued embedding and summary jobs for " + count + " lessons"));
     }
 
     /**

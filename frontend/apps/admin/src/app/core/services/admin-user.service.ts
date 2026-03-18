@@ -15,6 +15,7 @@ import {
   TeacherApplicationListResponse,
   TrialTeachersResponse,
   UpgradeTrialRequest,
+  UserRoleStats,
 } from '@edumind/shared-types';
 import { environment } from '../../../environments/environment';
 
@@ -48,11 +49,14 @@ export class AdminUserService {
 
   getUsersByRole(
     roleName: string,
-    options?: { page?: number; size?: number; isActive?: boolean }
+    options?: { page?: number; size?: number; isActive?: boolean; search?: string }
   ): Observable<AdminUserListResponse> {
     let params = this.buildPaginationParams(options);
     if (options?.isActive !== undefined) {
       params = params.set('isActive', String(options.isActive));
+    }
+    if (options?.search) {
+      params = params.set('search', options.search);
     }
     return this.http.get<AdminUserListResponse>(
       `${this.API_URL}${ADMIN_ENDPOINTS.USERS_BY_ROLE(roleName)}`,
@@ -82,6 +86,12 @@ export class AdminUserService {
   deleteUser(userId: number): Observable<AdminMessageResponse> {
     return this.http.delete<AdminMessageResponse>(
       `${this.API_URL}${ADMIN_ENDPOINTS.USER_DELETE(userId)}`
+    );
+  }
+
+  getUserRoleStats(roleName: string): Observable<UserRoleStats> {
+    return this.http.get<UserRoleStats>(
+      `${this.API_URL}${ADMIN_ENDPOINTS.USER_ROLE_STATS(roleName)}`
     );
   }
 

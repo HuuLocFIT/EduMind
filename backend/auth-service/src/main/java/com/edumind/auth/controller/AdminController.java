@@ -4,9 +4,11 @@ import com.edumind.auth.dto.request.CreateUserRequest;
 import com.edumind.auth.dto.request.ReviewApplicationRequest;
 import com.edumind.auth.dto.request.UpdateUserRoleRequest;
 import com.edumind.auth.dto.request.UpgradeTrialRequest;
+import com.edumind.auth.dto.response.ApplicationStatsResponse;
 import com.edumind.auth.dto.response.TeacherApplicationResponse;
 import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.dto.response.UserListResponse;
+import com.edumind.auth.dto.response.UserRoleStatsResponse;
 import com.edumind.auth.service.AdminService;
 import com.edumind.auth.service.TeacherApplicationService;
 import com.edumind.common.response.ApiResponse;
@@ -108,6 +110,17 @@ public class AdminController {
     }
 
     /**
+     * Get user count stats by role
+     * GET /admin/users/role/{roleName}/stats
+     */
+    @GetMapping("/role/{roleName}/stats")
+    public ResponseEntity<ApiResponse<UserRoleStatsResponse>> getUserRoleStats(
+            @PathVariable String roleName) {
+        logger.info("📥 GET /admin/users/role/{}/stats - Fetching user role stats", roleName);
+        return ResponseEntity.ok(ApiResponse.success(adminService.getUserRoleStats(roleName)));
+    }
+
+    /**
      * Get users by role
      * GET /admin/users/role/{roleName}?page=0&size=10
      */
@@ -117,11 +130,12 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String search,
             HttpServletRequest request) {
 
-        logger.info("📥 GET /admin/users/role/{} - Fetching users with isActive: {}", roleName, isActive);
+        logger.info("📥 GET /admin/users/role/{} - Fetching users with isActive: {}, search: {}", roleName, isActive, search);
 
-        Page<UserListResponse> users = adminService.getUsersByRole(roleName.toUpperCase(), page, size, isActive);
+        Page<UserListResponse> users = adminService.getUsersByRole(roleName.toUpperCase(), page, size, isActive, search);
 
         PagedResponse<UserListResponse> response = PagedResponse.of(
                 users.getContent(),
@@ -205,8 +219,18 @@ public class AdminController {
     }
 
     /**
+     * Get application statistics
+     * GET /admin/users/applications/stats
+     */
+    @GetMapping("/applications/stats")
+    public ResponseEntity<ApiResponse<ApplicationStatsResponse>> getApplicationStats() {
+        logger.info("📥 GET /admin/users/applications/stats - Fetching application statistics");
+        return ResponseEntity.ok(ApiResponse.success(applicationService.getApplicationStats()));
+    }
+
+    /**
      * Get all teacher applications
-     * GET /admin/applications?status=PENDING&page=0&size=10
+     * GET /admin/applications?status=PENDING&page=0&size=10&search=john
      */
     @GetMapping("/applications")
     public ResponseEntity<PagedResponse<TeacherApplicationResponse>> getAllApplications(
@@ -214,12 +238,13 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(required = false) String search,
             HttpServletRequest request) {
 
-        logger.info("📥 GET /admin/applications - Fetching applications with status: {}", status);
+        logger.info("📥 GET /admin/applications - Fetching applications with status: {}, search: {}", status, search);
 
         Page<TeacherApplicationResponse> applications =
-                applicationService.getAllApplications(status, page, size, sortBy);
+                applicationService.getAllApplications(status, page, size, sortBy, search);
 
         PagedResponse<TeacherApplicationResponse> response =
                 PagedResponse.of(
@@ -284,17 +309,19 @@ public class AdminController {
 
     /**
      * Get all trial teachers
-     * GET /admin/trial-teachers?page=0&size=10
+     * GET /admin/trial-teachers?page=0&size=10&search=john&expiringSoon=false
      */
     @GetMapping("/trial-teachers")
     public ResponseEntity<PagedResponse<TrialStatusResponse>> getTrialTeachers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "false") boolean expiringSoon,
             HttpServletRequest request) {
 
-        logger.info("📥 GET /admin/trial-teachers - Fetching trial teachers");
+        logger.info("📥 GET /admin/trial-teachers - Fetching trial teachers search: {}, expiringSoon: {}", search, expiringSoon);
 
-        Page<TrialStatusResponse> trialTeachers = applicationService.getTrialTeachers(page, size);
+        Page<TrialStatusResponse> trialTeachers = applicationService.getTrialTeachers(page, size, search, expiringSoon);
 
         PagedResponse<TrialStatusResponse> response =
                 PagedResponse.of(
