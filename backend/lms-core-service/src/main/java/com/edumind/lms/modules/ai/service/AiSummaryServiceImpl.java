@@ -3,7 +3,6 @@ package com.edumind.lms.modules.ai.service;
 import com.edumind.lms.modules.ai.dto.response.LessonSummaryResponse;
 import com.edumind.lms.modules.ai.entity.AiJobLog;
 import com.edumind.lms.modules.ai.entity.LessonSummary;
-import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.enums.AiJobType;
 import com.edumind.lms.modules.ai.repository.LessonSummaryRepository;
 import com.edumind.lms.modules.course.api.EnrollmentQueryService;
@@ -16,6 +15,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,10 @@ public class AiSummaryServiceImpl implements AiSummaryService {
     private final LessonSummaryRepository lessonSummaryRepository;
     private final AsyncSummaryProcessor asyncSummaryProcessor;
     private final ObjectMapper objectMapper;
+
+    @Autowired
+    @Qualifier("aiTaskExecutor")
+    private ThreadPoolTaskExecutor aiTaskExecutor;
 
     private static final TypeReference<List<String>> KEYPOINTS_TYPE_REF = new TypeReference<>() {};
     private static final TypeReference<List<com.edumind.lms.modules.ai.dto.response.VocabularyItem>> VOCAB_TYPE_REF =
@@ -65,19 +71,21 @@ public class AiSummaryServiceImpl implements AiSummaryService {
         List<LessonInfo> lessons = lessonQueryService.findAllWithArticleContent();
 
         log.info("Backfilling summaries for {} lessons with article content", lessons.size());
+        int queued = 0;
         for (LessonInfo info : lessons) {
-            AiJobLog job = null;
+            if (aiTaskExecutor.getThreadPoolExecutor().getQueue().remainingCapacity() == 0) {
+                log.warn("aiTaskExecutor queue full — stopping summary reindex at {}/{} lessons", queued, lessons.size());
+                break;
+            }
             try {
-                job = aiJobService.createJob(AiJobType.LESSON_SUMMARY, 0L, info.id());
+                AiJobLog job = aiJobService.createJob(AiJobType.LESSON_SUMMARY, 0L, info.id());
                 asyncSummaryProcessor.process(job.getId(), info.id(), info.title(), info.articleContent());
+                queued++;
             } catch (Exception e) {
                 log.error("Failed to queue summary for lesson {}: {}", info.id(), e.getMessage());
-                if (job != null) {
-                    aiJobService.updateStatus(job.getId(), AiJobStatus.FAILED, "Task rejected: " + e.getMessage());
-                }
             }
         }
-        return lessons.size();
+        return queued;
     }
 
     @Override

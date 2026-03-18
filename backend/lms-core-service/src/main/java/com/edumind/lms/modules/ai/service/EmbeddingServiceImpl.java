@@ -1,7 +1,6 @@
 package com.edumind.lms.modules.ai.service;
 
 import com.edumind.lms.modules.ai.entity.AiJobLog;
-import com.edumind.lms.modules.ai.enums.AiJobStatus;
 import com.edumind.lms.modules.ai.enums.AiJobType;
 import com.edumind.lms.modules.course.api.LessonQueryService;
 import com.edumind.lms.modules.course.api.dto.LessonInfo;
@@ -9,6 +8,9 @@ import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,10 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     private final AiJobService aiJobService;
     private final AsyncEmbeddingProcessor asyncEmbeddingProcessor;
     private final LessonQueryService lessonQueryService;
+
+    @Autowired
+    @Qualifier("aiTaskExecutor")
+    private ThreadPoolTaskExecutor aiTaskExecutor;
 
     @Override
     @Transactional
@@ -58,18 +64,20 @@ public class EmbeddingServiceImpl implements EmbeddingService {
         List<LessonInfo> lessons = lessonQueryService.findAllWithArticleContent();
 
         log.info("Backfilling embeddings for {} lessons with article content", lessons.size());
+        int queued = 0;
         for (LessonInfo info : lessons) {
-            AiJobLog job = null;
+            if (aiTaskExecutor.getThreadPoolExecutor().getQueue().remainingCapacity() == 0) {
+                log.warn("aiTaskExecutor queue full — stopping embedding reindex at {}/{} lessons", queued, lessons.size());
+                break;
+            }
             try {
-                job = aiJobService.createJob(AiJobType.EMBEDDING, 0L, info.id());
+                AiJobLog job = aiJobService.createJob(AiJobType.EMBEDDING, 0L, info.id());
                 asyncEmbeddingProcessor.process(job.getId(), info.id(), info.courseId(), info.articleContent());
+                queued++;
             } catch (Exception e) {
                 log.error("Failed to queue embedding for lesson {}: {}", info.id(), e.getMessage());
-                if (job != null) {
-                    aiJobService.updateStatus(job.getId(), AiJobStatus.FAILED, "Task rejected: " + e.getMessage());
-                }
             }
         }
-        return lessons.size();
+        return queued;
     }
 }
