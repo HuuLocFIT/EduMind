@@ -73,7 +73,7 @@ export const ProfileSettingsPage: React.FC = () => {
                 {[
                   { id: 'profile', icon: UserIcon, label: 'Profile' },
                   { id: 'password', icon: Lock, label: 'Password' },
-                  { id: 'notifications', icon: Bell, label: 'Notifications' },
+                  // { id: 'notifications', icon: Bell, label: 'Notifications' },
                   { id: 'security', icon: Shield, label: 'Security' },
                 ].map((tab) => {
                   const Icon = tab.icon;
@@ -100,7 +100,7 @@ export const ProfileSettingsPage: React.FC = () => {
           <main className="lg:col-span-3">
             {activeTab === 'profile' && <ProfileTab user={user} updateUser={setUser} />}
             {activeTab === 'password' && <PasswordTab />}
-            {activeTab === 'notifications' && <NotificationsTab />}
+            {/* {activeTab === 'notifications' && <NotificationsTab />} */}
             {activeTab === 'security' && <SecurityTab user={user} />}
           </main>
         </div>
