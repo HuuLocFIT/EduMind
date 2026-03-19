@@ -339,7 +339,7 @@ export const MainLayout: React.FC = () => {
               
               {/* Hamburger Menu */}
               <button
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="hover:bg-gray-100 rounded-lg transition-colors"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
                 {mobileMenuOpen ? (

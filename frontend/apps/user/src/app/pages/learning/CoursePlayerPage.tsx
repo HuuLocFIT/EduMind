@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
+  IconButton,
   Loading,
   ProgressBar,
   useToast,
@@ -26,12 +27,13 @@ import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
 import {
   Play,
   CheckCircle,
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   BookOpen,
   FileText,
   Video,
-  Menu,
+  List,
   X,
   ChevronDown,
   Sparkles,
@@ -100,6 +102,11 @@ export const CoursePlayerPage: React.FC = () => {
       updateLastAccessedLesson();
     }
   }, [currentLesson, enrollment]);
+
+  useEffect(() => {
+    if (!currentLesson) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [currentLesson?.id]);
 
   // Check whether the current lesson has a generated quiz available for the student
   useEffect(() => {
@@ -641,8 +648,9 @@ export const CoursePlayerPage: React.FC = () => {
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="md:hidden text-white"
+              aria-label={sidebarOpen ? 'Close lesson sidebar' : 'Open lesson sidebar'}
             >
-              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {sidebarOpen ? <X className="w-6 h-6" /> : <List className="w-6 h-6" />}
             </button>
           </div>
         </div>

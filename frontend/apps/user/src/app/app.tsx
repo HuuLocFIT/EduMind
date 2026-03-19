@@ -22,6 +22,7 @@ import {
 } from "./components/TeacherApplicationGuards";
 import { AppErrorBoundary } from "./components/RouteErrorBoundary";
 import { createLazyRoute } from "./components/LazyRoute";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 // ============================================
 // EAGER LOADED - Critical path pages
@@ -154,6 +155,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
       <AppErrorBoundary>
