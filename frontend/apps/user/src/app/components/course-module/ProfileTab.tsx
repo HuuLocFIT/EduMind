@@ -34,7 +34,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       phoneNumber: user?.phoneNumber || "",
-      profilePictureUrl: user?.profilePictureUrl || "",
+      profilePictureUrl: user?.profilePictureUrl || undefined,
     },
   });
 
@@ -45,7 +45,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       phoneNumber: user?.phoneNumber || "",
-      profilePictureUrl: user?.profilePictureUrl || "",
+      profilePictureUrl: user?.profilePictureUrl || undefined,
     });
   }, [user, reset]);
 
@@ -224,7 +224,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
                   firstName: user?.firstName || "",
                   lastName: user?.lastName || "",
                   phoneNumber: user?.phoneNumber || "",
-                  profilePictureUrl: user?.profilePictureUrl || "",
+                  profilePictureUrl: user?.profilePictureUrl || undefined,
                 })
               }
             >
