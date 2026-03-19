@@ -143,7 +143,7 @@ export const SignupPage = () => {
               Continue with Google
             </Button>
 
-            <Button
+            {/* <Button
               variant="outline"
               fullWidth
               onClick={() => handleOAuth2Login("facebook")}
@@ -154,7 +154,7 @@ export const SignupPage = () => {
               }
             >
               Continue with Facebook
-            </Button>
+            </Button> */}
           </div>
 
           <div className="relative my-6">
