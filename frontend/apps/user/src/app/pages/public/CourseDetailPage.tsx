@@ -38,6 +38,7 @@ import {
   Users,
   Star,
   ArrowLeft,
+  Tag,
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from '../../stores/auth.store';
@@ -250,27 +251,39 @@ export const CourseDetailPage: React.FC = () => {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-          {/* Back Button */}
-          <Button
-            variant="outline"
-            onClick={() => navigate(USER_ROUTES.COURSES)}
-            className="mb-6 border-white text-white hover:bg-white/10 hover:text-white"
-            leftIcon={<ArrowLeft className="w-4 h-4" />}
-          >
-            Back to Courses
-          </Button>
+          <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
+            <button
+              type="button"
+              onClick={() => navigate(USER_ROUTES.COURSES)}
+              className="group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <ArrowLeft className="w- h-6 transition-transform group-hover:-translate-x-0.5" />
+              <span className="sm:hidden">Back</span>
+              <span className="hidden sm:inline">Back to Courses</span>
+            </button>
+
+            {course.category && (
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-medium text-white/95 backdrop-blur-sm">
+                {course.category.iconUrl ? (
+                  <span
+                    aria-hidden="true"
+                    className="w-6 h-6 flex-shrink-0 bg-white"
+                    style={{
+                      WebkitMask: `url(${course.category.iconUrl}) center / contain no-repeat`,
+                      mask: `url(${course.category.iconUrl}) center / contain no-repeat`,
+                    }}
+                  />
+                ) : (
+                  <Tag className="w-6 h-6 text-white flex-shrink-0" />
+                )}
+                <span className="truncate">{course.category.name}</span>
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Course Info */}
             <div className="lg:col-span-2">
-              {course.category && (
-                <div className="mb-4">
-                  <span className="inline-flex items-center bg-white/20 backdrop-blur-sm text-white text-sm font-medium px-4 py-2 rounded-full">
-                    {course.category.name}
-                  </span>
-                </div>
-              )}
-
               <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
                 {course.title}
               </h1>

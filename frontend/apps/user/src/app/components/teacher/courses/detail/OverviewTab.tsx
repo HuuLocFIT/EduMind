@@ -3,6 +3,7 @@ import type { CourseDetailResponse } from "@edumind/shared-types";
 import { CourseStatusBadge } from "../CourseStatusBadge";
 import { CourseDescriptionViewer } from "../../../course-module/CourseDescriptionViewer";
 import { Users, Star, FileText, Clock, BookOpen } from "lucide-react";
+import { formatCourseLevel } from "../../../../lib/course-level";
 
 interface OverviewTabProps {
   course: CourseDetailResponse;
@@ -100,7 +101,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ course }) => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Level</span>
-              <span className="font-medium">{course.level}</span>
+              <span className="font-medium">{formatCourseLevel(course.level)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Language</span>
@@ -126,4 +127,3 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ course }) => {
     </div>
   );
 };
-

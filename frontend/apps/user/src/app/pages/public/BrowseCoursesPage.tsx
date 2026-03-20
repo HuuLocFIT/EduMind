@@ -15,7 +15,7 @@ import { categoryService } from '../../services/category.service';
 import { enrollmentService } from '../../services/enrollment.service';
 import { checkoutService } from '../../services/checkout.service';
 import type { CourseResponse, CategoryResponse, DirectCheckoutRequest } from "@edumind/shared-types";
-import { PaymentMethod } from "@edumind/shared-constants";
+import { CourseLevel, PaymentMethod } from "@edumind/shared-constants";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import { queryKeys } from "../../lib/query-keys";
 import { STALE_TIME_CATEGORIES } from "../../lib/query-config";
@@ -25,6 +25,22 @@ import { useCartStore } from "../../stores/cart.store";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
+
+const SPECIFIC_COURSE_LEVELS = [
+  CourseLevel.BEGINNER,
+  CourseLevel.INTERMEDIATE,
+  CourseLevel.ADVANCED,
+] as const;
+
+const normalizeSelectedLevels = (levels: string[]): string[] => {
+  const unique = Array.from(new Set(levels.filter(Boolean)));
+  const hasAllSpecificLevels = SPECIFIC_COURSE_LEVELS.every((level) =>
+    unique.includes(level)
+  );
+
+  // Selecting all specific levels is equivalent to no level filter.
+  return hasAllSpecificLevels ? [] : unique;
+};
 
 export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -51,7 +67,7 @@ export const BrowseCoursesPage: React.FC = () => {
   );
   const [selectedLevels, setSelectedLevels] = useState<string[]>(() => {
     const levels = searchParams.get("levels");
-    return levels ? levels.split(",").filter(Boolean) : [];
+    return levels ? normalizeSelectedLevels(levels.split(",")) : [];
   });
   const [minPrice, setMinPrice] = useState<string>(
     searchParams.get("minPrice") || ""
@@ -246,11 +262,11 @@ export const BrowseCoursesPage: React.FC = () => {
 
   const handleLevelChange = (level: string) => {
     setSelectedLevels((prev) => {
-      if (prev.includes(level)) {
-        return prev.filter((l) => l !== level);
-      } else {
-        return [...prev, level];
-      }
+      const next = prev.includes(level)
+        ? prev.filter((l) => l !== level)
+        : [...prev, level];
+
+      return normalizeSelectedLevels(next);
     });
     setPage(0);
   };
