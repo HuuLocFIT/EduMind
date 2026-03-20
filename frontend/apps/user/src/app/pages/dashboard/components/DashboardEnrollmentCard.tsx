@@ -176,7 +176,7 @@ export const DashboardEnrollmentCard: React.FC<DashboardEnrollmentCardProps> = (
                 onClick={onContinue}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-blue-500/25 group-hover:scale-105"
               >
-                {progressPercentage === 0 ? 'Start Learning' : 'Continue'}
+                {progressPercentage === 0 ? 'Start' : 'Continue'}
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}

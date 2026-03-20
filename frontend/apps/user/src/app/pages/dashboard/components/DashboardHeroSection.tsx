@@ -52,7 +52,7 @@ export const DashboardHeroSection: React.FC<DashboardHeroSectionProps> = ({
                   <span className="font-medium">
                     {mostRecentCourse.progressPercentage && mostRecentCourse.progressPercentage > 0
                       ? 'Jump back in'
-                      : 'Start Learning'}
+                      : 'Start'}
                   </span>
                 </div>
                 <div className="flex items-center gap-4">

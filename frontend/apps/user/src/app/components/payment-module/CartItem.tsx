@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { PriceTag } from "@edumind/user-ui";
 import type { CartItemResponse } from "@edumind/shared-types";
 import { UserRouteHelpers } from "@edumind/shared-utils";
+import { formatCourseLevel } from "../../lib/course-level";
 
 interface CartItemProps {
   item: CartItemResponse;
@@ -137,7 +138,7 @@ export const CartItem: React.FC<CartItemProps> = ({
           {/* Meta info - hidden on very small screens */}
           <div className="hidden sm:flex items-center gap-3 sm:gap-4 mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-500">
             {item.level && (
-              <span className="capitalize">{item.level.toLowerCase()}</span>
+              <span>{formatCourseLevel(item.level)}</span>
             )}
             {item.totalLessons && (
               <span>{item.totalLessons} lessons</span>

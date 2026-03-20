@@ -8,7 +8,9 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * JPA Specifications for dynamic course filtering.
@@ -43,7 +45,29 @@ public class CourseSpecifications {
             if (levels == null || levels.isEmpty()) {
                 return cb.conjunction(); // No filter
             }
-            return root.get("level").in(levels);
+
+            EnumSet<CourseLevel> selectedLevels = levels.stream()
+                    .filter(Objects::nonNull)
+                    .collect(() -> EnumSet.noneOf(CourseLevel.class), EnumSet::add, EnumSet::addAll);
+
+            if (selectedLevels.isEmpty()) {
+                return cb.conjunction();
+            }
+
+            EnumSet<CourseLevel> specificLevels = EnumSet.of(
+                    CourseLevel.BEGINNER,
+                    CourseLevel.INTERMEDIATE,
+                    CourseLevel.ADVANCED);
+
+            // Selecting all specific levels is equivalent to no level filter.
+            if (selectedLevels.containsAll(specificLevels)) {
+                return cb.conjunction();
+            }
+
+            // "All levels" courses should match every specific level filter.
+            selectedLevels.add(CourseLevel.ALL_LEVELS);
+
+            return root.get("level").in(selectedLevels);
         };
     }
 

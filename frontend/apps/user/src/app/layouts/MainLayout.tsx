@@ -80,7 +80,7 @@ export const MainLayout: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
       <nav className="bg-white border-b sticky top-0 z-50">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto px-3 sm:px-6 lg:px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to={USER_ROUTES.ROOT} className="flex items-center gap-2">
@@ -512,21 +512,21 @@ export const MainLayout: React.FC = () => {
 
       {/* Footer */}
       <footer className="bg-white border-t mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-4 py-6 sm:py-8">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-6 sm:gap-8">
+            <div className="col-span-2 xl:col-span-1">
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <GraduationCap className="w-6 h-6 text-blue-600" />
                 <span className="font-bold text-gray-900">EduMind</span>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 max-w-sm">
                 AI-powered learning platform for everyone
               </p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Courses</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold text-gray-900 mb-2 sm:mb-4">Courses</h4>
+              <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
                   <Link
                     to={USER_ROUTES.COURSES}
@@ -555,8 +555,8 @@ export const MainLayout: React.FC = () => {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold text-gray-900 mb-2 sm:mb-4">Support</h4>
+              <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
                   <a href="#" className="hover:text-blue-600">
                     Help Center
@@ -576,8 +576,8 @@ export const MainLayout: React.FC = () => {
             </div>
 
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold text-gray-900 mb-2 sm:mb-4">Legal</h4>
+              <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
                   <a href="#" className="hover:text-blue-600">
                     Terms of Service
@@ -592,7 +592,7 @@ export const MainLayout: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8 pt-8 border-t text-center text-sm text-gray-600">
+          <div className="mt-6 sm:mt-8 pt-5 sm:pt-8 border-t text-center text-sm text-gray-600">
             <p>&copy; 2026 EduMind. All rights reserved.</p>
           </div>
         </div>

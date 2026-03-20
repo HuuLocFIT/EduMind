@@ -4,6 +4,7 @@ import { Button, Input } from '@edumind/user-ui';
 import { CategoryFilter } from '../../../components/course-module';
 import { PriceRangeSlider } from './PriceRangeSlider';
 import type { CategoryResponse } from '@edumind/shared-types';
+import { formatCourseLevel } from '../../../lib/course-level';
 
 interface BrowseFilterSidebarProps {
   categories: CategoryResponse[];
@@ -168,7 +169,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-700">
-                    {level.charAt(0) + level.slice(1).toLowerCase()}
+                    {formatCourseLevel(level)}
                   </span>
                 </label>
               );

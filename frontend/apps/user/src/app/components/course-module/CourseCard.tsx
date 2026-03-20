@@ -1,6 +1,7 @@
 import { Card, Button } from "@edumind/user-ui";
 import { Clock, Users, BookOpen, ShoppingCart, Check, PlayCircle, Zap, Star } from "lucide-react";
 import type { CourseResponse } from "@edumind/shared-types";
+import { formatCourseLevel } from "../../lib/course-level";
 
 interface CourseCardProps {
   course: CourseResponse;
@@ -66,7 +67,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         {/* Badges Container - Right Side Top */}
         <div className="absolute top-3 right-3 z-10">
           <span className="bg-white/90 backdrop-blur text-gray-800 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm border border-gray-100/50">
-            {course.level}
+            {formatCourseLevel(course.level)}
           </span>
         </div>
 
@@ -210,4 +211,3 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     </div>
   );
 };
-

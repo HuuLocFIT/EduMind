@@ -1,6 +1,7 @@
 import React from 'react';
 import { Gift, X } from 'lucide-react';
 import type { CategoryResponse } from '@edumind/shared-types';
+import { formatCourseLevel } from '../../../lib/course-level';
 
 interface BrowseActiveFiltersProps {
   activeFiltersCount: number;
@@ -62,7 +63,7 @@ export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
           key={level}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
         >
-          Level: {level.charAt(0) + level.slice(1).toLowerCase()}
+          Level: {formatCourseLevel(level)}
           <button
             onClick={() => onLevelChange(level)}
             className="hover:bg-purple-200 rounded-full p-0.5 transition-colors"

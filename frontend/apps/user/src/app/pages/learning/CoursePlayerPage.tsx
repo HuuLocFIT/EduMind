@@ -125,7 +125,7 @@ export const CoursePlayerPage: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const mediaQuery = window.matchMedia('(min-width: 1280px)');
     const handleChange = (event: MediaQueryListEvent) => {
       setIsDesktop(event.matches);
     };
@@ -614,51 +614,65 @@ export const CoursePlayerPage: React.FC = () => {
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-16 z-20">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="px-3 sm:px-4 py-3 xl:hidden">
+          <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3">
             <Button
               variant="secondary"
-              onClick={() => navigate(USER_ROUTES.LEARNING)}  
+              onClick={() => navigate(USER_ROUTES.LEARNING)}
+              className="h-12 w-12 p-0 justify-center bg-gray-700 hover:bg-gray-600"
+              aria-label="Exit course player"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+
+            <h1 className="text-white font-semibold text-center truncate px-1">
+              {course.title}
+            </h1>
+
+            <Button
+              variant="secondary"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="h-12 w-12 p-0 justify-center bg-gray-700 hover:bg-gray-600"
+              aria-label={sidebarOpen ? 'Close lesson sidebar' : 'Open lesson sidebar'}
+            >
+              {sidebarOpen ? <X className="w-5 h-5" /> : <List className="w-5 h-5" />}
+            </Button>
+          </div>
+        </div>
+
+        <div className="hidden xl:flex px-4 py-3 items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Button
+              variant="secondary"
+              onClick={() => navigate(USER_ROUTES.LEARNING)}
               className="bg-gray-700 hover:bg-gray-600"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               Exit
             </Button>
-            <h1 className="text-white font-semibold line-clamp-1">
+            <h1 className="text-white font-semibold truncate">
               {course.title}
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Course Progress */}
-            <div className="hidden md:flex items-center gap-3">
-              <span className="text-gray-300 text-sm">
-                Course Progress: {enrollment?.progressPercentage || 0}%
-              </span>
-              <div className="w-32">
-                <ProgressBar
-                  progress={enrollment?.progressPercentage || 0}
-                  size="sm"
-                  color="green"
-                />
-              </div>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-300 text-sm whitespace-nowrap">
+              Course Progress: {enrollment?.progressPercentage || 0}%
+            </span>
+            <div className="w-32">
+              <ProgressBar
+                progress={enrollment?.progressPercentage || 0}
+                size="sm"
+                color="green"
+              />
             </div>
-
-            {/* Mobile Sidebar Toggle */}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden text-white"
-              aria-label={sidebarOpen ? 'Close lesson sidebar' : 'Open lesson sidebar'}
-            >
-              {sidebarOpen ? <X className="w-6 h-6" /> : <List className="w-6 h-6" />}
-            </button>
           </div>
         </div>
       </header>
 
       {!isDesktop && sidebarOpen && (
         <div
-          className="fixed inset-x-0 bottom-0 bg-black/40 z-30 md:hidden"
+          className="fixed inset-x-0 bottom-0 bg-black/40 z-30 xl:hidden"
           style={{ top: '57px' }}
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
@@ -667,7 +681,7 @@ export const CoursePlayerPage: React.FC = () => {
 
       <div className="flex relative">
         {/* Main Content */}
-        <main className={`flex-1 ${sidebarOpen ? 'md:mr-80' : ''}`}>
+        <main className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
           {/* Video Player - only for VIDEO type */}
           {currentLesson.contentType === ContentType.VIDEO && (
             <div className="bg-black aspect-video relative">
@@ -804,23 +818,27 @@ export const CoursePlayerPage: React.FC = () => {
               )}
 
               {/* Navigation Buttons */}
-              <div className="flex items-center justify-between">
+              <div className="w-full grid grid-cols-2 gap-3 sm:gap-4">
                 <Button
                   variant="secondary"
                   onClick={() => handleNavigate('previous')}
                   disabled={!getPreviousLesson()}
+                  className="justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
                 >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Previous Lesson
+                  <ChevronLeft className="w-5 h-5 mr-2" />
+                  <span className="sm:hidden">Previous</span>
+                  <span className="hidden sm:inline">Previous Lesson</span>
                 </Button>
 
                 <Button
                   variant="primary"
                   onClick={() => handleNavigate('next')}
                   disabled={!getNextLesson()}
+                  className="justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
                 >
-                  Next Lesson
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                  <span className="sm:hidden">Next</span>
+                  <span className="hidden sm:inline">Next Lesson</span>
+                  <ChevronRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
             </div>
@@ -833,7 +851,7 @@ export const CoursePlayerPage: React.FC = () => {
             fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 
             transform transition-transform duration-200 z-40
             ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
-            md:translate-x-0
+            xl:translate-x-0
           `}
           style={{ top: '57px' }} // Height of header
         >
@@ -994,7 +1012,7 @@ export const CoursePlayerPage: React.FC = () => {
           {/* Mobile backdrop */}
           {isChatOpen && (
             <div
-              className="fixed inset-0 z-40 md:hidden"
+              className="fixed inset-0 z-40 xl:hidden"
               onClick={closeChat}
             />
           )}
