@@ -263,7 +263,7 @@ export const CourseDetailPage: React.FC = () => {
             </button>
 
             {course.category && (
-              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-sm font-medium text-white/95 backdrop-blur-sm">
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-2 text-sm font-medium text-white/95 backdrop-blur-sm">
                 {course.category.iconUrl ? (
                   <span
                     aria-hidden="true"
