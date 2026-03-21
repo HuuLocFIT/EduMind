@@ -140,15 +140,8 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
         >
           <option value="en">English</option>
           <option value="vi">Vietnamese</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="zh">Chinese</option>
-          <option value="ja">Japanese</option>
-          <option value="ko">Korean</option>
         </select>
       </div>
     </div>
   );
 };
-

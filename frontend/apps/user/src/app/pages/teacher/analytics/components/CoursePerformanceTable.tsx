@@ -7,6 +7,12 @@ interface CoursePerformanceTableProps {
   loading?: boolean;
 }
 
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 const getStatusBadgeColor = (status: string) => {
   switch (status) {
     case "PUBLISHED":
@@ -32,7 +38,7 @@ export const CoursePerformanceTable: React.FC<CoursePerformanceTableProps> = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-xl border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-6">
           Top Courses Performance
         </h3>
@@ -44,11 +50,11 @@ export const CoursePerformanceTable: React.FC<CoursePerformanceTableProps> = ({
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200">
+    <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
       <h3 className="text-lg font-semibold text-gray-900 mb-6">
         Top Courses Performance
       </h3>
-      <div className="overflow-x-auto">
+      <div className="hidden lg:block">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200">
@@ -90,10 +96,7 @@ export const CoursePerformanceTable: React.FC<CoursePerformanceTableProps> = ({
                     : "No rating yet"}
                 </td>
                 <td className="py-4 px-4 text-right text-gray-700">
-                  ${course.netEarnings.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatCurrency(course.netEarnings)}
                 </td>
                 <td className="py-4 px-4 text-right text-gray-700">
                   {course.completionRate.toFixed(1)}%
@@ -111,6 +114,50 @@ export const CoursePerformanceTable: React.FC<CoursePerformanceTableProps> = ({
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="lg:hidden space-y-3">
+        {data.map((course) => (
+          <div
+            key={course.courseId}
+            className="rounded-lg border border-gray-200 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h4 className="font-semibold text-gray-900 leading-6 line-clamp-2">
+                {course.title}
+              </h4>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadgeColor(
+                  course.status
+                )}`}
+              >
+                {course.status.replace("_", " ")}
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <p className="text-gray-500">Students</p>
+              <p className="text-right text-gray-900 font-medium">
+                {course.totalStudents.toLocaleString()}
+              </p>
+
+              <p className="text-gray-500">Avg Rating</p>
+              <p className="text-right text-gray-900 font-medium">
+                {course.averageRating > 0 ? course.averageRating.toFixed(1) : "No rating yet"}
+              </p>
+
+              <p className="text-gray-500">Net Earnings</p>
+              <p className="text-right text-gray-900 font-medium">
+                {formatCurrency(course.netEarnings)}
+              </p>
+
+              <p className="text-gray-500">Completion</p>
+              <p className="text-right text-gray-900 font-medium">
+                {course.completionRate.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -122,7 +122,7 @@ export const TeacherEarningsPage: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <EarningsStats stats={summary} loading={loadingSummary} />
       </div>
 
@@ -176,7 +176,7 @@ export const TeacherEarningsPage: React.FC = () => {
                 leftIcon={<Download className="w-4 h-4" />}
                 disabled={!earnings.length}
               >
-                Export CSV
+                Export
               </Button>
         </div>
 

@@ -121,7 +121,7 @@ export const TeacherStudentsPage: React.FC = () => {
           onClick={handleExportCsv}
           disabled={!filteredAndSorted.length}
         >
-          Export CSV
+          Export
         </Button>
       </div>
 
@@ -135,7 +135,7 @@ export const TeacherStudentsPage: React.FC = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StudentsStats
           stats={stats}
           loading={loadingStudents || coursesLoading}

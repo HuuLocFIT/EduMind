@@ -39,7 +39,7 @@ export const StudentEngagementChart: React.FC<StudentEngagementChartProps> = ({
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-xl border border-gray-200 h-[300px] flex items-center justify-center text-gray-400">
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 h-[300px] flex items-center justify-center text-gray-400">
         No enrollment status data available
       </div>
     );
@@ -66,11 +66,11 @@ export const StudentEngagementChart: React.FC<StudentEngagementChartProps> = ({
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">
+    <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-6">
         Student Engagement
       </h3>
-      <div className="h-[300px] w-full">
+      <div className="h-[260px] sm:h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -81,7 +81,7 @@ export const StudentEngagementChart: React.FC<StudentEngagementChartProps> = ({
               label={({ name, percent }) =>
                 `${name}: ${(percent ? percent * 100 : 0).toFixed(0)}%`
               }
-              outerRadius={80}
+              outerRadius={70}
               innerRadius={40}
               fill="#8884d8"
               dataKey="value"
