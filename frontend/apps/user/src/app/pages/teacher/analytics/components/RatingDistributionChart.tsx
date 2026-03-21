@@ -35,7 +35,7 @@ export const RatingDistributionChart: React.FC<RatingDistributionChartProps> = (
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-xl border border-gray-200 h-[300px] flex items-center justify-center text-gray-400">
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 h-[300px] flex items-center justify-center text-gray-400">
         No rating data available
       </div>
     );
@@ -64,16 +64,16 @@ export const RatingDistributionChart: React.FC<RatingDistributionChartProps> = (
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">
+    <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-6">
         Rating Distribution
       </h3>
-      <div className="h-[300px] w-full">
+      <div className="h-[260px] sm:h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ top: 10, right: 10, left: 60, bottom: 0 }}
+            margin={{ top: 10, right: 8, left: 24, bottom: 0 }}
           >
             <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#F3F4F6" />
             <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} />

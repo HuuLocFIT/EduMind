@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { teacherCourseService } from '../../services/teacher-course.service';
+import { teacherCourseService } from "../../services/teacher-course.service";
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
 import { CourseStatus } from "@edumind/shared-constants";
 import type {
@@ -48,14 +48,15 @@ export const TeacherCourseDetailPage: React.FC = () => {
     enabled: Boolean(courseId),
   });
 
-  const {
-    data: sections = [],
-    isLoading: sectionsLoading,
-  } = useQuery<SectionDetailResponse[]>({
+  const { data: sections = [], isLoading: sectionsLoading } = useQuery<
+    SectionDetailResponse[]
+  >({
     queryKey: queryKeys.teacherCourses.sections(courseId!),
     queryFn: async () => {
       if (!courseId) throw new Error("Course ID is required");
-      return teacherCourseService.getCourseSectionsWithLessons(Number(courseId));
+      return teacherCourseService.getCourseSectionsWithLessons(
+        Number(courseId),
+      );
     },
     staleTime: STALE_TIME_TEACHER_COURSES,
     enabled: Boolean(courseId),
@@ -78,7 +79,7 @@ export const TeacherCourseDetailPage: React.FC = () => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.courses.all,
         exact: false,
-      })
+      });
       showSuccess("Course published successfully!");
     } catch (err: any) {
       showError(err.message || "Failed to publish course");
@@ -151,7 +152,7 @@ export const TeacherCourseDetailPage: React.FC = () => {
 
       {/* Tabs */}
       <div className="border-b">
-        <div className="flex gap-6">
+        <div className="flex gap-6 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -175,7 +176,9 @@ export const TeacherCourseDetailPage: React.FC = () => {
         <CurriculumTab
           courseId={course.id}
           sections={sections}
-          onEdit={() => navigate(TeacherRouteHelpers.courseEdit(course.id, 'curriculum'))}
+          onEdit={() =>
+            navigate(TeacherRouteHelpers.courseEdit(course.id, "curriculum"))
+          }
         />
       )}
       {activeTab === "students" && <StudentsTab courseId={course.id} />}

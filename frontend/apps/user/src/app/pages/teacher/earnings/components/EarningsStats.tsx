@@ -36,15 +36,15 @@ const StatCard: React.FC<CardProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex items-center gap-4">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+      <div className="flex items-start gap-3 sm:gap-4">
         <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
           <Icon className="w-6 h-6" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-gray-500">{title}</p>
           <div className="flex items-end gap-2">
-            <p className="text-xl font-bold text-gray-900">{value}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900 truncate">{value}</p>
             {trend && (
             <div className={`flex items-center text-xs mb-1 ${trend === "up" ? "text-green-600" : "text-red-600"}`}>
                 {trend === "up" ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}

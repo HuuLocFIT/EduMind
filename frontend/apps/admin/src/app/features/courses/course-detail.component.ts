@@ -11,6 +11,7 @@ import { CourseService } from '../../core/services/course.service';
 import { CourseDetailResponse } from '@edumind/shared-types';
 import { CourseStatus, CourseLevel } from '@edumind/shared-constants';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
+import { CourseDescriptionViewerComponent } from './course-description-viewer.component';
 
 type CourseStatusValue = (typeof CourseStatus)[keyof typeof CourseStatus];
 type CourseLevelValue = (typeof CourseLevel)[keyof typeof CourseLevel];
@@ -24,6 +25,7 @@ type CourseLevelValue = (typeof CourseLevel)[keyof typeof CourseLevel];
     ButtonComponent,
     BadgeComponent,
     AlertComponent,
+    CourseDescriptionViewerComponent,
   ],
   templateUrl: './course-detail.component.html',
 })
@@ -76,8 +78,82 @@ export class CourseDetailComponent implements OnInit {
     return mapping[status] ?? 'secondary';
   }
 
+  getStatusLabel(status: CourseStatusValue): string {
+    return this.formatEnumLabel(status);
+  }
+
   getLevelLabel(level: CourseLevelValue): string {
-    return level.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    return this.formatEnumLabel(level);
+  }
+
+  getDurationLabel(hours: number | null | undefined): string {
+    if (hours == null || Number.isNaN(hours) || hours < 0) {
+      return 'Not specified';
+    }
+
+    const totalMinutes = Math.round(hours * 60);
+    const wholeHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+
+    if (wholeHours > 0 && remainingMinutes > 0) {
+      return `${wholeHours}h ${remainingMinutes}m`;
+    }
+
+    if (wholeHours > 0) {
+      return `${wholeHours}h`;
+    }
+
+    return `${remainingMinutes}m`;
+  }
+
+  getSectionCount(course: CourseDetailResponse): number {
+    return course.sections?.length ?? 0;
+  }
+
+  getLessonCount(course: CourseDetailResponse): number {
+    if (typeof course.totalLessons === 'number') {
+      return course.totalLessons;
+    }
+
+    return (course.sections ?? []).reduce(
+      (total, section) => total + (section.lessonCount ?? section.lessons?.length ?? 0),
+      0,
+    );
+  }
+
+  getTotalDurationMinutes(course: CourseDetailResponse): number | null {
+    if (typeof course.durationHours === 'number') {
+      return Math.round(course.durationHours * 60);
+    }
+
+    const sectionMinutes = (course.sections ?? []).reduce(
+      (total, section) => total + (section.totalDurationMinutes ?? 0),
+      0,
+    );
+
+    return sectionMinutes > 0 ? sectionMinutes : null;
+  }
+
+  formatDurationMinutes(minutes: number | null | undefined): string {
+    if (minutes == null || Number.isNaN(minutes) || minutes < 0) {
+      return 'Not specified';
+    }
+
+    const wholeHours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (wholeHours > 0 && remainingMinutes > 0) {
+      return `${wholeHours}h ${remainingMinutes}m`;
+    }
+
+    if (wholeHours > 0) {
+      return `${wholeHours}h`;
+    }
+
+    return `${remainingMinutes}m`;
+  }
+
+  private formatEnumLabel(value: string): string {
+    return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   }
 }
-

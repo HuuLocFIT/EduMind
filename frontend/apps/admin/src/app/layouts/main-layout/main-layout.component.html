@@ -43,12 +43,15 @@
                     {{ item.badge }}
                   </span>
                 }
-                <span class="material-icons text-lg transition-transform" [class.rotate-180]="isExpanded(item.label)">
+                <span
+                  class="material-icons text-lg transition-transform"
+                  [class.rotate-180]="isExpanded(item.label)"
+                >
                   expand_more
                 </span>
               </div>
             </button>
-            
+
             <!-- Children Items -->
             @if (isExpanded(item.label)) {
               <div class="ml-4 mt-1 mb-2 space-y-1">
@@ -56,10 +59,16 @@
                   <a
                     [routerLink]="child.path"
                     routerLinkActive="bg-indigo-50 text-indigo-600 border-indigo-600"
-                    [routerLinkActiveOptions]="child.path === ADMIN_ROUTES.PAYOUTS_ALL ? { exact: true } : { exact: false }"
+                    [routerLinkActiveOptions]="
+                      child.path === ADMIN_ROUTES.PAYOUTS_ALL
+                        ? { exact: true }
+                        : { exact: false }
+                    "
                     class="flex items-center px-4 py-2.5 mb-1 text-sm text-gray-600 rounded-lg hover:bg-gray-50 border-l-4 border-transparent transition-colors focus:outline-none focus:ring-0 active:outline-none"
                   >
-                    <span class="material-icons text-lg mr-3">{{ child.icon }}</span>
+                    <span class="material-icons text-lg mr-3">{{
+                      child.icon
+                    }}</span>
                     <span class="font-medium">{{ child.label }}</span>
                   </a>
                 }
@@ -131,9 +140,9 @@
         <!-- Mobile Menu Button -->
         <button
           (click)="toggleSidebar()"
-          class="lg:hidden text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg p-2"
+          class="lg:hidden text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg flex items-center justify-center p-0"
         >
-          <span class="material-icons">menu</span>
+          <span class="material-icons block text-[24px]">menu</span>
         </button>
 
         <!-- Search Bar (Desktop) -->
@@ -170,55 +179,55 @@
 
             <!-- Notifications Dropdown -->
             @if (isNotificationOpen()) {
-            <div
-              class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-            >
-              <div class="px-4 py-2 border-b border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-900">
-                  Notifications
-                </h3>
+              <div
+                class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+              >
+                <div class="px-4 py-2 border-b border-gray-200">
+                  <h3 class="text-sm font-semibold text-gray-900">
+                    Notifications
+                  </h3>
+                </div>
+                <div class="max-h-96 overflow-y-auto">
+                  <a
+                    href="#"
+                    class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
+                  >
+                    <p class="text-sm text-gray-900 font-medium">
+                      New teacher application
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                      John Doe applied 5 minutes ago
+                    </p>
+                  </a>
+                  <a
+                    href="#"
+                    class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
+                  >
+                    <p class="text-sm text-gray-900 font-medium">
+                      Payment received
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                      $299 from student enrollment
+                    </p>
+                  </a>
+                  <a href="#" class="block px-4 py-3 hover:bg-gray-50">
+                    <p class="text-sm text-gray-900 font-medium">
+                      Course published
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                      "Advanced React" is now live
+                    </p>
+                  </a>
+                </div>
+                <div class="px-4 py-2 border-t border-gray-200">
+                  <a
+                    href="#"
+                    class="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    View all notifications
+                  </a>
+                </div>
               </div>
-              <div class="max-h-96 overflow-y-auto">
-                <a
-                  href="#"
-                  class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
-                >
-                  <p class="text-sm text-gray-900 font-medium">
-                    New teacher application
-                  </p>
-                  <p class="text-xs text-gray-500 mt-1">
-                    John Doe applied 5 minutes ago
-                  </p>
-                </a>
-                <a
-                  href="#"
-                  class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
-                >
-                  <p class="text-sm text-gray-900 font-medium">
-                    Payment received
-                  </p>
-                  <p class="text-xs text-gray-500 mt-1">
-                    $299 from student enrollment
-                  </p>
-                </a>
-                <a href="#" class="block px-4 py-3 hover:bg-gray-50">
-                  <p class="text-sm text-gray-900 font-medium">
-                    Course published
-                  </p>
-                  <p class="text-xs text-gray-500 mt-1">
-                    "Advanced React" is now live
-                  </p>
-                </a>
-              </div>
-              <div class="px-4 py-2 border-t border-gray-200">
-                <a
-                  href="#"
-                  class="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  View all notifications
-                </a>
-              </div>
-            </div>
             }
           </div>
 
@@ -226,7 +235,7 @@
           <div class="relative">
             <button
               (click)="toggleUserMenu()"
-              class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="flex items-center space-x-2 py-2 pl-2 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <div
                 class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm"
@@ -240,43 +249,43 @@
 
             <!-- User Dropdown -->
             @if (isUserMenuOpen()) {
-            <div
-              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-            >
-              <div class="px-4 py-2 border-b border-gray-200">
-                <p class="text-sm font-medium text-gray-900">
-                  {{ userDisplayName }}
-                </p>
-                <p class="text-xs text-gray-500">{{ currentUser?.email }}</p>
-              </div>
-
-              <a
-                routerLink="/settings"
-                (click)="closeMenus()"
-                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              <div
+                class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
               >
-                <span class="material-icons text-lg mr-2">settings</span>
-                Settings
-              </a>
+                <div class="px-4 py-2 border-b border-gray-200">
+                  <p class="text-sm font-medium text-gray-900">
+                    {{ userDisplayName }}
+                  </p>
+                  <p class="text-xs text-gray-500">{{ currentUser?.email }}</p>
+                </div>
 
-              <a
-                href="#"
-                (click)="closeMenus()"
-                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <span class="material-icons text-lg mr-2">help</span>
-                Help & Support
-              </a>
-              <div class="border-t border-gray-200 mt-2 pt-2">
-                <button
-                  (click)="logout()"
-                  class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                <a
+                  routerLink="/settings"
+                  (click)="closeMenus()"
+                  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
-                  <span class="material-icons text-lg mr-2">logout</span>
-                  Logout
-                </button>
+                  <span class="material-icons text-lg mr-2">settings</span>
+                  Settings
+                </a>
+
+                <a
+                  href="#"
+                  (click)="closeMenus()"
+                  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <span class="material-icons text-lg mr-2">help</span>
+                  Help & Support
+                </a>
+                <div class="border-t border-gray-200 mt-2 pt-2">
+                  <button
+                    (click)="logout()"
+                    class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <span class="material-icons text-lg mr-2">logout</span>
+                    Logout
+                  </button>
+                </div>
               </div>
-            </div>
             }
           </div>
         </div>
@@ -293,23 +302,23 @@
   <!-- MOBILE OVERLAY -->
   <!-- ========================================== -->
   @if (isSidebarOpen()) {
-  <div
-    (click)="toggleSidebar()"
-    (keyup.enter)="toggleSidebar()"
-    tabindex="0"
-    role="button"
-    class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden transition-opacity"
-  ></div>
+    <div
+      (click)="toggleSidebar()"
+      (keyup.enter)="toggleSidebar()"
+      tabindex="0"
+      role="button"
+      class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden transition-opacity"
+    ></div>
   }
 
   <!-- Dropdown Close Handler -->
   @if (isUserMenuOpen() || isNotificationOpen()) {
-  <div
-    (click)="closeMenus()"
-    (keyup.enter)="closeMenus()"
-    tabindex="0"
-    role="button"
-    class="fixed inset-0 z-30"
-  ></div>
+    <div
+      (click)="closeMenus()"
+      (keyup.enter)="closeMenus()"
+      tabindex="0"
+      role="button"
+      class="fixed inset-0 z-30"
+    ></div>
   }
 </div>

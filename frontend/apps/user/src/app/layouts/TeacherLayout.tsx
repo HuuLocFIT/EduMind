@@ -124,7 +124,7 @@ export const TeacherLayout: React.FC = () => {
         <div className="flex items-center justify-between px-4 h-16">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="hover:bg-gray-100 rounded-lg"
           >
             {mobileMenuOpen ? (
               <X className="w-6 h-6" />
@@ -340,7 +340,7 @@ export const TeacherLayout: React.FC = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-screen">
+        <main className="flex-1 min-h-screen overflow-x-hidden">
           {/* Desktop Header */}
           <header className="hidden lg:flex items-center justify-between bg-white border-b px-6 h-16 sticky top-0 z-30">
             <div className="flex items-center gap-4">
@@ -391,7 +391,7 @@ export const TeacherLayout: React.FC = () => {
           </header>
 
           {/* Page Content */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <Outlet />
           </div>
         </main>

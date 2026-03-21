@@ -14,7 +14,7 @@ export const AnalyticsOverviewCards: React.FC<AnalyticsOverviewCardsProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-32 w-full rounded-xl" />
         ))}
@@ -69,25 +69,25 @@ export const AnalyticsOverviewCards: React.FC<AnalyticsOverviewCardsProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
             key={card.title}
-            className={`bg-white p-6 rounded-xl border ${card.borderColor} ${card.bgColor}`}
+            className={`bg-white p-5 sm:p-6 rounded-xl border ${card.borderColor} ${card.bgColor}`}
           >
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-600 mb-1">
                   {card.title}
                 </p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl 2xl:text-2xl font-bold text-gray-900 truncate">
                   {card.value}
                 </p>
               </div>
               <div
-                className={`p-3 rounded-lg ${card.bgColor} ${card.iconColor}`}
+                className={`p-3 rounded-lg shrink-0 ${card.bgColor} ${card.iconColor}`}
               >
                 <Icon className="h-6 w-6" />
               </div>

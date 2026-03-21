@@ -47,7 +47,7 @@ export const ReviewsStats: React.FC<ReviewsStatsProps> = ({ stats, isLoading }) 
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="bg-white rounded-lg border p-5 animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-20 mb-3" />
@@ -61,22 +61,22 @@ export const ReviewsStats: React.FC<ReviewsStatsProps> = ({ stats, isLoading }) 
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       {statItems.map((item) => {
         const colors = COLOR_CLASSES[item.color];
         const Icon = item.icon;
         return (
           <div
             key={item.label}
-            className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg border border-gray-200 p-4 sm:p-5 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div className={`p-2.5 rounded-lg ${colors.bg}`}>
                 <Icon className={`w-5 h-5 ${colors.icon}`} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-gray-500">{item.label}</p>
-                <p className={`text-2xl font-bold ${colors.text}`}>
+                <p className={`text-xl 2xl:text-2xl font-bold ${colors.text} truncate`}>
                   {item.value}
                 </p>
               </div>
@@ -87,4 +87,3 @@ export const ReviewsStats: React.FC<ReviewsStatsProps> = ({ stats, isLoading }) 
     </div>
   );
 };
-
