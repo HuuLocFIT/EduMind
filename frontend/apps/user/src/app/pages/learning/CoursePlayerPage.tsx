@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArticleViewer } from '../../components/learning/ArticleViewer';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -40,6 +41,7 @@ import {
   Download,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
+import { queryKeys } from '../../lib/query-keys';
 import ReactPlayer from 'react-player';
 import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
 import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
@@ -55,6 +57,7 @@ export const CoursePlayerPage: React.FC = () => {
   const { success: showSuccess, error: showError,} = useToast();
   const quizModal = useModal();
   const { isOpen: isChatOpen, closeChat, toggleChat } = useAiChatStore();
+  const queryClient = useQueryClient();
 
   const REDIRECT_DELAY_SECONDS = 10;
 
@@ -417,7 +420,9 @@ export const CoursePlayerPage: React.FC = () => {
       if (foundEnrollment) {
         setEnrollment(foundEnrollment);
       }
-      
+      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
+      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+
       // Auto-play next lesson
       const nextLesson = getNextLesson();
       if (nextLesson) {
@@ -456,6 +461,8 @@ export const CoursePlayerPage: React.FC = () => {
       if (foundEnrollment) {
         setEnrollment(foundEnrollment);
       }
+      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
+      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
 
       showSuccess('Lesson marked as complete!');
     } catch (err: any) {
@@ -472,6 +479,8 @@ export const CoursePlayerPage: React.FC = () => {
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
       const found = response.data?.find((e) => e.courseId === Number(courseId));
       if (found) setEnrollment(found);
+      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
+      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
       showSuccess('Quiz passed! Lesson marked as complete.');
     } catch (err: any) {
       console.error('Error completing lesson after quiz pass:', err);

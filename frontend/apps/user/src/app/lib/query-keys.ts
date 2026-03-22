@@ -12,6 +12,12 @@ export const enrollmentsKeys = {
   all: ['enrollments'] as const,
   me: (userId?: number, page?: number, size?: number) => 
     ['enrollments', 'me', userId, page, size] as const,
+  meByStatus: (
+    userId?: number,
+    status?: string,
+    page?: number,
+    size?: number
+  ) => ['enrollments', 'me', userId, status, page, size] as const,
   completed: (userId?: number) => ['enrollments', 'completed', userId] as const,
   inProgress: (userId?: number, minProgress?: number) => 
     ['enrollments', 'in-progress', userId, minProgress] as const,
@@ -258,4 +264,3 @@ export const queryKeys = {
   payouts: payoutKeys,
    ai: aiKeys,
 } as const;
-

@@ -67,8 +67,8 @@ export const CourseList: React.FC<CourseListProps> = ({
         )}
       </div>
 
-      {/* Pagination - Only show for 'all' filter */}
-      {filterStatus === 'all' && totalPages > 1 && (
+      {/* Pagination */}
+      {totalPages > 1 && (
         <div className="flex flex-wrap items-center justify-center gap-2 mt-12">
           <button
             onClick={() => onPageChange(Math.max(0, currentPage - 1))}

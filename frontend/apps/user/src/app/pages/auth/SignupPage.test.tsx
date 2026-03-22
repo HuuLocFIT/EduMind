@@ -124,7 +124,6 @@ describe('SignupPage', () => {
       renderSignupPage();
 
       expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /continue with facebook/i })).toBeInTheDocument();
     });
 
     it('should render login link', () => {

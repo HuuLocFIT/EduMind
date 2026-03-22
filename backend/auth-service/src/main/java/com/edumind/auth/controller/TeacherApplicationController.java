@@ -52,11 +52,12 @@ public class TeacherApplicationController {
         logger.info("📥 GET /teacher-application/my-application - Fetching user's application");
 
         TeacherApplicationResponse application = applicationService.getMyApplication();
+        String message = application != null ? "Application retrieved successfully" : "No application found";
 
         ApiResponse<TeacherApplicationResponse> response = ApiResponse.<TeacherApplicationResponse>builder()
                 .status(HttpStatus.OK.value())
                 .success(true)
-                .message("Application retrieved successfully")
+                .message(message)
                 .data(application)
                 .build();
 

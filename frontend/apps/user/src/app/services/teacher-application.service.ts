@@ -32,15 +32,17 @@ export const teacherApplicationService = {
    */
   async getMyApplication(): Promise<TeacherApplicationResponse | null> {
     try {
-      const response = await apiClient.get<TeacherApplicationResponse>(
+      const response = await apiClient.get(
         TEACHER_APPLICATION_ENDPOINTS.MY_APPLICATION
       );
-      return TeacherApplicationResponseSchema.parse(response.data);
+      // When no application exists, the backend returns data: null.
+      // unwrapApiResponse converts that to a message shape { message, status, success },
+      // which is truthy but not a valid TeacherApplicationResponse.
+      // safeParse handles both cases: returns parsed data if valid, null otherwise.
+      const parsed = TeacherApplicationResponseSchema.safeParse(response.data);
+      return parsed.success ? parsed.data : null;
     } catch (error: any) {
-      // If 404 or no application, return null
-      if (error.status === 404 || error.response?.status === 404) {
-        return null;
-      }
+      if (error.status === 404 || error.response?.status === 404) return null;
       throw error;
     }
   },
