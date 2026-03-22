@@ -162,10 +162,9 @@ public class TeacherApplicationService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        TeacherApplication application = applicationRepository.findByUser(user)
-                .orElseThrow(() -> new ResourceNotFoundException("No application found"));
-
-        return mapToResponse(application);
+        return applicationRepository.findByUser(user)
+                .map(this::mapToResponse)
+                .orElse(null);
     }
 
     /**

@@ -94,7 +94,7 @@ describe('CartItem', () => {
 
     expect(screen.getByText('Advanced React Patterns')).toBeInTheDocument();
     expect(screen.getByText('By John Doe')).toBeInTheDocument(); // Full mode text
-    expect(screen.getByText('advanced')).toBeInTheDocument(); // Level
+    expect(screen.getByText('Advanced')).toBeInTheDocument(); // Level
     expect(screen.getByText('24 lessons')).toBeInTheDocument();
     expect(screen.getByText(/4.8/)).toBeInTheDocument(); // Rating
   });

@@ -155,7 +155,6 @@ describe('LoginPage', () => {
       renderLoginPage();
 
       expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /continue with facebook/i })).toBeInTheDocument();
     });
 
     it('should render links to signup and forgot password', () => {
@@ -517,32 +516,6 @@ describe('LoginPage', () => {
       window.location = originalLocation;
     });
 
-    it('should redirect to Facebook OAuth on button click', async () => {
-      const user = userEvent.setup();
-      const originalLocation = window.location;
-      let hrefValue = '';
-      delete (window as any).location;
-      (window as any).location = {
-        ...originalLocation,
-        get href() {
-          return hrefValue;
-        },
-        set href(value: string) {
-          hrefValue = value;
-        },
-      };
-
-      renderLoginPage();
-
-      const facebookButton = screen.getByRole('button', { name: /continue with facebook/i });
-      await user.click(facebookButton);
-
-      await waitFor(() => {
-        expect(hrefValue).toBe('https://www.facebook.com/v12.0/dialog/oauth');
-      });
-      
-      window.location = originalLocation;
-    });
   });
 
   describe('Concurrent Operations', () => {

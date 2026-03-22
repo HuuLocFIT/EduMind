@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
-import { teacherApplicationService } from '../services/teacher-application.service';
+import { useQuery, useIsFetching } from "@tanstack/react-query";
+import { queryKeys } from "../lib/query-keys";
+import { teacherApplicationService } from "../services/teacher-application.service";
 import {
   GraduationCap,
   ArrowRight,
@@ -12,45 +14,29 @@ import {
   Sparkles,
 } from "lucide-react";
 import { UserRole } from "@edumind/shared-constants";
-import {
-  TeacherApplicationResponse,
-} from "@edumind/shared-types";
 import { USER_ROUTES, formatDate } from "@edumind/shared-utils";
 
 export const TeacherApplicationBanner: React.FC = () => {
   const { user } = useAuthStore();
-  const [application, setApplication] =
-    useState<TeacherApplicationResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
 
   const isStudent = user?.roles.includes(UserRole.STUDENT);
 
-  useEffect(() => {
-    const fetchApplication = async () => {
-      if (!isStudent) {
-        setLoading(false);
-        return;
-      }
+  // Read from cache only — MainLayout is the sole fetcher for this query.
+  // enabled: false means this observer never triggers a network request.
+  const { data: application } = useQuery({
+    queryKey: queryKeys.teacherApplication.myApplication(user?.id),
+    queryFn: () => teacherApplicationService.getMyApplication(),
+    enabled: false,
+    staleTime: 5 * 60 * 1000,
+  });
 
-      try {
-        const response = await teacherApplicationService.getMyApplication();
-        setApplication(response);
-      } catch (error: any) {
-        // 404 = no application
-        if (error.response?.status !== 404) {
-          console.error("Error fetching application:", error);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Track whether MainLayout's fetch is still in-flight
+  const isFetchingApplication =
+    useIsFetching({ queryKey: queryKeys.teacherApplication.myApplication(user?.id) }) > 0;
 
-    fetchApplication();
-  }, [isStudent]);
-
-  // Don't render for non-students or dismissed
-  if (!isStudent || dismissed || loading) return null;
+  // Don't render for non-students, dismissed, or while loading
+  if (!isStudent || dismissed || isFetchingApplication) return null;
 
   // If approved, don't show banner (they're now a teacher)
   if (application?.status === "APPROVED") return null;

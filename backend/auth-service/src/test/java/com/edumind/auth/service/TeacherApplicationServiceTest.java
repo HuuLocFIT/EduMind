@@ -423,16 +423,18 @@ class TeacherApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("Should fail when application not found")
+        @DisplayName("Should return null when application not found")
         void getMyApplication_Fail_ApplicationNotFound() {
             // Given
             mockSecurityContext("testuser");
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(applicationRepository.findByUser(testUser)).thenReturn(Optional.empty());
 
-            // When/Then
-            assertThrows(ResourceNotFoundException.class, () ->
-                    teacherApplicationService.getMyApplication());
+            // When
+            TeacherApplicationResponse response = teacherApplicationService.getMyApplication();
+
+            // Then
+            assertNull(response);
         }
     }
 

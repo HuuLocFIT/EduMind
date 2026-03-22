@@ -76,7 +76,7 @@ export const enrollmentService = {
   ): Promise<EnrollmentResponse[]> {
     const response = await apiClient.get<EnrollmentResponse[]>(
       ENROLLMENT_ENDPOINTS.MY_IN_PROGRESS,
-      { params: minProgress ? { minProgress } : undefined }
+      { params: minProgress !== undefined ? { minProgress } : undefined }
     );
     return parseEnrollmentList(response.data);
   },
@@ -105,4 +105,3 @@ export const enrollmentService = {
 };
 
 export type EnrollmentService = typeof enrollmentService;
-

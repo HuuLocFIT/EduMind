@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { OrderDetailPage } from './OrderDetailPage';
 import { useOrder, useCancelOrder } from '../../hooks/useOrders';
 import { useInvoiceByOrder } from '../../hooks/useInvoices';
+import { useRefundByOrder } from '../../hooks/useRefunds';
 import { invoiceService } from '../../services/invoice.service';
 import { USER_ROUTES } from '@edumind/shared-utils';
 import { OrderStatus } from '@edumind/shared-constants';
@@ -22,6 +23,7 @@ vi.mock('react-router-dom', () => ({
 
 vi.mock('../../hooks/useOrders');
 vi.mock('../../hooks/useInvoices');
+vi.mock('../../hooks/useRefunds');
 vi.mock('../../services/invoice.service');
 vi.mock('./components/RefundRequestModal', () => ({
   RefundRequestModal: ({ isOpen, onClose, onSuccess }: any) => 
@@ -114,6 +116,10 @@ describe('OrderDetailPage', () => {
     (useCancelOrder as any).mockReturnValue({
       mutate: mockCancelMutate,
       isPending: false,
+    });
+
+    (useRefundByOrder as any).mockReturnValue({
+      data: null,
     });
   });
 
@@ -235,7 +241,7 @@ describe('OrderDetailPage', () => {
     await user.click(screen.getByText('Submit Refund'));
     
     // Verify success callback was called
-    expect(mockShowSuccess).toHaveBeenCalledWith('Refund request submitted');
+    expect(mockShowSuccess).toHaveBeenCalledWith('Refund request submitted successfully');
     expect(mockRefetch).toHaveBeenCalled();
   });
 });

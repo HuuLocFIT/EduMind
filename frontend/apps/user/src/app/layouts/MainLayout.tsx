@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
 import { CartIcon, CartDrawer } from "../components/payment-module";
@@ -21,8 +20,7 @@ import {
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
-import { teacherApplicationService } from '../services/teacher-application.service';
-import { queryKeys } from "../lib/query-keys";
+import { useTeacherApplication } from "../hooks";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -37,30 +35,7 @@ export const MainLayout: React.FC = () => {
     user?.roles.includes(UserRole.TEACHER) ||
     user?.roles.includes(UserRole.TEACHER_TRIAL);
 
-  // Use React Query to fetch application status (prevents request waterfall)
-  const { data: applicationData } = useQuery({
-    queryKey: queryKeys.teacherApplication.myApplication(user?.id),
-    queryFn: async () => {
-      try {
-        return await teacherApplicationService.getMyApplication();
-      } catch (error: any) {
-        // Return null for 404 (no application exists)
-        if (error.response?.status === 404 || error.status === 404) {
-          return null;
-        }
-        throw error;
-      }
-    },
-    enabled: Boolean(isStudent && isAuthenticated && user?.id),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: any) => {
-      // Don't retry on 404 errors
-      if (error?.response?.status === 404 || error?.status === 404) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
+  const { data: applicationData } = useTeacherApplication();
 
   const hasApplication = Boolean(applicationData);
   const applicationStatus = applicationData?.status || null;

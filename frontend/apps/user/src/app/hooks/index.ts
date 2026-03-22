@@ -34,6 +34,9 @@ export {
   useInvoiceByOrder,
 } from "./useInvoices";
 
+// Teacher application hooks
+export { useTeacherApplication } from "./useTeacherApplication";
+
 // Earnings hooks
 export {
   useEarnings,

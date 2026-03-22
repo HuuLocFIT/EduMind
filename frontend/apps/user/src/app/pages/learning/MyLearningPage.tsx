@@ -1,17 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Loading } from '@edumind/user-ui';
-import { enrollmentService } from '../../services/enrollment.service';
+import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Loading } from "@edumind/user-ui";
+import { enrollmentService } from "../../services/enrollment.service";
 import type {
   EnrollmentResponse,
   EnrollmentStatsResponse,
-} from '@edumind/shared-types';
-import { EnrollmentStatus } from '@edumind/shared-constants';
-import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
-import { useAuthStore } from '../../stores/auth.store';
-import { queryKeys } from '../../lib/query-keys';
-import { STALE_TIME_ENROLLMENTS } from '../../lib/query-config';
+} from "@edumind/shared-types";
+import { EnrollmentStatus } from "@edumind/shared-constants";
+import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
+import { useAuthStore } from "../../stores/auth.store";
+import { queryKeys } from "../../lib/query-keys";
+import { STALE_TIME_ENROLLMENTS } from "../../lib/query-config";
 
 // Import split components
 import {
@@ -20,14 +20,14 @@ import {
   CourseList,
   LearningSidebar,
   type FilterStatus,
-} from './components';
+} from "./components";
 
 export const MyLearningPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const userId = user?.id;
 
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [page, setPage] = useState(0);
   const [hoveredCourse, setHoveredCourse] = useState<number | null>(null);
   const pageSize = 12;
@@ -38,12 +38,13 @@ export const MyLearningPage: React.FC = () => {
   }, [filterStatus]);
 
   // Fetch enrollment statistics (accurate counts from backend - single query)
-  const { data: stats, isLoading: statsLoading } = useQuery<EnrollmentStatsResponse>({
-    queryKey: queryKeys.enrollments.stats(userId),
-    queryFn: () => enrollmentService.getMyEnrollmentStats(),
-    staleTime: STALE_TIME_ENROLLMENTS,
-    enabled: Boolean(userId),
-  });
+  const { data: stats, isLoading: statsLoading } =
+    useQuery<EnrollmentStatsResponse>({
+      queryKey: queryKeys.enrollments.stats(userId),
+      queryFn: () => enrollmentService.getMyEnrollmentStats(),
+      staleTime: STALE_TIME_ENROLLMENTS,
+      enabled: Boolean(userId),
+    });
 
   // Fetch all enrollments (for 'all' filter only, with proper pagination)
   const { data: allEnrollmentsResponse, isLoading: allLoading } = useQuery({
@@ -52,37 +53,82 @@ export const MyLearningPage: React.FC = () => {
       return enrollmentService.getMyEnrollments({ page, size: pageSize });
     },
     staleTime: STALE_TIME_ENROLLMENTS,
-    enabled: Boolean(userId) && filterStatus === 'all',
+    enabled: Boolean(userId) && filterStatus === "all",
     placeholderData: (previousData) => previousData,
   });
 
-  // Fetch in-progress courses (for 'active' filter)
-  const { data: inProgressEnrollments = [], isLoading: inProgressLoading } = useQuery<EnrollmentResponse[]>({
-    queryKey: queryKeys.enrollments.inProgress(userId),
-    queryFn: () => enrollmentService.getMyInProgressCourses(),
-    staleTime: STALE_TIME_ENROLLMENTS,
-    enabled: Boolean(userId) && filterStatus === 'active',
-  });
+  // Fetch active courses (for 'active' filter)
+  const { data: activeEnrollmentsResponse, isLoading: activeLoading } =
+    useQuery({
+      queryKey: queryKeys.enrollments.meByStatus(
+        userId,
+        "ACTIVE",
+        page,
+        pageSize,
+      ),
+      queryFn: () =>
+        enrollmentService.getMyEnrollments({
+          status: "ACTIVE",
+          page,
+          size: pageSize,
+        }),
+      staleTime: STALE_TIME_ENROLLMENTS,
+      enabled: Boolean(userId) && filterStatus === "active",
+      placeholderData: (previousData) => previousData,
+    });
 
   // Fetch completed courses (for 'completed' filter)
-  const { data: completedEnrollments = [], isLoading: completedLoading } = useQuery<EnrollmentResponse[]>({
-    queryKey: queryKeys.enrollments.completed(userId),
-    queryFn: () => enrollmentService.getMyCompletedCourses(),
-    staleTime: STALE_TIME_ENROLLMENTS,
-    enabled: Boolean(userId) && filterStatus === 'completed',
-  });
+  const { data: completedEnrollmentsResponse, isLoading: completedLoading } =
+    useQuery({
+      queryKey: queryKeys.enrollments.meByStatus(
+        userId,
+        "COMPLETED",
+        page,
+        pageSize,
+      ),
+      queryFn: () =>
+        enrollmentService.getMyEnrollments({
+          status: "COMPLETED",
+          page,
+          size: pageSize,
+        }),
+      staleTime: STALE_TIME_ENROLLMENTS,
+      enabled: Boolean(userId) && filterStatus === "completed",
+      placeholderData: (previousData) => previousData,
+    });
 
   // Determine which data to use based on filter
   const enrollments = useMemo(() => {
     switch (filterStatus) {
-      case 'active':
-        return inProgressEnrollments;
-      case 'completed':
-        return completedEnrollments;
+      case "active":
+        return activeEnrollmentsResponse?.data || [];
+      case "completed":
+        return completedEnrollmentsResponse?.data || [];
       default:
         return allEnrollmentsResponse?.data || [];
     }
-  }, [filterStatus, allEnrollmentsResponse, inProgressEnrollments, completedEnrollments]);
+  }, [
+    filterStatus,
+    allEnrollmentsResponse,
+    activeEnrollmentsResponse,
+    completedEnrollmentsResponse,
+  ]);
+
+  const pagination = useMemo(() => {
+    switch (filterStatus) {
+      case "active":
+        return activeEnrollmentsResponse?.pagination;
+      case "completed":
+        return completedEnrollmentsResponse?.pagination;
+      default:
+        return allEnrollmentsResponse?.pagination;
+    }
+  }, [
+    filterStatus,
+    allEnrollmentsResponse,
+    activeEnrollmentsResponse,
+    completedEnrollmentsResponse,
+  ]);
 
   // Business rule:
   // - DROPPED enrollments should not appear in My Learning at all.
@@ -90,33 +136,43 @@ export const MyLearningPage: React.FC = () => {
   const visibleEnrollments = useMemo(
     () =>
       (enrollments || []).filter(
-        (enrollment) => enrollment.status !== EnrollmentStatus.DROPPED
+        (enrollment) => enrollment.status !== EnrollmentStatus.DROPPED,
       ),
-    [enrollments]
+    [enrollments],
   );
 
   // Loading state
   const loading =
     statsLoading ||
-    (filterStatus === 'all' && allLoading) ||
-    (filterStatus === 'active' && inProgressLoading) ||
-    (filterStatus === 'completed' && completedLoading);
+    (filterStatus === "all" && allLoading) ||
+    (filterStatus === "active" && activeLoading) ||
+    (filterStatus === "completed" && completedLoading);
 
   // Find most recent course for "Continue Learning"
   const mostRecentCourse = useMemo(() => {
     const allData = allEnrollmentsResponse?.data || [];
     if (allData.length === 0) return null;
     return [...allData].sort(
-      (a, b) => new Date(b.lastAccessedAt || b.enrolledAt).getTime() - new Date(a.lastAccessedAt || a.enrolledAt).getTime()
+      (a, b) =>
+        new Date(b.lastAccessedAt || b.enrolledAt).getTime() -
+        new Date(a.lastAccessedAt || a.enrolledAt).getTime(),
     )[0];
   }, [allEnrollmentsResponse]);
 
   const handleContinueLearning = (enrollment: EnrollmentResponse) => {
-    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId: enrollment.courseId }));
+    navigate(
+      buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, {
+        courseId: enrollment.courseId,
+      }),
+    );
   };
 
   const handleViewCourse = (courseId: number) => {
-    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
+    navigate(
+      buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
+        courseId: courseId || "",
+      }),
+    );
   };
 
   const handleBrowseCourses = () => {
@@ -141,7 +197,7 @@ export const MyLearningPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50">
       {/* Hero Section with Welcome & Stats */}
       <HeroSection
-        userName={user?.firstName || ''}  
+        userName={user?.firstName || ""}
         stats={stats}
         mostRecentCourse={mostRecentCourse}
         onContinueLearning={handleContinueLearning}
@@ -162,7 +218,7 @@ export const MyLearningPage: React.FC = () => {
             {/* Course List */}
             <CourseList
               enrollments={visibleEnrollments}
-              pagination={allEnrollmentsResponse?.pagination}
+              pagination={pagination}
               currentPage={page}
               filterStatus={filterStatus}
               hoveredCourse={hoveredCourse}
