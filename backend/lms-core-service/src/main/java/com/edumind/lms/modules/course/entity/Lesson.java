@@ -2,6 +2,7 @@ package com.edumind.lms.modules.course.entity;
 
 import com.edumind.lms.shared.entity.BaseEntity;
 import com.edumind.lms.modules.course.enums.ContentType;
+import com.edumind.lms.modules.course.enums.VideoUploadStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -39,6 +40,13 @@ public class Lesson extends BaseEntity {
 
     private String videoUrl;
     private Integer videoDuration; // seconds
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private VideoUploadStatus videoUploadStatus = VideoUploadStatus.NONE;
+
+    private String videoPublicId;
 
     @Column(columnDefinition = "TEXT")
     private String articleContent;

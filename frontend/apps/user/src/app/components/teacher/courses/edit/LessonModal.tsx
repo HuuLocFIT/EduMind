@@ -10,6 +10,7 @@ import { ContentType } from "@edumind/shared-constants";
 import type { LessonResponse } from "@edumind/shared-types";
 import { Modal, Button, Input, Textarea } from "@edumind/user-ui";
 import { RichTextEditor } from "../../../ui/RichTextEditor";
+import { VideoDropZone } from "./VideoDropZone";
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ interface LessonModalProps {
   saving: boolean;
   lessonId?: number | null;
   onAutoTranscribeClick?: () => void;
+  onVideoChange?: () => void;
 }
 
 export const LessonModal: React.FC<LessonModalProps> = ({
@@ -53,6 +55,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   saving,
   lessonId,
   onAutoTranscribeClick,
+  onVideoChange,
 }) => {
   const isArticle = lessonForm.contentType === ContentType.ARTICLE;
 
@@ -89,30 +92,22 @@ export const LessonModal: React.FC<LessonModalProps> = ({
 
         {lessonForm.contentType === ContentType.VIDEO && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
-                <Input
-                  value={lessonForm.videoUrl}
-                  onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
-                  placeholder="https://..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Duration (seconds)
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={lessonForm.videoDuration || ""}
-                  onChange={(e) =>
-                    setLessonForm((p) => ({ ...p, videoDuration: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="e.g., 600 (10 minutes)"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Video</label>
+              <VideoDropZone
+                lessonId={lessonId ?? null}
+                lessonTitle={lessonForm.title || 'Untitled Lesson'}
+                currentVideoUrl={lessonForm.videoUrl || null}
+                currentUploadStatus={editingLesson?.lesson?.videoUploadStatus ?? 'NONE'}
+                onVideoReady={onVideoChange}
+                onVideoRemoved={onVideoChange}
+              />
             </div>
+            {lessonForm.videoUrl ? (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                Video linked to this lesson. You can continue editing metadata or close this modal.
+              </div>
+            ) : null}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium text-gray-700">
@@ -230,4 +225,3 @@ export const LessonModal: React.FC<LessonModalProps> = ({
     </Modal>
   );
 };
-

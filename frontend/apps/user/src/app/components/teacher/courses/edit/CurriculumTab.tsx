@@ -90,6 +90,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     null
   );
   const [saving, setSaving] = useState(false);
+  const [refreshingLessonId, setRefreshingLessonId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
   const [deletingSectionId, setDeletingSectionId] = useState<number | null>(null);
@@ -251,11 +252,13 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     try {
       setSaving(true);
       const data: CreateLessonRequest = {
-        ...lessonForm,
+        title: lessonForm.title,
+        description: lessonForm.description || undefined,
         contentType: lessonForm.contentType as any,
-        videoDuration: lessonForm.videoDuration || undefined,
-        videoUrl: lessonForm.videoUrl || undefined,
         articleContent: lessonForm.articleContent || undefined,
+        isPreview: lessonForm.isPreview,
+        isMandatory: lessonForm.isMandatory,
+        // videoUrl and videoDuration are managed via the video upload flow, not lesson CRUD
       };
 
       if (editingLesson.lesson) {
@@ -324,6 +327,43 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     lessonModal.close();
     await onRefresh();
     showSuccess("Transcript applied! Open the lesson editor to review it.");
+  };
+
+  const handleVideoUploadCompleted = async () => {
+    if (!editingLesson?.lesson) {
+      await onRefresh();
+      showSuccess("Video uploaded successfully");
+      return;
+    }
+
+    try {
+      setRefreshingLessonId(editingLesson.lesson.id);
+      const refreshedLesson = await teacherCourseService.getLessonDetail(editingLesson.lesson.id);
+
+      setEditingLesson((prev) => {
+        if (!prev || !prev.lesson || prev.lesson.id !== refreshedLesson.id) {
+          return prev;
+        }
+        return {
+          ...prev,
+          lesson: refreshedLesson,
+        };
+      });
+
+      setLessonForm((prev) => ({
+        ...prev,
+        videoUrl: refreshedLesson.videoUrl || '',
+        videoDuration: refreshedLesson.videoDuration || 0,
+      }));
+
+      await onRefresh();
+      showSuccess("Video uploaded successfully");
+    } catch (err: any) {
+      showError(err.message || "Video uploaded but failed to refresh lesson data");
+      await onRefresh();
+    } finally {
+      setRefreshingLessonId(null);
+    }
   };
 
   const toggleSection = (sectionId: number) => {
@@ -449,9 +489,10 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         setLessonForm={setLessonForm}
         editingLesson={editingLesson}
         onSave={handleSaveLesson}
-        saving={saving}
+        saving={saving || refreshingLessonId !== null}
         lessonId={editingLesson?.lesson?.id ?? null}
         onAutoTranscribeClick={editingLesson?.lesson ? handleAutoTranscribeClick : undefined}
+        onVideoChange={handleVideoUploadCompleted}
       />
 
       {/* Quiz Generator Modal */}
@@ -492,4 +533,3 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     </div>
   );
 };
-

@@ -27,3 +27,10 @@ export const EnrollmentStatus = {
   DROPPED: "DROPPED",
 } as const;
 
+export const VideoUploadStatus = {
+  NONE: "NONE",
+  UPLOADING: "UPLOADING",
+  READY: "READY",
+  FAILED: "FAILED",
+} as const;
+

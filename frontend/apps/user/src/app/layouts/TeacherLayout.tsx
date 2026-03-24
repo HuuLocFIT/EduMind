@@ -3,6 +3,8 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import { useTeacherStatus } from "../components/teacher/TeacherGuard";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
+import { UploadBadge } from "../components/teacher/UploadBadge";
+import { useBeforeUnloadWarning } from "../hooks/useBeforeUnloadWarning";
 import {
   LayoutDashboard,
   BookOpen,
@@ -65,6 +67,8 @@ export const TeacherLayout: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useBeforeUnloadWarning();
 
   const handleLogout = () => {
     logout();
@@ -396,6 +400,9 @@ export const TeacherLayout: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* Global Upload Badge */}
+      <UploadBadge />
     </div>
   );
 };
