@@ -158,6 +158,7 @@ async function uploadToCloudinary(params: UploadToCloudinaryParams): Promise<Clo
     formData.append('signature', signature.signature);
     formData.append('folder', signature.folder);
     formData.append('eager', 'sp_auto/m3u8');
+    formData.append('eager_async', 'true');
 
     const headers: Record<string, string> = {
       'X-Unique-Upload-Id': uploadId,

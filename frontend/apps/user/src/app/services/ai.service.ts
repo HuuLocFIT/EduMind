@@ -110,8 +110,8 @@ export const aiService = {
     }
   },
 
-  async transcribeLesson(lessonId: number, videoUrl: string): Promise<AiJobResponse> {
-    const payload = TranscribeRequestSchema.parse({ videoUrl });
+  async transcribeLesson(lessonId: number, videoUrl: string, language: "vi" | "en" = "en"): Promise<AiJobResponse> {
+    const payload = TranscribeRequestSchema.parse({ videoUrl, language });
     const response = await apiClient.post<AiJobResponse>(
       AI_ENDPOINTS.TRANSCRIBE_LESSON(lessonId),
       payload

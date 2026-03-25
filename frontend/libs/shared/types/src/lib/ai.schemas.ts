@@ -121,6 +121,7 @@ export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 
 export const TranscribeRequestSchema = z.object({
   videoUrl: z.string().url("Must be a valid URL"),
+  language: z.enum(["vi", "en"]).optional(),
 });
 
 export type TranscribeRequest = z.infer<typeof TranscribeRequestSchema>;

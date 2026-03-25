@@ -123,9 +123,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             >
               <option value="en">English</option>
               <option value="vi">Vietnamese</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
             </select>
           </div>
 
@@ -137,7 +134,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               type="number"
               min={0}
               value={formData.durationHours}
-              onChange={(e) => handleChange("durationHours", Number(e.target.value))}
+              onChange={(e) =>
+                handleChange("durationHours", Number(e.target.value))
+              }
             />
           </div>
 
@@ -186,4 +185,3 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     </div>
   );
 };
-

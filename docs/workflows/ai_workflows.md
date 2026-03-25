@@ -153,7 +153,7 @@ stateDiagram-v2
 
 ## 3. Workflow 1 — Auto-Transcription (Groq Whisper)
 
-Teachers paste a Cloudinary video URL or a YouTube URL. The system extracts text, writes it into the lesson's `articleContent`, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
+Teachers paste a Cloudinary video URL or a YouTube URL and select the spoken language (`vi` or `en`, default `en`). The system extracts text, writes it into the lesson's `articleContent`, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
 
 **Why Groq instead of local Whisper**: The VPS has ~600 MB RAM left after the Spring Boot stack. Whisper medium needs 2 GB; Whisper base needs ~500 MB and is unstable under load. Groq API is free (28,800 s audio/day), ~10× faster than local inference, and consumes ≈ 0 MB VPS RAM.
 
@@ -172,8 +172,8 @@ sequenceDiagram
     participant EventBus as Spring Event Bus
     participant DB as ai.ai_job_logs
 
-    Teacher->>Controller: POST { videoUrl } (TEACHER role)
-    Controller->>TransSvc: requestTranscription(lessonId, videoUrl, userId)
+    Teacher->>Controller: POST { videoUrl, language? } (TEACHER role)
+    Controller->>TransSvc: requestTranscription(lessonId, videoUrl, language, userId)
 
     TransSvc->>LessonQuerySvc: getLessonInfo(lessonId)
     alt Lesson not found
@@ -183,8 +183,8 @@ sequenceDiagram
         TransSvc-->>Controller: throw 403 Forbidden
     end
 
-    TransSvc->>JobRepo: save(AiJobLog { TRANSCRIPTION, PENDING, metadata=videoUrl })
-    TransSvc->>Executor: processTranscriptionAsync(jobId, lessonId, videoUrl) [@Async]
+    TransSvc->>JobRepo: save(AiJobLog { TRANSCRIPTION, PENDING, metadata="<language>|<videoUrl>" })
+    TransSvc->>Executor: processTranscriptionAsync(jobId, lessonId, videoUrl, language) [@Async]
     TransSvc-->>Controller: AiJobResponse (jobId, PENDING)
     Controller-->>Teacher: 202 Accepted { jobId }
 
@@ -307,7 +307,7 @@ Content-Type: multipart/form-data
 
 file     = <audio file>
 model    = whisper-large-v3-turbo
-language = en
+language = <per-request value: "vi" or "en"; falls back to ai.groq.language config (default "en")>
 
 Response: { "text": "transcribed content..." }
 ```
@@ -329,8 +329,9 @@ sequenceDiagram
             Scheduler-->>Scheduler: return (no-op)
         else Delayed jobs found
             loop For each delayed job
+                Scheduler->>Scheduler: parse metadata → language + videoUrl<br/>("vi|https://..." or legacy plain URL → default "en")
                 Scheduler->>JobRepo: update status=PENDING, nextRetryAt=null
-                Scheduler->>Executor: processTranscriptionAsync(jobId, lessonId, videoUrl)
+                Scheduler->>Executor: processTranscriptionAsync(jobId, lessonId, videoUrl, language)
                 alt Executor queue full (TaskRejectedException)
                     Scheduler->>JobRepo: status=DELAYED, nextRetryAt=now+30s
                 end
@@ -402,8 +403,8 @@ sequenceDiagram
     Teacher->>UploadFlow: Upload video file (MP4/WebM/MOV)
     UploadFlow->>DB: videoUrl = https://res.cloudinary.com/...mp4<br/>videoUploadStatus = READY
 
-    Teacher->>AiController: POST { videoUrl: lesson.videoUrl }
-    AiController->>TransSvc: requestTranscription(lessonId, videoUrl, userId)
+    Teacher->>AiController: POST { videoUrl: lesson.videoUrl, language: "vi"|"en" }
+    AiController->>TransSvc: requestTranscription(lessonId, videoUrl, language, userId)
 
     TransSvc->>Resolver: resolve(videoUrl)
     Note over Resolver: url.contains("res.cloudinary.com")<br/>→ CloudinaryAudioExtractor path
@@ -413,7 +414,7 @@ sequenceDiagram
     Note over CldExt: https://res.cloudinary.com/.../upload/<br/>vc_none,ac_mp3,br_32k/{publicId}.mp3<br/>~14 MB/hour audio — no VPS processing
 
     CldExt-->>TransSvc: AudioFile(tempFile)
-    TransSvc->>GroqAPI: POST /openai/v1/audio/transcriptions<br/>model=whisper-large-v3-turbo
+    TransSvc->>GroqAPI: POST /openai/v1/audio/transcriptions<br/>model=whisper-large-v3-turbo, language=<selected>
     GroqAPI-->>TransSvc: { text: "transcript..." }
 
     TransSvc->>DB: lesson.articleContent = transcript
@@ -1093,7 +1094,7 @@ CREATE TABLE ai.ai_job_logs (
     started_at    TIMESTAMP,
     completed_at  TIMESTAMP,
     next_retry_at TIMESTAMP,           -- Set when status=DELAYED; TranscriptionRetryScheduler checks this
-    metadata      TEXT,               -- Job-specific data: videoUrl for TRANSCRIPTION jobs (V34 migration)
+    metadata      TEXT,               -- Job-specific data: "<language>|<videoUrl>" for TRANSCRIPTION jobs (e.g. "vi|https://..."); legacy plain URL defaults to "en"
     created_at    TIMESTAMP,
     updated_at    TIMESTAMP
 );
@@ -1194,7 +1195,7 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 |--------|------|------|----------|-------------|
 | `POST` | `/ai/transcribe/lessons/{lessonId}` | Teacher (course owner) | `202 { jobId }` | Request transcription from Cloudinary or YouTube URL |
 
-Request body: `{ "videoUrl": "https://..." }`
+Request body: `{ "videoUrl": "https://...", "language": "vi" | "en" }` — `language` is optional; defaults to `"en"` if omitted.
 
 ### RAG Chat
 

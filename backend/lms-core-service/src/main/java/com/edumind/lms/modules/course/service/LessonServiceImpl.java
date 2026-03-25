@@ -352,6 +352,7 @@ public class LessonServiceImpl implements LessonService {
         paramsToSign.put("timestamp", timestamp);
         paramsToSign.put("folder", folder);
         paramsToSign.put("eager", "sp_auto/m3u8");
+        paramsToSign.put("eager_async", true);
 
         String apiSecret = (String) cloudinary.config.apiSecret;
         String signature = cloudinary.apiSignRequest(paramsToSign, apiSecret);

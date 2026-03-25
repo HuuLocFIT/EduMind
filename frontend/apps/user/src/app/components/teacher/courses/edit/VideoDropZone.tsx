@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Upload,
   Pause,
@@ -10,13 +10,13 @@ import {
   Clock,
   CheckCircle2,
   Film,
-} from 'lucide-react';
-import { ProgressBar, Button } from '@edumind/user-ui';
-import { useUploadQueueStore } from '../../../../stores/uploadQueue.store.js';
-import { videoUploadService } from '../../../../services/video-upload.service.js';
+} from "lucide-react";
+import { ProgressBar, Button } from "@edumind/user-ui";
+import { useUploadQueueStore } from "../../../../stores/uploadQueue.store.js";
+import { videoUploadService } from "../../../../services/video-upload.service.js";
 
-const ACCEPTED_VIDEO_TYPES = 'video/mp4,video/webm,video/quicktime';
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+const ACCEPTED_VIDEO_TYPES = "video/mp4,video/webm,video/quicktime";
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (Cloudinary free tier limit)
 
 interface VideoDropZoneProps {
   lessonId: number | null;
@@ -28,7 +28,8 @@ interface VideoDropZoneProps {
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (bytes >= 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
@@ -42,13 +43,15 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   onVideoRemoved,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const job = useUploadQueueStore((s) =>
     lessonId ? s.jobs.find((j) => j.lessonId === lessonId) : undefined,
   );
-  const { enqueue, pause, resume, cancel, retry, removeJob } = useUploadQueueStore.getState();
+  const { enqueue, pause, resume, cancel, retry, removeJob } =
+    useUploadQueueStore.getState();
 
   useEffect(() => {
-    if (job?.status === 'DONE') {
+    if (job?.status === "DONE") {
       removeJob(job.id);
       onVideoReady?.();
     }
@@ -57,14 +60,15 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   const handleFileSelect = useCallback(
     (file: File) => {
       if (!lessonId) return;
+      setFileError(null);
       if (file.size > MAX_FILE_SIZE) {
-        alert('File size exceeds 2GB limit');
+        setFileError("File size exceeds 100MB limit");
         return;
       }
       try {
         enqueue(lessonId, lessonTitle, file);
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to start upload');
+        setFileError(err instanceof Error ? err.message : "Failed to start upload");
       }
     },
     [lessonId, lessonTitle, enqueue],
@@ -88,19 +92,19 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
       const file = e.target.files?.[0];
       if (file) handleFileSelect(file);
       // Reset so the same file can be selected again
-      e.target.value = '';
+      e.target.value = "";
     },
     [handleFileSelect],
   );
 
   const handleDeleteVideo = async () => {
     if (!lessonId) return;
-    if (!confirm('Are you sure you want to delete this video?')) return;
+    if (!confirm("Are you sure you want to delete this video?")) return;
     try {
       await videoUploadService.deleteVideo(lessonId);
       onVideoRemoved?.();
     } catch {
-      alert('Failed to delete video');
+      alert("Failed to delete video");
     }
   };
 
@@ -109,7 +113,9 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
     return (
       <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
         <Film className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-        <p className="text-sm text-gray-400">Save the lesson first to upload a video</p>
+        <p className="text-sm text-gray-400">
+          Save the lesson first to upload a video
+        </p>
       </div>
     );
   }
@@ -117,13 +123,15 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   // Active upload job exists
   if (job) {
     switch (job.status) {
-      case 'QUEUED':
+      case "QUEUED":
         return (
           <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-500 animate-pulse" />
-                <span className="text-sm font-medium text-blue-700">Waiting in queue...</span>
+                <span className="text-sm font-medium text-blue-700">
+                  Waiting in queue...
+                </span>
               </div>
               <button
                 onClick={() => cancel(job.id)}
@@ -140,13 +148,13 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
           </div>
         );
 
-      case 'UPLOADING': {
+      case "UPLOADING": {
         const statusLabel =
-          job.uploadActivity === 'RESUMING'
-            ? 'Resuming upload...'
-            : job.uploadActivity === 'RESTARTING'
-              ? 'Restarting upload...'
-              : 'Uploading...';
+          job.uploadActivity === "RESUMING"
+            ? "Resuming upload..."
+            : job.uploadActivity === "RESTARTING"
+              ? "Restarting upload..."
+              : "Uploading...";
 
         return (
           <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
@@ -174,7 +182,7 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
             <ProgressBar progress={job.progress} size="md" color="blue" />
             {job.file && (
               <p className="text-xs text-blue-500">
-                {job.file.name} — {formatFileSize(job.bytesUploaded)} /{' '}
+                {job.file.name} — {formatFileSize(job.bytesUploaded)} /{" "}
                 {formatFileSize(job.file.size)}
               </p>
             )}
@@ -182,7 +190,7 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
         );
       }
 
-      case 'PAUSED':
+      case "PAUSED":
         return (
           <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -209,27 +217,33 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
               </div>
             </div>
             <ProgressBar progress={job.progress} size="md" color="blue" />
-            {job.error && <p className="text-xs text-yellow-600">{job.error}</p>}
+            {job.error && (
+              <p className="text-xs text-yellow-600">{job.error}</p>
+            )}
           </div>
         );
 
-      case 'DONE':
+      case "DONE":
         return (
           <div className="border border-green-200 bg-green-50 rounded-lg p-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-green-700">Upload complete!</span>
+              <span className="text-sm font-medium text-green-700">
+                Upload complete!
+              </span>
             </div>
           </div>
         );
 
-      case 'FAILED':
+      case "FAILED":
         return (
           <div className="border border-red-200 bg-red-50 rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-medium text-red-700">Upload failed</span>
+                <span className="text-sm font-medium text-red-700">
+                  Upload failed
+                </span>
               </div>
               <button
                 onClick={() => removeJob(job.id)}
@@ -258,7 +272,7 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
                   if (file) {
                     retry(job.id, file);
                   }
-                  e.target.value = '';
+                  e.target.value = "";
                 }}
               />
             </div>
@@ -268,13 +282,15 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   }
 
   // Video already uploaded (READY state from backend)
-  if (currentVideoUrl && currentUploadStatus === 'READY') {
+  if (currentVideoUrl && currentUploadStatus === "READY") {
     return (
       <div className="border border-green-200 bg-green-50 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-medium text-green-700">Video uploaded</span>
+            <span className="text-sm font-medium text-green-700">
+              Video uploaded
+            </span>
           </div>
           <button
             onClick={handleDeleteVideo}
@@ -295,21 +311,24 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   }
 
   // Legacy video URL (YouTube or other — videoUploadStatus is NONE but videoUrl exists)
-  if (currentVideoUrl && currentUploadStatus !== 'READY') {
+  if (currentVideoUrl && currentUploadStatus !== "READY") {
     return (
       <div className="border border-gray-200 bg-gray-50 rounded-lg p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <div>
-            <span className="text-sm font-medium text-gray-700">Legacy video URL</span>
-            <p className="text-xs text-gray-500 truncate max-w-xs">{currentVideoUrl}</p>
+          <div className="leading-none min-w-0 mr-3">
+            <span className="text-sm font-medium text-gray-700">
+              Legacy video URL
+            </span>
+            <p className="text-xs text-gray-500 truncate">{currentVideoUrl}</p>
           </div>
           <Button
             variant="secondary"
             size="sm"
+            className="shrink-0"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="w-3 h-3 mr-1" />
-            Replace with upload
+            Replace
           </Button>
         </div>
         <input
@@ -325,25 +344,36 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
 
   // Default: Empty drop zone
   return (
-    <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onClick={() => fileInputRef.current?.click()}
-      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer
-        hover:border-green-400 hover:bg-green-50 transition-colors"
-    >
-      <Upload className="w-8 h-8 mx-auto text-gray-400 mb-3" />
-      <p className="text-sm font-medium text-gray-700">
-        Drag & drop your video here, or click to browse
-      </p>
-      <p className="text-xs text-gray-400 mt-1">MP4, WebM, MOV — up to 2GB</p>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={ACCEPTED_VIDEO_TYPES}
-        className="hidden"
-        onChange={handleInputChange}
-      />
-    </div>
+    <>
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+          fileError
+            ? "border-red-300 bg-red-50 hover:border-red-400"
+            : "border-gray-300 hover:border-green-400 hover:bg-green-50"
+        }`}
+      >
+        <Upload className="w-8 h-8 mx-auto text-gray-400 mb-3" />
+        <p className="text-sm font-medium text-gray-700">
+          Drag & drop your video here, or click to browse
+        </p>
+        <p className="text-xs text-gray-400 mt-1">MP4, WebM, MOV — up to 100MB</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPTED_VIDEO_TYPES}
+          className="hidden"
+          onChange={handleInputChange}
+        />
+      </div>
+      {fileError && (
+        <p className="mt-2 flex items-center gap-1 text-sm text-red-600">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {fileError}
+        </p>
+      )}
+    </>
   );
 };
