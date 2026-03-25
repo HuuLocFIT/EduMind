@@ -48,6 +48,10 @@ public class Lesson extends BaseEntity {
 
     private String videoPublicId;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean hasHls = false;
+
     @Column(columnDefinition = "TEXT")
     private String articleContent;
 

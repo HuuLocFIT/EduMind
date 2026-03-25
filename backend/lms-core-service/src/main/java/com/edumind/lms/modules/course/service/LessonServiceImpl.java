@@ -174,17 +174,6 @@ public class LessonServiceImpl implements LessonService {
             throw new UnauthorizedException("You can only delete lessons of your own courses");
         }
 
-        // Delete video from Cloudinary if exists
-        if (lesson.getVideoPublicId() != null) {
-            try {
-                cloudinaryService.deleteFile(lesson.getVideoPublicId(), "video");
-                log.info("Deleted Cloudinary video {} for lesson {}", lesson.getVideoPublicId(), lessonId);
-            } catch (Exception e) {
-                log.warn("Failed to delete Cloudinary video {} for lesson {}: {}",
-                        lesson.getVideoPublicId(), lessonId, e.getMessage());
-            }
-        }
-
         // Update course statistics: totalLessons
         Course course = lesson.getSection().getCourse();
         Integer currentTotalLessons = course.getTotalLessons() != null ? course.getTotalLessons() : 0;
@@ -359,10 +348,10 @@ public class LessonServiceImpl implements LessonService {
         long timestamp = Instant.now().getEpochSecond();
         String folder = "edumind/videos/lessons";
 
-        Map<String, Object> paramsToSign = Map.of(
-                "timestamp", timestamp,
-                "folder", folder
-        );
+        Map<String, Object> paramsToSign = new java.util.HashMap<>();
+        paramsToSign.put("timestamp", timestamp);
+        paramsToSign.put("folder", folder);
+        paramsToSign.put("eager", "sp_auto/m3u8");
 
         String apiSecret = (String) cloudinary.config.apiSecret;
         String signature = cloudinary.apiSignRequest(paramsToSign, apiSecret);
@@ -394,8 +383,9 @@ public class LessonServiceImpl implements LessonService {
             throw new BadRequestException("No upload in progress for this lesson");
         }
 
-        // Validate Cloudinary URL format
-        if (!request.getCloudinaryUrl().contains("res.cloudinary.com")) {
+        // Validate Cloudinary URL format — must belong to this account
+        String expectedPrefix = "https://res.cloudinary.com/" + cloudinary.config.cloudName + "/";
+        if (!request.getCloudinaryUrl().startsWith(expectedPrefix)) {
             throw new BadRequestException("Invalid Cloudinary URL");
         }
 
@@ -414,10 +404,16 @@ public class LessonServiceImpl implements LessonService {
         lesson.setVideoUrl(request.getCloudinaryUrl());
         lesson.setVideoPublicId(request.getPublicId());
         lesson.setVideoDuration(request.getDuration());
+        lesson.setHasHls(true);
         lesson.setVideoUploadStatus(VideoUploadStatus.READY);
 
         Lesson saved = lessonRepository.save(lesson);
         log.info("Video upload confirmed for lesson {}", lessonId);
+
+        String streamUrl = Boolean.TRUE.equals(saved.getHasHls()) && saved.getVideoPublicId() != null
+                ? "https://res.cloudinary.com/" + cloudinary.config.cloudName
+                  + "/video/upload/sp_auto/" + saved.getVideoPublicId() + ".m3u8"
+                : null;
 
         return LessonResponse.builder()
                 .id(saved.getId())
@@ -427,6 +423,7 @@ public class LessonServiceImpl implements LessonService {
                 .description(saved.getDescription())
                 .contentType(saved.getContentType())
                 .videoUrl(saved.getVideoUrl())
+                .videoStreamUrl(streamUrl)
                 .videoDuration(saved.getVideoDuration())
                 .videoUploadStatus(saved.getVideoUploadStatus())
                 .videoPublicId(saved.getVideoPublicId())
@@ -467,6 +464,7 @@ public class LessonServiceImpl implements LessonService {
         lesson.setVideoUrl(null);
         lesson.setVideoPublicId(null);
         lesson.setVideoDuration(null);
+        lesson.setHasHls(false);
         lesson.setVideoUploadStatus(VideoUploadStatus.NONE);
 
         lessonRepository.save(lesson);

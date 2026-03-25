@@ -27,7 +27,7 @@ public class StaleVideoUploadScheduler {
     @Transactional
     public void cleanupStaleUploads() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(2);
-        List<Lesson> staleUploads = lessonRepository.findStaleUploads(cutoff);
+        List<Lesson> staleUploads = lessonRepository.findStaleUploads(cutoff, VideoUploadStatus.UPLOADING);
 
         if (staleUploads.isEmpty()) {
             log.debug("No stale video uploads found during scheduled cleanup");

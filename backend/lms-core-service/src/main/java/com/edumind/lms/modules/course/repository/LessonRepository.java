@@ -68,6 +68,6 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
     /**
      * Find stale uploads (stuck in UPLOADING for too long)
      */
-    @Query("SELECT l FROM Lesson l WHERE l.videoUploadStatus = 'UPLOADING' AND l.updatedAt < :cutoff")
-    List<Lesson> findStaleUploads(@Param("cutoff") LocalDateTime cutoff);
+    @Query("SELECT l FROM Lesson l WHERE l.videoUploadStatus = :status AND l.updatedAt < :cutoff")
+    List<Lesson> findStaleUploads(@Param("cutoff") LocalDateTime cutoff, @Param("status") VideoUploadStatus status);
 }

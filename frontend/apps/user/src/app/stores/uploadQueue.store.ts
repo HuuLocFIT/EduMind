@@ -179,6 +179,9 @@ export const useUploadQueueStore = create<UploadQueueState>()(
           status: 'QUEUED',
           error: null,
           uploadActivity: null,
+          bytesUploaded: 0,
+          progress: 0,
+          uploadSessionId: crypto.randomUUID(),
         });
 
         setTimeout(() => get()._processQueue(), 0);
@@ -243,6 +246,8 @@ export const useUploadQueueStore = create<UploadQueueState>()(
           let retriedFromZero = false;
           let currentUploadId = job.uploadSessionId;
           let currentStartFromByte = job.bytesUploaded;
+          let lastProgressUpdate = 0;
+          const PROGRESS_THROTTLE_MS = 200;
 
           while (true) {
             try {
@@ -257,6 +262,9 @@ export const useUploadQueueStore = create<UploadQueueState>()(
                 startFromByte: currentStartFromByte,
                 signal: abortController.signal,
                 onProgress: (percent, bytesUploaded) => {
+                  const now = Date.now();
+                  if (percent < 100 && now - lastProgressUpdate < PROGRESS_THROTTLE_MS) return;
+                  lastProgressUpdate = now;
                   _updateJob(jobId, { progress: percent, bytesUploaded });
                 },
               });
@@ -287,6 +295,7 @@ export const useUploadQueueStore = create<UploadQueueState>()(
                 currentUploadId = crypto.randomUUID();
                 currentStartFromByte = 0;
                 retriedFromZero = true;
+                retriedAfterReset = false; // allow stale lock reset for the upcoming new signature request
 
                 _updateJob(jobId, {
                   uploadSessionId: currentUploadId,

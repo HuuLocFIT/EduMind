@@ -6,7 +6,7 @@ import { useUploadQueueStore } from '../../stores/uploadQueue.store.js';
 export const UploadBadge: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
   const jobs = useUploadQueueStore((s) => s.jobs);
-  const { pause, resume, cancel } = useUploadQueueStore();
+  const { pause, resume, cancel } = useUploadQueueStore.getState();
 
   const activeJobs = jobs.filter(
     (j) => j.status === 'UPLOADING' || j.status === 'QUEUED' || j.status === 'PAUSED',

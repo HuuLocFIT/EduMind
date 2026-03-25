@@ -17,7 +17,6 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { ContentType } from "@edumind/shared-constants";
 import { teacherCourseService } from '../../../../services/teacher-course.service';
 import type {
   SectionDetailResponse,
@@ -27,7 +26,7 @@ import type {
 import { Button, useModal, useToast, ConfirmDialog } from "@edumind/user-ui";
 import { Plus, BookOpen, GripVertical } from "lucide-react";
 import { SortableSection } from "./SortableSection";
-import { LessonModal } from "./LessonModal";
+import { LessonModal, type LessonFormData } from "./LessonModal";
 import { SectionModal } from "./SectionModal";
 import { QuizGeneratorModal } from "./QuizGeneratorModal";
 import { TranscriptionModal } from "./TranscriptionModal";
@@ -95,23 +94,12 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
   const [activeSectionId, setActiveSectionId] = useState<UniqueIdentifier | null>(null);
   const [deletingSectionId, setDeletingSectionId] = useState<number | null>(null);
   const [deletingLessonId, setDeletingLessonId] = useState<number | null>(null);
+  const [isDeletingLesson, setIsDeletingLesson] = useState(false);
   const deleteSectionConfirm = useModal();
   const deleteLessonConfirm = useModal();
 
   // Section form
   const [sectionForm, setSectionForm] = useState({ title: "", description: "" });
-
-  // Lesson form
-  const [lessonForm, setLessonForm] = useState({
-    title: "",
-    description: "",
-    contentType: ContentType.VIDEO as string,
-    videoUrl: "",
-    videoDuration: 0,
-    articleContent: "",
-    isPreview: false,
-    isMandatory: true,
-  });
 
   // DnD Sensors for sections
   const sensors = useSensors(
@@ -215,36 +203,16 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
 
   const openAddLesson = (sectionId: number) => {
     setEditingLesson({ sectionId });
-    setLessonForm({
-      title: "",
-      description: "",
-      contentType: ContentType.VIDEO,
-      videoUrl: "",
-      videoDuration: 0,
-      articleContent: "",
-      isPreview: false,
-      isMandatory: true,
-    });
     lessonModal.open();
   };
 
   const openEditLesson = (sectionId: number, lesson: LessonResponse) => {
     setEditingLesson({ sectionId, lesson });
-    setLessonForm({
-      title: lesson.title,
-      description: lesson.description || "",
-      contentType: lesson.contentType,
-      videoUrl: lesson.videoUrl || "",
-      videoDuration: lesson.videoDuration || 0,
-      articleContent: lesson.articleContent || "",
-      isPreview: lesson.isPreview,
-      isMandatory: lesson.isMandatory,
-    });
     lessonModal.open();
   };
 
-  const handleSaveLesson = async () => {
-    if (!lessonForm.title.trim() || !editingLesson) {
+  const handleSaveLesson = async (formData: LessonFormData) => {
+    if (!formData.title.trim() || !editingLesson) {
       showError("Lesson title is required");
       return;
     }
@@ -252,12 +220,12 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     try {
       setSaving(true);
       const data: CreateLessonRequest = {
-        title: lessonForm.title,
-        description: lessonForm.description || undefined,
-        contentType: lessonForm.contentType as any,
-        articleContent: lessonForm.articleContent || undefined,
-        isPreview: lessonForm.isPreview,
-        isMandatory: lessonForm.isMandatory,
+        title: formData.title,
+        description: formData.description || undefined,
+        contentType: formData.contentType as any,
+        articleContent: formData.articleContent || undefined,
+        isPreview: formData.isPreview,
+        isMandatory: formData.isMandatory,
         // videoUrl and videoDuration are managed via the video upload flow, not lesson CRUD
       };
 
@@ -285,6 +253,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
 
   const confirmDeleteLesson = async () => {
     if (!deletingLessonId) return;
+    setIsDeletingLesson(true);
     try {
       await teacherCourseService.deleteLesson(deletingLessonId);
       showSuccess("Lesson deleted");
@@ -292,6 +261,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     } catch (err: any) {
       showError(err.message || "Failed to delete lesson");
     } finally {
+      setIsDeletingLesson(false);
       deleteLessonConfirm.close();
       setDeletingLessonId(null);
     }
@@ -349,12 +319,6 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
           lesson: refreshedLesson,
         };
       });
-
-      setLessonForm((prev) => ({
-        ...prev,
-        videoUrl: refreshedLesson.videoUrl || '',
-        videoDuration: refreshedLesson.videoDuration || 0,
-      }));
 
       await onRefresh();
       showSuccess("Video uploaded successfully");
@@ -485,8 +449,6 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
       <LessonModal
         isOpen={lessonModal.isOpen}
         onClose={lessonModal.close}
-        lessonForm={lessonForm}
-        setLessonForm={setLessonForm}
         editingLesson={editingLesson}
         onSave={handleSaveLesson}
         saving={saving || refreshingLessonId !== null}
@@ -529,6 +491,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         message="Are you sure you want to delete this lesson? This action cannot be undone."
         confirmText="Delete"
         variant="danger"
+        isLoading={isDeletingLesson}
       />
     </div>
   );

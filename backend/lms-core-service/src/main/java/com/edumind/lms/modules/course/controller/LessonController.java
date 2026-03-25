@@ -1,5 +1,6 @@
 package com.edumind.lms.modules.course.controller;
 
+import com.cloudinary.Cloudinary;
 import com.edumind.common.response.ApiResponse;
 import com.edumind.lms.modules.course.dto.request.ConfirmVideoUploadRequest;
 import com.edumind.lms.modules.course.dto.request.CreateLessonRequest;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LessonController {
     private final LessonService lessonService;
+    private final Cloudinary cloudinary;
 
     @PostMapping("/sections/{sectionId}")
     @PreAuthorize("@teacherSecurity.isActiveTeacher()")
@@ -233,6 +235,15 @@ public class LessonController {
     private Long extractUserId(Authentication authentication) {
         return Long.parseLong(authentication.getName());
     }
+
+    private String buildStreamUrl(Lesson lesson) {
+        if (!Boolean.TRUE.equals(lesson.getHasHls()) || lesson.getVideoPublicId() == null) {
+            return null;
+        }
+        return "https://res.cloudinary.com/" + cloudinary.config.cloudName
+                + "/video/upload/sp_auto/" + lesson.getVideoPublicId() + ".m3u8";
+    }
+
     private LessonResponse toResponse(Lesson lesson) {
         return LessonResponse.builder()
                 .id(lesson.getId())
@@ -242,6 +253,7 @@ public class LessonController {
                 .description(lesson.getDescription())
                 .contentType(lesson.getContentType())
                 .videoUrl(lesson.getVideoUrl())
+                .videoStreamUrl(buildStreamUrl(lesson))
                 .videoDuration(lesson.getVideoDuration())
                 .videoUploadStatus(lesson.getVideoUploadStatus())
                 .videoPublicId(lesson.getVideoPublicId())

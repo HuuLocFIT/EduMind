@@ -380,6 +380,57 @@ ai:
 
 `whisperTaskExecutor` is configured as **size=1** (single thread). This serialises all Groq API calls, avoiding concurrent requests that would quickly exhaust the 20 req/min Groq rate limit. The queue holds up to 10 pending jobs; additional requests beyond queue capacity trigger `TaskRejectedException` and are kept `DELAYED` for the scheduler.
 
+### 3.10 Updated Strategy: Cloudinary Upload-First (Production)
+
+> **Context**: The YouTube extraction path described in sections 3.1–3.4 was blocked by anti-bot protection when running on VPS. `yt-dlp` could no longer download audio from YouTube videos in a server environment, making the YouTube strategy unreliable in production.
+>
+> Sections 3.1–3.9 remain as-is for reference — the code still supports YouTube URLs and the strategy pattern is intact. However, the **recommended production path** is described here.
+
+**New approach**: Teachers no longer paste external video URLs into the transcription form. Instead, they upload the video file directly to Cloudinary via the signed chunked-upload pipeline (see [`docs/workflows/video_upload_workflows.md`](./video_upload_workflows.md)). Once the upload is confirmed, the lesson has a `videoUrl` pointing to a Cloudinary-hosted MP4. The teacher then triggers auto-transcription using that stored URL.
+
+```mermaid
+sequenceDiagram
+    participant Teacher
+    participant UploadFlow as Video Upload Pipeline<br/>(video_upload_workflows.md)
+    participant DB as course.lessons
+    participant AiController as AiController<br/>POST /ai/transcribe/lessons/{id}
+    participant TransSvc as WhisperTranscriptionServiceImpl
+    participant Resolver as TranscriptionSourceResolver
+    participant CldExt as CloudinaryAudioExtractor
+    participant GroqAPI as Groq Whisper API
+
+    Teacher->>UploadFlow: Upload video file (MP4/WebM/MOV)
+    UploadFlow->>DB: videoUrl = https://res.cloudinary.com/...mp4<br/>videoUploadStatus = READY
+
+    Teacher->>AiController: POST { videoUrl: lesson.videoUrl }
+    AiController->>TransSvc: requestTranscription(lessonId, videoUrl, userId)
+
+    TransSvc->>Resolver: resolve(videoUrl)
+    Note over Resolver: url.contains("res.cloudinary.com")<br/>→ CloudinaryAudioExtractor path
+
+    Resolver->>CldExt: extract(cloudinaryUrl)
+    CldExt->>CldExt: Insert vc_none,ac_mp3,br_32k transformation into URL
+    Note over CldExt: https://res.cloudinary.com/.../upload/<br/>vc_none,ac_mp3,br_32k/{publicId}.mp3<br/>~14 MB/hour audio — no VPS processing
+
+    CldExt-->>TransSvc: AudioFile(tempFile)
+    TransSvc->>GroqAPI: POST /openai/v1/audio/transcriptions<br/>model=whisper-large-v3-turbo
+    GroqAPI-->>TransSvc: { text: "transcript..." }
+
+    TransSvc->>DB: lesson.articleContent = transcript
+    Note over TransSvc: Publishes LessonContentUpdatedEvent<br/>→ auto-triggers Embedding + Summary (Workflows 4 & 2)
+```
+
+**Why this works without VPS processing**: Cloudinary performs the video-to-audio transformation on their CDN via URL parameters (`vc_none,ac_mp3,br_32k`). The VPS only downloads the resulting lightweight MP3 (~14 MB/hour) and sends it to Groq — no video decoding, no ffmpeg, no local transcoding.
+
+**Current production recommendation**:
+
+| Path | Status | Notes |
+|------|--------|-------|
+| Cloudinary URL (`res.cloudinary.com`) | **Recommended** | Reliable; Cloudinary on-the-fly audio extraction |
+| YouTube URL (`youtube.com`, `youtu.be`) | Not recommended on VPS | Anti-bot blocking; yt-dlp may fail silently |
+
+The full strategy pattern (sections 3.1–3.9) remains in code and can be re-enabled if the deployment environment changes (e.g., residential IP, proxy, or YouTube API key).
+
 ---
 
 ## 4. Workflow 2 — Lesson Embedding

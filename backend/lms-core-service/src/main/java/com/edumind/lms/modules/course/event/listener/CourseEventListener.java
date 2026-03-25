@@ -6,6 +6,7 @@ import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.payment.event.OrderCompletedEvent;
 import com.edumind.lms.modules.payment.event.RefundCompletedEvent;
+import com.edumind.common.service.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -22,6 +23,7 @@ public class CourseEventListener {
 
     private final EnrollmentCommandService enrollmentCommandService;
     private final EnrollmentRepository enrollmentRepository;
+    private final CloudinaryService cloudinaryService;
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -87,12 +89,23 @@ public class CourseEventListener {
         log.debug("Incremented totalLessons for all active enrollments on courseId={}", courseId);
     }
 
-    @EventListener
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional
     public void handleLessonDeleted(LessonDeletedEvent event) {
         Long courseId = event.getLesson().getSection().getCourse().getId();
         enrollmentRepository.decrementTotalLessonsForCourse(courseId);
         log.debug("Decremented totalLessons for all active enrollments on courseId={}", courseId);
+
+        String videoPublicId = event.getLesson().getVideoPublicId();
+        if (videoPublicId != null) {
+            try {
+                cloudinaryService.deleteFile(videoPublicId, "video");
+                log.info("Deleted Cloudinary video {} for deleted lesson", videoPublicId);
+            } catch (Exception e) {
+                log.warn("Failed to delete Cloudinary video {}: {}", videoPublicId, e.getMessage());
+            }
+        }
     }
 }
 

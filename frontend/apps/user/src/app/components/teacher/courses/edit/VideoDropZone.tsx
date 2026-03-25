@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Upload,
   Pause,
@@ -45,7 +45,14 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   const job = useUploadQueueStore((s) =>
     lessonId ? s.jobs.find((j) => j.lessonId === lessonId) : undefined,
   );
-  const { enqueue, pause, resume, cancel, retry, removeJob } = useUploadQueueStore();
+  const { enqueue, pause, resume, cancel, retry, removeJob } = useUploadQueueStore.getState();
+
+  useEffect(() => {
+    if (job?.status === 'DONE') {
+      removeJob(job.id);
+      onVideoReady?.();
+    }
+  }, [job?.status, job?.id, removeJob, onVideoReady]);
 
   const handleFileSelect = useCallback(
     (file: File) => {
@@ -207,11 +214,6 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
         );
 
       case 'DONE':
-        // Remove completed job from store and let the READY state below handle it
-        setTimeout(() => {
-          removeJob(job.id);
-          onVideoReady?.();
-        }, 0);
         return (
           <div className="border border-green-200 bg-green-50 rounded-lg p-4">
             <div className="flex items-center gap-2">
