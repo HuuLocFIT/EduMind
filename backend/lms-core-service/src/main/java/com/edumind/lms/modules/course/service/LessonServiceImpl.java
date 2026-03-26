@@ -26,6 +26,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,9 @@ public class LessonServiceImpl implements LessonService {
     private final ApplicationEventPublisher eventPublisher;
     private final Cloudinary cloudinary;
     private final CloudinaryService cloudinaryService;
+
+    @Value("${cloudinary.notification-url:}")
+    private String cloudinaryNotificationUrl;
 
     @Override
     @Transactional
@@ -356,6 +361,9 @@ public class LessonServiceImpl implements LessonService {
         paramsToSign.put("folder", folder);
         paramsToSign.put("eager", "sp_auto/m3u8");
         paramsToSign.put("eager_async", true);
+        if (cloudinaryNotificationUrl != null && !cloudinaryNotificationUrl.isBlank()) {
+            paramsToSign.put("notification_url", cloudinaryNotificationUrl);
+        }
 
         String apiSecret = (String) cloudinary.config.apiSecret;
         String signature = cloudinary.apiSignRequest(paramsToSign, apiSecret);
@@ -366,6 +374,8 @@ public class LessonServiceImpl implements LessonService {
                 .signature(signature)
                 .timestamp(timestamp)
                 .folder(folder)
+                .notificationUrl(cloudinaryNotificationUrl != null && !cloudinaryNotificationUrl.isBlank()
+                        ? cloudinaryNotificationUrl : null)
                 .build();
     }
 
@@ -405,14 +415,21 @@ public class LessonServiceImpl implements LessonService {
         }
 
         // Update lesson with video info
+        // If a notification URL is configured, has_hls stays false until Cloudinary confirms the HLS
+        // transformation is complete via webhook. Without a notification URL (local dev), enable it immediately.
+        boolean webhookConfigured = cloudinaryNotificationUrl != null && !cloudinaryNotificationUrl.isBlank();
         lesson.setVideoUrl(request.getCloudinaryUrl());
         lesson.setVideoPublicId(request.getPublicId());
         lesson.setVideoDuration(request.getDuration());
-        lesson.setHasHls(true);
+        lesson.setHasHls(!webhookConfigured);
         lesson.setVideoUploadStatus(VideoUploadStatus.READY);
 
         Lesson saved = lessonRepository.save(lesson);
-        log.info("Video upload confirmed for lesson {}", lessonId);
+        if (webhookConfigured) {
+            log.info("Video upload confirmed for lesson {} — HLS will be enabled after Cloudinary notifies", lessonId);
+        } else {
+            log.info("Video upload confirmed for lesson {} — HLS enabled immediately (no webhook configured)", lessonId);
+        }
 
         String streamUrl = Boolean.TRUE.equals(saved.getHasHls()) && saved.getVideoPublicId() != null
                 ? "https://res.cloudinary.com/" + cloudinary.config.cloudName
@@ -492,5 +509,29 @@ public class LessonServiceImpl implements LessonService {
             lessonRepository.save(lesson);
             log.info("Video upload state reset to FAILED for lesson {}", lessonId);
         }
+    }
+
+    @Override
+    @Transactional
+    public void handleCloudinaryWebhook(Map<String, Object> payload) {
+        String notificationType = (String) payload.get("notification_type");
+
+        // Only handle eager transformation completions
+        if (!"eager".equals(notificationType)) {
+            log.debug("Ignoring Cloudinary notification type: {}", notificationType);
+            return;
+        }
+
+        String publicId = (String) payload.get("public_id");
+        if (publicId == null || publicId.isBlank()) {
+            log.warn("Cloudinary eager webhook received without public_id");
+            return;
+        }
+
+        lessonRepository.findByVideoPublicId(publicId).ifPresentOrElse(lesson -> {
+            lesson.setHasHls(true);
+            lessonRepository.save(lesson);
+            log.info("HLS ready for lesson {} (public_id={})", lesson.getId(), publicId);
+        }, () -> log.warn("Cloudinary HLS webhook: no lesson found for public_id={}", publicId));
     }
 }
