@@ -16,6 +16,7 @@ import { useUploadQueueStore } from "../../../../stores/uploadQueue.store.js";
 import { videoUploadService } from "../../../../services/video-upload.service.js";
 
 const ACCEPTED_VIDEO_TYPES = "video/mp4,video/webm,video/quicktime";
+const ACCEPTED_VIDEO_MIME_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (Cloudinary free tier limit)
 
 interface VideoDropZoneProps {
@@ -61,6 +62,10 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
     (file: File) => {
       if (!lessonId) return;
       setFileError(null);
+      if (!ACCEPTED_VIDEO_MIME_TYPES.has(file.type)) {
+        setFileError("Invalid file type. Only MP4, WebM, and MOV files are accepted.");
+        return;
+      }
       if (file.size > MAX_FILE_SIZE) {
         setFileError("File size exceeds 100MB limit");
         return;
