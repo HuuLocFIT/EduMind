@@ -165,7 +165,10 @@ public class SectionServiceImpl implements SectionService {
                 .collect(Collectors.toList());
 
         // First pass: assign temporary order indexes beyond the current range to avoid unique constraint collisions
-        int tempBaseIndex = courseSections.size();
+        int tempBaseIndex = courseSections.stream()
+                .mapToInt(Section::getOrderIndex)
+                .max()
+                .orElse(0) + 1;
         for (int i = 0; i < sectionsToUpdate.size(); i++) {
             sectionsToUpdate.get(i).setOrderIndex(tempBaseIndex + i);
         }

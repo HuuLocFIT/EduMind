@@ -299,7 +299,10 @@ public class LessonServiceImpl implements LessonService {
                 .collect(java.util.stream.Collectors.toList());
 
         // First pass: assign temporary order indexes beyond the current range
-        int tempBaseIndex = sectionLessons.size();
+        int tempBaseIndex = sectionLessons.stream()
+                .mapToInt(Lesson::getOrderIndex)
+                .max()
+                .orElse(0) + 1;
         for (int i = 0; i < lessonsToUpdate.size(); i++) {
             lessonsToUpdate.get(i).setOrderIndex(tempBaseIndex + i);
         }
