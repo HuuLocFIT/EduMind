@@ -74,9 +74,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/payments/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/payments/webhook/health").permitAll()
 
-                        // Cloudinary webhook - public (called by Cloudinary after HLS transformation)
-                        .requestMatchers(HttpMethod.POST, "/lessons/cloudinary/webhook").permitAll()
-
                         .anyRequest().authenticated()
                 );
 
