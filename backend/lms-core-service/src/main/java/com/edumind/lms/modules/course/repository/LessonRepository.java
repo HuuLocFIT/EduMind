@@ -11,7 +11,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
@@ -65,11 +64,6 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
      */
     @Query("SELECT COUNT(l) FROM Lesson l WHERE l.course.instructorId = :instructorId AND l.videoUploadStatus = :status")
     long countByInstructorIdAndVideoUploadStatus(@Param("instructorId") Long instructorId, @Param("status") VideoUploadStatus status);
-
-    /**
-     * Find lesson by Cloudinary video public ID (used for webhook callbacks)
-     */
-    Optional<Lesson> findByVideoPublicId(String videoPublicId);
 
     /**
      * Find stale uploads (stuck in UPLOADING for too long)

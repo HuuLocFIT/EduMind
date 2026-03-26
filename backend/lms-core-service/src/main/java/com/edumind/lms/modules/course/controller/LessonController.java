@@ -20,7 +20,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -218,12 +217,6 @@ public class LessonController {
         lessonService.deleteVideo(lessonId, instructorId);
 
         return ResponseEntity.ok(ApiResponse.success("Video deleted successfully", null));
-    }
-
-    @PostMapping("/cloudinary/webhook")
-    public ResponseEntity<Void> handleCloudinaryWebhook(@RequestBody Map<String, Object> payload) {
-        lessonService.handleCloudinaryWebhook(payload);
-        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{lessonId}/video/reset")
