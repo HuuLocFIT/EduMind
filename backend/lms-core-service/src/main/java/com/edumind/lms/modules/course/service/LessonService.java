@@ -6,6 +6,7 @@ import com.edumind.lms.modules.course.dto.response.VideoSignatureResponse;
 import com.edumind.lms.modules.course.entity.Lesson;
 
 import java.util.List;
+import java.util.Map;
 
 public interface LessonService {
     /**
@@ -72,4 +73,9 @@ public interface LessonService {
      * Reset stuck upload state so a new upload can start (TEACHER)
      */
     void resetVideoUploadState(Long lessonId, Long instructorId);
+
+    /**
+     * Handle Cloudinary notification webhook — sets has_hls=true when eager HLS transformation completes
+     */
+    void handleCloudinaryWebhook(Map<String, Object> payload);
 }

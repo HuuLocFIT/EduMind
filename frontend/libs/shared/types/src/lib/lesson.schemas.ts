@@ -101,6 +101,7 @@ export const VideoSignatureResponseSchema = z.object({
   signature: z.string(),
   timestamp: z.number(),
   folder: z.string(),
+  notificationUrl: z.string().nullable().optional(),
 });
 
 export const ConfirmVideoUploadRequestSchema = z.object({

@@ -15,4 +15,5 @@ public class VideoSignatureResponse {
     private String signature;
     private Long timestamp;
     private String folder;
+    private String notificationUrl;
 }
