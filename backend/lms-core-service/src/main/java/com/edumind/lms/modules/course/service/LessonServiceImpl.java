@@ -1,5 +1,10 @@
 package com.edumind.lms.modules.course.service;
 
+import com.cloudinary.Cloudinary;
+import com.edumind.common.service.CloudinaryService;
+import com.edumind.lms.modules.course.dto.request.ConfirmVideoUploadRequest;
+import com.edumind.lms.modules.course.dto.response.LessonResponse;
+import com.edumind.lms.modules.course.dto.response.VideoSignatureResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.entity.Section;
@@ -8,6 +13,7 @@ import com.edumind.lms.modules.course.event.LessonCreatedEvent;
 import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import com.edumind.lms.modules.course.event.LessonUpdatedEvent;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.enums.VideoUploadStatus;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
@@ -20,7 +26,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -31,6 +39,8 @@ public class LessonServiceImpl implements LessonService {
     private final SectionRepository sectionRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final Cloudinary cloudinary;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     @Transactional
@@ -289,7 +299,10 @@ public class LessonServiceImpl implements LessonService {
                 .collect(java.util.stream.Collectors.toList());
 
         // First pass: assign temporary order indexes beyond the current range
-        int tempBaseIndex = sectionLessons.size();
+        int tempBaseIndex = sectionLessons.stream()
+                .mapToInt(Lesson::getOrderIndex)
+                .max()
+                .orElse(0) + 1;
         for (int i = 0; i < lessonsToUpdate.size(); i++) {
             lessonsToUpdate.get(i).setOrderIndex(tempBaseIndex + i);
         }
@@ -303,5 +316,181 @@ public class LessonServiceImpl implements LessonService {
         lessonRepository.saveAll(lessonsToUpdate);
 
         log.info("Lessons reordered successfully");
+    }
+
+    @Override
+    @Transactional
+    public VideoSignatureResponse generateVideoUploadSignature(Long lessonId, Long instructorId) {
+        log.info("Generating video upload signature for lesson {} by instructor {}", lessonId, instructorId);
+
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+
+        // Verify ownership
+        if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only upload videos to your own lessons");
+        }
+
+        // Prevent duplicate concurrent upload for the same lesson
+        if (lesson.getVideoUploadStatus() == VideoUploadStatus.UPLOADING) {
+            throw new BadRequestException("This lesson already has an upload in progress");
+        }
+
+        // Rate limit: max 5 active uploads per instructor
+        long activeUploads = lessonRepository.countByInstructorIdAndVideoUploadStatus(
+                instructorId, VideoUploadStatus.UPLOADING);
+        if (activeUploads >= 5) {
+            throw new BadRequestException("Maximum 5 concurrent uploads allowed. Please wait for current uploads to finish.");
+        }
+
+        // Mark lesson as uploading
+        lesson.setVideoUploadStatus(VideoUploadStatus.UPLOADING);
+        lessonRepository.save(lesson);
+
+        // Generate Cloudinary signed upload params
+        long timestamp = Instant.now().getEpochSecond();
+        String folder = "edumind/videos/lessons";
+
+        Map<String, Object> paramsToSign = new java.util.HashMap<>();
+        paramsToSign.put("timestamp", timestamp);
+        paramsToSign.put("folder", folder);
+        paramsToSign.put("eager", "sp_auto/m3u8");
+        paramsToSign.put("eager_async", true);
+
+        String apiSecret = (String) cloudinary.config.apiSecret;
+        String signature = cloudinary.apiSignRequest(paramsToSign, apiSecret);
+
+        return VideoSignatureResponse.builder()
+                .cloudName((String) cloudinary.config.cloudName)
+                .apiKey((String) cloudinary.config.apiKey)
+                .signature(signature)
+                .timestamp(timestamp)
+                .folder(folder)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public LessonResponse confirmVideoUpload(Long lessonId, ConfirmVideoUploadRequest request, Long instructorId) {
+        log.info("Confirming video upload for lesson {} by instructor {}", lessonId, instructorId);
+
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+
+        // Verify ownership
+        if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only confirm uploads for your own lessons");
+        }
+
+        // Validate expected state
+        if (lesson.getVideoUploadStatus() != VideoUploadStatus.UPLOADING) {
+            throw new BadRequestException("No upload in progress for this lesson");
+        }
+
+        // Validate Cloudinary URL format — must belong to this account
+        String expectedPrefix = "https://res.cloudinary.com/" + cloudinary.config.cloudName + "/";
+        if (!request.getCloudinaryUrl().startsWith(expectedPrefix)) {
+            throw new BadRequestException("Invalid Cloudinary URL");
+        }
+
+        // Delete old video if replacing
+        String oldPublicId = lesson.getVideoPublicId();
+        if (oldPublicId != null && !oldPublicId.equals(request.getPublicId())) {
+            try {
+                cloudinaryService.deleteFile(oldPublicId, "video");
+                log.info("Deleted old Cloudinary video: {}", oldPublicId);
+            } catch (Exception e) {
+                log.warn("Failed to delete old Cloudinary video {}: {}", oldPublicId, e.getMessage());
+            }
+        }
+
+        // Update lesson with video info
+        lesson.setVideoUrl(request.getCloudinaryUrl());
+        lesson.setVideoPublicId(request.getPublicId());
+        lesson.setVideoDuration(request.getDuration());
+        lesson.setHasHls(true);
+        lesson.setVideoUploadStatus(VideoUploadStatus.READY);
+
+        Lesson saved = lessonRepository.save(lesson);
+        log.info("Video upload confirmed for lesson {}", lessonId);
+
+        String streamUrl = Boolean.TRUE.equals(saved.getHasHls()) && saved.getVideoPublicId() != null
+                ? "https://res.cloudinary.com/" + cloudinary.config.cloudName
+                  + "/video/upload/sp_auto/" + saved.getVideoPublicId() + ".m3u8"
+                : null;
+
+        return LessonResponse.builder()
+                .id(saved.getId())
+                .sectionId(saved.getSection().getId())
+                .courseId(saved.getCourse().getId())
+                .title(saved.getTitle())
+                .description(saved.getDescription())
+                .contentType(saved.getContentType())
+                .videoUrl(saved.getVideoUrl())
+                .videoStreamUrl(streamUrl)
+                .videoDuration(saved.getVideoDuration())
+                .videoUploadStatus(saved.getVideoUploadStatus())
+                .videoPublicId(saved.getVideoPublicId())
+                .articleContent(saved.getArticleContent())
+                .resources(saved.getResources())
+                .orderIndex(saved.getOrderIndex())
+                .isPreview(saved.getIsPreview())
+                .isMandatory(saved.getIsMandatory())
+                .createdAt(saved.getCreatedAt())
+                .updatedAt(saved.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void deleteVideo(Long lessonId, Long instructorId) {
+        log.info("Deleting video for lesson {} by instructor {}", lessonId, instructorId);
+
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+
+        // Verify ownership
+        if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only delete videos from your own lessons");
+        }
+
+        // Delete from Cloudinary
+        if (lesson.getVideoPublicId() != null) {
+            try {
+                cloudinaryService.deleteFile(lesson.getVideoPublicId(), "video");
+                log.info("Deleted Cloudinary video: {}", lesson.getVideoPublicId());
+            } catch (Exception e) {
+                log.warn("Failed to delete Cloudinary video {}: {}", lesson.getVideoPublicId(), e.getMessage());
+            }
+        }
+
+        // Clear video fields
+        lesson.setVideoUrl(null);
+        lesson.setVideoPublicId(null);
+        lesson.setVideoDuration(null);
+        lesson.setHasHls(false);
+        lesson.setVideoUploadStatus(VideoUploadStatus.NONE);
+
+        lessonRepository.save(lesson);
+        log.info("Video deleted for lesson {}", lessonId);
+    }
+
+    @Override
+    @Transactional
+    public void resetVideoUploadState(Long lessonId, Long instructorId) {
+        log.info("Resetting video upload state for lesson {} by instructor {}", lessonId, instructorId);
+
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+
+        if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only reset uploads for your own lessons");
+        }
+
+        if (lesson.getVideoUploadStatus() == VideoUploadStatus.UPLOADING) {
+            lesson.setVideoUploadStatus(VideoUploadStatus.FAILED);
+            lessonRepository.save(lesson);
+            log.info("Video upload state reset to FAILED for lesson {}", lessonId);
+        }
     }
 }

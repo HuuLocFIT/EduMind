@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FileText, Wand2 } from "lucide-react";
 
 const stripHtml = (html: string) => {
@@ -10,51 +10,78 @@ import { ContentType } from "@edumind/shared-constants";
 import type { LessonResponse } from "@edumind/shared-types";
 import { Modal, Button, Input, Textarea } from "@edumind/user-ui";
 import { RichTextEditor } from "../../../ui/RichTextEditor";
+import { VideoDropZone } from "./VideoDropZone";
+
+export type LessonFormData = {
+  title: string;
+  description: string;
+  contentType: string;
+  videoUrl: string;
+  videoDuration: number;
+  articleContent: string;
+  isPreview: boolean;
+  isMandatory: boolean;
+};
 
 interface LessonModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lessonForm: {
-    title: string;
-    description: string;
-    contentType: string;
-    videoUrl: string;
-    videoDuration: number;
-    articleContent: string;
-    isPreview: boolean;
-    isMandatory: boolean;
-  };
-  setLessonForm: React.Dispatch<
-    React.SetStateAction<{
-      title: string;
-      description: string;
-      contentType: string;
-      videoUrl: string;
-      videoDuration: number;
-      articleContent: string;
-      isPreview: boolean;
-      isMandatory: boolean;
-    }>
-  >;
   editingLesson: { sectionId: number; lesson?: LessonResponse } | null;
-  onSave: () => void;
+  onSave: (formData: LessonFormData) => void;
   saving: boolean;
   lessonId?: number | null;
   onAutoTranscribeClick?: () => void;
+  onVideoChange?: () => void;
 }
 
 export const LessonModal: React.FC<LessonModalProps> = ({
   isOpen,
   onClose,
-  lessonForm,
-  setLessonForm,
   editingLesson,
   onSave,
   saving,
   lessonId,
   onAutoTranscribeClick,
+  onVideoChange,
 }) => {
-  const isArticle = lessonForm.contentType === ContentType.ARTICLE;
+  const [form, setForm] = useState<LessonFormData>({
+    title: "",
+    description: "",
+    contentType: ContentType.VIDEO as string,
+    videoUrl: "",
+    videoDuration: 0,
+    articleContent: "",
+    isPreview: false,
+    isMandatory: true,
+  });
+
+  // Initialize form when modal opens or lesson changes
+  useEffect(() => {
+    if (!isOpen) return;
+    const lesson = editingLesson?.lesson;
+    setForm({
+      title: lesson?.title ?? "",
+      description: lesson?.description ?? "",
+      contentType: lesson?.contentType ?? ContentType.VIDEO,
+      videoUrl: lesson?.videoUrl ?? "",
+      videoDuration: lesson?.videoDuration ?? 0,
+      articleContent: lesson?.articleContent ?? "",
+      isPreview: lesson?.isPreview ?? false,
+      isMandatory: lesson?.isMandatory ?? true,
+    });
+  }, [isOpen, editingLesson?.lesson]);
+
+  // Sync videoUrl/videoDuration when upload completes (parent refreshes editingLesson.lesson)
+  useEffect(() => {
+    if (!editingLesson?.lesson) return;
+    setForm((prev) => ({
+      ...prev,
+      videoUrl: editingLesson.lesson!.videoUrl ?? "",
+      videoDuration: editingLesson.lesson!.videoDuration ?? 0,
+    }));
+  }, [editingLesson?.lesson?.videoUrl, editingLesson?.lesson?.videoDuration]);
+
+  const isArticle = form.contentType === ContentType.ARTICLE;
 
   return (
     <Modal
@@ -69,8 +96,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
             Lesson Title <span className="text-red-500">*</span>
           </label>
           <Input
-            value={lessonForm.title}
-            onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
+            value={form.title}
+            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
             placeholder="e.g., Setting up your development environment"
           />
         </div>
@@ -78,8 +105,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
           <select
-            value={lessonForm.contentType}
-            onChange={(e) => setLessonForm((p) => ({ ...p, contentType: e.target.value }))}
+            value={form.contentType}
+            onChange={(e) => setForm((p) => ({ ...p, contentType: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value={ContentType.VIDEO}>Video</option>
@@ -87,32 +114,24 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           </select>
         </div>
 
-        {lessonForm.contentType === ContentType.VIDEO && (
+        {form.contentType === ContentType.VIDEO && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Video URL</label>
-                <Input
-                  value={lessonForm.videoUrl}
-                  onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
-                  placeholder="https://..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Duration (seconds)
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={lessonForm.videoDuration || ""}
-                  onChange={(e) =>
-                    setLessonForm((p) => ({ ...p, videoDuration: Number(e.target.value) || 0 }))
-                  }
-                  placeholder="e.g., 600 (10 minutes)"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Video</label>
+              <VideoDropZone
+                lessonId={lessonId ?? null}
+                lessonTitle={form.title || 'Untitled Lesson'}
+                currentVideoUrl={form.videoUrl || null}
+                currentUploadStatus={editingLesson?.lesson?.videoUploadStatus ?? 'NONE'}
+                onVideoReady={onVideoChange}
+                onVideoRemoved={onVideoChange}
+              />
             </div>
+            {form.videoUrl ? (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                Video linked to this lesson. You can continue editing metadata or close this modal.
+              </div>
+            ) : null}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium text-gray-700">
@@ -138,8 +157,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                 ) : null}
               </div>
               <Textarea
-                value={stripHtml(lessonForm.articleContent ?? "")}
-                onChange={(e) => setLessonForm((p) => ({ ...p, articleContent: e.target.value }))}
+                value={stripHtml(form.articleContent ?? "")}
+                onChange={(e) => setForm((p) => ({ ...p, articleContent: e.target.value }))}
                 rows={8}
                 placeholder="Paste a transcript or write a summary of the video content. This is used by the AI to generate quiz questions."
               />
@@ -158,9 +177,9 @@ export const LessonModal: React.FC<LessonModalProps> = ({
             </div>
             <div className="rounded-lg border border-gray-300 shadow-sm overflow-clip">
               <RichTextEditor
-                value={lessonForm.articleContent ?? ""}
+                value={form.articleContent ?? ""}
                 onChange={(html) =>
-                  setLessonForm((p) => ({
+                  setForm((p) => ({
                     ...p,
                     articleContent: html,
                   }))
@@ -178,8 +197,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
             Description (optional)
           </label>
           <Textarea
-            value={lessonForm.description}
-            onChange={(e) => setLessonForm((p) => ({ ...p, description: e.target.value }))}
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
             rows={2}
             placeholder="Brief description of what students will learn"
           />
@@ -189,8 +208,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={lessonForm.isPreview}
-              onChange={(e) => setLessonForm((p) => ({ ...p, isPreview: e.target.checked }))}
+              checked={form.isPreview}
+              onChange={(e) => setForm((p) => ({ ...p, isPreview: e.target.checked }))}
               className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
             <div>
@@ -202,8 +221,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={lessonForm.isMandatory}
-              onChange={(e) => setLessonForm((p) => ({ ...p, isMandatory: e.target.checked }))}
+              checked={form.isMandatory}
+              onChange={(e) => setForm((p) => ({ ...p, isMandatory: e.target.checked }))}
               className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
             <div>
@@ -219,7 +238,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           </Button>
           <Button
             variant="primary"
-            onClick={onSave}
+            onClick={() => onSave(form)}
             isLoading={saving}
             className="bg-green-600 hover:bg-green-700"
           >
@@ -230,4 +249,3 @@ export const LessonModal: React.FC<LessonModalProps> = ({
     </Modal>
   );
 };
-

@@ -152,7 +152,13 @@ export const TEACHER_PORTAL_ENDPOINTS = {
   LESSON_UPDATE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}`,
   LESSON_DELETE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}`,
   LESSON_REORDER: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}/reorder`,
-  
+
+  // Lesson Video Upload
+  LESSON_VIDEO_SIGNATURE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video/signature`,
+  LESSON_VIDEO_CONFIRM: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video`,
+  LESSON_VIDEO_DELETE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video`,
+  LESSON_VIDEO_RESET: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video/reset`,
+
   // Course Students (enrollments)
   COURSE_STUDENTS: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
   
@@ -221,6 +227,10 @@ export const LESSON_ENDPOINTS = {
   SECTION: (sectionId: string | number) => `${API_BASE_PATH}/lessons/sections/${sectionId}`,
   WATCH: `${API_BASE_PATH}/lessons/watch`,
   COMPLETE: `${API_BASE_PATH}/lessons/complete`,
+  VIDEO_SIGNATURE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video/signature`,
+  VIDEO_CONFIRM: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video`,
+  VIDEO_DELETE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video`,
+  VIDEO_RESET: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video/reset`,
 } as const;
 
 /**
@@ -496,4 +506,3 @@ export const getOAuth2Url = (
     : AUTH_ENDPOINTS.OAUTH2_FACEBOOK;
   return buildApiUrl(endpoint, baseUrl);
 };
-

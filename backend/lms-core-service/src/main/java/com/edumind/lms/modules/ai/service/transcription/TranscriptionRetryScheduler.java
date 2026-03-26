@@ -33,8 +33,8 @@ public class TranscriptionRetryScheduler {
 
         for (AiJobLog job : delayedJobs) {
             try {
-                String videoUrl = job.getMetadata();
-                if (videoUrl == null || videoUrl.isBlank()) {
+                String rawMetadata = job.getMetadata();
+                if (rawMetadata == null || rawMetadata.isBlank()) {
                     job.setStatus(AiJobStatus.FAILED);
                     job.setCompletedAt(LocalDateTime.now());
                     job.setErrorMessage("Missing metadata.videoUrl for retry");
@@ -42,12 +42,25 @@ public class TranscriptionRetryScheduler {
                     continue;
                 }
 
+                // Metadata format: "<language>|<videoUrl>" (new) or just "<videoUrl>" (legacy).
+                String videoUrl;
+                String language;
+                int pipeIdx = rawMetadata.indexOf('|');
+                if (pipeIdx > 0 && pipeIdx < rawMetadata.length() - 1) {
+                    language = rawMetadata.substring(0, pipeIdx);
+                    videoUrl = rawMetadata.substring(pipeIdx + 1);
+                } else {
+                    // Legacy format: only the URL was stored
+                    videoUrl = rawMetadata;
+                    language = "en";
+                }
+
                 // Move back to PENDING before re-queueing
                 job.setStatus(AiJobStatus.PENDING);
                 job.setNextRetryAt(null);
                 jobLogRepository.save(job);
 
-                transcriptionService.processTranscriptionAsync(job.getId(), job.getReferenceId(), videoUrl);
+                transcriptionService.processTranscriptionAsync(job.getId(), job.getReferenceId(), videoUrl, language);
                 log.info("Re-queued transcription job {}", job.getId());
 
             } catch (TaskRejectedException e) {

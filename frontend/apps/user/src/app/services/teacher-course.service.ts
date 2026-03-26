@@ -185,6 +185,13 @@ export const teacherCourseService = {
     return LessonListResponseSchema.parse(response.data);
   },
 
+  async getLessonDetail(lessonId: number): Promise<LessonResponse> {
+    const response = await apiClient.get<LessonResponse>(
+      TEACHER_PORTAL_ENDPOINTS.LESSON_UPDATE(lessonId)
+    );
+    return LessonResponseSchema.parse(response.data);
+  },
+
   async createLesson(
     sectionId: number,
     data: CreateLessonRequest

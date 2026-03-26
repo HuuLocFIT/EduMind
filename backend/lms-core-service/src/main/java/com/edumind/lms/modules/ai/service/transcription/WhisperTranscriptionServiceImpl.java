@@ -55,7 +55,7 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
     private int retryDelaySeconds;
 
     @Override
-    public AiJobResponse requestTranscription(Long lessonId, String videoUrl, Long userId) {
+    public AiJobResponse requestTranscription(Long lessonId, String videoUrl, String language, Long userId) {
         if (lessonId == null) {
             throw new BadRequestException("lessonId is required");
         }
@@ -70,22 +70,27 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
             throw new UnauthorizedException("You can only transcribe lessons of your own courses");
         }
 
+        // Store language and videoUrl together in metadata for retry support.
+        // Format: "<language>|<videoUrl>" (e.g. "vi|https://res.cloudinary.com/...")
+        String resolvedLanguage = (language != null && !language.isBlank()) ? language : "en";
+        String metadata = resolvedLanguage + "|" + videoUrl;
+
         AiJobLog job = AiJobLog.builder()
                 .jobType(AiJobType.TRANSCRIPTION)
                 .status(AiJobStatus.PENDING)
                 .userId(userId)
                 .referenceId(lessonId)
-                .metadata(videoUrl)
+                .metadata(metadata)
                 .build();
 
         jobLogRepository.save(job);
-        processTranscriptionAsync(job.getId(), lessonId, videoUrl);
+        processTranscriptionAsync(job.getId(), lessonId, videoUrl, resolvedLanguage);
         return toResponse(job);
     }
 
     @Async("whisperTaskExecutor")
     @Override
-    public void processTranscriptionAsync(Long jobId, Long lessonId, String videoUrl) {
+    public void processTranscriptionAsync(Long jobId, Long lessonId, String videoUrl, String language) {
         AiJobLog job = jobLogRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("AI job not found: " + jobId));
 
@@ -107,9 +112,14 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
                 if (sizeBytes > GROQ_MAX_BYTES) {
                     throw new AudioFileTooLargeException(sizeBytes);
                 }
-                transcript = sendToGroq(tempFile);
+                transcript = sendToGroq(tempFile, language);
             } else {
                 throw new IllegalStateException("Unknown TranscriptionInput type: " + input.getClass());
+            }
+
+            if (transcript == null || transcript.isBlank()) {
+                throw new IllegalStateException(
+                        "Transcription returned empty text. The audio may be silent or too short.");
             }
 
             lessonWriteService.updateArticleContent(lessonId, transcript);
@@ -140,11 +150,15 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
         }
     }
 
-    private String sendToGroq(Path audioFile) {
+    private String sendToGroq(Path audioFile, String language) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new FileSystemResource(audioFile));
         body.add("model", groqModel);
-        body.add("language", groqLanguage);
+        // Use the per-request language; fall back to the configured default.
+        String lang = (language != null && !language.isBlank()) ? language : groqLanguage;
+        if (lang != null && !lang.isBlank()) {
+            body.add("language", lang);
+        }
 
         Map<String, Object> response = groqRestClient.post()
                 .uri(groqApiUrl)

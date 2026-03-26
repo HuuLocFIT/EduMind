@@ -1,10 +1,13 @@
 package com.edumind.lms.modules.course.controller;
 
+import com.cloudinary.Cloudinary;
 import com.edumind.common.response.ApiResponse;
+import com.edumind.lms.modules.course.dto.request.ConfirmVideoUploadRequest;
 import com.edumind.lms.modules.course.dto.request.CreateLessonRequest;
 import com.edumind.lms.modules.course.dto.request.ReorderLessonsRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateLessonRequest;
 import com.edumind.lms.modules.course.dto.response.LessonResponse;
+import com.edumind.lms.modules.course.dto.response.VideoSignatureResponse;
 import com.edumind.lms.modules.course.entity.Lesson;
 import com.edumind.lms.modules.course.service.LessonService;
 import com.edumind.lms.shared.exception.UnauthorizedException;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LessonController {
     private final LessonService lessonService;
+    private final Cloudinary cloudinary;
 
     @PostMapping("/sections/{sectionId}")
     @PreAuthorize("@teacherSecurity.isActiveTeacher()")
@@ -178,10 +182,68 @@ public class LessonController {
         return ResponseEntity.ok(ApiResponse.success("Lessons reordered successfully", null));
     }
 
+    @PostMapping("/{lessonId}/video/signature")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<VideoSignatureResponse>> generateVideoUploadSignature(
+            @PathVariable Long lessonId,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        VideoSignatureResponse signature = lessonService.generateVideoUploadSignature(lessonId, instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success("Upload signature generated", signature));
+    }
+
+    @PatchMapping("/{lessonId}/video")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<LessonResponse>> confirmVideoUpload(
+            @PathVariable Long lessonId,
+            @Valid @RequestBody ConfirmVideoUploadRequest request,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        LessonResponse response = lessonService.confirmVideoUpload(lessonId, request, instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success("Video upload confirmed", response));
+    }
+
+    @DeleteMapping("/{lessonId}/video")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<Void>> deleteVideo(
+            @PathVariable Long lessonId,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        lessonService.deleteVideo(lessonId, instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success("Video deleted successfully", null));
+    }
+
+    @PostMapping("/{lessonId}/video/reset")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<Void>> resetVideoUploadState(
+            @PathVariable Long lessonId,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        lessonService.resetVideoUploadState(lessonId, instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success("Video upload state reset successfully", null));
+    }
+
     // Helper methods
     private Long extractUserId(Authentication authentication) {
         return Long.parseLong(authentication.getName());
     }
+
+    private String buildStreamUrl(Lesson lesson) {
+        if (!Boolean.TRUE.equals(lesson.getHasHls()) || lesson.getVideoPublicId() == null) {
+            return null;
+        }
+        return "https://res.cloudinary.com/" + cloudinary.config.cloudName
+                + "/video/upload/sp_auto/" + lesson.getVideoPublicId() + ".m3u8";
+    }
+
     private LessonResponse toResponse(Lesson lesson) {
         return LessonResponse.builder()
                 .id(lesson.getId())
@@ -191,7 +253,10 @@ public class LessonController {
                 .description(lesson.getDescription())
                 .contentType(lesson.getContentType())
                 .videoUrl(lesson.getVideoUrl())
+                .videoStreamUrl(buildStreamUrl(lesson))
                 .videoDuration(lesson.getVideoDuration())
+                .videoUploadStatus(lesson.getVideoUploadStatus())
+                .videoPublicId(lesson.getVideoPublicId())
                 .articleContent(lesson.getArticleContent())
                 .resources(lesson.getResources())
                 .orderIndex(lesson.getOrderIndex())

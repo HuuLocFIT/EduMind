@@ -12,7 +12,7 @@ interface SortableLessonProps {
   disabled?: boolean;
 }
 
-export const SortableLesson: React.FC<SortableLessonProps> = ({
+export const SortableLesson = React.memo<SortableLessonProps>(({
   lesson,
   onEdit,
   onDelete,
@@ -107,5 +107,6 @@ export const SortableLesson: React.FC<SortableLessonProps> = ({
       </button>
     </div>
   );
-};
+});
+SortableLesson.displayName = 'SortableLesson';
 

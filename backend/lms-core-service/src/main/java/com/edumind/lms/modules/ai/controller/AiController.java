@@ -198,7 +198,7 @@ public class AiController {
             Authentication authentication
     ) {
         Long userId = extractUserId(authentication);
-        AiJobResponse response = whisperTranscriptionService.requestTranscription(lessonId, request.videoUrl(), userId);
+        AiJobResponse response = whisperTranscriptionService.requestTranscription(lessonId, request.videoUrl(), request.language(), userId);
         return ResponseEntity.accepted().body(ApiResponse.success(response));
     }
 

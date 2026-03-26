@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { ContentType } from "@edumind/shared-constants";
+import { ContentType, VideoUploadStatus } from "@edumind/shared-constants";
 
 export const ContentTypeSchema = z.nativeEnum(ContentType);
+export const VideoUploadStatusSchema = z.nativeEnum(VideoUploadStatus);
 
 export const LessonResourceSchema = z.object({
   title: z.string().min(1, "Resource title is required"),
@@ -72,6 +73,9 @@ export const LessonResponseSchema = z.object({
   contentType: ContentTypeSchema,
   videoUrl: z.string().nullable().optional(),
   videoDuration: z.number().nullable().optional(),
+  videoUploadStatus: VideoUploadStatusSchema.nullable().optional().default("NONE"),
+  videoPublicId: z.string().nullable().optional(),
+  videoStreamUrl: z.string().nullable().optional(),
   articleContent: z.string().nullable().optional(),
   resources: z.array(LessonResourceSchema).optional().nullable(),
   orderIndex: z.number(),
@@ -89,3 +93,21 @@ export type CreateLessonRequest = z.infer<typeof CreateLessonRequestSchema>;
 export type UpdateLessonRequest = z.infer<typeof UpdateLessonRequestSchema>;
 export type LessonResponse = z.infer<typeof LessonResponseSchema>;
 export type LessonListResponse = z.infer<typeof LessonListResponseSchema>;
+
+// Video upload schemas
+export const VideoSignatureResponseSchema = z.object({
+  cloudName: z.string(),
+  apiKey: z.string(),
+  signature: z.string(),
+  timestamp: z.number(),
+  folder: z.string(),
+});
+
+export const ConfirmVideoUploadRequestSchema = z.object({
+  cloudinaryUrl: z.string().url(),
+  publicId: z.string(),
+  duration: z.number().nonnegative().optional().nullable(),
+});
+
+export type VideoSignatureResponse = z.infer<typeof VideoSignatureResponseSchema>;
+export type ConfirmVideoUploadRequest = z.infer<typeof ConfirmVideoUploadRequestSchema>;

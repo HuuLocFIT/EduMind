@@ -73,6 +73,7 @@ export const CoursePlayerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [useHlsFallback, setUseHlsFallback] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   // null = still checking, true/false = resolved
   const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
@@ -108,6 +109,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   useEffect(() => {
     if (!currentLesson) return;
+    setUseHlsFallback(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [currentLesson?.id]);
 
@@ -694,10 +696,12 @@ export const CoursePlayerPage: React.FC = () => {
           {/* Video Player - only for VIDEO type */}
           {currentLesson.contentType === ContentType.VIDEO && (
             <div className="bg-black aspect-video relative">
-              {currentLesson.videoUrl ? (
+              {(currentLesson.videoStreamUrl || currentLesson.videoUrl) ? (
                 <ReactPlayer
                   ref={videoRef}
-                  src={currentLesson.videoUrl}
+                  src={(!useHlsFallback && currentLesson.videoStreamUrl)
+                    ? currentLesson.videoStreamUrl
+                    : (currentLesson.videoUrl ?? undefined)}
                   controls
                   width="100%"
                   height="100%"
@@ -705,6 +709,11 @@ export const CoursePlayerPage: React.FC = () => {
                   onLoadedMetadata={handleVideoLoadedMetadata}
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
+                  onError={() => {
+                    if (!useHlsFallback && currentLesson.videoStreamUrl) {
+                      setUseHlsFallback(true);
+                    }
+                  }}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">

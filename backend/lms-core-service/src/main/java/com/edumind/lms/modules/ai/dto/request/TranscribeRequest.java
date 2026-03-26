@@ -4,7 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 
 public record TranscribeRequest(
         @NotBlank(message = "Video URL is required")
-        String videoUrl
+        String videoUrl,
+        String language   // nullable; "vi" or "en"
 ) {
 }
 
