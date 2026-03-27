@@ -14,6 +14,8 @@ public interface LessonSummaryRepository extends JpaRepository<LessonSummary, Lo
 
     Optional<LessonSummary> findByLessonId(Long lessonId);
 
+    void deleteByLessonId(Long lessonId);
+
     @Query("SELECT l.lessonId FROM LessonSummary l")
     Set<Long> findAllIndexedLessonIds();
 

@@ -12,9 +12,7 @@ import com.edumind.lms.modules.ai.util.AiPromptBuilder;
 import com.edumind.lms.modules.course.api.CourseQueryService;
 import com.edumind.lms.modules.course.api.EnrollmentQueryService;
 import com.edumind.lms.modules.course.api.LessonQueryService;
-import com.edumind.lms.modules.course.api.dto.LessonInfo;
 import com.edumind.lms.shared.exception.BadRequestException;
-import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -251,9 +249,10 @@ public class RagServiceImpl implements RagService {
         for (LessonChunkProjection chunk : chunks) {
             Long lessonId = chunk.getLessonId();
             if (!byLessonId.containsKey(lessonId)) {
-                LessonInfo info = lessonQueryService.getLessonInfo(lessonId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + lessonId));
-                byLessonId.put(lessonId, new SourceLessonDto(lessonId, info.title()));
+                lessonQueryService.getLessonInfo(lessonId).ifPresentOrElse(
+                        info -> byLessonId.put(lessonId, new SourceLessonDto(lessonId, info.title())),
+                        () -> log.warn("Embedding references deleted lesson {}, skipping from source list", lessonId)
+                );
             }
         }
 
