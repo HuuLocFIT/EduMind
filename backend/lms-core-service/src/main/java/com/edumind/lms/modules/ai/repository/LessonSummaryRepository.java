@@ -8,10 +8,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.Set;
 
 public interface LessonSummaryRepository extends JpaRepository<LessonSummary, Long> {
 
     Optional<LessonSummary> findByLessonId(Long lessonId);
+
+    @Query("SELECT l.lessonId FROM LessonSummary l")
+    Set<Long> findAllIndexedLessonIds();
 
     @Transactional
     @Modifying

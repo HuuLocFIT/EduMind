@@ -8,8 +8,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 public interface LessonEmbeddingRepository extends JpaRepository<LessonEmbedding, Long> {
+
+    @Query("SELECT DISTINCT l.lessonId FROM LessonEmbedding l")
+    Set<Long> findAllIndexedLessonIds();
 
     @Transactional
     void deleteByLessonId(Long lessonId);
