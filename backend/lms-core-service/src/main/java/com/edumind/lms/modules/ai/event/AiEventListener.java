@@ -1,8 +1,11 @@
 package com.edumind.lms.modules.ai.event;
 
+import com.edumind.lms.modules.ai.repository.LessonEmbeddingRepository;
+import com.edumind.lms.modules.ai.repository.LessonSummaryRepository;
 import com.edumind.lms.modules.ai.service.AiSummaryService;
 import com.edumind.lms.modules.ai.service.EmbeddingService;
 import com.edumind.lms.modules.course.event.LessonContentUpdatedEvent;
+import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -19,6 +22,18 @@ public class AiEventListener {
 
     private final AiSummaryService aiSummaryService;
     private final EmbeddingService embeddingService;
+    private final LessonEmbeddingRepository lessonEmbeddingRepository;
+    private final LessonSummaryRepository lessonSummaryRepository;
+
+    @Async("taskExecutor")
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onLessonDeleted(LessonDeletedEvent event) {
+        Long lessonId = event.getLesson().getId();
+        log.info("Cleaning up AI data for deleted lesson {}", lessonId);
+        lessonEmbeddingRepository.deleteByLessonId(lessonId);
+        lessonSummaryRepository.deleteByLessonId(lessonId);
+    }
 
     @Async("taskExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
