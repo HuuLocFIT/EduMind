@@ -2,6 +2,7 @@ package com.edumind.lms.modules.ai.service;
 
 import com.edumind.lms.modules.ai.entity.AiJobLog;
 import com.edumind.lms.modules.ai.enums.AiJobType;
+import com.edumind.lms.modules.ai.repository.LessonEmbeddingRepository;
 import com.edumind.lms.modules.course.api.LessonQueryService;
 import com.edumind.lms.modules.course.api.dto.LessonInfo;
 import com.edumind.lms.modules.course.entity.Lesson;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -26,6 +28,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     private final AiJobService aiJobService;
     private final AsyncEmbeddingProcessor asyncEmbeddingProcessor;
     private final LessonQueryService lessonQueryService;
+    private final LessonEmbeddingRepository lessonEmbeddingRepository;
 
     @Autowired
     @Qualifier("aiTaskExecutor")
@@ -61,13 +64,20 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public int reindexAll() {
-        List<LessonInfo> lessons = lessonQueryService.findAllWithArticleContent();
+        Set<Long> indexedIds = lessonEmbeddingRepository.findAllIndexedLessonIds();
+        List<LessonInfo> toIndex = lessonQueryService.findAllWithArticleContent().stream()
+                .filter(l -> !indexedIds.contains(l.id()))
+                .toList();
 
-        log.info("Backfilling embeddings for {} lessons with article content", lessons.size());
+        if (toIndex.isEmpty()) {
+            return 0;
+        }
+        log.info("Backfilling embeddings: {}/{} lessons not yet indexed",
+                toIndex.size(), toIndex.size() + indexedIds.size());
         int queued = 0;
-        for (LessonInfo info : lessons) {
+        for (LessonInfo info : toIndex) {
             if (aiTaskExecutor.getThreadPoolExecutor().getQueue().remainingCapacity() == 0) {
-                log.warn("aiTaskExecutor queue full — stopping embedding reindex at {}/{} lessons", queued, lessons.size());
+                log.warn("aiTaskExecutor queue full — stopping embedding reindex at {}/{} lessons", queued, toIndex.size());
                 break;
             }
             try {
