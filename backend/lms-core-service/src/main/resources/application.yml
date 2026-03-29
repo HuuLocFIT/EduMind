@@ -90,6 +90,11 @@ cloudinary:
   api-key: ${CLOUDINARY_API_KEY}
   api-secret: ${CLOUDINARY_API_SECRET}
 
+# Video Configuration
+video:
+  hls:
+    enabled: ${VIDEO_HLS_ENABLED:false}
+
 # Logging
 logging:
   level:

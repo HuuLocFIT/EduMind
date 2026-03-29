@@ -23,6 +23,16 @@ public class LessonWriteServiceImpl implements LessonWriteService {
 
     @Override
     @Transactional
+    public void updateCaptionUrl(Long lessonId, String captionUrl) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        lesson.setVideoCaptionUrl(captionUrl);
+        lessonRepository.save(lesson);
+        log.info("Saved caption URL for lesson {}", lessonId);
+    }
+
+    @Override
+    @Transactional
     public void updateArticleContent(Long lessonId, String content) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));

@@ -13,6 +13,7 @@ interface CourseListProps {
   currentPage: number;
   filterStatus: 'all' | 'active' | 'completed';
   hoveredCourse: number | null;
+  isLoading?: boolean;
   onPageChange: (page: number) => void;
   onHoverCourse: (id: number | null) => void;
   onContinue: (enrollment: EnrollmentResponse) => void;
@@ -20,12 +21,26 @@ interface CourseListProps {
   onBrowseCourses: () => void;
 }
 
+const CourseCardSkeleton: React.FC = () => (
+  <div className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse">
+    <div className="flex gap-4">
+      <div className="w-24 h-16 bg-slate-200 rounded-xl flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-slate-200 rounded w-3/4" />
+        <div className="h-3 bg-slate-200 rounded w-1/2" />
+        <div className="h-2 bg-slate-200 rounded w-full mt-3" />
+      </div>
+    </div>
+  </div>
+);
+
 export const CourseList: React.FC<CourseListProps> = ({
   enrollments,
   pagination,
   currentPage,
   filterStatus,
   hoveredCourse,
+  isLoading = false,
   onPageChange,
   onHoverCourse,
   onContinue,
@@ -33,6 +48,18 @@ export const CourseList: React.FC<CourseListProps> = ({
   onBrowseCourses,
 }) => {
   const totalPages = pagination?.totalPages ?? 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex-1">
+        <div className="space-y-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <CourseCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1">

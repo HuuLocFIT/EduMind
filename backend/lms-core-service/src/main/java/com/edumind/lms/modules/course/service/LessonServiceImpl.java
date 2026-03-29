@@ -22,6 +22,7 @@ import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,9 @@ public class LessonServiceImpl implements LessonService {
     private final ApplicationEventPublisher eventPublisher;
     private final Cloudinary cloudinary;
     private final CloudinaryService cloudinaryService;
+
+    @Value("${video.hls.enabled:false}")
+    private boolean hlsEnabled;
 
 
     @Override
@@ -355,8 +359,10 @@ public class LessonServiceImpl implements LessonService {
         Map<String, Object> paramsToSign = new java.util.HashMap<>();
         paramsToSign.put("timestamp", timestamp);
         paramsToSign.put("folder", folder);
-        paramsToSign.put("eager", "sp_auto/m3u8");
-        paramsToSign.put("eager_async", true);
+        if (hlsEnabled) {
+            paramsToSign.put("eager", "sp_auto/m3u8");
+            paramsToSign.put("eager_async", true);
+        }
 
         String apiSecret = (String) cloudinary.config.apiSecret;
         String signature = cloudinary.apiSignRequest(paramsToSign, apiSecret);
@@ -367,6 +373,7 @@ public class LessonServiceImpl implements LessonService {
                 .signature(signature)
                 .timestamp(timestamp)
                 .folder(folder)
+                .hlsEnabled(hlsEnabled)
                 .build();
     }
 
@@ -409,16 +416,15 @@ public class LessonServiceImpl implements LessonService {
         lesson.setVideoUrl(request.getCloudinaryUrl());
         lesson.setVideoPublicId(request.getPublicId());
         lesson.setVideoDuration(request.getDuration());
-        lesson.setHasHls(true);
+        lesson.setHasHls(hlsEnabled);
         lesson.setVideoUploadStatus(VideoUploadStatus.READY);
 
         Lesson saved = lessonRepository.save(lesson);
         log.info("Video upload confirmed for lesson {}", lessonId);
 
-        String streamUrl = Boolean.TRUE.equals(saved.getHasHls()) && saved.getVideoPublicId() != null
-                ? "https://res.cloudinary.com/" + cloudinary.config.cloudName
-                  + "/video/upload/sp_auto/" + saved.getVideoPublicId() + ".m3u8"
-                : null;
+        String cloudName = (String) cloudinary.config.cloudName;
+        String streamUrl = buildVideoQualityUrl(cloudName, saved.getVideoPublicId(), hlsEnabled, "720p");
+        String url480p = buildVideoQualityUrl(cloudName, saved.getVideoPublicId(), false, "480p");
 
         return LessonResponse.builder()
                 .id(saved.getId())
@@ -429,6 +435,7 @@ public class LessonServiceImpl implements LessonService {
                 .contentType(saved.getContentType())
                 .videoUrl(saved.getVideoUrl())
                 .videoStreamUrl(streamUrl)
+                .video480pUrl(url480p)
                 .videoDuration(saved.getVideoDuration())
                 .videoUploadStatus(saved.getVideoUploadStatus())
                 .videoPublicId(saved.getVideoPublicId())
@@ -493,6 +500,22 @@ public class LessonServiceImpl implements LessonService {
             lessonRepository.save(lesson);
             log.info("Video upload state reset to FAILED for lesson {}", lessonId);
         }
+    }
+
+    /**
+     * Build a Cloudinary video delivery URL for a given quality.
+     * When hlsEnabled=true and quality="720p", returns the HLS manifest URL.
+     * Otherwise returns an on-demand MP4 transform URL (lazy, cached after first view).
+     */
+    private String buildVideoQualityUrl(String cloudName, String publicId, boolean useHls, String quality) {
+        if (publicId == null) return null;
+        if (useHls) {
+            return "https://res.cloudinary.com/" + cloudName + "/video/upload/sp_auto/" + publicId + ".m3u8";
+        }
+        String transform = "720p".equals(quality)
+                ? "q_auto,w_1280,h_720,c_limit"
+                : "q_auto,w_854,h_480,c_limit";
+        return "https://res.cloudinary.com/" + cloudName + "/video/upload/" + transform + "/" + publicId + ".mp4";
     }
 
 }
