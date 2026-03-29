@@ -1,6 +1,6 @@
 # Video Upload & Streaming Workflows
 
-This document describes the complete video management pipeline in EduMind LMS — from a teacher uploading a video file to a student streaming it. The system uses **Cloudinary** as the video host with direct browser-to-Cloudinary chunked uploads (signed by the backend) and HLS adaptive-bitrate streaming.
+This document describes the complete video management pipeline in EduMind LMS — from a teacher uploading a video file to a student streaming it. The system uses **Cloudinary** as the video host with direct browser-to-Cloudinary chunked uploads (signed by the backend) and on-demand quality-tier streaming (720p / 480p MP4). HLS adaptive streaming is supported but **disabled by default** (opt-in via `VIDEO_HLS_ENABLED`).
 
 ---
 
@@ -15,7 +15,7 @@ graph TB
     end
 
     subgraph Backend["Backend — LessonController (/lessons/**)"]
-        SigEP["POST /{id}/video/signature<br/>(generate signed params)"]
+        SigEP["POST /{id}/video/signature<br/>(generate signed params + hlsEnabled)"]
         ConfEP["PATCH /{id}/video<br/>(confirm upload)"]
         DelEP["DELETE /{id}/video<br/>(delete video)"]
         ResetEP["POST /{id}/video/reset<br/>(reset stale lock)"]
@@ -25,38 +25,46 @@ graph TB
 
     subgraph Cloudinary["Cloudinary"]
         Upload["Upload API<br/>(chunked, resumable)"]
-        HLS["HLS Streaming<br/>sp_auto/{publicId}.m3u8"]
+        MP4_720["720p MP4 Transform<br/>q_auto,w_1280,h_720,c_limit"]
+        MP4_480["480p MP4 Transform<br/>q_auto,w_854,h_480,c_limit"]
+        HLS["HLS Streaming (optional)<br/>sp_auto/{publicId}.m3u8"]
+        VTT["WebVTT Caption File<br/>(raw, from Whisper)"]
     end
 
     subgraph DB["PostgreSQL — course.lessons"]
-        Fields["videoUploadStatus<br/>videoPublicId<br/>videoUrl<br/>hasHls<br/>videoDuration"]
+        Fields["videoUploadStatus<br/>videoPublicId<br/>videoUrl<br/>hasHls<br/>videoDuration<br/>videoCaptionUrl"]
     end
 
     subgraph StudentUI["Student UI (React)"]
-        Player["CoursePlayerPage<br/>(HLS player + fallback)"]
+        Player["CoursePlayerPage<br/>+ VideoPlayer component<br/>(720p/480p + captions)"]
     end
 
     VDZ --> Store --> Svc
     Svc -->|"1. GET signed params"| SigEP --> LessonSvc --> DB
     Svc -->|"2. Upload chunks"| Upload
     Svc -->|"3. Confirm"| ConfEP --> LessonSvc --> DB
-    LessonSvc -->|"build HLS URL"| HLS
+    LessonSvc -->|"build URLs (computed)"| MP4_720
+    LessonSvc -->|"build URLs (computed)"| MP4_480
+    LessonSvc -->|"if hasHls=true"| HLS
     DelEP --> LessonSvc -->|"cloudinaryService.deleteFile()"| Cloudinary
     ResetEP --> LessonSvc --> DB
     Scheduler --> DB
 
     Player -->|"GET lesson"| Backend
-    Player -->|"videoStreamUrl (HLS)"| HLS
-    Player -->|"videoUrl fallback (MP4)"| Cloudinary
+    Player -->|"videoStreamUrl (720p or HLS)"| Cloudinary
+    Player -->|"video480pUrl"| MP4_480
+    Player -->|"videoCaptionUrl (WebVTT)"| VTT
 ```
 
 ### Key Design Principles
 
 - **Browser-to-Cloudinary Direct Upload**: The backend never proxies video bytes. It only issues signed upload parameters; the browser uploads directly to Cloudinary. This keeps VPS bandwidth and RAM usage near zero.
-- **Signed Upload Params**: Each upload is authorized via a backend-generated HMAC-SHA1 signature (Cloudinary upload preset + timestamp). Signatures expire; the frontend requests a fresh signature per upload.
+- **Signed Upload Params**: Each upload is authorized via a backend-generated HMAC-SHA1 signature (Cloudinary upload preset + timestamp). Signatures expire; the frontend requests a fresh signature per upload. The response also includes `hlsEnabled` — a flag the frontend can use to anticipate whether HLS URLs will be returned.
 - **Chunked & Resumable**: Videos are split into 20 MB chunks using the `Content-Range` header. If a session is interrupted (network drop, page reload), the `bytesUploaded` cursor stored in localStorage allows resuming from the last confirmed chunk.
-- **HLS Adaptive Streaming**: After upload, the backend stores `hasHls=true` and builds a Cloudinary HLS URL (`sp_auto`). Cloudinary transcodes and serves adaptive bitrate streams — no server-side transcoding on the VPS.
-- **Graceful Fallback**: If `videoStreamUrl` is absent (e.g., `hasHls=false` for legacy lessons), the player falls back to direct MP4 via `videoUrl`.
+- **On-Demand Quality Tiers**: After upload, `LessonController` computes two quality URLs at response time using Cloudinary on-demand transformations — `videoStreamUrl` (720p) and `video480pUrl` (480p). Cloudinary lazy-transcodes and caches them on first access. No server-side processing on the VPS.
+- **HLS Adaptive Streaming (Optional)**: When `VIDEO_HLS_ENABLED=true`, `hasHls` is set to `true` on confirm and `videoStreamUrl` instead returns a Cloudinary HLS URL (`sp_auto`). Off by default — MP4 quality tiers are used instead.
+- **Quality Selection (Not Error-Based Fallback)**: Students can actively switch between 720p and 480p. The `VideoPlayer` component saves the current playback position before switching and restores it after the new quality loads. The quality selector is only shown when both URLs are present.
+- **Caption Support**: `videoCaptionUrl` stores the Cloudinary raw URL of a WebVTT file generated by Whisper transcription. The `VideoPlayer` fetches it as a blob URL (to avoid CORS) and attaches it as a `<track>` element. A CC button is shown only when a caption URL is available.
 
 ---
 
@@ -79,7 +87,7 @@ stateDiagram-v2
 |--------|-------------|
 | `NONE` | No video attached. Lesson has no `videoPublicId` or `videoUrl`. |
 | `UPLOADING` | Backend issued signature; browser is uploading chunks to Cloudinary. |
-| `READY` | Upload confirmed. `videoUrl`, `videoPublicId`, `hasHls=true`, and `videoDuration` are set. |
+| `READY` | Upload confirmed. `videoUrl`, `videoPublicId`, `hasHls`, and `videoDuration` are set. |
 | `FAILED` | Upload did not complete. Caused by timeout, network error, or scheduler cleanup. |
 
 **Stale upload cleanup**: `StaleVideoUploadScheduler` runs every **30 minutes**. It finds all lessons with `videoUploadStatus = UPLOADING` where `updatedAt < now − 2 hours` and marks them `FAILED`. This prevents a crashed browser session from permanently blocking new uploads on that lesson.
@@ -136,7 +144,7 @@ sequenceDiagram
 
     LessonSvc->>DB: status = UPLOADING
     LessonSvc-->>Backend: VideoSignatureResponse
-    Backend-->>UploadSvc: { cloudName, apiKey, signature, timestamp, folder }
+    Backend-->>UploadSvc: { cloudName, apiKey, signature, timestamp, folder, hlsEnabled }
 
     loop Chunks (20 MB each)
         UploadSvc->>CldAPI: PUT /video/upload<br/>Content-Range: bytes {start}-{end}/{total}<br/>X-Unique-Upload-Id: {sessionId}
@@ -149,9 +157,16 @@ sequenceDiagram
 
     UploadSvc->>Backend: PATCH /lessons/{id}/video<br/>{ cloudinaryUrl, publicId, duration }
     Backend->>LessonSvc: confirmVideoUpload(lessonId, request, instructorId)
-    LessonSvc->>DB: videoUrl = cloudinaryUrl<br/>videoPublicId = publicId<br/>videoDuration = duration<br/>hasHls = true<br/>videoUploadStatus = READY
 
-    LessonSvc-->>Backend: LessonResponse (with videoStreamUrl)
+    alt VIDEO_HLS_ENABLED=true
+        LessonSvc->>DB: hasHls = true<br/>(videoStreamUrl will be HLS .m3u8)
+    else VIDEO_HLS_ENABLED=false (default)
+        LessonSvc->>DB: hasHls = false<br/>(videoStreamUrl will be 720p MP4 transform)
+    end
+
+    LessonSvc->>DB: videoUrl = cloudinaryUrl<br/>videoPublicId = publicId<br/>videoDuration = duration<br/>videoUploadStatus = READY
+
+    LessonSvc-->>Backend: LessonResponse (with videoStreamUrl, video480pUrl)
     Backend-->>UploadSvc: 200 OK
     UploadSvc-->>Queue: status = DONE
     Queue->>VDZ: onVideoReady() callback
@@ -227,7 +242,7 @@ sequenceDiagram
     LessonSvc->>DB: SELECT lesson (validate ownership & READY status)
     LessonSvc->>CldSvc: deleteFile(videoPublicId, "video")
     CldSvc-->>LessonSvc: OK (or warn on failure — non-blocking)
-    LessonSvc->>DB: videoUrl = null<br/>videoPublicId = null<br/>hasHls = false<br/>videoDuration = null<br/>videoUploadStatus = NONE
+    LessonSvc->>DB: videoUrl = null<br/>videoPublicId = null<br/>hasHls = false<br/>videoDuration = null<br/>videoCaptionUrl = null<br/>videoUploadStatus = NONE
     LessonSvc-->>Backend: void
     Backend-->>VDZ: 200 OK
     VDZ->>VDZ: onVideoRemoved() callback
@@ -239,12 +254,13 @@ sequenceDiagram
 
 ## 4. Student Streaming Flow
 
-### 4.1 HLS Streaming (Primary Path)
+### 4.1 Video Streaming Flow
 
 ```mermaid
 sequenceDiagram
     participant Student
     participant Player as CoursePlayerPage
+    participant VP as VideoPlayer component
     participant Backend as LessonController
     participant DB as course.lessons
     participant Cloudinary
@@ -252,42 +268,84 @@ sequenceDiagram
     Student->>Player: Navigate to course player (lessonId)
     Player->>Backend: GET /lessons/{lessonId}
     Backend->>DB: SELECT lesson
-    Backend-->>Player: LessonResponse<br/>{ videoStreamUrl, videoUrl, ... }
+    Backend-->>Player: LessonResponse<br/>{ videoStreamUrl, video480pUrl, videoCaptionUrl, ... }
 
-    alt videoStreamUrl present (hasHls = true)
-        Player->>Player: Load HLS player<br/>src = videoStreamUrl
-        Player->>Cloudinary: GET /video/upload/sp_auto/{publicId}.m3u8
-        Cloudinary-->>Player: M3U8 manifest (adaptive bitrate variants)
-        Player->>Cloudinary: Fetch video segments (.ts chunks)
-        Cloudinary-->>Player: Video stream
+    Player->>VP: Render VideoPlayer<br/>src720p=videoStreamUrl<br/>src480p=video480pUrl<br/>captionSrc=videoCaptionUrl
 
-        Note over Player: Cloudinary auto-selects bitrate variant<br/>based on client bandwidth
+    alt hasHls=true (VIDEO_HLS_ENABLED was true at upload)
+        VP->>Cloudinary: GET /video/upload/sp_auto/{publicId}.m3u8
+        Cloudinary-->>VP: M3U8 manifest (adaptive bitrate)
+        VP->>Cloudinary: Fetch .ts video segments
+        Note over VP: Cloudinary selects bitrate based on bandwidth
+    else hasHls=false (default — MP4 quality tiers)
+        VP->>Cloudinary: GET /video/upload/q_auto,w_1280,h_720,c_limit/{publicId}.mp4
+        Cloudinary-->>VP: 720p MP4 (lazy-transcoded, cached)
+    end
 
-    else videoStreamUrl absent (hasHls = false — legacy video)
-        Player->>Player: Load standard <video> player<br/>src = videoUrl (direct MP4)
-        Player->>Cloudinary: GET /{publicId}.mp4
-        Cloudinary-->>Player: MP4 file (full download)
+    alt video480pUrl present
+        Note over VP: Quality selector shown (720p / 480p)
+        Student->>VP: Click "480p"
+        VP->>VP: pendingSeekRef = currentTime (save position)
+        VP->>VP: setSelectedQuality('480p')
+        VP->>Cloudinary: GET /video/upload/q_auto,w_854,h_480,c_limit/{publicId}.mp4
+        VP->>VP: On loadedmetadata: seek to pendingSeekRef (restore position)
+    end
+
+    alt videoCaptionUrl present
+        Note over VP: CC button shown
+        Student->>VP: Toggle CC
+        VP->>Cloudinary: Fetch WebVTT as blob URL (avoid CORS)
+        VP->>VP: Attach <track> element, toggle mode hidden/showing
     end
 ```
 
-### 4.2 HLS URL Pattern
+### 4.2 Computed URL Patterns
 
+All video URLs returned by `LessonController` are **computed at response time** from `videoPublicId`. None are stored in the database except `videoUrl` (original Cloudinary secure URL) and `videoCaptionUrl`.
+
+| Field | URL Template | When Present |
+|-------|-------------|--------------|
+| `videoStreamUrl` (HLS) | `.../video/upload/sp_auto/{publicId}.m3u8` | `hasHls=true` (opt-in) |
+| `videoStreamUrl` (720p MP4) | `.../video/upload/q_auto,w_1280,h_720,c_limit/{publicId}.mp4` | `hasHls=false` (default) |
+| `video480pUrl` | `.../video/upload/q_auto,w_854,h_480,c_limit/{publicId}.mp4` | Always, if `videoPublicId` is set |
+| `videoCaptionUrl` | Cloudinary raw file URL (`.vtt`) | Set by Whisper transcription |
+
+```java
+// LessonController.buildStreamUrl() — called for every lesson response
+if (lesson.getHasHls()) {
+    // HLS mode (VIDEO_HLS_ENABLED=true was active at upload time)
+    return "https://res.cloudinary.com/" + cloudName + "/video/upload/sp_auto/" + publicId + ".m3u8";
+} else {
+    // Default: on-demand 720p MP4 transform
+    return "https://res.cloudinary.com/" + cloudName + "/video/upload/q_auto,w_1280,h_720,c_limit/" + publicId + ".mp4";
+}
+
+// LessonController.build480pUrl() — always computed if videoPublicId is set
+return "https://res.cloudinary.com/" + cloudName + "/video/upload/q_auto,w_854,h_480,c_limit/" + publicId + ".mp4";
 ```
-Template:  https://res.cloudinary.com/{cloudName}/video/upload/sp_auto/{publicId}.m3u8
-                                                              ───────
-                                                              sp_auto = Streaming Profile "auto"
-                                                              Cloudinary generates adaptive bitrate variants
 
-Example:   https://res.cloudinary.com/edumind/video/upload/sp_auto/courses/lesson_42_abc123.m3u8
-```
+### 4.3 VideoPlayer Component
 
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| `sp_auto` | Streaming profile | Cloudinary auto-transcodes on first request; cached thereafter |
-| Format | `.m3u8` | HLS manifest pointing to `.ts` segment chunks |
-| Fallback | `.mp4` via `videoUrl` | Used when `hasHls = false` |
+`VideoPlayer.tsx` (`frontend/apps/user/src/app/components/learning/VideoPlayer.tsx`) is a dedicated player component used by `CoursePlayerPage`. It replaces the previously inline `ReactPlayer` approach.
 
-### 4.3 Progress Tracking & Resume Playback
+**Props:**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `src720p` | `string?` | 720p MP4 URL (or HLS `.m3u8` if `hasHls=true`) — primary quality |
+| `src480p` | `string?` | 480p MP4 URL — lower quality option |
+| `fallbackSrc` | `string?` | Direct MP4 `videoUrl` — last-resort fallback |
+| `captionSrc` | `string?` | Cloudinary WebVTT URL — fetched as blob to avoid CORS |
+
+**Features:**
+- **Quality switching**: 720p/480p toggle shown only when both `src720p` and `src480p` are present. Saves `currentTime` to `pendingSeekRef` before switching; restores position on `loadedmetadata`.
+- **Captions**: CC button shown only when `captionSrc` is provided. Fetches VTT as a blob URL to work around Cloudinary CORS. Attaches a `<track>` element and toggles `mode` between `hidden` / `showing`.
+- **Playback controls**: Play/pause, seek bar with buffered indicator, volume with mute, playback speed (0.5×–2×), quality selector, fullscreen.
+- **Keyboard shortcuts**: `Space`/`k` (play/pause), `←`/`→` (seek ±5s), `↑`/`↓` (volume), `f` (fullscreen), `m` (mute).
+- **Auto-hide controls**: Controls fade after 3 seconds of inactivity (fullscreen mode).
+- **`forwardRef`**: Exposes the underlying `HTMLVideoElement` to parent components.
+
+### 4.4 Progress Tracking & Resume Playback
 
 ```
 On video timeupdate (throttled):
@@ -295,8 +353,8 @@ On video timeupdate (throttled):
   └─→ POST /enrollments/{enrollmentId}/progress (background)
 
 On video metadata loaded:
-  └─→ Read savedTime from localStorage
-  └─→ If savedTime > 0: player.currentTime = savedTime (seek to last position)
+  └─→ If pendingSeekRef set (quality switch): seek to pendingSeekRef (priority 1)
+  └─→ Else read savedTime from localStorage: seek to last position (priority 2)
 
 On video ended:
   └─→ Mark lesson as COMPLETED
@@ -312,18 +370,17 @@ Manual "Mark Complete" button:
 
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
-| `video_url` | `VARCHAR` | `null` | Cloudinary secure URL (MP4) — set on confirm |
+| `video_url` | `VARCHAR` | `null` | Cloudinary secure URL (original MP4) — set on confirm |
 | `video_duration` | `INTEGER` | `null` | Duration in seconds — from Cloudinary metadata |
 | `video_upload_status` | `VARCHAR` | `NONE` | Enum: `NONE`, `UPLOADING`, `READY`, `FAILED` |
-| `video_public_id` | `VARCHAR` | `null` | Cloudinary public ID (used for deletion & HLS URL) |
-| `has_hls` | `BOOLEAN` | `false` | Whether HLS stream URL should be built — set `true` on confirm |
+| `video_public_id` | `VARCHAR` | `null` | Cloudinary public ID — used for deletion and computing quality URLs |
+| `has_hls` | `BOOLEAN` | `false` | Whether to build HLS URL — set `true` on confirm only if `VIDEO_HLS_ENABLED=true` |
+| `video_caption_url` | `TEXT` | `null` | Cloudinary URL of WebVTT caption file (generated by Whisper transcription) |
 
-`videoStreamUrl` is a **computed field** — it is not stored in the database. `LessonController.buildStreamUrl()` constructs it on every response:
+**Computed fields** (not stored, built on every `LessonController.toResponse()` call):
 
-```java
-// Built at response time only if hasHls = true AND videoPublicId is set
-"https://res.cloudinary.com/" + cloudName + "/video/upload/sp_auto/" + publicId + ".m3u8"
-```
+- `videoStreamUrl` — 720p MP4 transform (`hasHls=false`) **or** HLS `.m3u8` (`hasHls=true`)
+- `video480pUrl` — 480p MP4 transform, always present if `videoPublicId` is set
 
 ---
 
@@ -331,6 +388,10 @@ Manual "Mark Complete" button:
 
 | Setting | Location | Value |
 |---------|----------|-------|
+| HLS enabled flag | `application.yml` → `video.hls.enabled` / `VIDEO_HLS_ENABLED` env var | `false` (default) |
+| HLS streaming profile | `LessonController.buildStreamUrl()` | `sp_auto` |
+| 720p MP4 transform | `LessonController.buildStreamUrl()` | `q_auto,w_1280,h_720,c_limit` |
+| 480p MP4 transform | `LessonController.build480pUrl()` | `q_auto,w_854,h_480,c_limit` |
 | Max concurrent uploads per instructor (backend) | `LessonServiceImpl` | 5 |
 | Max concurrent uploads (frontend queue) | `uploadQueue.store.ts` | `MAX_CONCURRENT = 2` |
 | Chunk size | `video-upload.service.ts` | 20 MB |

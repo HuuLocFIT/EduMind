@@ -264,6 +264,7 @@ public class LessonController {
                 .videoUrl(lesson.getVideoUrl())
                 .videoStreamUrl(buildStreamUrl(lesson))
                 .video480pUrl(build480pUrl(lesson))
+                .videoCaptionUrl(lesson.getVideoCaptionUrl())
                 .videoDuration(lesson.getVideoDuration())
                 .videoUploadStatus(lesson.getVideoUploadStatus())
                 .videoPublicId(lesson.getVideoPublicId())

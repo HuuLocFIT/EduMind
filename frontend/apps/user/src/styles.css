@@ -4,6 +4,16 @@
 
 /* You can add global styles to this file, and also import other style files */
 
+/* ─── Video caption (WebVTT ::cue) ─────────────────────────────────────────── */
+
+::cue {
+  font-size: clamp(0.75rem, 1.4vw, 1rem);
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
+  font-family: inherit;
+}
+
 /* ─── Article viewer – BlockNote-generated HTML ─────────────────────────── */
 
 /* Base */

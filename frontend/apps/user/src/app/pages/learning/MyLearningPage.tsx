@@ -141,9 +141,8 @@ export const MyLearningPage: React.FC = () => {
     [enrollments],
   );
 
-  // Loading state
-  const loading =
-    statsLoading ||
+  // Tab-level loading (for skeleton inside CourseList, not full-page)
+  const tabLoading =
     (filterStatus === "all" && allLoading) ||
     (filterStatus === "active" && activeLoading) ||
     (filterStatus === "completed" && completedLoading);
@@ -185,7 +184,7 @@ export const MyLearningPage: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (statsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loading />
@@ -222,6 +221,7 @@ export const MyLearningPage: React.FC = () => {
               currentPage={page}
               filterStatus={filterStatus}
               hoveredCourse={hoveredCourse}
+              isLoading={tabLoading}
               onPageChange={setPage}
               onHoverCourse={setHoveredCourse}
               onContinue={handleContinueLearning}

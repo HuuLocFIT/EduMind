@@ -1,5 +1,7 @@
 package com.edumind.lms.modules.ai.service.transcription;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.lms.modules.ai.dto.response.AiJobResponse;
 import com.edumind.lms.modules.ai.entity.AiJobLog;
@@ -24,9 +26,11 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -41,6 +45,7 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
     private final LessonQueryService lessonQueryService;
     private final LessonWriteService lessonWriteService;
     private final RestClient groqRestClient;
+    private final Cloudinary cloudinary;
 
     @Value("${ai.groq.api-url:https://api.groq.com/openai/v1/audio/transcriptions}")
     private String groqApiUrl;
@@ -104,7 +109,10 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
             TranscriptionInput input = resolver.resolve(videoUrl);
 
             String transcript;
+            String vttContent = null;
+
             if (input instanceof TranscriptionInput.DirectText dt) {
+                // YouTube auto-captions: plain text only, no timestamps available
                 transcript = dt.text();
             } else if (input instanceof TranscriptionInput.AudioFile af) {
                 tempFile = af.tempFile();
@@ -112,7 +120,9 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
                 if (sizeBytes > GROQ_MAX_BYTES) {
                     throw new AudioFileTooLargeException(sizeBytes);
                 }
-                transcript = sendToGroq(tempFile, language);
+                TranscriptionResult result = sendToGroq(tempFile, language);
+                transcript = result.text();
+                vttContent = result.vttContent();
             } else {
                 throw new IllegalStateException("Unknown TranscriptionInput type: " + input.getClass());
             }
@@ -123,6 +133,18 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
             }
 
             lessonWriteService.updateArticleContent(lessonId, transcript);
+
+            // Upload VTT to Cloudinary and persist the URL when timestamps are available
+            if (vttContent != null) {
+                try {
+                    String captionUrl = uploadVttToCloudinary(lessonId, vttContent);
+                    lessonWriteService.updateCaptionUrl(lessonId, captionUrl);
+                    log.info("Caption VTT uploaded for lesson {}: {}", lessonId, captionUrl);
+                } catch (Exception e) {
+                    // Caption upload failure is non-fatal — transcript is already saved
+                    log.warn("Failed to upload caption VTT for lesson {}: {}", lessonId, e.getMessage());
+                }
+            }
 
             job.setStatus(AiJobStatus.COMPLETED);
             job.setCompletedAt(LocalDateTime.now());
@@ -150,11 +172,16 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
         }
     }
 
-    private String sendToGroq(Path audioFile, String language) {
+    /**
+     * Send audio file to Groq Whisper using {@code verbose_json} format to obtain
+     * per-segment timestamps alongside the full transcript text.
+     */
+    @SuppressWarnings("unchecked")
+    private TranscriptionResult sendToGroq(Path audioFile, String language) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new FileSystemResource(audioFile));
         body.add("model", groqModel);
-        // Use the per-request language; fall back to the configured default.
+        body.add("response_format", "verbose_json");
         String lang = (language != null && !language.isBlank()) ? language : groqLanguage;
         if (lang != null && !lang.isBlank()) {
             body.add("language", lang);
@@ -174,7 +201,59 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
         if (response == null || !response.containsKey("text")) {
             throw new IllegalStateException("Groq transcription response missing 'text'");
         }
-        return String.valueOf(response.get("text"));
+
+        String text = String.valueOf(response.get("text"));
+        String vttContent = null;
+
+        Object segmentsObj = response.get("segments");
+        if (segmentsObj instanceof List<?> rawSegments) {
+            List<Map<String, Object>> segments = (List<Map<String, Object>>) rawSegments;
+            if (!segments.isEmpty()) {
+                vttContent = buildVtt(segments);
+            }
+        }
+
+        return new TranscriptionResult(text, vttContent);
+    }
+
+    /** Build a WebVTT string from Whisper segment objects. */
+    private String buildVtt(List<Map<String, Object>> segments) {
+        StringBuilder sb = new StringBuilder("WEBVTT\n\n");
+        for (Map<String, Object> seg : segments) {
+            double start = ((Number) seg.get("start")).doubleValue();
+            double end = ((Number) seg.get("end")).doubleValue();
+            String text = String.valueOf(seg.get("text")).strip();
+            if (text.isBlank()) continue;
+            sb.append(formatVttTime(start))
+              .append(" --> ")
+              .append(formatVttTime(end))
+              .append("\n")
+              .append(text)
+              .append("\n\n");
+        }
+        return sb.toString();
+    }
+
+    private String formatVttTime(double seconds) {
+        int h  = (int) (seconds / 3600);
+        int m  = (int) ((seconds % 3600) / 60);
+        int s  = (int) (seconds % 60);
+        int ms = (int) Math.round((seconds % 1) * 1000);
+        return String.format("%02d:%02d:%02d.%03d", h, m, s, ms);
+    }
+
+    /** Upload VTT bytes to Cloudinary as a raw resource and return the secure URL. */
+    @SuppressWarnings("unchecked")
+    private String uploadVttToCloudinary(Long lessonId, String vttContent) throws IOException {
+        byte[] vttBytes = vttContent.getBytes(StandardCharsets.UTF_8);
+        Map<String, Object> params = ObjectUtils.asMap(
+                "resource_type", "raw",
+                "folder", "captions",
+                "public_id", "lesson_" + lessonId + "_caption",
+                "overwrite", true
+        );
+        Map<String, Object> result = cloudinary.uploader().upload(vttBytes, params);
+        return (String) result.get("secure_url");
     }
 
     private AiJobResponse toResponse(AiJobLog job) {
@@ -191,5 +270,7 @@ public class WhisperTranscriptionServiceImpl implements WhisperTranscriptionServ
                 .createdAt(job.getCreatedAt())
                 .build();
     }
-}
 
+    /** Holds the results of a Groq Whisper call. */
+    private record TranscriptionResult(String text, String vttContent) {}
+}

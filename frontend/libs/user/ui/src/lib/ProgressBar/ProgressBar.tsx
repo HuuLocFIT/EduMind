@@ -39,7 +39,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       )}
       <div className={`w-full bg-gray-200 rounded-full ${heightClasses[size]}`}>
         <div
-          className={`${heightClasses[size]} ${colorClasses[color]} rounded-full transition-all duration-300`}
+          className={`${heightClasses[size]} ${colorClasses[color]} rounded-full`}
           style={{ width: `${clampedProgress}%` }}
         />
       </div>

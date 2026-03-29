@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArticleViewer } from '../../components/learning/ArticleViewer';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
-  IconButton,
   Loading,
   ProgressBar,
   useToast,
@@ -28,7 +27,6 @@ import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
 import {
   Play,
   CheckCircle,
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   BookOpen,
@@ -42,7 +40,7 @@ import {
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import { queryKeys } from '../../lib/query-keys';
-import ReactPlayer from 'react-player';
+import { VideoPlayer } from '../../components/learning/VideoPlayer';
 import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
 import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
 const AiChatPanel = React.lazy(() =>
@@ -73,8 +71,6 @@ export const CoursePlayerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [selectedQuality, setSelectedQuality] = useState<'720p' | '480p'>('720p');
-  const [isQualitySwitching, setIsQualitySwitching] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   // null = still checking, true/false = resolved
   const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
@@ -88,7 +84,9 @@ export const CoursePlayerPage: React.FC = () => {
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingSeekRef = useRef<number | null>(null);
+  const activeLessonRef = useRef<HTMLButtonElement>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const skipSidebarScroll = useRef(false);
 
   useEffect(() => {
     if (courseId) {
@@ -111,11 +109,29 @@ export const CoursePlayerPage: React.FC = () => {
 
   useEffect(() => {
     if (!currentLesson) return;
-    setSelectedQuality('720p');
-    setIsQualitySwitching(false);
-    pendingSeekRef.current = null;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [currentLesson?.id]);
+
+  // Scroll active lesson into view inside the sidebar scroll container
+  useLayoutEffect(() => {
+    if (!currentLesson || !sidebarOpen) return;
+    if (skipSidebarScroll.current) {
+      skipSidebarScroll.current = false;
+      return;
+    }
+    const container = sidebarScrollRef.current;
+    const item = activeLessonRef.current;
+    if (!container || !item) return;
+
+    const containerTop = container.scrollTop;
+    const containerBottom = containerTop + container.clientHeight;
+    const itemTop = item.offsetTop;
+    const itemBottom = itemTop + item.offsetHeight;
+
+    if (itemTop < containerTop || itemBottom > containerBottom) {
+      container.scrollTop = itemTop - container.clientHeight / 2 + item.offsetHeight / 2;
+    }
+  }, [currentLesson?.id, sidebarOpen]);
 
   // Check whether the current lesson has a generated quiz available for the student
   useEffect(() => {
@@ -125,11 +141,6 @@ export const CoursePlayerPage: React.FC = () => {
       .catch(() => setLessonHasQuiz(false));
   }, [currentLesson?.id]);
 
-  // By default, expand all sections when they are loaded
-  useEffect(() => {
-    if (!sections || sections.length === 0) return;
-    setExpandedSectionIds(sections.map((s) => s.id));
-  }, [sections]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -187,6 +198,7 @@ export const CoursePlayerPage: React.FC = () => {
       
       setCourse(courseData);
       setSections(courseSections);
+      setExpandedSectionIds(courseSections.map((s) => s.id));
       
       // Sort lessons by section order and lesson order
       const sortedLessons = courseLessons.sort((a, b) => {
@@ -387,18 +399,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   // Seek video to last watched position when metadata is loaded
   const handleVideoLoadedMetadata = () => {
-    if (!videoRef.current) return;
-
-    // Priority 1: restore position after quality switch
-    if (pendingSeekRef.current !== null) {
-      videoRef.current.currentTime = pendingSeekRef.current;
-      pendingSeekRef.current = null;
-      setIsQualitySwitching(false);
-      return;
-    }
-
-    // Priority 2: restore lesson progress position
-    if (!currentLessonProgress) return;
+    if (!videoRef.current || !currentLessonProgress) return;
     if (currentLessonProgress.lastPosition && currentLessonProgress.lastPosition > 0) {
       videoRef.current.currentTime = currentLessonProgress.lastPosition;
     }
@@ -415,13 +416,6 @@ export const CoursePlayerPage: React.FC = () => {
       videoRef.current.currentTime = currentLessonProgress.lastPosition;
     }
   }, [currentLessonProgress]);
-
-  const switchQuality = (quality: '720p' | '480p') => {
-    if (!videoRef.current || quality === selectedQuality) return;
-    pendingSeekRef.current = videoRef.current.currentTime;
-    setIsQualitySwitching(true);
-    setSelectedQuality(quality);
-  };
 
   const handleVideoEnded = async () => {
     if (!currentLesson || !enrollment) return;
@@ -528,7 +522,8 @@ export const CoursePlayerPage: React.FC = () => {
     setCurrentLesson(lesson);
     setSearchParams({ lessonId: lesson.id.toString() }, { replace: true });
     localStorage.setItem(`course_${courseId}_last_lesson`, lesson.id.toString());
-    setVideoProgress(0);
+    const savedProgress = allLessonProgress.find((p) => p.lessonId === lesson.id);
+    setVideoProgress(savedProgress?.watchPercentage ?? 0);
     setLessonHasQuiz(null);
   };
 
@@ -565,11 +560,6 @@ export const CoursePlayerPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // All lessons are always accessible; no locking by previous progress
-  const isLessonLocked = (_lesson: LessonResponse): boolean => {
-    return false;
-  };
-
   // Derived data for section/lesson grouping in sidebar
   const sectionIdSet =
     sections && sections.length > 0 ? new Set(sections.map((s) => s.id)) : new Set<number>();
@@ -577,10 +567,6 @@ export const CoursePlayerPage: React.FC = () => {
   const hasSectionStructure =
     sectionIdSet.size > 0 &&
     lessons.some((lesson) => lesson.sectionId && sectionIdSet.has(lesson.sectionId));
-
-  const unsectionedLessons = lessons.filter(
-    (lesson) => !lesson.sectionId || !sectionIdSet.has(lesson.sectionId)
-  );
 
   const toggleSection = (sectionId: number) => {
     setExpandedSectionIds((prev) =>
@@ -717,57 +703,23 @@ export const CoursePlayerPage: React.FC = () => {
         <main className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
           {/* Video Player - only for VIDEO type */}
           {currentLesson.contentType === ContentType.VIDEO && (
-            <div className="bg-black aspect-video relative">
-              {(currentLesson.videoStreamUrl || currentLesson.videoUrl) ? (
-                <>
-                  <ReactPlayer
-                    ref={videoRef}
-                    src={
-                      selectedQuality === '480p'
-                        ? (currentLesson.video480pUrl ?? currentLesson.videoUrl ?? undefined)
-                        : (currentLesson.videoStreamUrl ?? currentLesson.videoUrl ?? undefined)
-                    }
-                    controls
-                    width="100%"
-                    height="100%"
-                    style={{ position: 'absolute', top: 0, left: 0 }}
-                    onLoadedMetadata={handleVideoLoadedMetadata}
-                    onTimeUpdate={handleVideoTimeUpdate}
-                    onEnded={handleVideoEnded}
-                  />
-
-                  {/* Buffering overlay during quality switch */}
-                  {isQualitySwitching && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                      <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-
-                  {/* Quality selector — show when both variants available */}
-                  {currentLesson.video480pUrl && currentLesson.videoStreamUrl && (
-                    <div className="absolute bottom-12 right-3 flex gap-1 bg-black/60 rounded px-1 py-0.5">
-                      {(['480p', '720p'] as const).map((q) => (
-                        <button
-                          key={q}
-                          onClick={() => switchQuality(q)}
-                          className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
-                            selectedQuality === q
-                              ? 'bg-white text-black'
-                              : 'text-white hover:bg-white/20'
-                          }`}
-                        >
-                          {q}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <BookOpen className="w-20 h-20 text-gray-400" />
-                </div>
-              )}
-            </div>
+            (currentLesson.videoStreamUrl || currentLesson.video480pUrl || currentLesson.videoUrl) ? (
+              <VideoPlayer
+                key={currentLesson.id}
+                ref={videoRef}
+                src720p={currentLesson.videoStreamUrl}
+                src480p={currentLesson.video480pUrl}
+                fallbackSrc={currentLesson.videoUrl}
+                captionSrc={currentLesson.videoCaptionUrl}
+                onLoadedMetadata={handleVideoLoadedMetadata}
+                onTimeUpdate={handleVideoTimeUpdate}
+                onEnded={handleVideoEnded}
+              />
+            ) : (
+              <div className="bg-black aspect-video flex items-center justify-center">
+                <BookOpen className="w-20 h-20 text-gray-400" />
+              </div>
+            )
           )}
 
           {/* Lesson Content */}
@@ -807,26 +759,29 @@ export const CoursePlayerPage: React.FC = () => {
               )}
 
               {currentLesson.articleContent && currentLesson.contentType === ContentType.VIDEO && (
-                <div className="flex items-center justify-between p-3.5 mb-6 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-lg text-slate-500">
-                      <FileText className="w-5 h-5" />
+                <Card className="p-4 sm:p-5 mb-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center justify-center w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800">Transcript</p>
+                        <p className="text-xs text-slate-500 truncate">
+                          Captions are available in the player. Download text if needed.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Transcript</p>
-                      <p className="text-xs text-slate-500">Read the text version</p>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleDownloadTranscript}
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleDownloadTranscript} 
-                    className="flex items-center gap-2 bg-white shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="hidden sm:inline">Download</span>
-                  </Button>
-                </div>
+                </Card>
               )}
 
               {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}
@@ -920,7 +875,7 @@ export const CoursePlayerPage: React.FC = () => {
           `}
           style={{ top: '57px' }} // Height of header
         >
-          <div className="h-full overflow-y-auto pb-20">
+          <div ref={sidebarScrollRef} className="h-full overflow-y-auto pb-20">
             <div className="p-4 border-b bg-gray-50">
               <h3 className="font-semibold text-gray-900">Course Content</h3>
               <p className="text-sm text-gray-600 mt-1">
@@ -974,7 +929,7 @@ export const CoursePlayerPage: React.FC = () => {
                             <div className="mt-1 px-1 pb-2 pt-1">
                               {sectionLessons.map((lesson) => {
                                 const isActive = currentLesson?.id === lesson.id;
-                                const isLocked = isLessonLocked(lesson); // currently always false – lessons are never locked
+
                                 const lessonProgress = getLessonProgress(lesson.id);
                                 const isCompleted = lessonProgress?.isCompleted;
                                 const globalIndex =
@@ -983,10 +938,11 @@ export const CoursePlayerPage: React.FC = () => {
                                 return (
                                   <button
                                     key={lesson.id}
-                                    onClick={() => handleLessonClick(lesson)}
+                                    ref={isActive ? activeLessonRef : null}
+                                    onClick={() => { skipSidebarScroll.current = true; handleLessonClick(lesson); }}
                                     className={`
                                       w-full text-left p-3 rounded-lg mb-1 transition-colors
-                                      ${isActive ? 'bg-blue-50 border-2 border-blue-600' : 'hover:bg-gray-50'}
+                                      border-2 ${isActive ? 'bg-blue-50 border-blue-600' : 'border-transparent hover:bg-gray-50'}
                                       cursor-pointer
                                     `}
                                   >
@@ -1035,14 +991,10 @@ export const CoursePlayerPage: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    {/* Progress bar for current lesson */}
-                                    {isActive && videoProgress > 0 && videoProgress < 100 && (
+                                    {/* Progress bar for current lesson - always reserve space to avoid layout shift */}
+                                    {isActive && (
                                       <div className="mt-2">
-                                        <ProgressBar
-                                          progress={videoProgress}
-                                          size="sm"
-                                          color="blue"
-                                        />
+                                        <ProgressBar key={currentLesson?.id} progress={videoProgress} size="sm" color="blue" />
                                       </div>
                                     )}
                                   </button>

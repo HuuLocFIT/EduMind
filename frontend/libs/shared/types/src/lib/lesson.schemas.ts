@@ -77,6 +77,7 @@ export const LessonResponseSchema = z.object({
   videoPublicId: z.string().nullable().optional(),
   videoStreamUrl: z.string().nullable().optional(),
   video480pUrl: z.string().nullable().optional(),
+  videoCaptionUrl: z.string().nullable().optional(),
   articleContent: z.string().nullable().optional(),
   resources: z.array(LessonResourceSchema).optional().nullable(),
   orderIndex: z.number(),
