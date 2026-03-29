@@ -991,8 +991,8 @@ export const CoursePlayerPage: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    {/* Progress bar for current lesson - always reserve space to avoid layout shift */}
-                                    {isActive && (
+                                    {/* Progress bar for current video lesson only */}
+                                    {isActive && lesson.contentType === ContentType.VIDEO && (
                                       <div className="mt-2">
                                         <ProgressBar key={currentLesson?.id} progress={videoProgress} size="sm" color="blue" />
                                       </div>
