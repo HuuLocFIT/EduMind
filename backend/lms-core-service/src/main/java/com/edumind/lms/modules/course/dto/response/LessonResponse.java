@@ -25,7 +25,8 @@ public class LessonResponse {
 
     // For VIDEO content
     private String videoUrl;
-    private String videoStreamUrl; // HLS adaptive streaming URL (computed, not stored)
+    private String videoStreamUrl; // 720p MP4 URL (computed, not stored)
+    private String video480pUrl;   // 480p MP4 URL (computed, not stored)
     private Integer videoDuration; // seconds
     private VideoUploadStatus videoUploadStatus;
     private String videoPublicId;

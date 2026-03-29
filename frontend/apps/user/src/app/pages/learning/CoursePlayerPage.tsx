@@ -73,7 +73,8 @@ export const CoursePlayerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [useHlsFallback, setUseHlsFallback] = useState(false);
+  const [selectedQuality, setSelectedQuality] = useState<'720p' | '480p'>('720p');
+  const [isQualitySwitching, setIsQualitySwitching] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   // null = still checking, true/false = resolved
   const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
@@ -87,6 +88,7 @@ export const CoursePlayerPage: React.FC = () => {
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (courseId) {
@@ -109,7 +111,9 @@ export const CoursePlayerPage: React.FC = () => {
 
   useEffect(() => {
     if (!currentLesson) return;
-    setUseHlsFallback(false);
+    setSelectedQuality('720p');
+    setIsQualitySwitching(false);
+    pendingSeekRef.current = null;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [currentLesson?.id]);
 
@@ -383,7 +387,18 @@ export const CoursePlayerPage: React.FC = () => {
 
   // Seek video to last watched position when metadata is loaded
   const handleVideoLoadedMetadata = () => {
-    if (!videoRef.current || !currentLessonProgress) return;
+    if (!videoRef.current) return;
+
+    // Priority 1: restore position after quality switch
+    if (pendingSeekRef.current !== null) {
+      videoRef.current.currentTime = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      setIsQualitySwitching(false);
+      return;
+    }
+
+    // Priority 2: restore lesson progress position
+    if (!currentLessonProgress) return;
     if (currentLessonProgress.lastPosition && currentLessonProgress.lastPosition > 0) {
       videoRef.current.currentTime = currentLessonProgress.lastPosition;
     }
@@ -400,6 +415,13 @@ export const CoursePlayerPage: React.FC = () => {
       videoRef.current.currentTime = currentLessonProgress.lastPosition;
     }
   }, [currentLessonProgress]);
+
+  const switchQuality = (quality: '720p' | '480p') => {
+    if (!videoRef.current || quality === selectedQuality) return;
+    pendingSeekRef.current = videoRef.current.currentTime;
+    setIsQualitySwitching(true);
+    setSelectedQuality(quality);
+  };
 
   const handleVideoEnded = async () => {
     if (!currentLesson || !enrollment) return;
@@ -697,24 +719,49 @@ export const CoursePlayerPage: React.FC = () => {
           {currentLesson.contentType === ContentType.VIDEO && (
             <div className="bg-black aspect-video relative">
               {(currentLesson.videoStreamUrl || currentLesson.videoUrl) ? (
-                <ReactPlayer
-                  ref={videoRef}
-                  src={(!useHlsFallback && currentLesson.videoStreamUrl)
-                    ? currentLesson.videoStreamUrl
-                    : (currentLesson.videoUrl ?? undefined)}
-                  controls
-                  width="100%"
-                  height="100%"
-                  style={{ position: 'absolute', top: 0, left: 0 }}
-                  onLoadedMetadata={handleVideoLoadedMetadata}
-                  onTimeUpdate={handleVideoTimeUpdate}
-                  onEnded={handleVideoEnded}
-                  onError={() => {
-                    if (!useHlsFallback && currentLesson.videoStreamUrl) {
-                      setUseHlsFallback(true);
+                <>
+                  <ReactPlayer
+                    ref={videoRef}
+                    src={
+                      selectedQuality === '480p'
+                        ? (currentLesson.video480pUrl ?? currentLesson.videoUrl ?? undefined)
+                        : (currentLesson.videoStreamUrl ?? currentLesson.videoUrl ?? undefined)
                     }
-                  }}
-                />
+                    controls
+                    width="100%"
+                    height="100%"
+                    style={{ position: 'absolute', top: 0, left: 0 }}
+                    onLoadedMetadata={handleVideoLoadedMetadata}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    onEnded={handleVideoEnded}
+                  />
+
+                  {/* Buffering overlay during quality switch */}
+                  {isQualitySwitching && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                      <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+
+                  {/* Quality selector — show when both variants available */}
+                  {currentLesson.video480pUrl && currentLesson.videoStreamUrl && (
+                    <div className="absolute bottom-12 right-3 flex gap-1 bg-black/60 rounded px-1 py-0.5">
+                      {(['480p', '720p'] as const).map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => switchQuality(q)}
+                          className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
+                            selectedQuality === q
+                              ? 'bg-white text-black'
+                              : 'text-white hover:bg-white/20'
+                          }`}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <BookOpen className="w-20 h-20 text-gray-400" />

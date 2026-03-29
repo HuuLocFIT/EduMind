@@ -76,6 +76,7 @@ export const LessonResponseSchema = z.object({
   videoUploadStatus: VideoUploadStatusSchema.nullable().optional().default("NONE"),
   videoPublicId: z.string().nullable().optional(),
   videoStreamUrl: z.string().nullable().optional(),
+  video480pUrl: z.string().nullable().optional(),
   articleContent: z.string().nullable().optional(),
   resources: z.array(LessonResourceSchema).optional().nullable(),
   orderIndex: z.number(),
@@ -101,6 +102,7 @@ export const VideoSignatureResponseSchema = z.object({
   signature: z.string(),
   timestamp: z.number(),
   folder: z.string(),
+  hlsEnabled: z.boolean().optional().default(false),
 });
 
 export const ConfirmVideoUploadRequestSchema = z.object({

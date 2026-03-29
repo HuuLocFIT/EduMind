@@ -237,11 +237,20 @@ public class LessonController {
     }
 
     private String buildStreamUrl(Lesson lesson) {
-        if (!Boolean.TRUE.equals(lesson.getHasHls()) || lesson.getVideoPublicId() == null) {
-            return null;
+        if (lesson.getVideoPublicId() == null) return null;
+        if (Boolean.TRUE.equals(lesson.getHasHls())) {
+            return "https://res.cloudinary.com/" + cloudinary.config.cloudName
+                    + "/video/upload/sp_auto/" + lesson.getVideoPublicId() + ".m3u8";
         }
+        // On-demand 720p MP4 transform (lazy, cached after first view)
         return "https://res.cloudinary.com/" + cloudinary.config.cloudName
-                + "/video/upload/sp_auto/" + lesson.getVideoPublicId() + ".m3u8";
+                + "/video/upload/q_auto,w_1280,h_720,c_limit/" + lesson.getVideoPublicId() + ".mp4";
+    }
+
+    private String build480pUrl(Lesson lesson) {
+        if (lesson.getVideoPublicId() == null) return null;
+        return "https://res.cloudinary.com/" + cloudinary.config.cloudName
+                + "/video/upload/q_auto,w_854,h_480,c_limit/" + lesson.getVideoPublicId() + ".mp4";
     }
 
     private LessonResponse toResponse(Lesson lesson) {
@@ -254,6 +263,7 @@ public class LessonController {
                 .contentType(lesson.getContentType())
                 .videoUrl(lesson.getVideoUrl())
                 .videoStreamUrl(buildStreamUrl(lesson))
+                .video480pUrl(build480pUrl(lesson))
                 .videoDuration(lesson.getVideoDuration())
                 .videoUploadStatus(lesson.getVideoUploadStatus())
                 .videoPublicId(lesson.getVideoPublicId())
