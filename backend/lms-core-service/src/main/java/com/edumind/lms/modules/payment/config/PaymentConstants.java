@@ -34,5 +34,5 @@ public final class PaymentConstants {
     public static final String TRANSACTION_NUMBER_PREFIX = "TXN";
 
     // Cloudinary folders
-    public static final String CLOUDINARY_INVOICE_FOLDER = "invoices";
+    public static final String CLOUDINARY_INVOICE_FOLDER = "documents/invoices";
 }

@@ -28,7 +28,7 @@ public class FileUploadController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<FileUploadResponse>> uploadDocument(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "folder", defaultValue = "teacher-documents") String folder) {
+            @RequestParam(value = "folder", defaultValue = "documents/teacher-applications") String folder) {
 
         logger.info("📥 POST /upload/document - Uploading file: {}", file.getOriginalFilename());
 
@@ -52,7 +52,7 @@ public class FileUploadController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<FileUploadResponse>> uploadImage(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "folder", defaultValue = "avatars") String folder) {
+            @RequestParam(value = "folder", defaultValue = "images/avatars") String folder) {
 
         logger.info("📥 POST /upload/image - Uploading image: {}", file.getOriginalFilename());
 

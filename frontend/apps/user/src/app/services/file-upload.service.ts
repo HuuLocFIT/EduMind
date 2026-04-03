@@ -36,12 +36,16 @@ export const fileUploadService = {
     return Promise.all(uploadPromises);
   },
 
-  async uploadImage(file: File): Promise<FileUploadResponse> {
+  async uploadImage(file: File, folder?: string): Promise<FileUploadResponse> {
     const formData = new FormData();
     formData.append("file", file);
 
+    const url = folder
+      ? `${UPLOAD_ENDPOINTS.IMAGE}?folder=${encodeURIComponent(folder)}`
+      : UPLOAD_ENDPOINTS.IMAGE;
+
     const response = await apiClient.post<FileUploadResponse>(
-      UPLOAD_ENDPOINTS.IMAGE,
+      url,
       formData,
       {
         headers: { "Content-Type": "multipart/form-data" },

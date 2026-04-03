@@ -354,7 +354,7 @@ public class LessonServiceImpl implements LessonService {
 
         // Generate Cloudinary signed upload params
         long timestamp = Instant.now().getEpochSecond();
-        String folder = "edumind/videos/lessons";
+        String folder = "videos/lessons";
 
         Map<String, Object> paramsToSign = new java.util.HashMap<>();
         paramsToSign.put("timestamp", timestamp);
