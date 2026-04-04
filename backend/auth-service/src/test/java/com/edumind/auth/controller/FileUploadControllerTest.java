@@ -62,7 +62,7 @@ class FileUploadControllerTest {
                     .size(1024L)
                     .build();
 
-            when(cloudinaryService.uploadDocument(any(), eq("teacher-documents")))
+            when(cloudinaryService.uploadDocument(any(), eq("documents/teacher-applications")))
                     .thenReturn(response);
 
             // When/Then
@@ -160,7 +160,7 @@ class FileUploadControllerTest {
                     .size(512L)
                     .build();
 
-            when(cloudinaryService.uploadImage(any(), eq("avatars")))
+            when(cloudinaryService.uploadImage(any(), eq("images/avatars")))
                     .thenReturn(response);
 
             // When/Then

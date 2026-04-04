@@ -1,0 +1,212 @@
+# Production Docker Compose — uses prebuilt images from GitHub Container Registry (GHCR)
+# Usage: IMAGE_TAG=<short-sha> docker compose -f docker-compose.prod.yml up -d
+# IMAGE_TAG defaults to "latest" if not set
+
+services:
+  # Discovery Service (Eureka Server) — start first
+  discovery-service:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-huulocfit}/edumind-discovery-service:${IMAGE_TAG:-latest}
+    container_name: edumind-discovery-service
+    ports:
+      - "${DISCOVERY_SERVER_PORT:-8761}:8761"
+    environment:
+      - DISCOVERY_SERVER_PORT=${DISCOVERY_SERVER_PORT:-8761}
+      - EUREKA_HOSTNAME=discovery-service
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # PostgreSQL for Auth Service
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: edumind-postgres-auth
+    environment:
+      POSTGRES_DB: ${AUTH_DB_NAME:-edumind_auth}
+      POSTGRES_USER: ${AUTH_DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL for LMS Core Service (with pgvector)
+  postgres-lms-core:
+    image: pgvector/pgvector:pg16
+    container_name: edumind-postgres-lms-core
+    environment:
+      POSTGRES_DB: ${LMS_CORE_DB_NAME:-edumind_core}
+      POSTGRES_USER: ${LMS_CORE_DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${LMS_CORE_DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-lms-core-data:/var/lib/postgresql/data
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis for API Gateway Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: edumind-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Auth Service
+  auth-service:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-huulocfit}/edumind-auth-service:${IMAGE_TAG:-latest}
+    container_name: edumind-auth-service
+    env_file: .env
+    ports:
+      - "${AUTH_SERVICE_PORT:-8081}:8081"
+    environment:
+      - AUTH_SERVICE_PORT=${AUTH_SERVICE_PORT:-8081}
+      - AUTH_DB_URL=jdbc:postgresql://postgres-auth:5432/${AUTH_DB_NAME:-edumind_auth}
+      - AUTH_DB_USERNAME=${AUTH_DB_USERNAME:-postgres}
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:-postgres}
+      - AUTH_DB_DRIVER=org.postgresql.Driver
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-900000}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM:-noreply@edumind.com}
+      - MAIL_ENABLED=${MAIL_ENABLED:-true}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - AUTH_SERVICE_ENCRYPTION_KEY=${AUTH_SERVICE_ENCRYPTION_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - GATEWAY_URL=${GATEWAY_URL}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # LMS Core Service
+  lms-core-service:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-huulocfit}/edumind-lms-core-service:${IMAGE_TAG:-latest}
+    container_name: edumind-lms-core-service
+    env_file: .env
+    ports:
+      - "${LMS_CORE_SERVICE_PORT:-8083}:8083"
+    environment:
+      - LMS_CORE_SERVICE_PORT=${LMS_CORE_SERVICE_PORT:-8083}
+      - LMS_CORE_DB_URL=jdbc:postgresql://postgres-lms-core:5432/${LMS_CORE_DB_NAME:-edumind_core}
+      - LMS_CORE_DB_USERNAME=${LMS_CORE_DB_USERNAME:-postgres}
+      - LMS_CORE_DB_PASSWORD=${LMS_CORE_DB_PASSWORD:-postgres}
+      - LMS_CORE_DB_DRIVER=org.postgresql.Driver
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - LMS_CORE_SERVICE_ENCRYPTION_KEY=${LMS_CORE_SERVICE_ENCRYPTION_KEY}
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - FRONTEND_URL=${FRONTEND_URL}
+      - GATEWAY_URL=${GATEWAY_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      postgres-lms-core:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  # API Gateway — start last
+  api-gateway:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-huulocfit}/edumind-api-gateway:${IMAGE_TAG:-latest}
+    container_name: edumind-api-gateway
+    env_file: .env
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    environment:
+      - API_GATEWAY_PORT=${API_GATEWAY_PORT:-8080}
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_TIMEOUT=${REDIS_TIMEOUT:-60000ms}
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - ADMIN_URL=${ADMIN_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    networks:
+      - edumind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  postgres-auth-data:
+    driver: local
+  postgres-lms-core-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  edumind-network:
+    driver: bridge
