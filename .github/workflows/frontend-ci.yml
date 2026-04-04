@@ -1,0 +1,46 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'frontend/**'
+
+jobs:
+  ci:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set Nx SHAs for affected computation
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Lint affected projects
+        run: npx nx affected --target=lint --base=$NX_BASE --head=$NX_HEAD --parallel=3
+
+      - name: Test affected projects
+        run: npx nx affected --target=test --base=$NX_BASE --head=$NX_HEAD --parallel=3
+
+      - name: Build affected projects
+        run: npx nx affected --target=build --base=$NX_BASE --head=$NX_HEAD --parallel=3

@@ -1,0 +1,108 @@
+name: Backend CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/edumind
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - name: discovery-service
+            dockerfile: discovery-service/Dockerfile
+          - name: auth-service
+            dockerfile: auth-service/Dockerfile
+          - name: lms-core-service
+            dockerfile: lms-core-service/Dockerfile
+          - name: api-gateway
+            dockerfile: api-gateway/Dockerfile
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.VPS_DEPLOY_PATH }}
+
+            export IMAGE_TAG=${GITHUB_SHA::7}
+
+            # Authenticate to GHCR on VPS
+            echo "${{ secrets.GHCR_TOKEN }}" | \
+              docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
+            # Pull all new images
+            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml pull
+
+            # Phase 1: restart discovery-service first (Eureka registry)
+            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml \
+              up -d --no-deps discovery-service
+
+            # Wait for Eureka to be ready before dependent services start
+            sleep 30
+
+            # Phase 2: restart auth-service and lms-core-service in parallel
+            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml \
+              up -d --no-deps auth-service lms-core-service
+
+            # Phase 3: restart api-gateway last (depends on auth-service)
+            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml \
+              up -d --no-deps api-gateway
+
+            # Remove dangling images to reclaim disk space
+            docker image prune -f
