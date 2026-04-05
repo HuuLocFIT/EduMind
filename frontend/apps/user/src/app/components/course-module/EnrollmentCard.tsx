@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Button, ProgressBar } from '@edumind/user-ui';
+import { Card, Button, ProgressBar, CloudinaryImage } from '@edumind/user-ui';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { BookOpen } from 'lucide-react';
 
@@ -19,13 +19,14 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ enrollment, onCl
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
         {/* Thumbnail */}
         <div className="w-full h-40 bg-gray-200 rounded-lg overflow-hidden sm:w-32 sm:h-20 flex-shrink-0">
-          {enrollment.courseThumbnail ? (
-            <img
-              src={enrollment.courseThumbnail}
-              alt={enrollment.courseTitle}
-              className="w-full h-full object-cover"
-            />
-          ) : (
+          <CloudinaryImage
+            src={enrollment.courseThumbnail}
+            alt={enrollment.courseTitle}
+            widths={[320, 640]}
+            sizes="(max-width: 640px) calc(100vw - 3rem), 128px"
+            className="w-full h-full object-cover"
+          />
+          {!enrollment.courseThumbnail && (
             <div className="flex items-center justify-center h-full">
               <BookOpen className="w-8 h-8 text-gray-400" />
             </div>

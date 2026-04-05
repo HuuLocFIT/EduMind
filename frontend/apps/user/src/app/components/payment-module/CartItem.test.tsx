@@ -17,6 +17,8 @@ vi.mock('@edumind/user-ui', () => ({
       <span>{size}</span>
     </div>
   ),
+  CloudinaryImage: ({ src, alt, className }: any) =>
+    src ? <img src={src} alt={alt} className={className} /> : null,
 }));
 
 vi.mock('lucide-react', () => ({

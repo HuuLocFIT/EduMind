@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { teacherCourseService } from '../../../../services/teacher-course.service';
 import type { ReviewResponse } from "@edumind/shared-types";
-import { Skeleton, RatingStars } from "@edumind/user-ui";
+import { Skeleton, RatingStars, CloudinaryImage } from "@edumind/user-ui";
 import { formatDate } from "@edumind/shared-utils";
 import { Star } from "lucide-react";
 
@@ -59,13 +59,13 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({ courseId }) => {
         <div key={review.id} className="bg-white rounded-lg border p-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-              {review.avatarUrl ? (
-                <img
-                  src={review.avatarUrl}
-                  alt={review.studentName}
-                  className="w-10 h-10 rounded-full"
-                />
-              ) : (
+              <CloudinaryImage
+                src={review.avatarUrl}
+                alt={review.studentName}
+                widths={[80]}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              {!review.avatarUrl && (
                 <span className="text-gray-500 font-medium">
                   {review.studentName?.charAt(0).toUpperCase()}
                 </span>

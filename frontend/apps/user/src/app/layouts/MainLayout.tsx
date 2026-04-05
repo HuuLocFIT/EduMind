@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@edumind/user-ui";
+import { Button, CloudinaryImage } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
 import { CartIcon, CartDrawer } from "../components/payment-module";
 import {
@@ -129,15 +129,14 @@ export const MainLayout: React.FC = () => {
                       className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
-                        {user?.profilePictureUrl ? (
-                          <img
-                            src={user?.profilePictureUrl}
-                            alt="User Avatar"
-                            className="w-8 h-8 rounded-full object-cover"
-                          />
-                        ) : (
-                          user?.firstName?.charAt(0).toUpperCase() || "U"
-                        )}
+                        <CloudinaryImage
+                          src={user?.profilePictureUrl}
+                          alt="User Avatar"
+                          widths={[64]}
+                          priority={true}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                        {!user?.profilePictureUrl && (user?.firstName?.charAt(0).toUpperCase() || "U")}
                       </div>
                     </button>
 

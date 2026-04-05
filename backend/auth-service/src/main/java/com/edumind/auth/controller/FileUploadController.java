@@ -52,11 +52,13 @@ public class FileUploadController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<FileUploadResponse>> uploadImage(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "folder", defaultValue = "images/avatars") String folder) {
+            @RequestParam(value = "folder", defaultValue = "images/avatars") String folder,
+            @RequestParam(value = "maxWidth", defaultValue = "500") int maxWidth,
+            @RequestParam(value = "maxHeight", defaultValue = "500") int maxHeight) {
 
         logger.info("📥 POST /upload/image - Uploading image: {}", file.getOriginalFilename());
 
-        FileUploadResponse uploadResult = cloudinaryService.uploadImage(file, folder);
+        FileUploadResponse uploadResult = cloudinaryService.uploadImage(file, folder, maxWidth, maxHeight);
 
         ApiResponse<FileUploadResponse> response = ApiResponse.<FileUploadResponse>builder()
                 .status(HttpStatus.OK.value())

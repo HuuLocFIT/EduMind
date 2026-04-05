@@ -12,6 +12,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { formatLastAccessed } from '../utils/formatLastAccessed';
+import { CloudinaryImage } from '@edumind/user-ui';
 
 interface DashboardEnrollmentCardProps {
   enrollment: EnrollmentResponse;
@@ -46,14 +47,15 @@ export const DashboardEnrollmentCard: React.FC<DashboardEnrollmentCardProps> = (
     >
       <div className="flex flex-col md:flex-row">
         {/* Course Image */}
-        <div className="relative md:w-56 h-44 md:h-auto flex-shrink-0 overflow-hidden bg-slate-100">
-          {enrollment.courseThumbnail ? (
-            <img
-              src={enrollment.courseThumbnail}
-              alt={enrollment.courseTitle}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
+        <div className="relative md:w-56 h-44 md:h-auto md:aspect-video flex-shrink-0 overflow-hidden bg-slate-100">
+          <CloudinaryImage
+            src={enrollment.courseThumbnail}
+            alt={enrollment.courseTitle}
+            widths={[480, 960]}
+            sizes="(max-width: 768px) calc(100vw - 2rem), 224px"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+          {!enrollment.courseThumbnail && (
             <div className="flex items-center justify-center h-full">
               <BookOpen className="w-16 h-16 text-slate-400" />
             </div>

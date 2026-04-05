@@ -20,6 +20,7 @@ import {
 } from '@edumind/shared-types';
 import { CategoryService } from '../../core/services/category.service';
 import { injectAsyncState, injectModal, getActiveBadgeVariant } from '../../core/utils';
+import { CloudinaryUrlPipe } from '../../shared/pipes/cloudinary-url.pipe';
 
 @Component({
   selector: 'app-categories',
@@ -36,6 +37,7 @@ import { injectAsyncState, injectModal, getActiveBadgeVariant } from '../../core
     InputComponent,
     TextareaComponent,
     ConfirmDialogComponent,
+    CloudinaryUrlPipe,
   ],
   templateUrl: './categories.component.html',
 })

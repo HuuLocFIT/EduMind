@@ -14,6 +14,7 @@ import {
   Send,
 } from "lucide-react";
 import type { ViewMode } from "./types";
+import { CloudinaryImage } from "@edumind/user-ui";
 
 interface CourseCardProps {
   course: CourseResponse;
@@ -42,13 +43,13 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       <div className="flex items-center gap-4 p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow">
         {/* Thumbnail */}
         <div className="w-20 h-14 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-          {course.thumbnailUrl ? (
-            <img
-              src={course.thumbnailUrl}
-              alt={course.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
+          <CloudinaryImage
+            src={course.thumbnailUrl}
+            alt={course.title}
+            widths={[160]}
+            className="w-full h-full object-cover"
+          />
+          {!course.thumbnailUrl && (
             <div className="w-full h-full flex items-center justify-center">
               <BookOpen className="w-6 h-6 text-gray-400" />
             </div>
@@ -157,13 +158,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     <div className="bg-white rounded-xl border overflow-hidden hover:shadow-md transition-shadow group">
       {/* Thumbnail */}
       <div className="relative aspect-video bg-gray-100">
-        {course.thumbnailUrl ? (
-          <img
-            src={course.thumbnailUrl}
-            alt={course.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
+        <CloudinaryImage
+          src={course.thumbnailUrl}
+          alt={course.title}
+          widths={[480, 960]}
+          sizes="(max-width: 640px) calc(100vw - 2rem), calc(50vw - 2rem)"
+          className="w-full h-full object-cover"
+        />
+        {!course.thumbnailUrl && (
           <div className="w-full h-full flex items-center justify-center">
             <BookOpen className="w-12 h-12 text-gray-300" />
           </div>

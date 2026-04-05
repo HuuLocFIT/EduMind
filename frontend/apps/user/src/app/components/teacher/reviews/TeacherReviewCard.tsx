@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { ReviewResponse } from "@edumind/shared-types";
 import { formatTimeAgo } from "@edumind/shared-utils";
+import { CloudinaryImage } from "@edumind/user-ui";
 
 interface ReviewCardProps {
   review: ReviewResponse;
@@ -55,13 +56,13 @@ export const TeacherReviewCard: React.FC<ReviewCardProps> = ({
         <div className="flex items-start gap-3">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            {getAvatarUrl() ? (
-              <img
-                src={getAvatarUrl()!}
-                alt={review.studentName}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            ) : (
+            <CloudinaryImage
+              src={getAvatarUrl()}
+              alt={review.studentName}
+              widths={[80]}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            {!getAvatarUrl() && (
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                 <User className="w-5 h-5 text-blue-600" />
               </div>

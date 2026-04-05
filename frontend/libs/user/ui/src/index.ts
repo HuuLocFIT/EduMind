@@ -30,3 +30,6 @@ export * from './lib/FileUpload/FileUpload';
 
 // Tabs
 export * from './lib/Tabs/Tabs';
+
+// Images
+export * from './lib/CloudinaryImage';

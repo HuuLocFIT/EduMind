@@ -1,6 +1,6 @@
 import React from "react";
 import { WishlistItemResponse } from "@edumind/shared-types";
-import { Button, Card, Loading, PriceTag, RatingStars } from "@edumind/user-ui";
+import { Button, Card, Loading, PriceTag, RatingStars, CloudinaryImage } from "@edumind/user-ui";
 import { formatDate } from "@edumind/shared-utils";
 import { BookOpen, ShoppingCart, Trash2 } from "lucide-react";
 
@@ -44,16 +44,17 @@ export const WishlistCard: React.FC<WishlistCardProps> = ({
 
         {/* Course Thumbnail */}
         <div
-          className="w-full md:w-72 h-48 md:h-auto bg-gray-100 flex-shrink-0 relative cursor-pointer"
+          className="w-full md:w-72 h-48 md:h-auto md:aspect-video bg-gray-100 flex-shrink-0 relative cursor-pointer"
           onClick={onViewCourse}
         >
-          {item.thumbnailUrl ? (
-            <img
-              src={item.thumbnailUrl}
-              alt={item.courseTitle}
-              className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
-            />
-          ) : (
+          <CloudinaryImage
+            src={item.thumbnailUrl}
+            alt={item.courseTitle}
+            widths={[480, 960]}
+            sizes="(max-width: 768px) calc(100vw - 2rem), 288px"
+            className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+          />
+          {!item.thumbnailUrl && (
             <div className="flex items-center justify-center h-full">
               <BookOpen className="w-12 h-12 text-gray-400" />
             </div>

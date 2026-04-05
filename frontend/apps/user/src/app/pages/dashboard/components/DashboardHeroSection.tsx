@@ -2,6 +2,7 @@ import React from 'react';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { Flame, Play, Zap } from 'lucide-react';
 import { DashboardStatsGrid } from './DashboardStatsGrid';
+import { CloudinaryImage } from '@edumind/user-ui';
 
 interface DashboardStats {
   totalCourses: number;
@@ -56,9 +57,11 @@ export const DashboardHeroSection: React.FC<DashboardHeroSectionProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <img
-                    src={mostRecentCourse.courseThumbnail || '/placeholder.svg'}
+                  <CloudinaryImage
+                    src={mostRecentCourse.courseThumbnail}
                     alt={mostRecentCourse.courseTitle}
+                    widths={[128]}
+                    priority={true}
                     className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">

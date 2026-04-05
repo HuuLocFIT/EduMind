@@ -36,16 +36,22 @@ export const fileUploadService = {
     return Promise.all(uploadPromises);
   },
 
-  async uploadImage(file: File, folder?: string): Promise<FileUploadResponse> {
+  async uploadImage(
+    file: File,
+    folder?: string,
+    maxWidth = 500,
+    maxHeight = 500,
+  ): Promise<FileUploadResponse> {
     const formData = new FormData();
     formData.append("file", file);
 
-    const url = folder
-      ? `${UPLOAD_ENDPOINTS.IMAGE}?folder=${encodeURIComponent(folder)}`
-      : UPLOAD_ENDPOINTS.IMAGE;
+    const params = new URLSearchParams();
+    if (folder) params.set("folder", folder);
+    params.set("maxWidth", String(maxWidth));
+    params.set("maxHeight", String(maxHeight));
 
     const response = await apiClient.post<FileUploadResponse>(
-      url,
+      `${UPLOAD_ENDPOINTS.IMAGE}?${params.toString()}`,
       formData,
       {
         headers: { "Content-Type": "multipart/form-data" },

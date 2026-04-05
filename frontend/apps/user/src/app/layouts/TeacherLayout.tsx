@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import { useTeacherStatus } from "../components/teacher/TeacherGuard";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
+import { CloudinaryImage } from "@edumind/user-ui";
 import { UploadBadge } from "../components/teacher/UploadBadge";
 import { useBeforeUnloadWarning } from "../hooks/useBeforeUnloadWarning";
 import {
@@ -299,15 +300,14 @@ export const TeacherLayout: React.FC = () => {
             {sidebarOpen && (
               <div className="flex items-center gap-3 px-3 py-2 mb-3">
                 <div className="w-9 h-9 bg-green-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
-                  {user?.profilePictureUrl ? (
-                    <img
-                      src={user.profilePictureUrl}
-                      alt="Avatar"
-                      className="w-9 h-9 rounded-full object-cover"
-                    />
-                  ) : (
-                    user?.firstName?.charAt(0).toUpperCase() || "T"
-                  )}
+                  <CloudinaryImage
+                    src={user?.profilePictureUrl}
+                    alt="Avatar"
+                    widths={[72]}
+                    priority={true}
+                    className="w-9 h-9 rounded-full object-cover"
+                  />
+                  {!user?.profilePictureUrl && (user?.firstName?.charAt(0).toUpperCase() || "T")}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 truncate text-sm">

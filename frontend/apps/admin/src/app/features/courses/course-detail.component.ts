@@ -12,6 +12,7 @@ import { CourseDetailResponse } from '@edumind/shared-types';
 import { CourseStatus, CourseLevel } from '@edumind/shared-constants';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
 import { CourseDescriptionViewerComponent } from './course-description-viewer.component';
+import { CloudinaryUrlPipe } from '../../shared/pipes/cloudinary-url.pipe';
 
 type CourseStatusValue = (typeof CourseStatus)[keyof typeof CourseStatus];
 type CourseLevelValue = (typeof CourseLevel)[keyof typeof CourseLevel];
@@ -26,6 +27,7 @@ type CourseLevelValue = (typeof CourseLevel)[keyof typeof CourseLevel];
     BadgeComponent,
     AlertComponent,
     CourseDescriptionViewerComponent,
+    CloudinaryUrlPipe,
   ],
   templateUrl: './course-detail.component.html',
 })

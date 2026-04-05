@@ -219,9 +219,10 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-3">Thumbnail</h3>
             @if (c.thumbnailUrl) {
               <img
-                [src]="c.thumbnailUrl"
+                [src]="c.thumbnailUrl | cldUrl:800"
                 [alt]="c.title"
                 class="w-full rounded-lg border border-gray-200 object-cover aspect-video bg-gray-50"
+                loading="lazy"
               />
             } @else {
               <div class="aspect-video rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-sm text-gray-500">

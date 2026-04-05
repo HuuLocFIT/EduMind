@@ -3,6 +3,7 @@ import type { CourseDetailResponse } from "@edumind/shared-types";
 import { CourseStatusBadge } from "../CourseStatusBadge";
 import { CourseDescriptionViewer } from "../../../course-module/CourseDescriptionViewer";
 import { Users, Star, FileText, Clock, BookOpen } from "lucide-react";
+import { CloudinaryImage } from "@edumind/user-ui";
 import { formatCourseLevel } from "../../../../lib/course-level";
 
 interface OverviewTabProps {
@@ -76,13 +77,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ course }) => {
         <div className="space-y-6">
           {/* Thumbnail */}
           <div className="bg-white rounded-lg border overflow-hidden">
-            {course.thumbnailUrl ? (
-              <img
-                src={course.thumbnailUrl}
-                alt={course.title}
-                className="w-full aspect-video object-cover"
-              />
-            ) : (
+            <CloudinaryImage
+              src={course.thumbnailUrl}
+              alt={course.title}
+              widths={[800]}
+              className="w-full aspect-video object-cover"
+            />
+            {!course.thumbnailUrl && (
               <div className="w-full aspect-video bg-gray-100 flex items-center justify-center">
                 <BookOpen className="w-12 h-12 text-gray-300" />
               </div>

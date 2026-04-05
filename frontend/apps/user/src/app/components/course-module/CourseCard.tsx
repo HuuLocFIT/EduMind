@@ -1,4 +1,4 @@
-import { Card, Button } from "@edumind/user-ui";
+import { Card, Button, CloudinaryImage } from "@edumind/user-ui";
 import { Clock, Users, BookOpen, ShoppingCart, Check, PlayCircle, Zap, Star } from "lucide-react";
 import type { CourseResponse } from "@edumind/shared-types";
 import { formatCourseLevel } from "../../lib/course-level";
@@ -16,6 +16,7 @@ interface CourseCardProps {
   onEnrollFree?: (courseId: number) => void;
   isAddingToCart?: boolean;
   isEnrolling?: boolean;
+  priority?: boolean;
 }
 
 export const CourseCard: React.FC<CourseCardProps> = ({
@@ -30,6 +31,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onEnrollFree,
   isAddingToCart = false,
   isEnrolling = false,
+  priority = false,
 }) => {
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
@@ -52,13 +54,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     >
       {/* Course Thumbnail */}
       <div className="relative h-44 sm:h-48 lg:h-52 bg-gray-200 overflow-hidden rounded-t-2xl">
-        {course.thumbnailUrl ? (
-          <img
-            src={course.thumbnailUrl}
-            alt={course.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform"
-          />
-        ) : (
+        <CloudinaryImage
+          src={course.thumbnailUrl}
+          alt={course.title}
+          widths={[480, 960]}
+          sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1024px) calc(50vw - 2rem), calc(33vw - 2rem)"
+          priority={priority}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform"
+        />
+        {!course.thumbnailUrl && (
           <div className="flex items-center justify-center h-full">
             <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" />
           </div>

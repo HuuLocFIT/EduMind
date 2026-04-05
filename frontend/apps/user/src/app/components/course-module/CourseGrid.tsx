@@ -50,7 +50,7 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
 
   return (
     <div className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6 ${className}`}>
-      {courses.map((course) => (
+      {courses.map((course, index) => (
         <CourseCard
           key={course.id}
           course={course}
@@ -63,6 +63,7 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
           onAddToCart={onAddToCart}
           onGoToCourse={onGoToCourse}
           onEnrollFree={onEnrollFree}
+          priority={index < 4}
         />
       ))}
     </div>
