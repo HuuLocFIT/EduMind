@@ -43,14 +43,6 @@ export const CertificatesPage: React.FC = () => {
     alert(`Share certificate for ${enrollment.courseTitle}`);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -76,8 +68,15 @@ export const CertificatesPage: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Loading State */}
+        {loading && (
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <Loading />
+          </div>
+        )}
+
         {/* Empty State */}
-        {certificates.length === 0 ? (
+        {!loading && certificates.length === 0 && (
           <Card className="p-12 text-center">
             <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -90,10 +89,13 @@ export const CertificatesPage: React.FC = () => {
               variant="primary"
               onClick={() => navigate(USER_ROUTES.LEARNING)}
             >
-              View My Learning 
+              View My Learning
             </Button>
           </Card>
-        ) : (
+        )}
+
+        {/* Certificates Grid */}
+        {!loading && certificates.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {certificates.map((enrollment) => (
               <CertificateCard

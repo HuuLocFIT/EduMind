@@ -77,6 +77,7 @@
     } @else {
       @for (category of visibleCategories(); track category.id) {
         <app-card
+          data-testid="category-row"
           [padding]="'sm'"
           [customClass]="'border border-gray-200 bg-white shadow-sm text-gray-900 hover:shadow-md transition-shadow duration-200 mb-4'"
         >

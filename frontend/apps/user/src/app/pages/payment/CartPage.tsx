@@ -68,15 +68,6 @@ export const CartPage: React.FC = () => {
     navigate(USER_ROUTES.CHECKOUT);
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
-  }
-
   const items = cart?.items || [];
   const subtotal = cart?.subtotal || 0;
   const discount = cart?.discountTotal || 0;
@@ -132,8 +123,15 @@ export const CartPage: React.FC = () => {
 
         {/* Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          {/* Loading State */}
+          {isLoading && (
+            <div className="min-h-[60vh] flex items-center justify-center">
+              <Loading />
+            </div>
+          )}
+
           {/* Error State */}
-          {error && (
+          {!isLoading && error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
               <p className="text-sm sm:text-base text-red-800">
                 {(error as Error)?.message || "Failed to load cart"}
@@ -145,7 +143,7 @@ export const CartPage: React.FC = () => {
           )}
 
           {/* Unavailable Items Warning */}
-          {hasUnavailableItems && (
+          {!isLoading && hasUnavailableItems && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -182,7 +180,7 @@ export const CartPage: React.FC = () => {
           )}
 
           {/* Cart Content */}
-          {items.length > 0 && (
+          {!isLoading && items.length > 0 && (
             <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {/* Order Summary - Show first on mobile */}
               <div className="order-1 lg:order-2 lg:col-span-1">

@@ -40,9 +40,9 @@ export const MainLayout: React.FC = () => {
   const hasApplication = Boolean(applicationData);
   const applicationStatus = applicationData?.status || null;
 
-  const handleLogout = () => {
-    logout();
-    navigate(USER_ROUTES.ROOT);
+  const handleLogout = async () => {
+    await logout();
+    navigate(USER_ROUTES.LOGIN);
   };
 
   const isActivePath = (path: string) => {
@@ -125,6 +125,7 @@ export const MainLayout: React.FC = () => {
                   {/* User Menu */}
                   <div className="relative">
                     <button
+                      data-testid="user-menu"
                       onClick={() => setUserMenuOpen(!userMenuOpen)}
                       className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
