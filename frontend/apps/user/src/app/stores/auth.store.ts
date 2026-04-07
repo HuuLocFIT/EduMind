@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import * as Sentry from '@sentry/react';
 import type {
   User,
   LoginRequest,
@@ -9,6 +10,22 @@ import type {
 } from "@edumind/shared-types";
 import { authService } from '../services/auth.service';
 import { queryClient } from "../lib/query-client";
+
+// Helper to avoid duplicating Sentry user context across 3 login paths
+function setSentryUser(user: { id: string | number; role?: string; roles?: string[] } | null) {
+  if (user) {
+    Sentry.setUser({
+      id: String(user.id),
+      // Do NOT send email — PII
+      // id is enough to look up in the dashboard
+      username: `user-${user.id}`,
+      // Include role to filter errors by user type (STUDENT / TEACHER)
+      role: user.role ?? user.roles?.[0],
+    });
+  } else {
+    Sentry.setUser(null);
+  }
+}
 
 interface AuthState {
   user: User | null;
@@ -71,6 +88,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
+          setSentryUser(jwtResponse.user);
         } catch (error: any) {
           // If it's a 2FA required error, re-throw it
           if (error.requires2FA) {
@@ -100,6 +118,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
+          setSentryUser(user);
         } catch (error: any) {
           const errorMessage =
             error.response?.data?.message ||
@@ -129,6 +148,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
+          setSentryUser(user);
         } catch (error: any) {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
@@ -184,6 +204,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
+          setSentryUser(null);
         }
       },
 
@@ -196,6 +217,7 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
         queryClient.clear();
+        setSentryUser(null);
         set({
           user: null,
           accessToken: null,

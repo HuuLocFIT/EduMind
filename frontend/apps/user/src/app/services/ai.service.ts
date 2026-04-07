@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { apiClient } from "./api-client.service";
 import {
   AiJobResponseSchema,
@@ -143,6 +144,14 @@ export const aiService = {
     const url = buildApiUrl(AI_ENDPOINTS.CHAT_STREAM(courseId));
     const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
+    // Manual breadcrumb — browserTracingIntegration() does not categorize SSE streams
+    Sentry.addBreadcrumb({
+      category: 'ai.chat',
+      message: `AI Chat started — course ${courseId}`,
+      level: 'info',
+      data: { courseId },
+    });
+
     let response: Response;
     try {
       response = await fetch(url, {
@@ -156,6 +165,14 @@ export const aiService = {
         signal,
       });
     } catch (err) {
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        Sentry.addBreadcrumb({
+          category: 'ai.chat',
+          message: `AI Chat stream failed — course ${courseId}`,
+          level: 'error',
+          data: { courseId },
+        });
+      }
       onError?.(err);
       return;
     }

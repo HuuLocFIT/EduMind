@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
+import * as Sentry from '@sentry/react';
 import {
   ToastProvider,
   useToast,
@@ -150,6 +151,35 @@ const TeacherPayoutDetailPage = createLazyRoute(
   () => import("./pages/teacher/TeacherPayoutDetailPage")
 );
 
+function SectionErrorBoundary({
+  section,
+  children,
+}: {
+  section: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Sentry.ErrorBoundary
+      fallback={({ resetError }) => (
+        <div className="section-error p-8 text-center">
+          <p className="text-gray-600 mb-3">This section encountered an error.</p>
+          <button
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+            onClick={resetError}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      beforeCapture={(scope) => {
+        scope.setTag('section', section);
+      }}
+    >
+      {children}
+    </Sentry.ErrorBoundary>
+  );
+}
+
 function AppContent() {
   const { toasts, closeToast } = useToast();
 
@@ -288,9 +318,11 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.LEARNING_COURSE}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading course player..." />}>
-                    <CoursePlayerPage />
-                  </Suspense>
+                  <SectionErrorBoundary section="course-player">
+                    <Suspense fallback={<FullPageLoading message="Loading course player..." />}>
+                      <CoursePlayerPage />
+                    </Suspense>
+                  </SectionErrorBoundary>
                 }
               />
               <Route
@@ -344,9 +376,11 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.CHECKOUT}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading checkout..." />}>
-                    <CheckoutPage />
-                  </Suspense>
+                  <SectionErrorBoundary section="checkout">
+                    <Suspense fallback={<FullPageLoading message="Loading checkout..." />}>
+                      <CheckoutPage />
+                    </Suspense>
+                  </SectionErrorBoundary>
                 }
               />
               <Route
@@ -445,9 +479,11 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.COURSE_EDIT}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading course editor..." />}>
-                    <TeacherCourseEditPage />
-                  </Suspense>
+                  <SectionErrorBoundary section="course-editor">
+                    <Suspense fallback={<FullPageLoading message="Loading course editor..." />}>
+                      <TeacherCourseEditPage />
+                    </Suspense>
+                  </SectionErrorBoundary>
                 }
               />
               <Route
