@@ -209,6 +209,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         v.currentTime = pendingSeekRef.current;
         pendingSeekRef.current = null;
         setIsQualitySwitching(false);
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         v.play().catch(() => {});
         return;
       }
@@ -264,6 +265,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       if (!v) return;
       if (v.paused) {
         showPlaybackToast('play');
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         v.play().catch(() => {});
       } else {
         showPlaybackToast('pause');
@@ -347,8 +349,10 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       const el = containerRef.current;
       if (!el) return;
       if (!document.fullscreenElement) {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         el.requestFullscreen().catch(() => {});
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         document.exitFullscreen().catch(() => {});
       }
     }, []);

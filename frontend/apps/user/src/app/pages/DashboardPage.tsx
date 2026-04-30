@@ -81,7 +81,7 @@ export const DashboardPage: React.FC = () => {
       queryKey: queryKeys.categories.active,
       queryFn: async () => {
         const response = await categoryService.getActiveCategories();
-        // @ts-ignore
+        // @ts-expect-error
         return response.data || response || [];
       },
       staleTime: Infinity, // Categories change rarely
