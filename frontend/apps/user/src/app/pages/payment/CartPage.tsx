@@ -68,6 +68,20 @@ export const CartPage: React.FC = () => {
     navigate(USER_ROUTES.CHECKOUT);
   };
 
+  const items = cart?.items || [];
+  const subtotal = cart?.subtotal || 0;
+  const discount = cart?.discountTotal || 0;
+  const totalAmount = cart?.totalAmount || 0;
+  const currency = cart?.currency || "USD";
+
+  // Check for unavailable items — must be before any early return (Rules of Hooks)
+  const unavailableItems = useMemo(
+    () => items.filter((item) => item.isAvailable === false),
+    [items]
+  );
+  const hasUnavailableItems = unavailableItems.length > 0;
+  const availableItemsCount = items.length - unavailableItems.length;
+
   // Loading state
   if (isLoading) {
     return (
@@ -76,20 +90,6 @@ export const CartPage: React.FC = () => {
       </div>
     );
   }
-
-  const items = cart?.items || [];
-  const subtotal = cart?.subtotal || 0;
-  const discount = cart?.discountTotal || 0;
-  const totalAmount = cart?.totalAmount || 0;
-  const currency = cart?.currency || "USD";
-
-  // Check for unavailable items
-  const unavailableItems = useMemo(
-    () => items.filter((item) => item.isAvailable === false),
-    [items]
-  );
-  const hasUnavailableItems = unavailableItems.length > 0;
-  const availableItemsCount = items.length - unavailableItems.length;
 
   return (
     <>

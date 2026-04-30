@@ -8,6 +8,7 @@ import {
   RatingStars,
   PriceTag,
   useToast,
+  CloudinaryImage,
 } from "@edumind/user-ui";
 import {
   EnrollButton,
@@ -330,13 +331,15 @@ export const CourseDetailPage: React.FC = () => {
               <Card variant="elevated" className="p-6 sticky top-8 shadow-xl">
                 {/* Course Thumbnail */}
                 <div className="mb-6 rounded-lg overflow-hidden bg-gray-200 h-48 shadow-md">
-                  {course.thumbnailUrl ? (
-                    <img
-                      src={course.thumbnailUrl}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
+                  <CloudinaryImage
+                    src={course.thumbnailUrl}
+                    alt={course.title}
+                    widths={[400, 800]}
+                    sizes="(max-width: 768px) calc(100vw - 3rem), 384px"
+                    priority={true}
+                    className="w-full h-full object-cover"
+                  />
+                  {!course.thumbnailUrl && (
                     <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-100 to-blue-200">
                       <Play className="w-16 h-16 text-blue-600" />
                     </div>

@@ -160,7 +160,7 @@ class FileUploadControllerTest {
                     .size(512L)
                     .build();
 
-            when(cloudinaryService.uploadImage(any(), eq("images/avatars")))
+            when(cloudinaryService.uploadImage(any(), eq("images/avatars"), eq(500), eq(500)))
                     .thenReturn(response);
 
             // When/Then
@@ -194,7 +194,7 @@ class FileUploadControllerTest {
                     .size(1024L)
                     .build();
 
-            when(cloudinaryService.uploadImage(any(), eq("profiles")))
+            when(cloudinaryService.uploadImage(any(), eq("profiles"), eq(500), eq(500)))
                     .thenReturn(response);
 
             // When/Then
@@ -205,7 +205,7 @@ class FileUploadControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(cloudinaryService).uploadImage(any(), eq("profiles"));
+            verify(cloudinaryService).uploadImage(any(), eq("profiles"), eq(500), eq(500));
         }
 
         @Test
@@ -220,7 +220,7 @@ class FileUploadControllerTest {
                     "PDF content".getBytes()
             );
 
-            when(cloudinaryService.uploadImage(any(), anyString()))
+            when(cloudinaryService.uploadImage(any(), anyString(), anyInt(), anyInt()))
                     .thenThrow(new BadRequestException("Invalid image type. Allowed: jpg, jpeg, png, gif, webp"));
 
             // When/Then

@@ -174,6 +174,52 @@ public class CloudinaryService {
     }
 
     /**
+     * Upload image with custom max dimensions (for course thumbnails).
+     * Equivalent to uploadImage() but allows overriding the c_limit resize bounds.
+     * Example: uploadImage(file, "images/thumbnails", 1200, 900)
+     */
+    public FileUploadResponse uploadImage(MultipartFile file, String folder, int maxWidth, int maxHeight) {
+        validateFile(file);
+        validateImageFile(file);
+
+        try {
+            String publicId = folder + "/" + UUID.randomUUID().toString();
+
+            log.info("🔄 Uploading image to Cloudinary: {} (max {}x{})", file.getOriginalFilename(), maxWidth, maxHeight);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "public_id", publicId,
+                            "folder", folder,
+                            "resource_type", "image",
+                            "transformation", new Transformation<>()
+                                    .width(maxWidth)
+                                    .height(maxHeight)
+                                    .crop("limit")
+                    )
+            );
+
+            String secureUrl = (String) uploadResult.get("secure_url");
+            log.info("✅ Image uploaded successfully: {}", secureUrl);
+
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(file.getOriginalFilename())
+                    .fileType((String) uploadResult.get("format"))
+                    .resourceType("image")
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
+
+        } catch (IOException e) {
+            log.error("❌ Failed to upload image to Cloudinary", e);
+            throw new FileUploadException("Failed to upload image: " + e.getMessage());
+        }
+    }
+
+    /**
      * Delete file from Cloudinary
      * @param publicId: The ID of the file on Cloudinary
      * @param resourceType: "image", "video", or "raw"

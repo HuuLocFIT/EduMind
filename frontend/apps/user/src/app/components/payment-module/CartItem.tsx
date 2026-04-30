@@ -1,7 +1,7 @@
 import React from "react";
 import { Trash2, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { PriceTag } from "@edumind/user-ui";
+import { PriceTag, CloudinaryImage } from "@edumind/user-ui";
 import type { CartItemResponse } from "@edumind/shared-types";
 import { UserRouteHelpers } from "@edumind/shared-utils";
 import { formatCourseLevel } from "../../lib/course-level";
@@ -36,13 +36,13 @@ export const CartItem: React.FC<CartItemProps> = ({
           className="flex-shrink-0 relative"
         >
           <div className={`w-16 h-12 rounded overflow-hidden bg-gray-200 ${isUnavailable ? "opacity-50" : ""}`}>
-            {item.courseThumbnailUrl ? (
-              <img
-                src={item.courseThumbnailUrl}
-                alt={item.courseTitle}
-                className="w-full h-full object-cover"
-              />
-            ) : (
+            <CloudinaryImage
+              src={item.courseThumbnailUrl}
+              alt={item.courseTitle}
+              widths={[128]}
+              className="w-full h-full object-cover"
+            />
+            {!item.courseThumbnailUrl && (
               <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200" />
             )}
           </div>
@@ -112,13 +112,14 @@ export const CartItem: React.FC<CartItemProps> = ({
           className="flex-shrink-0 relative"
         >
           <div className={`w-20 h-14 sm:w-28 sm:h-20 lg:w-32 lg:h-24 rounded-lg overflow-hidden bg-gray-200 ${isUnavailable ? "opacity-50 grayscale" : ""}`}>
-            {item.courseThumbnailUrl ? (
-              <img
-                src={item.courseThumbnailUrl}
-                alt={item.courseTitle}
-                className="w-full h-full object-cover"
-              />
-            ) : (
+            <CloudinaryImage
+              src={item.courseThumbnailUrl}
+              alt={item.courseTitle}
+              widths={[160, 320]}
+              sizes="(max-width: 640px) 80px, (max-width: 1024px) 112px, 128px"
+              className="w-full h-full object-cover"
+            />
+            {!item.courseThumbnailUrl && (
               <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200" />
             )}
           </div>

@@ -300,6 +300,7 @@ describe('authInterceptor', () => {
     it('should force logout if refresh fails', async () => {
       const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
 
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
 
       // First request fails with 401

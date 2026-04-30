@@ -5,3 +5,4 @@ export * from './lib/api-endpoints.js';
 export * from './lib/routes.config.js';
 export * from './lib/download.helper.js';
 export * from './lib/date.helper.js';
+export * from './lib/cloudinary.js';

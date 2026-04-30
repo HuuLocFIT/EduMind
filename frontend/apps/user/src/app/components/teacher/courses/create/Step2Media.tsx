@@ -18,7 +18,7 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
         setThumbnailFiles([...files]);
 
         // Upload file
-        const response = await fileUploadService.uploadImage(pendingFile.file, "images/courses");
+        const response = await fileUploadService.uploadImage(pendingFile.file, "images/courses", 1280, 720);
 
         // Update status to success và set URL
         pendingFile.status = "success";

@@ -5,8 +5,9 @@ import type {
   UpdateCourseRequest,
   CategoryResponse,
 } from "@edumind/shared-types";
-import { Button, Input, Textarea } from "@edumind/user-ui";
-import { RichTextEditor } from "@user/components/ui/RichTextEditor";
+import { Button, Input, Textarea, FileUpload, type UploadedFile } from "@edumind/user-ui";
+import { RichTextEditor } from "../../../ui/RichTextEditor";
+import { fileUploadService } from "../../../../services/file-upload.service";
 import { Save } from "lucide-react";
 
 interface BasicInfoTabProps {
@@ -22,6 +23,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   onSave,
   saving,
 }) => {
+  const [thumbnailFiles, setThumbnailFiles] = useState<UploadedFile[]>([]);
   const [formData, setFormData] = useState({
     title: course.title,
     slug: course.slug,
@@ -36,6 +38,28 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
   const handleChange = (key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleThumbnailFilesChange = async (files: UploadedFile[]) => {
+    setThumbnailFiles(files);
+    const pendingFile = files.find((f) => f.status === "pending");
+    if (pendingFile) {
+      try {
+        pendingFile.status = "uploading";
+        setThumbnailFiles([...files]);
+        const response = await fileUploadService.uploadImage(pendingFile.file, "images/courses", 1280, 720);
+        pendingFile.status = "success";
+        pendingFile.url = response.url;
+        setThumbnailFiles([...files]);
+        handleChange("thumbnailUrl", response.url);
+      } catch (err: any) {
+        pendingFile.status = "error";
+        pendingFile.error = err.message || "Failed to upload image";
+        setThumbnailFiles([...files]);
+      }
+    } else if (files.length === 0) {
+      handleChange("thumbnailUrl", "");
+    }
   };
 
   const handleSave = () => {
@@ -141,19 +165,34 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Thumbnail URL
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Course Thumbnail
             </label>
-            <Input
-              value={formData.thumbnailUrl}
-              onChange={(e) => handleChange("thumbnailUrl", e.target.value)}
-              placeholder="https://..."
-            />
-            {formData.thumbnailUrl && (
-              <img
-                src={formData.thumbnailUrl}
-                alt="Thumbnail preview"
-                className="mt-2 w-full aspect-video object-cover rounded-lg"
+            {formData.thumbnailUrl ? (
+              <div className="relative border-2 border-gray-300 rounded-lg p-6">
+                <img
+                  src={formData.thumbnailUrl}
+                  alt="Thumbnail"
+                  className="w-full aspect-video object-cover rounded-lg"
+                />
+                <button
+                  onClick={() => {
+                    handleChange("thumbnailUrl", "");
+                    setThumbnailFiles([]);
+                  }}
+                  className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <FileUpload
+                accept="image/*"
+                multiple={false}
+                maxSize={5}
+                maxFiles={1}
+                onFilesChange={handleThumbnailFilesChange}
+                helperText="Recommended: 1280x720px (16:9 ratio). Max 5MB"
               />
             )}
           </div>

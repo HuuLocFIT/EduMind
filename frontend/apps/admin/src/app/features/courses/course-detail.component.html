@@ -111,7 +111,7 @@
       </div>
       <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
         <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Rating</p>
-        @if ((c.totalReviews ?? 0) > 0 && c.averageRating != null) {
+        @if ((c.totalReviews ?? 0) > 0 && c.averageRating !== null) {
           <p class="text-2xl font-bold text-gray-900 mt-1 tabular-nums">
             {{ c.averageRating | number:'1.1-1' }}
           </p>
@@ -219,9 +219,10 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-3">Thumbnail</h3>
             @if (c.thumbnailUrl) {
               <img
-                [src]="c.thumbnailUrl"
+                [src]="c.thumbnailUrl | cldUrl:800"
                 [alt]="c.title"
                 class="w-full rounded-lg border border-gray-200 object-cover aspect-video bg-gray-50"
+                loading="lazy"
               />
             } @else {
               <div class="aspect-video rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-sm text-gray-500">

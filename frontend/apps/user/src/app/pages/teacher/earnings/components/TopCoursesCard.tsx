@@ -7,7 +7,7 @@ interface TopCoursesCardProps {
   loading?: boolean;
 }
 
-const formatCurrency = (amount: number, currency: string = "USD") => 
+const formatCurrency = (amount: number, currency = "USD") =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 
 export const TopCoursesCard: React.FC<TopCoursesCardProps> = ({ courses, loading }) => {
