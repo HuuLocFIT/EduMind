@@ -267,6 +267,7 @@ describe('LoginComponent', () => {
     it('should handle login error', () => {
       const error = new Error('Invalid credentials');
       mockAuthService.login.mockReturnValue(throwError(() => error));
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
       component.onSubmit();

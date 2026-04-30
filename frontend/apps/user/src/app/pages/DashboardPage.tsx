@@ -81,7 +81,7 @@ export const DashboardPage: React.FC = () => {
       queryKey: queryKeys.categories.active,
       queryFn: async () => {
         const response = await categoryService.getActiveCategories();
-        // @ts-expect-error
+        // @ts-expect-error - API response shape varies between direct array and wrapped object
         return response.data || response || [];
       },
       staleTime: Infinity, // Categories change rarely
