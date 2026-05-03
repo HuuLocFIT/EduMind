@@ -29,6 +29,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 // ============================================
 import { HomePage } from "./pages/public/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { DashboardPage } from "./pages/DashboardPage";
 
 // Placeholder pages from teacher (inline components, no lazy needed)
 import { TeacherSettingsPage } from "./pages/teacher";
@@ -64,7 +65,6 @@ const CourseDetailPage = createLazyRoute(
 );
 
 // Dashboard & Profile
-const DashboardPage = createLazyRoute(() => import("./pages/DashboardPage"));
 const ProfileSettingsPage = createLazyRoute(
   () => import("./pages/ProfileSettingsPage")
 );
@@ -253,11 +253,7 @@ function AppContent() {
               {/* Dashboard & Profile */}
               <Route
                 path={USER_ROUTES.DASHBOARD}
-                element={
-                  <Suspense fallback={<FullPageLoading message="Loading dashboard..." />}>
-                    <DashboardPage />
-                  </Suspense>
-                }
+                element={<DashboardPage />}
               />
               <Route
                 path={USER_ROUTES.PROFILE_SETTINGS}
