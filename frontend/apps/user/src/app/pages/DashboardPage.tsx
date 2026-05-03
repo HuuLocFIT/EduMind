@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Loading } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
 import { enrollmentService } from '../services/enrollment.service';
 import { courseService } from '../services/course.service';
@@ -50,7 +49,7 @@ export const DashboardPage: React.FC = () => {
     enabled: Boolean(userId),
   });
 
-  const { data: recommendedCourses = [], isLoading: recommendedLoading } =
+  const { data: recommendedCourses = [] } =
     useQuery<CourseResponse[]>({
       queryKey: queryKeys.courses.popular(0, 4),
       queryFn: async () => {
@@ -63,7 +62,7 @@ export const DashboardPage: React.FC = () => {
       staleTime: STALE_TIME_COURSES_PUBLIC,
     });
 
-  const { data: newestCourses = [], isLoading: newestLoading } =
+  const { data: newestCourses = [] } =
     useQuery<CourseResponse[]>({
       queryKey: queryKeys.courses.newest(0, 4),
       queryFn: async () => {
@@ -76,7 +75,7 @@ export const DashboardPage: React.FC = () => {
       staleTime: STALE_TIME_COURSES_PUBLIC,
     });
 
-  const { data: categories = [], isLoading: categoriesLoading } =
+  const { data: categories = [] } =
     useQuery({
       queryKey: queryKeys.categories.active,
       queryFn: async () => {
@@ -87,7 +86,7 @@ export const DashboardPage: React.FC = () => {
       staleTime: Infinity, // Categories change rarely
     });
 
-  const { data: wishlistCount = 0, isLoading: wishlistLoading } =
+  const { data: wishlistCount = 0 } =
     useQuery<number>({
       queryKey: queryKeys.wishlist.count(userId),
       queryFn: () => wishlistService.getCount(),
@@ -119,8 +118,6 @@ export const DashboardPage: React.FC = () => {
     )[0];
   }, [enrollments]);
 
-  const loading = enrollmentsLoading || recommendedLoading || wishlistLoading || newestLoading || categoriesLoading;
-
   // Helpers
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -138,14 +135,6 @@ export const DashboardPage: React.FC = () => {
     navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
@@ -153,6 +142,7 @@ export const DashboardPage: React.FC = () => {
         greeting={getGreeting()}
         userName={user?.firstName || user?.username}
         stats={stats}
+        statsLoading={enrollmentsLoading}
         mostRecentCourse={mostRecentCourse}
         onContinueLearning={handleContinueLearning}
       />
