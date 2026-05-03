@@ -16,7 +16,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
   template: `
     <div [class]="fullWidth ? 'w-full' : ''">
       @if (label) {
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label [for]="inputId" class="block text-sm font-medium text-gray-700 mb-1">
           {{ label }}
           @if (required) {
             <span class="text-red-400 ml-1">*</span>
@@ -32,6 +32,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
         }
 
         <input
+          [id]="inputId"
           [type]="type"
           [placeholder]="placeholder"
           [disabled]="disabled"

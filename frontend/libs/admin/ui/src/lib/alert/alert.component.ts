@@ -53,6 +53,7 @@ export class AlertComponent {
   @Input() title = '';
   @Input() message!: string;
   @Input() dismissible = false;
+  // eslint-disable-next-line @angular-eslint/no-output-on-prefix
   @Output() onClose = new EventEmitter<void>();
 
   private variantConfig: Record<AlertVariant, { container: string; icon: string; title: string; message: string }> = {
