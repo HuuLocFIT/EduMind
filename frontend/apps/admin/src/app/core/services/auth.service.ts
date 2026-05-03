@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
 import { catchError, finalize, switchMap, tap } from 'rxjs/operators';
+import * as Sentry from '@sentry/angular';
 import { environment } from '../../../environments/environment';
 import type {
   LoginRequest,
@@ -148,6 +149,13 @@ export class AuthService {
     // NOTE: refreshToken is in HTTP-Only Cookie, not stored in localStorage
 
     this.currentUserSubject.next(user);
+
+    // Set Sentry user context — do NOT send email (PII)
+    Sentry.setUser({
+      id: String(user.id),
+      username: `admin-${user.id}`,
+      role: 'ADMIN',
+    });
   }
 
   private createError(message: string, status: number): HttpErrorResponse {
@@ -256,6 +264,7 @@ export class AuthService {
     localStorage.removeItem(this.USER_KEY);
     // NOTE: HTTP-Only Cookie cannot be cleared from JS
     // Backend clears it via Set-Cookie header in logout response
+    Sentry.setUser(null);
   }
 
   clearError(): void {
