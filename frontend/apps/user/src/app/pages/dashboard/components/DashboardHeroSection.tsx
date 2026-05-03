@@ -15,6 +15,7 @@ interface DashboardHeroSectionProps {
   greeting: string;
   userName?: string;
   stats: DashboardStats;
+  statsLoading?: boolean;
   mostRecentCourse: EnrollmentResponse | null;
   onContinueLearning: (enrollment: EnrollmentResponse) => void;
 }
@@ -23,6 +24,7 @@ export const DashboardHeroSection: React.FC<DashboardHeroSectionProps> = ({
   greeting,
   userName,
   stats,
+  statsLoading = false,
   mostRecentCourse,
   onContinueLearning,
 }) => {
@@ -42,11 +44,17 @@ export const DashboardHeroSection: React.FC<DashboardHeroSectionProps> = ({
               {greeting}, {userName}! 👋
             </h1>
             <p className="text-blue-100 text-lg mb-6">
-              Welcome back to your learning journey. You have {stats.totalCourses} courses enrolled.
+              Welcome back to your learning journey. You have{' '}
+              {statsLoading ? (
+                <span className="inline-block w-4 h-4 rounded bg-blue-400/50 animate-pulse align-middle" />
+              ) : (
+                stats.totalCourses
+              )}{' '}
+              courses enrolled.
             </p>
 
             {/* Quick Action - Continue Learning */}
-            {mostRecentCourse && (
+            {!statsLoading && mostRecentCourse && (
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20 max-w-lg hover:bg-white/15 transition-colors">
                 <div className="flex items-center gap-2 text-amber-300 text-sm mb-3">
                   <Zap className="w-4 h-4" />
@@ -85,7 +93,7 @@ export const DashboardHeroSection: React.FC<DashboardHeroSectionProps> = ({
           </div>
 
           {/* Stats Grid */}
-          <DashboardStatsGrid stats={stats} />
+          <DashboardStatsGrid stats={stats} isLoading={statsLoading} />
         </div>
       </div>
     </section>
