@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -13,7 +13,7 @@ export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
     '[attr.title]': 'null',
   },
 })
-export class ModalComponent implements OnInit, OnDestroy {
+export class ModalComponent implements OnInit, OnDestroy, OnChanges {
   @Input() isOpen = false;
   @Input() title?: string;
   @Input() size: ModalSize = 'md';
@@ -21,6 +21,7 @@ export class ModalComponent implements OnInit, OnDestroy {
   @Input() closeOnOverlayClick = true;
   @Input() closeOnEscape = true;
   
+  // eslint-disable-next-line @angular-eslint/no-output-native
   @Output() close = new EventEmitter<void>();
 
   private originalOverflow = '';

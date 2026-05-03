@@ -5,6 +5,7 @@ import {
   HostListener,
   Input,
   Output,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -17,7 +18,7 @@ import { SelectOption } from '../select/select.component';
   template: `
     <div class="relative">
       @if (label) {
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ label }}</label>
+        <span class="block text-sm font-medium text-gray-700 mb-1.5">{{ label }}</span>
       }
 
       <button
@@ -73,7 +74,7 @@ export class MultiSelectComponent {
   isOpen = signal(false);
   selectedValues = signal<(string | number)[]>([]);
 
-  constructor(private elementRef: ElementRef) {}
+  private elementRef = inject(ElementRef);
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {

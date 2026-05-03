@@ -30,7 +30,6 @@ import { ScrollToTop } from "./components/ScrollToTop";
 // ============================================
 import { HomePage } from "./pages/public/HomePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-
 // Placeholder pages from teacher (inline components, no lazy needed)
 import { TeacherSettingsPage } from "./pages/teacher";
 

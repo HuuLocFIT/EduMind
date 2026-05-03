@@ -90,7 +90,7 @@ export const earningService = {
   /**
    * Get monthly earnings summary
    */
-  async getMonthlyEarnings(months: number = 12): Promise<MonthlyEarningResponse[]> {
+  async getMonthlyEarnings(months = 12): Promise<MonthlyEarningResponse[]> {
     const response = await apiClient.get<MonthlyEarningResponse[]>(
       EARNING_ENDPOINTS.MONTHLY,
       { params: { months } }

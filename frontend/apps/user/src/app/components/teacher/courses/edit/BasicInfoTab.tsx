@@ -6,7 +6,7 @@ import type {
   CategoryResponse,
 } from "@edumind/shared-types";
 import { Button, Input, Textarea, FileUpload, type UploadedFile } from "@edumind/user-ui";
-import { RichTextEditor } from "@user/components/ui/RichTextEditor";
+import { RichTextEditor } from "../../../ui/RichTextEditor";
 import { fileUploadService } from "../../../../services/file-upload.service";
 import { Save } from "lucide-react";
 

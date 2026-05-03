@@ -1,7 +1,7 @@
 import React from "react";
 import { CourseLevel } from "@edumind/shared-constants";
 import { Input, Textarea } from "@edumind/user-ui";
-import { RichTextEditor } from "@user/components/ui/RichTextEditor";
+import { RichTextEditor } from "../../../ui/RichTextEditor";
 import type { StepProps } from "./types";
 
 export const Step1BasicInfo: React.FC<StepProps> = ({

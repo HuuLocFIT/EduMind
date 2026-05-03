@@ -14,7 +14,7 @@ export default [
                 "error",
                 {
                     type: "attribute",
-                    prefix: "lib",
+                    prefix: "app",
                     style: "camelCase"
                 }
             ],
@@ -22,9 +22,13 @@ export default [
                 "error",
                 {
                     type: "element",
-                    prefix: "lib",
+                    prefix: "app",
                     style: "kebab-case"
                 }
+            ],
+            "@typescript-eslint/no-empty-function": [
+                "error",
+                { "allow": ["arrowFunctions"] }
             ]
         }
     },
