@@ -168,7 +168,8 @@ authTest.describe('User — Learning Flow', () => {
     // Either certificates or empty state
     const content = studentPage
       .getByRole('heading', { name: /certificate/i })
-      .or(studentPage.getByText(/no certificates|earn your first/i));
+      .or(studentPage.getByText(/no certificates|earn your first/i))
+      .first();
     await expect(content).toBeVisible({ timeout: 8_000 });
   });
 });
