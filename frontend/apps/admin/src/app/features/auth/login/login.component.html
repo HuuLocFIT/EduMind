@@ -45,17 +45,19 @@
                 [id]="'usernameOrEmail'"
                 [type]="'text'"
                 [label]="'Username or Email'"
+                [placeholder]="'Enter your email or username'"
                 [formControlName]="'usernameOrEmail'"
                 [error]="getFieldError('usernameOrEmail')"
               />
             </div>
-  
+
             <!-- Password Field -->
             <div>
               <app-input
                 [id]="'password'"
                 [type]="showPassword() ? 'text' : 'password'"
                 [label]="'Password'"
+                [placeholder]="'Enter your password'"
                 [formControlName]="'password'"
                 [error]="getFieldError('password')"
                 [rightIcon]="true"

@@ -659,7 +659,7 @@ export const CoursePlayerPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="hidden xl:flex px-4 py-3 items-center justify-between gap-4">
+          <div className="hidden xl:flex px-4 py-3 items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <Button
               variant="secondary"
@@ -674,16 +674,16 @@ export const CoursePlayerPage: React.FC = () => {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-gray-300 text-sm whitespace-nowrap">
-              Course Progress: {enrollment?.progressPercentage || 0}%
-            </span>
-            <div className="w-32">
-              <ProgressBar
-                progress={enrollment?.progressPercentage || 0}
-                size="sm"
-                color="green"
-              />
+            <div className="flex items-center gap-3">
+              <span className="text-gray-300 text-sm whitespace-nowrap">
+                Course Progress: {enrollment?.progressPercentage || 0}%
+              </span>
+              <div className="w-32" data-testid="progress-bar">
+                <ProgressBar
+                  progress={enrollment?.progressPercentage || 0}
+                  size="sm"
+                  color="green"
+                />
             </div>
           </div>
         </div>
@@ -723,7 +723,7 @@ export const CoursePlayerPage: React.FC = () => {
           )}
 
           {/* Lesson Content */}
-          <div className="p-3 sm:p-6 bg-white">
+          <div className="p-3 sm:p-6 bg-white" data-testid="lesson-content">
             <div className="max-w-4xl mx-auto">
               {/* Lesson Header */}
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
@@ -867,6 +867,7 @@ export const CoursePlayerPage: React.FC = () => {
 
         {/* Sidebar - Course Curriculum */}
         <aside
+          data-testid="course-sidebar"
           className={`
             fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 
             transform transition-transform duration-200 z-40
@@ -940,6 +941,8 @@ export const CoursePlayerPage: React.FC = () => {
                                     key={lesson.id}
                                     ref={isActive ? activeLessonRef : null}
                                     onClick={() => { skipSidebarScroll.current = true; handleLessonClick(lesson); }}
+                                    data-testid="lesson-item"
+                                    data-lesson-id={lesson.id}
                                     className={`
                                       w-full text-left p-3 rounded-lg mb-1 transition-colors
                                       border-2 ${isActive ? 'bg-blue-50 border-blue-600' : 'border-transparent hover:bg-gray-50'}

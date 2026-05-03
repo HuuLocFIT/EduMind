@@ -150,12 +150,14 @@ export const LoginPage = () => {
 
           {/* Error Alert */}
           {(error || localError) && (
-            <Alert
-              variant="error"
-              title="Error"
-              message={error || localError}
-              className="mb-6"
-            />
+            <div data-testid="login-error">
+              <Alert
+                variant="error"
+                title="Error"
+                message={error || localError}
+                className="mb-6"
+              />
+            </div>
           )}
 
           {needs2FA ? (

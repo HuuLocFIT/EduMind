@@ -92,6 +92,7 @@
         </div>
         <div class="flex flex-wrap gap-1.5 md:gap-2">
           <app-button
+            data-testid="tab-pending"
             size="sm"
             variant="outline"
             [ngClass]="{
@@ -102,6 +103,7 @@
             Pending
           </app-button>
           <app-button
+            data-testid="tab-approved"
             size="sm"
             variant="outline"
             [ngClass]="{
@@ -112,6 +114,7 @@
             Approved
           </app-button>
           <app-button
+            data-testid="tab-rejected"
             size="sm"
             variant="outline"
             [ngClass]="{
@@ -158,6 +161,7 @@
     } @else {
       @for (app of applications(); track app.id) {
         <app-card
+          data-testid="application-row"
           [padding]="'sm'"
           [customClass]="'border border-gray-200 bg-white shadow-sm text-gray-900 hover:shadow-md transition-shadow duration-200 mb-4'"
         >

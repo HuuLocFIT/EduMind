@@ -62,6 +62,7 @@ export class SearchBarComponent {
   @Input() fullWidth = true;
   @Input() size: 'sm' | 'md' | 'lg' = 'md';
 
+  // eslint-disable-next-line @angular-eslint/no-output-native
   @Output() search = new EventEmitter<string>();
   @Output() clear = new EventEmitter<void>();
 

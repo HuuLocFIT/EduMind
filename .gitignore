@@ -2,8 +2,17 @@
 /target/
 !.mvn/wrapper/maven-wrapper.jar
 
+# Playwright E2E
+frontend/e2e/playwright-report/
+frontend/e2e/test-results/
+frontend/test-results/
+frontend/playwright-report/
+
 # Environment files
 .env
+.env.e2e
+frontend/.env.e2e
+*.env.local
 
 ### STS ###
 .apt_generated

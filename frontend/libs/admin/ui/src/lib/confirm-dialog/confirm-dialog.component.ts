@@ -27,6 +27,7 @@ export class ConfirmDialogComponent {
   @Input() isLoading = false;
 
   @Output() confirm = new EventEmitter<void>();
+  // eslint-disable-next-line @angular-eslint/no-output-native
   @Output() cancel = new EventEmitter<void>();
 
   private variantConfigs: Record<ConfirmDialogVariant, VariantConfig> = {

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, HostListener, ElementRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface DropdownMenuItem {
@@ -69,7 +69,7 @@ export class DropdownMenuComponent {
 
   isOpen = false;
 
-  constructor(private elementRef: ElementRef) {}
+  private elementRef = inject(ElementRef);
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {

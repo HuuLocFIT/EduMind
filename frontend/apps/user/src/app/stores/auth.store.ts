@@ -215,3 +215,13 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Listen for session-expiry events dispatched by the API client when token refresh fails.
+// Using a custom event avoids a circular import (api-client → auth.store → auth.service → api-client).
+// Calling clearAuthState() here triggers a client-side React Router redirect via ProtectedRoute,
+// so there is no full page reload that would re-run E2E addInitScript hooks.
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth:session-expired', () => {
+    useAuthStore.getState().clearAuthState();
+  });
+}

@@ -39,6 +39,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
 
   return (
     <div
+      data-testid="enrollment-card"
       className={`bg-white rounded-2xl border overflow-hidden transition-all duration-300 group ${
         isSuspended
           ? 'opacity-70 border-amber-300 bg-amber-50'
@@ -188,6 +189,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
                 </button>
               ) : (
                 <button
+                  data-testid="continue-learning-button"
                   onClick={onContinue}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-blue-500/25 group-hover:scale-105"
                 >
