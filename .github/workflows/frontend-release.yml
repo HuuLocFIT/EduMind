@@ -57,8 +57,10 @@ jobs:
             exit 0
           fi
           npx @sentry/cli releases new "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}"
-          npx @sentry/cli releases files "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}" \
-            upload-sourcemaps ./dist/apps/user --url-prefix '~/'
+          npx @sentry/cli sourcemaps upload \
+            --release "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}" \
+            --url-prefix '~/' \
+            ./dist/apps/user
           npx @sentry/cli releases finalize "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}"
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -72,8 +74,10 @@ jobs:
             exit 0
           fi
           npx @sentry/cli releases new "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}"
-          npx @sentry/cli releases files "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}" \
-            upload-sourcemaps ./dist/apps/admin --url-prefix '~/'
+          npx @sentry/cli sourcemaps upload \
+            --release "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}" \
+            --url-prefix '~/' \
+            ./dist/apps/admin
           npx @sentry/cli releases finalize "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}"
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
