@@ -114,6 +114,9 @@ public class CourseServiceImpl implements CourseService {
             existingCourse.setDurationHours(courseUpdate.getDurationHours());
             existingCourse.setHasCertificate(courseUpdate.getHasCertificate());
             existingCourse.setHasSubtitles(courseUpdate.getHasSubtitles());
+            existingCourse.setMetaTitle(courseUpdate.getMetaTitle());
+            existingCourse.setMetaDescription(courseUpdate.getMetaDescription());
+            existingCourse.setMetaKeywords(courseUpdate.getMetaKeywords());
 
             // Update slug only if changed and available
             if (!existingCourse.getSlug().equals(courseUpdate.getSlug())) {

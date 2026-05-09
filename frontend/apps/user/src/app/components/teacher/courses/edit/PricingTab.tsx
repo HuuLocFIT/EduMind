@@ -10,29 +10,29 @@ interface PricingTabProps {
 }
 
 export const PricingTab: React.FC<PricingTabProps> = ({ course, onSave, saving }) => {
-  const [formData, setFormData] = useState({
-    price: course.price,
-    discountPrice: course.discountPrice || null,
-    currency: course.currency || "USD",
-  });
+  const [currency, setCurrency] = useState(course.currency || "USD");
   const [isFree, setIsFree] = useState(course.price === 0);
+  const [priceInput, setPriceInput] = useState(course.price > 0 ? String(course.price) : "");
+  const [discountInput, setDiscountInput] = useState(
+    course.discountPrice ? String(course.discountPrice) : ""
+  );
 
-  const handleChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
-  };
+  const priceValue = parseFloat(priceInput) || 0;
+  const discountValue = parseFloat(discountInput) || null;
 
   const handleFreeToggle = (checked: boolean) => {
     setIsFree(checked);
     if (checked) {
-      setFormData((prev) => ({ ...prev, price: 0, discountPrice: null }));
+      setPriceInput("");
+      setDiscountInput("");
     }
   };
 
   const handleSave = () => {
-    onSave({
-      price: isFree ? 0 : formData.price,
-      discountPrice: isFree ? undefined : formData.discountPrice || undefined,
-    });
+    const price = isFree ? 0 : priceValue;
+    const discountPrice =
+      !isFree && discountValue && discountValue < price ? discountValue : undefined;
+    onSave({ price, discountPrice, currency });
   };
 
   return (
@@ -50,25 +50,26 @@ export const PricingTab: React.FC<PricingTabProps> = ({ course, onSave, saving }
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
             <select
-              value={formData.currency}
-              onChange={(e) => handleChange("currency", e.target.value)}
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
               <option value="VND">VND (₫)</option>
-              <option value="GBP">GBP (£)</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Regular Price</label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               min={0}
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => handleChange("price", Number(e.target.value))}
+              value={priceInput}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^\d*\.?\d*$/.test(val)) setPriceInput(val);
+              }}
               leftIcon={<DollarSign className="w-4 h-4" />}
             />
           </div>
@@ -78,37 +79,38 @@ export const PricingTab: React.FC<PricingTabProps> = ({ course, onSave, saving }
               Discount Price (optional)
             </label>
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               min={0}
-              step="0.01"
-              value={formData.discountPrice || ""}
-              onChange={(e) =>
-                handleChange("discountPrice", e.target.value ? Number(e.target.value) : null)
-              }
+              value={discountInput}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "" || /^\d*\.?\d*$/.test(val)) setDiscountInput(val);
+              }}
               leftIcon={<DollarSign className="w-4 h-4" />}
               helperText="Leave empty for no discount"
             />
           </div>
 
-          {formData.price > 0 && (
+          {priceValue > 0 && (
             <div className="p-4 bg-green-50 rounded-lg">
               <p className="text-sm text-gray-600 mb-2">Price Preview:</p>
               <div className="flex items-center gap-3">
-                {formData.discountPrice && formData.discountPrice < formData.price ? (
+                {discountValue && discountValue < priceValue ? (
                   <>
                     <span className="text-gray-400 line-through text-lg">
-                      {formData.currency} {formData.price.toFixed(2)}
+                      {currency} {priceValue.toFixed(2)}
                     </span>
                     <span className="text-2xl font-bold text-green-600">
-                      {formData.currency} {formData.discountPrice.toFixed(2)}
+                      {currency} {discountValue.toFixed(2)}
                     </span>
                     <span className="px-2 py-1 bg-red-100 text-red-700 text-sm rounded">
-                      {Math.round(((formData.price - formData.discountPrice) / formData.price) * 100)}% OFF
+                      {Math.round(((priceValue - discountValue) / priceValue) * 100)}% OFF
                     </span>
                   </>
                 ) : (
                   <span className="text-2xl font-bold text-gray-900">
-                    {formData.currency} {formData.price.toFixed(2)}
+                    {currency} {priceValue.toFixed(2)}
                   </span>
                 )}
               </div>

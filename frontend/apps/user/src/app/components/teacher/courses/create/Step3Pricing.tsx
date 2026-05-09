@@ -1,15 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Input, Switch } from "@edumind/user-ui";
 import { DollarSign } from "lucide-react";
 import type { StepProps } from "./types";
 
 export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) => {
   const [isFree, setIsFree] = useState(data.price === 0);
+  const [priceInput, setPriceInput] = useState(
+    data.price && data.price > 0 ? String(data.price) : ""
+  );
+  const [discountInput, setDiscountInput] = useState(
+    data.discountPrice ? String(data.discountPrice) : ""
+  );
 
-  // Sync isFree state with data.price
-  useEffect(() => {
-    setIsFree(data.price === 0);
-  }, [data.price]);
+  const handlePriceChange = (val: string) => {
+    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+      setPriceInput(val);
+      const num = parseFloat(val);
+      onChange({ price: isNaN(num) ? undefined : num });
+    }
+  };
+
+  const handleDiscountChange = (val: string) => {
+    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+      setDiscountInput(val);
+      const num = parseFloat(val);
+      onChange({ discountPrice: isNaN(num) ? undefined : num });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -22,9 +39,16 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
         </div>
         <Switch
           checked={isFree}
-          onChange={(checked) => {
-            setIsFree(checked.target.checked);
-            onChange({ price: checked ? 0 : undefined });
+          onChange={(e) => {
+            const checked = e.target.checked;
+            setIsFree(checked);
+            if (checked) {
+              setPriceInput("");
+              setDiscountInput("");
+              onChange({ price: 0, discountPrice: undefined });
+            } else {
+              onChange({ price: undefined, discountPrice: undefined });
+            }
           }}
         />
       </div>
@@ -37,11 +61,10 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
                 Price <span className="text-red-500">*</span>
               </label>
               <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={data.price || ""}
-                onChange={(e) => onChange({ price: Number(e.target.value) })}
+                type="text"
+                inputMode="decimal"
+                value={priceInput}
+                onChange={(e) => handlePriceChange(e.target.value)}
                 placeholder="99.99"
                 error={errors["price"]}
                 leftIcon={<DollarSign className="w-4 h-4" />}
@@ -58,9 +81,7 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
                 <option value="VND">VND (₫)</option>
-                <option value="GBP">GBP (£)</option>
               </select>
             </div>
           </div>
@@ -70,13 +91,10 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
               Discount Price (optional)
             </label>
             <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={data.discountPrice || ""}
-              onChange={(e) =>
-                onChange({ discountPrice: Number(e.target.value) || undefined })
-              }
+              type="text"
+              inputMode="decimal"
+              value={discountInput}
+              onChange={(e) => handleDiscountChange(e.target.value)}
               placeholder="79.99"
               error={errors["discountPrice"]}
               leftIcon={<DollarSign className="w-4 h-4" />}
