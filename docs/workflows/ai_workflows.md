@@ -665,28 +665,40 @@ sequenceDiagram
     participant Gemini as Gemini Chat API
     participant DB as ai.generated_quizzes
 
-    Instructor->>Controller: POST /api/ai/quizzes/generate<br>{ lessonId, questionCount (1-20) }
+    Instructor->>Controller: POST /api/ai/quizzes/generate<br>{ lessonId, questionCount (1-50), sourceLessonIds?: [Long] }
 
     Controller->>QuizService: requestQuizGeneration(userId, request)
-    QuizService->>LessonQueryService: findLesson(lessonId)
 
+    Note over QuizService: Step 1 — Load & validate anchor lesson
+    QuizService->>LessonQueryService: getLessonInfo(lessonId)
     alt Lesson not found
         QuizService-->>Controller: throw 404 Not Found
     end
-
-    QuizService->>LessonQueryService: isInstructorOfLesson(userId, lessonId)
-    alt Not instructor
+    alt userId != lesson.instructorId
         QuizService-->>Controller: throw 403 Forbidden
     end
 
-    QuizService->>LessonQueryService: getLessonContent(lessonId)
-    alt Content is blank
-        QuizService-->>Controller: throw 400 Bad Request (cannot quiz empty lesson)
+    Note over QuizService: Step 2 — Resolve source lessons<br/>(defaults to [lessonId] if sourceLessonIds is null/empty)
+    loop For each sourceId in sourceLessonIds
+        QuizService->>LessonQueryService: getLessonInfo(sourceId)
+        alt Source lesson not found
+            QuizService-->>Controller: throw 404 Not Found
+        end
+        alt Source lesson belongs to different course
+            QuizService-->>Controller: throw 400 Bad Request
+        end
     end
+
+    Note over QuizService: Step 3 — Aggregate content<br/>Each lesson prefixed with "## {title}"<br/>Only lessons with non-blank articleContent included
+    alt Combined content is blank
+        QuizService-->>Controller: throw 400 Bad Request (no content in selected lessons)
+    end
+
+    Note over QuizService: Step 4 — Build context title<br/>Single: lesson.title<br/>Multi: anchorLesson.title + " (multi-lesson)"
 
     QuizService->>JobService: createJob(QUIZ_GENERATION, lessonId, userId)
     JobService-->>QuizService: AiJobLog (PENDING, jobId)
-    QuizService->>AsyncProc: process(jobId, lessonId, questionCount) [@Async]
+    QuizService->>AsyncProc: process(jobId, lessonId, contextTitle,<br/>combinedContent, questionCount, sourceLessonIdsJson) [@Async]
 
     QuizService-->>Controller: AiJobResponse (jobId, PENDING)
     Controller-->>Instructor: 202 Accepted { jobId }
@@ -694,21 +706,23 @@ sequenceDiagram
     Note over AsyncProc: Async processing begins
 
     AsyncProc->>JobService: updateStatus(PROCESSING)
-    AsyncProc->>PromptBuilder: buildQuizPrompt(title, content, questionCount)
-    Note over PromptBuilder: Content truncated to 12,000 chars<br/>Strict JSON array output required
+    AsyncProc->>PromptBuilder: buildQuizPrompt(contextTitle, combinedContent, questionCount)
+    Note over PromptBuilder: Content pre-aggregated by service layer<br/>Strict JSON array output required
 
     AsyncProc->>Gemini: chat(prompt)
     Gemini-->>AsyncProc: JSON array of questions
 
     AsyncProc->>AsyncProc: parseAndValidate(response)
-    Note over AsyncProc: Validates count matches requested N<br/>Each question: {question, options[4],<br>correctIndex, explanation}
+    Note over AsyncProc: Each question: {question, options[4],<br>correctIndex, explanation}
 
-    AsyncProc->>DB: save(GeneratedQuiz { lessonId, questions as JSONB })
+    AsyncProc->>DB: save(GeneratedQuiz { lessonId, questions, sourceLessonIdsJson })
     AsyncProc->>JobService: updateStatus(COMPLETED, referenceId=quizId)
 
     Instructor->>Controller: GET /api/ai/jobs/{jobId}
     Controller-->>Instructor: { status: COMPLETED, referenceId: quizId }
 ```
+
+**Multi-lesson behavior**: When `sourceLessonIds` is provided, content from all specified lessons is concatenated with `## {lessonTitle}` section headers before being sent to Gemini. The quiz is still stored under the anchor `lessonId` — allowing students to access it via `GET /api/ai/quizzes/lesson/{lessonId}/take`. All source lesson IDs are persisted in `source_lesson_ids_json` for traceability. All source lessons must belong to the same course as the anchor lesson.
 
 ### 6.2 Student Quiz Flow
 
@@ -1130,11 +1144,12 @@ CREATE TABLE ai.lesson_summaries (
 
 ```sql
 CREATE TABLE ai.generated_quizzes (
-    id         UUID PRIMARY KEY,
-    lesson_id  BIGINT NOT NULL,
-    job_id     UUID,                       -- Reference back to the triggering job
-    questions  JSONB,                      -- QuizQuestionDto[]
-    created_at TIMESTAMP DEFAULT now()
+    id                      UUID PRIMARY KEY,
+    lesson_id               BIGINT NOT NULL,
+    job_id                  UUID,                        -- Reference back to the triggering job
+    questions               JSONB,                       -- QuizQuestionDto[]
+    source_lesson_ids_json  TEXT,                        -- JSON array of source lesson IDs used for generation; null = single-lesson (anchor only)
+    created_at              TIMESTAMP DEFAULT now()
 );
 ```
 

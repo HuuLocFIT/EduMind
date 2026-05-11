@@ -29,6 +29,9 @@ public class GeneratedQuiz {
     @Column(name = "questions_json", columnDefinition = "jsonb", nullable = false)
     private String questionsJson;  // serialized JSON; deserialized at service layer
 
+    @Column(name = "source_lesson_ids_json", columnDefinition = "TEXT")
+    private String sourceLessonIdsJson;  // JSON array of lesson IDs used as content source
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

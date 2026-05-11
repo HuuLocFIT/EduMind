@@ -82,6 +82,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   }, [editingLesson?.lesson?.videoUrl, editingLesson?.lesson?.videoDuration]);
 
   const isArticle = form.contentType === ContentType.ARTICLE;
+  const isQuiz = form.contentType === ContentType.QUIZ;
 
   return (
     <Modal
@@ -111,10 +112,21 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           >
             <option value={ContentType.VIDEO}>Video</option>
             <option value={ContentType.ARTICLE}>Article</option>
+            <option value={ContentType.QUIZ}>Quiz</option>
           </select>
         </div>
 
-        {form.contentType === ContentType.VIDEO && (
+        {isQuiz && (
+          <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+            <p className="font-medium mb-1">Quiz lesson</p>
+            <p className="text-xs text-purple-700">
+              After saving, use "Generate Quiz" to create questions from one or more lessons in this course.
+              Students will take the quiz directly on this lesson page.
+            </p>
+          </div>
+        )}
+
+        {form.contentType === ContentType.VIDEO && !isQuiz && (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Video</label>
@@ -166,7 +178,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           </>
         )}
 
-        {isArticle && (
+        {isArticle && !isQuiz && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <FileText className="w-4 h-4 text-gray-500" />

@@ -82,7 +82,7 @@ export const SortableLesson = React.memo<SortableLessonProps>(({
         </div>
       </div>
 
-      {(lesson.contentType === "ARTICLE" || (lesson.contentType === "VIDEO" && lesson.articleContent)) && onGenerateQuiz && (
+      {(lesson.contentType === "QUIZ" || lesson.contentType === "ARTICLE" || (lesson.contentType === "VIDEO" && lesson.articleContent)) && onGenerateQuiz && (
         <button
           onClick={onGenerateQuiz}
           className="p-1.5 hover:bg-purple-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"

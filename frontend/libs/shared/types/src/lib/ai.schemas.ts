@@ -41,7 +41,8 @@ export const GeneratedQuizResponseSchema = z.object({
 
 export const GenerateQuizRequestSchema = z.object({
   lessonId: z.number(),
-  questionCount: z.number().min(1).max(20).default(5),
+  questionCount: z.number().min(1).max(50).default(5),
+  sourceLessonIds: z.array(z.number()).optional(),
 });
 
 export const UpdateQuizQuestionsRequestSchema = z.object({

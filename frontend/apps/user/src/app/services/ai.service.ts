@@ -35,10 +35,11 @@ export class SseStreamError extends Error {
 }
 
 export const aiService = {
-  async generateQuiz(lessonId: number, questionCount: number): Promise<AiJobResponse> {
+  async generateQuiz(lessonId: number, questionCount: number, sourceLessonIds?: number[]): Promise<AiJobResponse> {
     const response = await apiClient.post<AiJobResponse>(AI_ENDPOINTS.QUIZ_GENERATE, {
       lessonId,
       questionCount,
+      ...(sourceLessonIds && sourceLessonIds.length > 0 ? { sourceLessonIds } : {}),
     });
     return AiJobResponseSchema.parse(response.data);
   },

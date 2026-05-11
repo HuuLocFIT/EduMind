@@ -48,32 +48,67 @@ public class AiQuizServiceImpl implements AiQuizService {
     @Override
     @Transactional
     public AiJobResponse requestQuizGeneration(GenerateQuizRequest request, Long userId) {
-        // 1. Load lesson via ACL
-        LessonInfo lessonInfo = lessonQueryService.getLessonInfo(request.getLessonId())
+        // 1. Load anchor lesson via ACL
+        LessonInfo anchorLesson = lessonQueryService.getLessonInfo(request.getLessonId())
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + request.getLessonId()));
 
         // 2. Ownership check
-        if (!lessonInfo.instructorId().equals(userId)) {
+        if (!anchorLesson.instructorId().equals(userId)) {
             throw new UnauthorizedException("You do not own this lesson's course");
         }
 
-        // 3. Content validation
-        if (lessonInfo.articleContent() == null || lessonInfo.articleContent().isBlank()) {
-            throw new BadRequestException("Lesson has no article content to generate a quiz from");
+        // 3. Resolve source lessons (default to anchor lesson if not specified)
+        List<Long> sourceIds = (request.getSourceLessonIds() == null || request.getSourceLessonIds().isEmpty())
+                ? List.of(anchorLesson.id())
+                : request.getSourceLessonIds();
+
+        // 4. Fetch and validate all source lessons
+        List<LessonInfo> sourceLessons = new ArrayList<>();
+        for (Long sourceId : sourceIds) {
+            LessonInfo src = lessonQueryService.getLessonInfo(sourceId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Source lesson not found: " + sourceId));
+            if (!src.courseId().equals(anchorLesson.courseId())) {
+                throw new BadRequestException("Source lesson " + sourceId + " does not belong to the same course");
+            }
+            sourceLessons.add(src);
         }
 
-        // 4. Create tracking job
+        // 5. Aggregate content from all source lessons
+        String combinedContent = sourceLessons.stream()
+                .filter(l -> l.articleContent() != null && !l.articleContent().isBlank())
+                .map(l -> "## " + l.title() + "\n" + l.articleContent())
+                .collect(Collectors.joining("\n\n"));
+
+        if (combinedContent.isBlank()) {
+            throw new BadRequestException("No article content found in the selected lessons to generate a quiz from");
+        }
+
+        // 6. Build context title for the prompt
+        String contextTitle = sourceLessons.size() == 1
+                ? sourceLessons.get(0).title()
+                : anchorLesson.title() + " (multi-lesson)";
+
+        // 7. Serialize source IDs for storage
+        String sourceLessonIdsJson;
+        try {
+            sourceLessonIdsJson = objectMapper.writeValueAsString(sourceIds);
+        } catch (Exception e) {
+            log.error("Failed to serialize sourceLessonIds", e);
+            sourceLessonIdsJson = null;
+        }
+
+        // 8. Create tracking job
         AiJobLog job = aiJobService.createJob(
                 com.edumind.lms.modules.ai.enums.AiJobType.QUIZ_GENERATION,
                 userId,
-                lessonInfo.id()
+                anchorLesson.id()
         );
 
-        // 5. Fire async (via separate @Component bean — avoids Spring proxy self-invocation)
-        asyncQuizProcessor.process(job.getId(), lessonInfo.id(), lessonInfo.title(),
-                lessonInfo.articleContent(), request.getQuestionCount());
+        // 9. Fire async (via separate @Component bean — avoids Spring proxy self-invocation)
+        asyncQuizProcessor.process(job.getId(), anchorLesson.id(), contextTitle,
+                combinedContent, request.getQuestionCount(), sourceLessonIdsJson);
 
-        // 6. Return 202
+        // 10. Return 202
         return aiJobService.getJobStatus(job.getId());
         // NOTE: Multiple generations per lesson are intentional — teachers can regenerate.
         // Duplicate guard not added per design decision; all versions are stored.

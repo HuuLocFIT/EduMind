@@ -462,6 +462,8 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         isOpen={quizModal.isOpen}
         onClose={quizModal.close}
         lesson={quizTargetLesson}
+        sections={sections}
+        allLessons={sections.flatMap(s => s.lessons ?? [])}
       />
 
       <TranscriptionModal
