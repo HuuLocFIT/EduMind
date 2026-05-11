@@ -29,10 +29,10 @@ public class AsyncQuizProcessor {
     private ChatClient chatClient;
 
     @Async("aiTaskExecutor")
-    public void process(Long jobId, Long lessonId, String lessonTitle, String articleContent, int questionCount) {
+    public void process(Long jobId, Long lessonId, String contextTitle, String articleContent, int questionCount, String sourceLessonIdsJson) {
         try {
             aiJobService.updateStatus(jobId, AiJobStatus.PROCESSING, null);
-            String prompt = AiPromptBuilder.buildQuizPrompt(lessonTitle, articleContent, questionCount);
+            String prompt = AiPromptBuilder.buildQuizPrompt(contextTitle, articleContent, questionCount);
 
             List<QuizQuestionDto> questions = callOnce(prompt);
 
@@ -40,6 +40,7 @@ public class AsyncQuizProcessor {
                     .lessonId(lessonId)
                     .jobId(jobId)
                     .questionsJson(objectMapper.writeValueAsString(questions))
+                    .sourceLessonIdsJson(sourceLessonIdsJson)
                     .build());
             aiJobService.updateStatus(jobId, AiJobStatus.COMPLETED, null);
 

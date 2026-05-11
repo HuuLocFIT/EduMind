@@ -37,12 +37,14 @@ import {
   ChevronDown,
   Sparkles,
   Download,
+  HelpCircle,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import { queryKeys } from '../../lib/query-keys';
 import { VideoPlayer } from '../../components/learning/VideoPlayer';
 import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
 import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
+import { InlineQuizTaker } from '../../components/learning/InlineQuizTaker';
 const AiChatPanel = React.lazy(() =>
   import('../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
 );
@@ -482,7 +484,10 @@ export const CoursePlayerPage: React.FC = () => {
       // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
       queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
 
-      showSuccess('Lesson marked as complete!');
+      const nextLesson = getNextLesson();
+      if (nextLesson) {
+        handleLessonClick(nextLesson);
+      }
     } catch (err: any) {
       showError(err?.message || 'Failed to mark lesson as complete');
     }
@@ -701,6 +706,47 @@ export const CoursePlayerPage: React.FC = () => {
       <div className="flex relative">
         {/* Main Content */}
         <main className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
+          {/* QUIZ lesson — inline quiz taker, no video/article */}
+          {currentLesson.contentType === ContentType.QUIZ && enrollment && (
+            <div className="p-3 sm:p-6 bg-white" data-testid="lesson-content">
+              <div className="max-w-4xl mx-auto">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-1">{currentLesson.title}</h2>
+                  {currentLesson.description && (
+                    <p className="text-gray-600">{currentLesson.description}</p>
+                  )}
+                </div>
+                <InlineQuizTaker
+                  key={currentLesson.id}
+                  lesson={currentLesson}
+                  onQuizPass={handleQuizPass}
+                />
+                <div className="w-full grid grid-cols-2 gap-3 sm:gap-4 mt-8">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleNavigate('previous')}
+                    disabled={!getPreviousLesson()}
+                    className="justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
+                  >
+                    <ChevronLeft className="w-5 h-5 mr-2" />
+                    <span className="sm:hidden">Previous</span>
+                    <span className="hidden sm:inline">Previous Lesson</span>
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => handleNavigate('next')}
+                    disabled={!getNextLesson()}
+                    className="justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
+                  >
+                    <span className="sm:hidden">Next</span>
+                    <span className="hidden sm:inline">Next Lesson</span>
+                    <ChevronRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Video Player - only for VIDEO type */}
           {currentLesson.contentType === ContentType.VIDEO && (
             (currentLesson.videoStreamUrl || currentLesson.video480pUrl || currentLesson.videoUrl) ? (
@@ -722,7 +768,8 @@ export const CoursePlayerPage: React.FC = () => {
             )
           )}
 
-          {/* Lesson Content */}
+          {/* Lesson Content — not shown for QUIZ type (handled above) */}
+          {currentLesson.contentType !== ContentType.QUIZ && (
           <div className="p-3 sm:p-6 bg-white" data-testid="lesson-content">
             <div className="max-w-4xl mx-auto">
               {/* Lesson Header */}
@@ -863,6 +910,7 @@ export const CoursePlayerPage: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
         </main>
 
         {/* Sidebar - Course Curriculum */}
@@ -988,6 +1036,12 @@ export const CoursePlayerPage: React.FC = () => {
                                             <>
                                               <FileText className="w-3 h-3" />
                                               <span>Reading</span>
+                                            </>
+                                          )}
+                                          {lesson.contentType === ContentType.QUIZ && (
+                                            <>
+                                              <HelpCircle className="w-3 h-3 text-purple-500" />
+                                              <span className="text-purple-600">Quiz</span>
                                             </>
                                           )}
                                         </div>

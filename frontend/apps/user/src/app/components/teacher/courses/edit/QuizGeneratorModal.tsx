@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
-import type { LessonResponse, AiJobResponse, GeneratedQuizResponse, QuizQuestionDto } from "@edumind/shared-types";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
+import type { LessonResponse, AiJobResponse, GeneratedQuizResponse, QuizQuestionDto, SectionDetailResponse } from "@edumind/shared-types";
 import { AiJobStatus } from "@edumind/shared-types";
 import { Modal, Button } from "@edumind/user-ui";
-import { Sparkles, ChevronDown, ChevronRight, AlertCircle, CheckCircle, Pencil, X, Save } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronRight, AlertCircle, CheckCircle, Pencil, X, Save, FileText, Video } from "lucide-react";
 import { aiService, pollJobUntilDone } from "../../../../services/ai.service";
+import { ContentType } from "@edumind/shared-constants";
 
 type Phase = "config" | "generating" | "completed" | "failed";
 
@@ -11,6 +12,8 @@ interface QuizGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   lesson: LessonResponse | null;
+  sections?: SectionDetailResponse[];
+  allLessons?: LessonResponse[];
 }
 
 /** Render questions read-only (used for both current and previous quizzes) */
@@ -84,9 +87,9 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
   const isEditing = draft !== undefined;
 
   const setOption = (oi: number, val: string) => {
-    setLocalDraft(prev => ({
+    setLocalDraft((prev: QuizQuestionDto) => ({
       ...prev,
-      options: prev.options.map((o, i) => i === oi ? val : o),
+      options: prev.options.map((o: string, i: number) => i === oi ? val : o),
     }));
   };
 
@@ -138,7 +141,7 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
           className="w-full text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
           rows={2}
           value={localDraft.question}
-          onChange={e => setLocalDraft(prev => ({ ...prev, question: e.target.value }))}
+          onChange={e => setLocalDraft((prev: QuizQuestionDto) => ({ ...prev, question: e.target.value }))}
         />
       </div>
       <div className="p-4 space-y-2">
@@ -151,7 +154,7 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
               type="radio"
               name={`correct-${qi}`}
               checked={localDraft.correctIndex === oi}
-              onChange={() => setLocalDraft(prev => ({ ...prev, correctIndex: oi }))}
+              onChange={() => setLocalDraft((prev: QuizQuestionDto) => ({ ...prev, correctIndex: oi }))}
               className="w-4 h-4 text-purple-600 accent-purple-600 flex-shrink-0"
             />
             <span className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
@@ -174,7 +177,7 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
           className="w-full text-sm text-gray-700 bg-white border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
           rows={2}
           value={localDraft.explanation ?? ""}
-          onChange={e => setLocalDraft(prev => ({ ...prev, explanation: e.target.value }))}
+          onChange={e => setLocalDraft((prev: QuizQuestionDto) => ({ ...prev, explanation: e.target.value }))}
         />
       </div>
       <div className="flex items-center justify-end gap-2 px-4 pb-3">
@@ -198,13 +201,123 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
   );
 }
 
+/** Source lesson selector grouped by section */
+const SourceLessonSelector = memo(function SourceLessonSelector({ sections, allLessons, selectedIds, onChange }: {
+  sections: SectionDetailResponse[];
+  allLessons: LessonResponse[];
+  selectedIds: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const selectableLessons = useMemo(
+    () => allLessons.filter(l => l.contentType === ContentType.VIDEO || l.contentType === ContentType.ARTICLE),
+    [allLessons]
+  );
+
+  if (selectableLessons.length === 0) return null;
+
+  const toggle = (id: number) => {
+    onChange(
+      selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id]
+    );
+  };
+
+  const toggleSection = (sectionId: number) => {
+    const inSection = selectableLessons.filter(l => l.sectionId === sectionId).map(l => l.id);
+    const allSelected = inSection.every(id => selectedIds.includes(id));
+    if (allSelected) {
+      onChange(selectedIds.filter(id => !inSection.includes(id)));
+    } else {
+      const toAdd = inSection.filter(id => !selectedIds.includes(id));
+      onChange([...selectedIds, ...toAdd]);
+    }
+  };
+
+  const ungrouped = selectableLessons.filter(l => !l.sectionId || !sections.find(s => s.id === l.sectionId));
+
+  return (
+    <div className="space-y-2">
+      {sections.map(section => {
+        const sectionLessons = selectableLessons.filter(l => l.sectionId === section.id);
+        if (sectionLessons.length === 0) return null;
+        const allSelected = sectionLessons.every(l => selectedIds.includes(l.id));
+        const someSelected = sectionLessons.some(l => selectedIds.includes(l.id));
+        return (
+          <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide truncate">
+                {section.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-colors flex-shrink-0 ml-2 ${
+                  allSelected
+                    ? "bg-purple-100 text-purple-700 border-purple-300"
+                    : someSelected
+                    ? "bg-purple-50 text-purple-600 border-purple-200"
+                    : "bg-white text-gray-500 border-gray-300 hover:border-purple-300"
+                }`}
+              >
+                {allSelected ? "Deselect all" : "Select all"}
+              </button>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {sectionLessons.map(lesson => (
+                <label key={lesson.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(lesson.id)}
+                    onChange={() => toggle(lesson.id)}
+                    className="w-4 h-4 rounded text-purple-600 accent-purple-600 flex-shrink-0"
+                  />
+                  <span className="text-gray-400 flex-shrink-0">
+                    {lesson.contentType === ContentType.VIDEO ? <Video className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                  </span>
+                  <span className="text-sm text-gray-700 truncate">{lesson.title}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {ungrouped.length > 0 && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-3 py-2 bg-gray-50">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Other lessons</span>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {ungrouped.map(lesson => (
+              <label key={lesson.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(lesson.id)}
+                  onChange={() => toggle(lesson.id)}
+                  className="w-4 h-4 rounded text-purple-600 accent-purple-600 flex-shrink-0"
+                />
+                <span className="text-gray-400 flex-shrink-0">
+                  {lesson.contentType === ContentType.VIDEO ? <Video className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                </span>
+                <span className="text-sm text-gray-700 truncate">{lesson.title}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
 export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   isOpen,
   onClose,
   lesson,
+  sections = [],
+  allLessons = [],
 }) => {
   const [phase, setPhase] = useState<Phase>("config");
   const [questionCount, setQuestionCount] = useState(5);
+  const [questionCountInput, setQuestionCountInput] = useState("5");
+  const [selectedSourceIds, setSelectedSourceIds] = useState<number[]>([]);
   const [job, setJob] = useState<AiJobResponse | null>(null);
   const [quiz, setQuiz] = useState<GeneratedQuizResponse | null>(null);
   const [allQuizzes, setAllQuizzes] = useState<GeneratedQuizResponse[]>([]);
@@ -212,45 +325,48 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
   const [expandedExplanations, setExpandedExplanations] = useState<Set<number>>(new Set());
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [generating, setGenerating] = useState(false);
-  // Per-question edit drafts: Map<questionIndex, draft>
   const [editingDrafts, setEditingDrafts] = useState<Map<number, QuizQuestionDto>>(new Map());
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
-  // Which previous quizzes are expanded
   const [expandedPrevIds, setExpandedPrevIds] = useState<Set<number>>(new Set());
   const [prevExplanations, setPrevExplanations] = useState<Map<number, Set<number>>>(new Map());
 
-  // Reset state when modal opens; also fetch existing quizzes
-  useEffect(() => {
-    if (isOpen && lesson) {
-      setPhase("config");
-      setQuestionCount(5);
-      setJob(null);
-      setQuiz(null);
-      setAllQuizzes([]);
-      setExpandedExplanations(new Set());
-      setErrorMessage("");
-      setGenerating(false);
-      setEditingDrafts(new Map());
-      setSavingIndex(null);
-      setExpandedPrevIds(new Set());
-      setPrevExplanations(new Map());
+  const isQuizLesson = lesson?.contentType === ContentType.QUIZ;
+  // Only QUIZ-type lessons show the multi-source selector; VIDEO/ARTICLE always use their own content
+  const hasMultiSelector = isQuizLesson;
 
-      // Fetch existing quizzes
-      setLoadingExisting(true);
-      aiService.getQuizzesByLesson(lesson.id)
-        .then((quizzes) => {
-          setAllQuizzes(quizzes);
-          if (quizzes.length > 0) {
-            setQuiz(quizzes[0]);
-            setPhase("completed");
-          }
-        })
-        .catch(() => {
-          // Silently ignore — modal still usable
-        })
-        .finally(() => setLoadingExisting(false));
-    }
-  }, [isOpen, lesson]);
+  const lessonId = lesson?.id;
+  const lessonContentType = lesson?.contentType;
+
+  useEffect(() => {
+    if (!isOpen || !lessonId) return;
+
+    setPhase("config");
+    setQuestionCount(5);
+    setQuestionCountInput("5");
+    setJob(null);
+    setQuiz(null);
+    setAllQuizzes([]);
+    setExpandedExplanations(new Set());
+    setErrorMessage("");
+    setGenerating(false);
+    setEditingDrafts(new Map());
+    setSavingIndex(null);
+    setExpandedPrevIds(new Set());
+    setPrevExplanations(new Map());
+    setSelectedSourceIds(lessonContentType === ContentType.QUIZ ? [] : [lessonId]);
+
+    setLoadingExisting(true);
+    aiService.getQuizzesByLesson(lessonId)
+      .then((quizzes) => {
+        setAllQuizzes(quizzes);
+        if (quizzes.length > 0) {
+          setQuiz(quizzes[0]);
+          setPhase("completed");
+        }
+      })
+      .catch((_e: unknown) => undefined)
+      .finally(() => setLoadingExisting(false));
+  }, [isOpen, lessonId]);
 
   const handleGenerate = useCallback(async () => {
     if (!lesson) return;
@@ -260,7 +376,8 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     setEditingDrafts(new Map());
 
     try {
-      const jobResponse = await aiService.generateQuiz(lesson.id, questionCount);
+      const sourceIds = hasMultiSelector ? selectedSourceIds : undefined;
+      const jobResponse = await aiService.generateQuiz(lesson.id, questionCount, sourceIds);
       setJob(jobResponse);
 
       const finalJob = await pollJobUntilDone(jobResponse.jobId, (updatedJob) => {
@@ -283,7 +400,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     } finally {
       setGenerating(false);
     }
-  }, [lesson, questionCount]);
+  }, [lesson, questionCount, selectedSourceIds, hasMultiSelector]);
 
   const handleTryAgain = () => {
     setPhase("config");
@@ -340,7 +457,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     if (!quiz) return;
     setSavingIndex(qi);
     try {
-      const updatedQuestions = quiz.questions.map((q, i) => i === qi ? updated : q);
+      const updatedQuestions = quiz.questions.map((q: QuizQuestionDto, i: number) => i === qi ? updated : q);
       const updatedQuiz = await aiService.updateQuizQuestions(quiz.id, updatedQuestions);
       setQuiz(updatedQuiz);
       setAllQuizzes(prev => prev.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
@@ -374,43 +491,78 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
     [AiJobStatus.FAILED]: "Failed",
   };
 
+  const canGenerate = hasMultiSelector ? selectedSourceIds.length > 0 : true;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="✨ AI Quiz Generator" size="lg">
       <div className="space-y-4 max-h-[75vh] overflow-y-auto px-1">
-        {lesson && (
-          <p className="text-sm text-gray-500">
-            Lesson: <span className="font-medium text-gray-700">{lesson.title}</span>
-          </p>
-        )}
-
         {/* ==================== CONFIG PHASE ==================== */}
         {phase === "config" && (
           <div className="space-y-6">
             {loadingExisting && (
-              <p className="text-sm text-gray-400 text-center">Loading existing quizzes…</p>
+              <div className="space-y-2 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+              </div>
             )}
+
+            {/* Source lesson selector — only for QUIZ-type lessons */}
+            {hasMultiSelector && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Source Lessons</label>
+                  {selectedSourceIds.length > 0 && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                      {selectedSourceIds.length} lesson{selectedSourceIds.length !== 1 ? "s" : ""} selected
+                    </span>
+                  )}
+                </div>
+                {selectedSourceIds.length === 0 && (
+                  <p className="text-xs text-amber-600 mb-2">Select at least one lesson to use as content source.</p>
+                )}
+                <SourceLessonSelector
+                  sections={sections}
+                  allLessons={allLessons}
+                  selectedIds={selectedSourceIds}
+                  onChange={setSelectedSourceIds}
+                />
+              </div>
+            )}
+
+            {lesson && (
+              <p className="text-sm text-gray-500">
+                Lesson: <span className="font-medium text-gray-700">{lesson.title}</span>
+              </p>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Number of Questions
               </label>
               <div className="flex items-center gap-3">
                 <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={questionCount}
-                  onChange={(e) =>
-                    setQuestionCount(Math.min(20, Math.max(1, Number(e.target.value) || 1)))
-                  }
+                  type="text"
+                  inputMode="numeric"
+                  value={questionCountInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^\d*$/.test(val)) setQuestionCountInput(val);
+                  }}
+                  onBlur={() => {
+                    const n = parseInt(questionCountInput, 10);
+                    const clamped = isNaN(n) ? 1 : Math.min(50, Math.max(1, n));
+                    setQuestionCount(clamped);
+                    setQuestionCountInput(String(clamped));
+                  }}
                   className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center text-lg font-medium"
                 />
-                <span className="text-sm text-gray-500">questions (1 – 20)</span>
+                <span className="text-sm text-gray-500">questions (1 – 50)</span>
               </div>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
               <p className="text-sm text-purple-700">
-                <strong>How it works:</strong> The AI will read the article content and generate
-                multiple-choice questions with explanations. This may take 5–30 seconds.
+                <strong>How it works:</strong> The AI will read the selected lesson content and
+                generate multiple-choice questions with explanations. This may take 5–30 seconds.
               </p>
             </div>
             <div className="flex gap-3 justify-end pt-2 border-t">
@@ -421,6 +573,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
                 variant="primary"
                 onClick={handleGenerate}
                 isLoading={generating}
+                disabled={!canGenerate}
                 leftIcon={<Sparkles className="w-4 h-4" />}
                 className="bg-purple-600 hover:bg-purple-700"
               >
