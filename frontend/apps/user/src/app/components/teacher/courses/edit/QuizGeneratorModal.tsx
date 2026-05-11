@@ -364,7 +364,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
           setPhase("completed");
         }
       })
-      .catch(() => {})
+      .catch((_e: unknown) => undefined)
       .finally(() => setLoadingExisting(false));
   }, [isOpen, lessonId]);
 

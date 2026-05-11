@@ -107,7 +107,11 @@ export const InlineQuizTaker: React.FC<InlineQuizTakerProps> = ({ lesson, onQuiz
   const toggleExplanation = (qi: number) => {
     setExpandedExplanations(prev => {
       const next = new Set(prev);
-      next.has(qi) ? next.delete(qi) : next.add(qi);
+      if (next.has(qi)) {
+        next.delete(qi);
+      } else {
+        next.add(qi);
+      }
       return next;
     });
   };
