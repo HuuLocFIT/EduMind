@@ -4,12 +4,12 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Button,
   Card,
-  Loading,
   RatingStars,
   PriceTag,
   useToast,
   CloudinaryImage,
 } from "@edumind/user-ui";
+import { CourseDetailSkeleton } from "../../components/route-skeletons";
 import {
   EnrollButton,
   WishlistButton,
@@ -211,11 +211,9 @@ export const CourseDetailPage: React.FC = () => {
   };
 
   if (courseLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    // Same skeleton as the route-level Suspense fallback, so the transition
+    // from chunk-loading to data-loading to content is seamless.
+    return <CourseDetailSkeleton />;
   }
 
   if (courseError || !course) {

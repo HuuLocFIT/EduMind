@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Loading } from "@edumind/user-ui";
 import { enrollmentService } from "../../services/enrollment.service";
+import { MyLearningSkeleton } from "../../components/route-skeletons/MyLearningSkeleton";
 import type {
   EnrollmentResponse,
   EnrollmentStatsResponse,
@@ -185,11 +185,7 @@ export const MyLearningPage: React.FC = () => {
   };
 
   if (statsLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <MyLearningSkeleton />;
   }
 
   return (

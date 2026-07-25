@@ -9,7 +9,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Skeleton } from "@edumind/user-ui";
 import type { MonthlyStat } from "@edumind/shared-types";
 
 interface EarningsTrendChartProps {
@@ -22,7 +21,12 @@ export const EarningsTrendChart: React.FC<EarningsTrendChartProps> = ({
   loading,
 }) => {
   if (loading) {
-    return <Skeleton className="h-[400px] w-full rounded-xl" />;
+    return (
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 animate-pulse">
+        <div className="h-6 w-44 bg-gray-200 rounded mb-4 sm:mb-6" />
+        <div className="h-[260px] sm:h-[300px] w-full bg-gray-50 rounded-lg border border-gray-100" />
+      </div>
+    );
   }
 
   if (!data || data.length === 0) {

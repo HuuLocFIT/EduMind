@@ -1,5 +1,6 @@
 export * from "./CourseCard";
 export * from "./CourseGrid";
+export * from "./CourseGridSkeleton";
 export * from "./EnrollButton";
 export * from "./EnrollmentCard";
 export * from "./WishlistButton";

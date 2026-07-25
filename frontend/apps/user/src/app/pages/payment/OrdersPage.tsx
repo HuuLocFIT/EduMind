@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Button, Loading, useToast } from "@edumind/user-ui";
+import { Card, Button, useToast } from "@edumind/user-ui";
+import { OrdersSkeleton } from "../../components/route-skeletons/OrdersSkeleton";
 import { useOrders, useOrderCounts } from "../../hooks/useOrders";
 import {
   Clock,
@@ -111,11 +112,7 @@ export const OrdersPage: React.FC = () => {
 
   // Loading state
   if (isLoading && orders.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loading />
-      </div>
-    );
+    return <OrdersSkeleton />;
   }
 
   return (

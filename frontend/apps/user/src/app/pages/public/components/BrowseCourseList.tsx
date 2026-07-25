@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button, Loading } from "@edumind/user-ui";
-import { CourseGrid } from "../../../components/course-module";
+import { Button } from "@edumind/user-ui";
+import { CourseGrid, CourseGridSkeleton } from "../../../components/course-module";
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import type { CourseResponse } from "@edumind/shared-types";
 
@@ -126,12 +126,8 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
         </div>
       )}
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loading />
-        </div>
-      )}
+      {/* Loading State — grid skeleton matching the real grid exactly */}
+      {isLoading && <CourseGridSkeleton count={pageSize} columns={3} />}
 
       {/* Courses Grid */}
       {!isLoading && !error && (

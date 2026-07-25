@@ -1,5 +1,4 @@
 import React from "react";
-import { Skeleton } from "@edumind/user-ui";
 import type { TeacherCourseStat } from "@edumind/shared-types";
 
 interface CoursePerformanceTableProps {
@@ -33,7 +32,25 @@ export const CoursePerformanceTable: React.FC<CoursePerformanceTableProps> = ({
   loading,
 }) => {
   if (loading) {
-    return <Skeleton className="h-[400px] w-full rounded-xl" />;
+    return (
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 animate-pulse space-y-4">
+        <div className="h-6 w-52 bg-gray-200 rounded mb-6" />
+        <div className="hidden lg:block space-y-3">
+          <div className="h-10 bg-gray-50 rounded-lg border border-gray-100" />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-12 bg-gray-50 rounded-lg" />
+          ))}
+        </div>
+        <div className="lg:hidden space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-28 bg-gray-50 rounded-lg border border-gray-100"
+            />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (!data || data.length === 0) {

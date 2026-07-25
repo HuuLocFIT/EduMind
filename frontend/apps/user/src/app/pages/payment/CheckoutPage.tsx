@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Card, Button, Loading, PriceTag, useToast } from "@edumind/user-ui";
+import { Card, Button, PriceTag, useToast } from "@edumind/user-ui";
+import { CheckoutSkeleton } from "../../components/route-skeletons/CheckoutSkeleton";
 import {
   useCheckoutPreview,
   useCheckout,
@@ -240,11 +241,7 @@ export const CheckoutPage: React.FC = () => {
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <CheckoutSkeleton />;
   }
 
   // Error state

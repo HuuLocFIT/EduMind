@@ -6,6 +6,8 @@ import { formatCourseLevel } from "../../lib/course-level";
 interface CourseCardProps {
   course: CourseResponse;
   onClick?: () => void;
+  /** Fired on pointer enter — used to prefetch the course detail (zero-latency UI). */
+  onHover?: () => void;
   className?: string;
   // New props for action buttons
   showActions?: boolean;
@@ -22,6 +24,7 @@ interface CourseCardProps {
 export const CourseCard: React.FC<CourseCardProps> = ({
   course,
   onClick,
+  onHover,
   className = "",
   showActions = false,
   isEnrolled = false,
@@ -50,6 +53,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   return (
     <div
       onClick={onClick}
+      onMouseEnter={onHover}
+      onFocus={onHover}
       className={`group flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 transform-gpu z-0 ${className}`}
     >
       {/* Course Thumbnail */}

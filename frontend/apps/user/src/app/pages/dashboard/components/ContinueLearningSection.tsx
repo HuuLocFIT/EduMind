@@ -1,7 +1,9 @@
 import React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { BookOpen, ChevronRight } from 'lucide-react';
 import { DashboardEnrollmentCard } from './DashboardEnrollmentCard';
+import { prefetchCourseDetail } from '../../../lib/prefetch';
 
 interface ContinueLearningSectionProps {
   enrollments: EnrollmentResponse[];
@@ -22,6 +24,8 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
   onViewAll,
   onBrowseCourses,
 }) => {
+  const queryClient = useQueryClient();
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -48,7 +52,10 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
               key={enrollment.id}
               enrollment={enrollment}
               isHovered={hoveredCourse === enrollment.id}
-              onMouseEnter={() => onHoverCourse(enrollment.id)}
+              onMouseEnter={() => {
+                onHoverCourse(enrollment.id);
+                prefetchCourseDetail(queryClient, enrollment.courseId);
+              }}
               onMouseLeave={() => onHoverCourse(null)}
               onContinue={() => onContinue(enrollment)}
               onViewDetails={() => onViewDetails(enrollment.courseId)}

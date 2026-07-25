@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Button, Loading } from "@edumind/user-ui";
+import { Card, Button } from "@edumind/user-ui";
+import { TeacherPayoutDetailSkeleton } from "../../components/route-skeletons/teacher/TeacherPayoutDetailSkeleton";
 import { usePayout } from "../../hooks/usePayouts";
 import {
   Wallet,
@@ -89,11 +90,7 @@ export const TeacherPayoutDetailPage: React.FC = () => {
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <TeacherPayoutDetailSkeleton />;
   }
 
   // Error state

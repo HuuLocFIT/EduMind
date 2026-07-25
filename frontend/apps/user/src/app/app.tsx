@@ -24,6 +24,35 @@ import {
 import { AppErrorBoundary } from "./components/RouteErrorBoundary";
 import { createLazyRoute } from "./components/LazyRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
+import {
+  BrowseCoursesSkeleton,
+  CourseDetailSkeleton,
+  DashboardSkeleton,
+  MyLearningSkeleton,
+  CoursePlayerSkeleton,
+  WishlistSkeleton,
+  CertificatesSkeleton,
+  ProfileSettingsSkeleton,
+  CartSkeleton,
+  CheckoutSkeleton,
+  OrderDetailSkeleton,
+  OrdersSkeleton,
+  RefundsSkeleton,
+  RefundDetailSkeleton,
+  SepayQrSkeleton,
+  TeacherDashboardSkeleton,
+  TeacherCoursesSkeleton,
+  TeacherStudentsSkeleton,
+  TeacherReviewsSkeleton,
+  TeacherEarningsSkeleton,
+  TeacherPayoutsSkeleton,
+  TeacherPayoutDetailSkeleton,
+  TeacherCourseDetailSkeleton,
+  TeacherCourseEditSkeleton,
+  TeacherCourseCreateSkeleton,
+  TeacherApplicationSkeleton,
+  ApplicationStatusSkeleton,
+} from "./components/route-skeletons";
 
 // ============================================
 // EAGER LOADED - Critical path pages
@@ -197,7 +226,7 @@ function AppContent() {
             <Route
               path={USER_ROUTES.COURSES}
               element={
-                <Suspense fallback={<FullPageLoading message="Loading courses..." />}>
+                <Suspense fallback={<BrowseCoursesSkeleton />}>
                   <BrowseCoursesPage />
                 </Suspense>
               }
@@ -205,7 +234,7 @@ function AppContent() {
             <Route
               path={USER_ROUTES.COURSE_DETAIL}
               element={
-                <Suspense fallback={<FullPageLoading message="Loading course details..." />}>
+                <Suspense fallback={<CourseDetailSkeleton />}>
                   <CourseDetailPage />
                 </Suspense>
               }
@@ -283,7 +312,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.DASHBOARD}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading dashboard..." />}>
+                  <Suspense fallback={<DashboardSkeleton />}>
                     <DashboardPage />
                   </Suspense>
                 }
@@ -291,7 +320,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.PROFILE_SETTINGS}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading profile settings..." />}>
+                  <Suspense fallback={<ProfileSettingsSkeleton />}>
                     <ProfileSettingsPage />
                   </Suspense>
                 }
@@ -309,7 +338,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.LEARNING}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading my learning..." />}>
+                  <Suspense fallback={<MyLearningSkeleton />}>
                     <MyLearningPage />
                   </Suspense>
                 }
@@ -318,7 +347,7 @@ function AppContent() {
                 path={USER_ROUTES.LEARNING_COURSE}
                 element={
                   <SectionErrorBoundary section="course-player">
-                    <Suspense fallback={<FullPageLoading message="Loading course player..." />}>
+                    <Suspense fallback={<CoursePlayerSkeleton />}>
                       <CoursePlayerPage />
                     </Suspense>
                   </SectionErrorBoundary>
@@ -327,7 +356,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.CERTIFICATES}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading certificates..." />}>
+                  <Suspense fallback={<CertificatesSkeleton />}>
                     <CertificatesPage />
                   </Suspense>
                 }
@@ -335,7 +364,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.WISHLIST}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading wishlist..." />}>
+                  <Suspense fallback={<WishlistSkeleton />}>
                     <WishlistPage />
                   </Suspense>
                 }
@@ -346,7 +375,7 @@ function AppContent() {
                 <Route
                   path={USER_ROUTES.TEACHER_APPLICATION_STATUS}
                   element={
-                    <Suspense fallback={<FullPageLoading message="Loading application status..." />}>
+                    <Suspense fallback={<ApplicationStatusSkeleton />}>
                       <ApplicationStatusPage />
                     </Suspense>
                   }
@@ -356,7 +385,7 @@ function AppContent() {
                 <Route
                   path={USER_ROUTES.TEACHER_APPLICATION}
                   element={
-                    <Suspense fallback={<FullPageLoading message="Loading teacher application..." />}>
+                    <Suspense fallback={<TeacherApplicationSkeleton />}>
                       <TeacherApplicationPage />
                     </Suspense>
                   }
@@ -367,7 +396,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.CART}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading cart..." />}>
+                  <Suspense fallback={<CartSkeleton />}>
                     <CartPage />
                   </Suspense>
                 }
@@ -376,7 +405,7 @@ function AppContent() {
                 path={USER_ROUTES.CHECKOUT}
                 element={
                   <SectionErrorBoundary section="checkout">
-                    <Suspense fallback={<FullPageLoading message="Loading checkout..." />}>
+                    <Suspense fallback={<CheckoutSkeleton />}>
                       <CheckoutPage />
                     </Suspense>
                   </SectionErrorBoundary>
@@ -401,7 +430,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.CHECKOUT_SEPAY_QR}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading payment..." />}>
+                  <Suspense fallback={<SepayQrSkeleton />}>
                     <SepayQrPage />
                   </Suspense>
                 }
@@ -411,7 +440,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.ORDERS}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading orders..." />}>
+                  <Suspense fallback={<OrdersSkeleton />}>
                     <OrdersPage />
                   </Suspense>
                 }
@@ -419,7 +448,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.ORDER_DETAIL}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading order..." />}>
+                  <Suspense fallback={<OrderDetailSkeleton />}>
                     <OrderDetailPage />
                   </Suspense>
                 }
@@ -428,7 +457,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.REFUNDS}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading refunds..." />}>
+                  <Suspense fallback={<RefundsSkeleton />}>
                     <RefundsPage />
                   </Suspense>
                 }
@@ -436,7 +465,7 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.REFUND_DETAIL}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading refund..." />}>
+                  <Suspense fallback={<RefundDetailSkeleton />}>
                     <RefundDetailPage />
                   </Suspense>
                 }
@@ -452,7 +481,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.DASHBOARD}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading teacher dashboard..." />}>
+                  <Suspense fallback={<TeacherDashboardSkeleton />}>
                     <TeacherDashboardPage />
                   </Suspense>
                 }
@@ -462,7 +491,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.COURSES}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading teacher courses..." />}>
+                  <Suspense fallback={<TeacherCoursesSkeleton />}>
                     <TeacherCoursesPage />
                   </Suspense>
                 }
@@ -470,7 +499,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.COURSE_CREATE}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading course creation..." />}>
+                  <Suspense fallback={<TeacherCourseCreateSkeleton />}>
                     <TeacherCourseCreatePage />
                   </Suspense>
                 }
@@ -479,7 +508,7 @@ function AppContent() {
                 path={TEACHER_ROUTES.COURSE_EDIT}
                 element={
                   <SectionErrorBoundary section="course-editor">
-                    <Suspense fallback={<FullPageLoading message="Loading course editor..." />}>
+                    <Suspense fallback={<TeacherCourseEditSkeleton />}>
                       <TeacherCourseEditPage />
                     </Suspense>
                   </SectionErrorBoundary>
@@ -488,7 +517,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.COURSE_DETAIL}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading course details..." />}>
+                  <Suspense fallback={<TeacherCourseDetailSkeleton />}>
                     <TeacherCourseDetailPage />
                   </Suspense>
                 }
@@ -498,7 +527,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.STUDENTS}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading students..." />}>
+                  <Suspense fallback={<TeacherStudentsSkeleton />}>
                     <TeacherStudentsPage />
                   </Suspense>
                 }
@@ -507,7 +536,8 @@ function AppContent() {
               {/* Reviews */}
               <Route
                 path={TEACHER_ROUTES.REVIEWS}
-                element={<Suspense fallback={<FullPageLoading message="Loading reviews..." />}>
+                element={
+                  <Suspense fallback={<TeacherReviewsSkeleton />}>
                     <TeacherReviewsPage />
                   </Suspense>
                 }
@@ -523,7 +553,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.EARNINGS}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading earnings..." />}>
+                  <Suspense fallback={<TeacherEarningsSkeleton />}>
                     <TeacherEarningsPage />
                   </Suspense>
                 }
@@ -533,7 +563,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.PAYOUTS}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading payouts..." />}>
+                  <Suspense fallback={<TeacherPayoutsSkeleton />}>
                     <TeacherPayoutsPage />
                   </Suspense>
                 }
@@ -541,7 +571,7 @@ function AppContent() {
               <Route
                 path={TEACHER_ROUTES.PAYOUT_DETAIL}
                 element={
-                  <Suspense fallback={<FullPageLoading message="Loading payout..." />}>
+                  <Suspense fallback={<TeacherPayoutDetailSkeleton />}>
                     <TeacherPayoutDetailPage />
                   </Suspense>
                 }
