@@ -1,7 +1,9 @@
 import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CourseCard } from "./CourseCard";
 import type { CourseResponse } from "@edumind/shared-types";
 import { BookOpen } from "lucide-react";
+import { prefetchCourseDetail } from "../../lib/prefetch";
 
 interface CourseGridProps {
   courses: CourseResponse[];
@@ -33,6 +35,8 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
   onGoToCourse,
   onEnrollFree,
 }) => {
+  const queryClient = useQueryClient();
+
   const gridClasses = {
     2: "grid-cols-1 sm:grid-cols-2",
     3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
@@ -55,6 +59,7 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
           key={course.id}
           course={course}
           onClick={() => onCourseClick?.(course)}
+          onHover={() => prefetchCourseDetail(queryClient, course.id)}
           showActions={showActions}
           isEnrolled={enrolledCourseIds.has(course.id)}
           isInCart={cartCourseIds.has(course.id)}

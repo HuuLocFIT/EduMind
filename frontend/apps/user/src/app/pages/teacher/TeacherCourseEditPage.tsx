@@ -11,6 +11,7 @@ import type {
 } from "@edumind/shared-types";
 import { Alert, Skeleton, useToast } from "@edumind/user-ui";
 import { CourseStatusBadge } from "../../components/teacher/courses/CourseStatusBadge";
+import { TeacherCourseEditSkeleton } from "../../components/route-skeletons";
 import {
   BasicInfoTab,
   PricingTab,
@@ -77,13 +78,7 @@ export const TeacherCourseEditPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <TeacherCourseEditSkeleton />;
   }
 
   if (!course) {

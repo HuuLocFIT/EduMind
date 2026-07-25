@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Button, Loading, useToast } from "@edumind/user-ui";
+import { Card, Button, useToast } from "@edumind/user-ui";
+import { RefundsSkeleton } from "../../components/route-skeletons/RefundsSkeleton";
 import { useMyRefunds } from "../../hooks/useRefunds";
 import {
   RefreshCw,
@@ -95,11 +96,7 @@ export const RefundsPage: React.FC = () => {
 
   // Loading state
   if (isLoading && refunds.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loading />
-      </div>
-    );
+    return <RefundsSkeleton />;
   }
 
   return (

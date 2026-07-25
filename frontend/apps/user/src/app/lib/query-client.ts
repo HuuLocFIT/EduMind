@@ -1,5 +1,6 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { isDev } from "@edumind/shared-utils";
+import { CACHE_TIME } from "./query-config";
 
 const shouldRetry = (failureCount: number, error: unknown) => {
   const status = (error as any)?.response?.status as number | undefined;
@@ -52,6 +53,11 @@ export const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: shouldRetry,
+      // Zero-latency defaults: serve cached data instantly on revisit and
+      // revalidate in the background. Hooks that need different freshness
+      // still override staleTime explicitly (see query-config.ts).
+      staleTime: 30 * 1000, // 30s — treat data as fresh for a short window
+      gcTime: CACHE_TIME.long, // 30m — keep cache warm across navigation
     },
   },
 });

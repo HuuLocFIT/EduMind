@@ -98,8 +98,8 @@ describe('OrdersPage', () => {
 
   it('renders loading state', () => {
     (useOrders as any).mockReturnValue({ isLoading: true, data: { data: [] } });
-    render(<OrdersPage />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    const { container } = render(<OrdersPage />);
+    expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
   });
 
   it('renders error state with retry', async () => {

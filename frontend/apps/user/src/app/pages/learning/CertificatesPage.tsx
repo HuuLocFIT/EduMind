@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Button, Loading } from '@edumind/user-ui';
+import { Card, Button } from '@edumind/user-ui';
+import { CertificatesSkeleton } from '../../components/route-skeletons/CertificatesSkeleton';
 import { enrollmentService } from '../../services/enrollment.service';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { Award } from 'lucide-react';
@@ -43,6 +44,10 @@ export const CertificatesPage: React.FC = () => {
     alert(`Share certificate for ${enrollment.courseTitle}`);
   };
 
+  if (loading) {
+    return <CertificatesSkeleton />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -68,12 +73,6 @@ export const CertificatesPage: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Loading State */}
-        {loading && (
-          <div className="min-h-[60vh] flex items-center justify-center">
-            <Loading />
-          </div>
-        )}
 
         {/* Empty State */}
         {!loading && certificates.length === 0 && (

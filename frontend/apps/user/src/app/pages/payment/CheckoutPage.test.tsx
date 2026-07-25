@@ -124,8 +124,8 @@ describe('CheckoutPage', () => {
 
   it('renders loading state', () => {
     (useCheckoutPreview as any).mockReturnValue({ isLoading: true });
-    render(<CheckoutPage />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    const { container } = render(<CheckoutPage />);
+    expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
   });
 
   it('redirects to cart if cart is empty (Cart Mode)', () => {

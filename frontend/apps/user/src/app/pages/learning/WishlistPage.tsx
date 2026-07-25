@@ -4,11 +4,11 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Card,
   Button,
-  Loading,
   PriceTag,
   ConfirmDialog,
   useToast,
 } from "@edumind/user-ui";
+import { WishlistSkeleton } from "../../components/route-skeletons/WishlistSkeleton";
 import { wishlistService } from '../../services/wishlist.service';
 import { enrollmentService } from '../../services/enrollment.service';
 import type { WishlistItemResponse } from "@edumind/shared-types";
@@ -172,11 +172,7 @@ export const WishlistPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <WishlistSkeleton />;
   }
 
   return (

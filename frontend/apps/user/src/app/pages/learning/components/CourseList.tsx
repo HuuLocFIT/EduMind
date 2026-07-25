@@ -1,7 +1,9 @@
 import React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { EnrollmentResponse } from '@edumind/shared-types';
 import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { EnrollmentCardNew } from './EnrollmentCardNew';
+import { prefetchCourseDetail } from '../../../lib/prefetch';
 
 interface Pagination {
   totalPages?: number;
@@ -47,6 +49,7 @@ export const CourseList: React.FC<CourseListProps> = ({
   onViewDetails,
   onBrowseCourses,
 }) => {
+  const queryClient = useQueryClient();
   const totalPages = pagination?.totalPages ?? 0;
 
   if (isLoading) {
@@ -85,7 +88,10 @@ export const CourseList: React.FC<CourseListProps> = ({
               key={enrollment.id}
               enrollment={enrollment}
               isHovered={hoveredCourse === enrollment.id}
-              onMouseEnter={() => onHoverCourse(enrollment.id)}
+              onMouseEnter={() => {
+                onHoverCourse(enrollment.id);
+                prefetchCourseDetail(queryClient, enrollment.courseId);
+              }}
               onMouseLeave={() => onHoverCourse(null)}
               onContinue={() => onContinue(enrollment)}
               onViewDetails={() => onViewDetails(enrollment.courseId)}

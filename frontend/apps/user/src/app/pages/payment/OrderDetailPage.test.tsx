@@ -140,8 +140,8 @@ describe('OrderDetailPage', () => {
 
   it('renders loading state', () => {
     (useOrder as any).mockReturnValue({ isLoading: true });
-    render(<OrderDetailPage />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    const { container } = render(<OrderDetailPage />);
+    expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
   });
 
   it('renders error state', async () => {

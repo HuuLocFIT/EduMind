@@ -5,11 +5,11 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
-  Loading,
   ProgressBar,
   useToast,
   useModal,
 } from '@edumind/user-ui';
+import { CoursePlayerSkeleton } from '../../components/route-skeletons/CoursePlayerSkeleton';
 import { courseService } from '../../services/course.service';
 import { enrollmentService } from '../../services/enrollment.service';
 import { lessonProgressService } from '../../services/lesson-progress.service';
@@ -89,6 +89,7 @@ export const CoursePlayerPage: React.FC = () => {
   const activeLessonRef = useRef<HTMLButtonElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const skipSidebarScroll = useRef(false);
+  const reconcileVersionRef = useRef(0);
 
   useEffect(() => {
     if (courseId) {
@@ -138,9 +139,24 @@ export const CoursePlayerPage: React.FC = () => {
   // Check whether the current lesson has a generated quiz available for the student
   useEffect(() => {
     if (!currentLesson) return;
-    aiService.getQuizForStudent(currentLesson.id)
-      .then((quiz) => setLessonHasQuiz(quiz !== null))
-      .catch(() => setLessonHasQuiz(false));
+    let isSubscribed = true;
+
+    aiService
+      .getQuizForStudent(currentLesson.id)
+      .then((quiz) => {
+        if (isSubscribed) {
+          setLessonHasQuiz(quiz !== null);
+        }
+      })
+      .catch(() => {
+        if (isSubscribed) {
+          setLessonHasQuiz(false);
+        }
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [currentLesson?.id]);
 
 
@@ -224,7 +240,7 @@ export const CoursePlayerPage: React.FC = () => {
       
       // Restore last lesson or default to first if available
       if (sortedLessons.length > 0) {
-        const lessonIdParam = searchParams.get('lesson');
+        const lessonIdParam = searchParams.get('lesson') || searchParams.get('lessonId');
         const lastLessonId = localStorage.getItem(`course_${courseId}_last_lesson`);
         
         let targetLesson = sortedLessons[0];
@@ -235,8 +251,10 @@ export const CoursePlayerPage: React.FC = () => {
         }
 
         setCurrentLesson(targetLesson);
-        setSearchParams({ lesson: targetLesson.id.toString() }, { replace: true });
+        setSearchParams({ lesson: targetLesson.id.toString(), type: targetLesson.contentType }, { replace: true });
         localStorage.setItem(`course_${courseId}_last_lesson`, targetLesson.id.toString());
+        localStorage.setItem(`course_${courseId}_last_lesson_type`, targetLesson.contentType);
+        localStorage.setItem(`lesson_${targetLesson.id}_type`, targetLesson.contentType);
       }
     } catch (err) {
       console.error('Error fetching course data:', err);
@@ -419,94 +437,145 @@ export const CoursePlayerPage: React.FC = () => {
     }
   }, [currentLessonProgress]);
 
+  // Optimistically mark a lesson complete in local state so the UI updates
+  // instantly (zero-latency). Returns a snapshot so callers can roll back if
+  // the server call ultimately fails.
+  const markLessonCompletedLocally = (lessonId: number) => {
+    const prevProgress = allLessonProgress;
+    const prevEnrollment = enrollment;
+    const alreadyCompleted = allLessonProgress.find(
+      (p) => p.lessonId === lessonId
+    )?.isCompleted;
+
+    setAllLessonProgress((prev) => {
+      const existing = prev.find((p) => p.lessonId === lessonId);
+      if (!existing) {
+        return [
+          ...prev,
+          {
+            lessonId,
+            isCompleted: true,
+            watchPercentage: 100,
+          } as LessonProgressResponse,
+        ];
+      }
+      return prev.map((p) =>
+        p.lessonId === lessonId ? { ...p, isCompleted: true } : p
+      );
+    });
+
+    // Bump the course progress bar optimistically (only when newly completed)
+    if (!alreadyCompleted && enrollment) {
+      const totalLessons = lessons.length;
+      const newCompleted = (enrollment.completedLessons || 0) + 1;
+      setEnrollment({
+        ...enrollment,
+        completedLessons: newCompleted,
+        progressPercentage:
+          totalLessons > 0
+            ? Math.min(100, Math.round((newCompleted / totalLessons) * 100))
+            : enrollment.progressPercentage,
+      });
+    }
+
+    return { prevProgress, prevEnrollment };
+  };
+
+  // Reconcile the optimistic local state with the server truth in the
+  // background, then refresh cross-page caches.
+  const reconcileEnrollmentProgress = async (enrollmentId: number) => {
+    const version = ++reconcileVersionRef.current;
+    try {
+      const [allProgress, response] = await Promise.all([
+        lessonProgressService.getEnrollmentProgress(enrollmentId),
+        enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
+      ]);
+      if (version !== reconcileVersionRef.current) return;
+      setAllLessonProgress(allProgress);
+      const found = response.data?.find((e) => e.courseId === Number(courseId));
+      if (found) setEnrollment(found);
+    } catch (err) {
+      console.error('Error reconciling lesson progress:', err);
+    }
+    // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
+    queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+  };
+
   const handleVideoEnded = async () => {
     if (!currentLesson || !enrollment) return;
 
-    try {
-      await lessonProgressService.completeLesson(enrollment.id, currentLesson.id);
-      // Refresh all lesson progress to keep UI in sync
-      try {
-        const allProgress = await lessonProgressService.getEnrollmentProgress(enrollment.id);
-        setAllLessonProgress(allProgress);
-      } catch (progressErr) {
-        console.error('Error refreshing lesson progress after completion:', progressErr);
-      }
-      
-      // Refresh enrollment to get updated progress
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      const foundEnrollment = response.data?.find(
-        (e) => e.courseId === Number(courseId)
-      );
-      if (foundEnrollment) {
-        setEnrollment(foundEnrollment);
-      }
-      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
-      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
+    const lessonId = currentLesson.id;
+    const enrollmentId = enrollment.id;
 
-      // Auto-play next lesson
-      const nextLesson = getNextLesson();
-      if (nextLesson) {
-        setTimeout(() => {
-          handleLessonClick(nextLesson);
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Error completing lesson:', err);
-    }
+    // Update UI immediately, then confirm with the server in the background
+    const snapshot = markLessonCompletedLocally(lessonId);
 
     if (progressUpdateInterval.current) {
       clearInterval(progressUpdateInterval.current);
       progressUpdateInterval.current = null;
+    }
+
+    // Auto-play next lesson without waiting for the server round-trips
+    const nextLesson = getNextLesson();
+    if (nextLesson) {
+      setTimeout(() => {
+        handleLessonClick(nextLesson);
+      }, 2000);
+    }
+
+    try {
+      await lessonProgressService.completeLesson(enrollmentId, lessonId);
+      await reconcileEnrollmentProgress(enrollmentId);
+    } catch (err) {
+      console.error('Error completing lesson:', err);
+      // Roll back optimistic completion
+      setAllLessonProgress(snapshot.prevProgress);
+      if (snapshot.prevEnrollment) setEnrollment(snapshot.prevEnrollment);
     }
   };
 
   const handleMarkComplete = async () => {
     if (!currentLesson || !enrollment) return;
 
+    const lessonId = currentLesson.id;
+    const enrollmentId = enrollment.id;
+
+    // Update UI immediately and move on; confirm with the server afterwards
+    const snapshot = markLessonCompletedLocally(lessonId);
+
+    const nextLesson = getNextLesson();
+    if (nextLesson) {
+      handleLessonClick(nextLesson);
+    }
+
     try {
-      await lessonProgressService.completeLesson(enrollment.id, currentLesson.id);
-      // Refresh all lesson progress to keep UI in sync
-      try {
-        const allProgress = await lessonProgressService.getEnrollmentProgress(enrollment.id);
-        setAllLessonProgress(allProgress);
-      } catch (progressErr) {
-        console.error('Error refreshing lesson progress after manual completion:', progressErr);
-      }
-
-      // Refresh enrollment to get updated progress
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      const foundEnrollment = response.data?.find(
-        (e) => e.courseId === Number(courseId)
-      );
-      if (foundEnrollment) {
-        setEnrollment(foundEnrollment);
-      }
-      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
-      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
-
-      const nextLesson = getNextLesson();
-      if (nextLesson) {
-        handleLessonClick(nextLesson);
-      }
+      await lessonProgressService.completeLesson(enrollmentId, lessonId);
+      await reconcileEnrollmentProgress(enrollmentId);
     } catch (err: any) {
+      // Roll back optimistic completion
+      setAllLessonProgress(snapshot.prevProgress);
+      if (snapshot.prevEnrollment) setEnrollment(snapshot.prevEnrollment);
       showError(err?.message || 'Failed to mark lesson as complete');
     }
   };
 
   const handleQuizPass = async () => {
     if (!currentLesson || !enrollment) return;
+
+    const lessonId = currentLesson.id;
+    const enrollmentId = enrollment.id;
+
+    const snapshot = markLessonCompletedLocally(lessonId);
+    showSuccess('Quiz passed! Lesson marked as complete.');
+
     try {
-      await lessonProgressService.completeLesson(enrollment.id, currentLesson.id);
-      const allProgress = await lessonProgressService.getEnrollmentProgress(enrollment.id);
-      setAllLessonProgress(allProgress);
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      const found = response.data?.find((e) => e.courseId === Number(courseId));
-      if (found) setEnrollment(found);
-      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit
-      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
-      showSuccess('Quiz passed! Lesson marked as complete.');
+      await lessonProgressService.completeLesson(enrollmentId, lessonId);
+      await reconcileEnrollmentProgress(enrollmentId);
     } catch (err: any) {
       console.error('Error completing lesson after quiz pass:', err);
+      // Roll back optimistic completion
+      setAllLessonProgress(snapshot.prevProgress);
+      if (snapshot.prevEnrollment) setEnrollment(snapshot.prevEnrollment);
     }
   };
 
@@ -525,8 +594,10 @@ export const CoursePlayerPage: React.FC = () => {
     }
 
     setCurrentLesson(lesson);
-    setSearchParams({ lessonId: lesson.id.toString() }, { replace: true });
+    setSearchParams({ lesson: lesson.id.toString(), type: lesson.contentType }, { replace: true });
     localStorage.setItem(`course_${courseId}_last_lesson`, lesson.id.toString());
+    localStorage.setItem(`course_${courseId}_last_lesson_type`, lesson.contentType);
+    localStorage.setItem(`lesson_${lesson.id}_type`, lesson.contentType);
     const savedProgress = allLessonProgress.find((p) => p.lessonId === lesson.id);
     setVideoProgress(savedProgress?.watchPercentage ?? 0);
     setLessonHasQuiz(null);
@@ -582,11 +653,7 @@ export const CoursePlayerPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <CoursePlayerSkeleton />;
   }
 
   // Access error modal – shown when user is DROPPED/SUSPENDED or not properly enrolled

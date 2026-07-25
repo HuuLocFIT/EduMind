@@ -98,10 +98,63 @@ export const TeacherPayoutsPage: React.FC = () => {
             )}
 
             {loadingList ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-3">
-                {[...Array(5)].map((_, idx) => (
-                  <Skeleton key={idx} className="h-14 rounded-lg" />
-                ))}
+              <div className="space-y-4 animate-pulse">
+                <div>
+                  <div className="h-6 w-36 bg-gray-200 rounded mb-1" />
+                  <div className="h-4 w-48 bg-gray-200 rounded" />
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Payout #
+                          </th>
+                          <th className="w-1/6 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Method
+                          </th>
+                          <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <tr key={i}>
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-36 bg-gray-200 rounded" />
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="h-4 w-20 bg-gray-200 rounded ml-auto" />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="h-6 w-28 bg-gray-200 rounded-full mx-auto" />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="h-6 w-20 bg-gray-200 rounded-full mx-auto" />
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="h-4 w-24 bg-gray-200 rounded" />
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="h-6 w-16 bg-gray-200 rounded" />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             ) : (
               <>

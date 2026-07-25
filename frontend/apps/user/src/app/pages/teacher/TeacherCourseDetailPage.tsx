@@ -18,6 +18,9 @@ import {
   TABS,
   type TabId,
 } from "../../components/teacher/courses/detail";
+import {
+  TeacherCourseDetailSkeleton,
+} from "../../components/route-skeletons";
 import { ArrowLeft, Edit, Send } from "lucide-react";
 import { queryKeys } from "../../lib/query-keys";
 import { STALE_TIME_TEACHER_COURSES } from "../../lib/query-config";
@@ -89,13 +92,7 @@ export const TeacherCourseDetailPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <TeacherCourseDetailSkeleton />;
   }
 
   if (error || !course) {

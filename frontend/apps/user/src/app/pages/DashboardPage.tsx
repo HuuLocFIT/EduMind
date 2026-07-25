@@ -17,6 +17,8 @@ import { ChevronRight, ThumbsUp } from "lucide-react";
 import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import TeacherApplicationBanner from "../components/TeacherApplicationBanner";
 
+import { DashboardSkeleton } from "../components/route-skeletons/DashboardSkeleton";
+
 // Import split components
 import {
   DashboardHeroSection,
@@ -134,6 +136,10 @@ export const DashboardPage: React.FC = () => {
   const handleViewCourse = (courseId: number) => {
     navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
   };
+
+  if (enrollmentsLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

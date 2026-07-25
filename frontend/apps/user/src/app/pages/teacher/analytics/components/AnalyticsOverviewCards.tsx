@@ -1,6 +1,5 @@
 import React from "react";
 import { Users, DollarSign, Star, CheckCircle2 } from "lucide-react";
-import { Skeleton } from "@edumind/user-ui";
 import type { TeacherAnalytics } from "@edumind/shared-types";
 
 interface AnalyticsOverviewCardsProps {
@@ -14,9 +13,18 @@ export const AnalyticsOverviewCards: React.FC<AnalyticsOverviewCardsProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-pulse">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-32 w-full rounded-xl" />
+          <div
+            key={i}
+            className="bg-white p-5 sm:p-6 rounded-xl border border-gray-200 flex items-start justify-between gap-3"
+          >
+            <div className="space-y-2 flex-1">
+              <div className="h-4 w-24 bg-gray-200 rounded" />
+              <div className="h-7 w-20 bg-gray-200 rounded-lg" />
+            </div>
+            <div className="w-12 h-12 rounded-lg bg-gray-100 flex-shrink-0" />
+          </div>
         ))}
       </div>
     );

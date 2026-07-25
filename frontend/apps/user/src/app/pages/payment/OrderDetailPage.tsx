@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Card, Button, Loading, ConfirmDialog, useToast } from "@edumind/user-ui";
+import { Card, Button, ConfirmDialog, useToast } from "@edumind/user-ui";
+import { OrderDetailSkeleton } from "../../components/route-skeletons/OrderDetailSkeleton";
 import { useOrder, useCancelOrder } from "../../hooks/useOrders";
 import { useInvoiceByOrder } from "../../hooks/useInvoices";
 import { useRefundByOrder } from "../../hooks/useRefunds";
@@ -127,11 +128,7 @@ export const OrderDetailPage: React.FC = () => {
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <OrderDetailSkeleton />;
   }
 
   // Error state
