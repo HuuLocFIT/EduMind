@@ -22,6 +22,7 @@ public class EnrollmentResponse {
     private String courseThumbnail;
     private BigDecimal coursePrice;
     private Boolean courseIsPaid;
+    private String courseSlug;
     private Long studentId;
 
     // Progress
