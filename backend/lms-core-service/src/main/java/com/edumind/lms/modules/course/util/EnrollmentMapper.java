@@ -26,6 +26,7 @@ public class EnrollmentMapper {
                 .courseThumbnail(enrollment.getCourse().getThumbnailUrl())
                 .coursePrice(enrollment.getCourse().getPrice())
                 .courseIsPaid(enrollment.getCourse().isPaid())
+                .courseSlug(enrollment.getCourse().getSlug())
                 .studentId(enrollment.getStudentId())
                 .progressPercentage(enrollment.getProgressPercentage())
                 .completedLessons(enrollment.getCompletedLessons())
