@@ -88,7 +88,7 @@ export const CourseDetailPage: React.FC = () => {
   });
 
   const { data: reviews = [] } = useQuery<ReviewResponse[]>({
-    queryKey: queryKeys.courses.reviews(course!.id),
+    queryKey: queryKeys.courses.reviews(course?.id ?? 0),
     enabled: Boolean(course?.id),
     queryFn: async () => {
       const response = await courseReviewService.getCourseReviews(
