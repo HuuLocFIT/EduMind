@@ -205,6 +205,21 @@ async function prerender() {
     return;
   }
 
+  // Pre-flight: if the root route doesn't render within 15s, the API is
+  // unreachable from this build environment. Skip prerender to avoid
+  // 24+ routes each timing out at 60s.
+  try {
+    const probePage = await browser.newPage();
+    await probePage.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle2', timeout: 15000 });
+    await probePage.close();
+  } catch {
+    console.warn('[prerender] API unreachable from build environment. Skipping static prerendering.');
+    await browser.close();
+    await new Promise(resolve => server.close(resolve));
+    console.log('[prerender] Fallback to standard SPA index.html build.');
+    return;
+  }
+
   try {
     for (const route of allRoutes) {
       const url = `http://localhost:${PORT}${route}`;
@@ -233,17 +248,17 @@ async function prerender() {
         };
       }, apiOrigin, localOrigin);
 
+      const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       let rawHtml;
       try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
         rawHtml = await page.content();
       } catch (err) {
         console.warn(`[prerender] Warning: ${url} failed to render: ${err.message}`);
-        console.warn(`[prerender] Falling back to VANILLA_INDEX_CONTENT for ${relPath || route}`);
+        console.warn(`[prerender] Falling back to VANILLA_INDEX_CONTENT for ${relPath}`);
         rawHtml = VANILLA_INDEX_CONTENT;
       }
       const html = deduplicateSeoTags(rawHtml);
-      const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       const fullPath = resolve(DIST_DIR, relPath);
       const dir = dirname(fullPath);
 
