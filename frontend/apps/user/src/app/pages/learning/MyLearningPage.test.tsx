@@ -33,8 +33,8 @@ vi.mock('../../services/enrollment.service', () => ({
 vi.mock('@edumind/shared-utils', () => ({
   buildRouteWithParams: () => '/mock-route',
   USER_ROUTES: {
-    LEARNING_COURSE: '/learning/:courseId',
-    COURSE_DETAIL: '/courses/:courseId',
+    LEARNING_COURSE: '/learning/:courseSlug',
+    COURSE_DETAIL: '/courses/:courseSlug',
     COURSES: '/courses',
   },
 }));

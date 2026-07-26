@@ -19,6 +19,7 @@ interface BrowseFilterSidebarProps {
   minRating?: number;
   setMinRating: (rating: number | undefined) => void;
   filterType: 'all' | 'free';
+  onFilterTypeChange?: (type: 'all' | 'free') => void;
   setPage: (page: number) => void;
   onClearFilters: () => void;
   showClearButton: boolean;
@@ -77,6 +78,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
   minRating,
   setMinRating,
   filterType,
+  onFilterTypeChange,
   setPage,
   onClearFilters,
   showClearButton,
@@ -109,13 +111,8 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
   };
 
   const handleFreeToggle = () => {
-    if (filterType === "free") {
-      // Already free, do nothing or could reset
-      return;
-    }
-    // This would need to be handled by parent, but for now we'll just set prices to 0
-    setMinPrice("0");
-    setMaxPrice("0");
+    const newType = filterType === "free" ? "all" : "free";
+    onFilterTypeChange?.(newType);
     setPage(0);
   };
 

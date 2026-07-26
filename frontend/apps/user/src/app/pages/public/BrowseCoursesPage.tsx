@@ -22,6 +22,7 @@ import { STALE_TIME_CATEGORIES } from "../../lib/query-config";
 import { useCart, useAddToCart } from "../../hooks/useCart";
 import { useAuthStore } from "../../stores/auth.store";
 import { useCartStore } from "../../stores/cart.store";
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
@@ -50,9 +51,8 @@ export const BrowseCoursesPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Filter type (all, free)
-  const [filterType, setFilterType] = useState<FilterType>(
-    (searchParams.get("filter") as FilterType) || "all"
-  );
+  const initialFilterType = (searchParams.get("filter") as FilterType) || "all";
+  const [filterType, setFilterType] = useState<FilterType>(initialFilterType);
 
   // Filters - using arrays for multi-select
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(() => {
@@ -69,12 +69,14 @@ export const BrowseCoursesPage: React.FC = () => {
     const levels = searchParams.get("levels");
     return levels ? normalizeSelectedLevels(levels.split(",")) : [];
   });
-  const [minPrice, setMinPrice] = useState<string>(
-    searchParams.get("minPrice") || ""
-  );
-  const [maxPrice, setMaxPrice] = useState<string>(
-    searchParams.get("maxPrice") || ""
-  );
+  const [minPrice, setMinPrice] = useState<string>(() => {
+    if (initialFilterType === "free") return "";
+    return searchParams.get("minPrice") || "";
+  });
+  const [maxPrice, setMaxPrice] = useState<string>(() => {
+    if (initialFilterType === "free") return "";
+    return searchParams.get("maxPrice") || "";
+  });
   const [minRating, setMinRating] = useState<number | undefined>(() => {
     const rating = searchParams.get("minRating");
     return rating ? Number(rating) : undefined;
@@ -103,8 +105,10 @@ export const BrowseCoursesPage: React.FC = () => {
     if (selectedCategoryIds.length > 0) params.set("categories", selectedCategoryIds.join(","));
     if (debouncedKeyword) params.set("q", debouncedKeyword);
     if (selectedLevels.length > 0) params.set("levels", selectedLevels.join(","));
-    if (minPrice) params.set("minPrice", minPrice);
-    if (maxPrice) params.set("maxPrice", maxPrice);
+    if (filterType !== "free") {
+      if (minPrice) params.set("minPrice", minPrice);
+      if (maxPrice) params.set("maxPrice", maxPrice);
+    }
     if (minRating) params.set("minRating", String(minRating));
     if (sortBy !== "latest") params.set("sort", sortBy);
     setSearchParams(params);
@@ -240,7 +244,7 @@ export const BrowseCoursesPage: React.FC = () => {
 
   const handleCourseClick = (course: CourseResponse) => {
     navigate(
-      buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id })
+      buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug: course.slug })
     );
   };
 
@@ -273,6 +277,15 @@ export const BrowseCoursesPage: React.FC = () => {
 
   const handleSortChange = (sort: string) => {
     setSortBy(sort);
+    setPage(0);
+  };
+
+  const handleFilterTypeChange = (type: FilterType) => {
+    setFilterType(type);
+    if (type === "free") {
+      setMinPrice("");
+      setMaxPrice("");
+    }
     setPage(0);
   };
 
@@ -338,8 +351,8 @@ export const BrowseCoursesPage: React.FC = () => {
     }
   };
 
-  const handleGoToCourse = (courseId: number) => {
-    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId }));
+  const handleGoToCourse = (courseSlug: string) => {
+    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseSlug }));
   };
 
   // Direct checkout for free courses
@@ -384,8 +397,25 @@ export const BrowseCoursesPage: React.FC = () => {
     });
   };
 
+  const pageTitle = searchKeyword
+    ? `${searchKeyword} Courses`
+    : filterType === 'free' ? 'Free Courses' : 'Browse Courses';
+
+  const pageDescription = searchKeyword
+    ? `Browse ${searchKeyword} courses on EduMind. Find the perfect course for your learning journey.`
+    : filterType === 'free'
+    ? 'Explore free courses on EduMind. Start learning without any cost.'
+    : 'Browse our wide selection of courses on EduMind. Find expert-led courses to advance your skills.';
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <SeoMetaTags
+        title={pageTitle}
+        description={pageDescription}
+        canonicalUrl="/courses"
+        noIndex={activeFiltersCount > 0}
+      />
+      <div className="min-h-screen bg-gray-50">
       <BrowseHeroSection
         searchKeyword={searchKeyword}
         setSearchKeyword={setSearchKeyword}
@@ -440,10 +470,11 @@ export const BrowseCoursesPage: React.FC = () => {
               setMaxPrice={setMaxPrice}
               minRating={minRating}
               setMinRating={setMinRating}
-              filterType={filterType}
-              setPage={setPage}
-              onClearFilters={clearFilters}
-              showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
+               filterType={filterType}
+               onFilterTypeChange={handleFilterTypeChange}
+               setPage={setPage}
+               onClearFilters={clearFilters}
+               showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
             />
           </div>
 
@@ -467,6 +498,7 @@ export const BrowseCoursesPage: React.FC = () => {
             minRating={minRating}
             setMinRating={setMinRating}
             filterType={filterType}
+            onFilterTypeChange={handleFilterTypeChange}
             setPage={setPage}
             onClearFilters={clearFilters}
             showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
@@ -500,7 +532,8 @@ export const BrowseCoursesPage: React.FC = () => {
           />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

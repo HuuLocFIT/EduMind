@@ -25,7 +25,7 @@ interface BrowseCourseListProps {
   addingIds: Set<number>;
   enrollingIds: Set<number>;
   handleAddToCart: (id: number) => void;
-  handleGoToCourse: (id: number) => void;
+  handleGoToCourse: (courseSlug: string) => void;
   handleEnrollFree: (id: number) => void;
 
   // Empty state actions

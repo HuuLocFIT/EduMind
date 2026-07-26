@@ -116,7 +116,7 @@ export const WishlistPage: React.FC = () => {
         exact: false,
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.courses.detail(courseId),
+        queryKey: queryKeys.courses.all,
         exact: false,
       });
       navigate(USER_ROUTES.LEARNING);
@@ -255,9 +255,10 @@ export const WishlistPage: React.FC = () => {
                     onRemove={handleRemoveFromWishlist}
                     onEnroll={handleEnroll}
                     onViewCourse={() =>
+                      item.courseSlug &&
                       navigate(
                         buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-                          courseId: item.courseId || "",
+                          courseSlug: item.courseSlug,
                         })
                       )
                     }

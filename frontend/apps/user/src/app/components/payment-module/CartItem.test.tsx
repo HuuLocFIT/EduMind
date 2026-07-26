@@ -36,6 +36,7 @@ describe('CartItem', () => {
   const mockOnRemove = vi.fn();
   const mockItem = {
     courseId: 101,
+    courseSlug: '101',
     courseTitle: 'Advanced React Patterns',
     instructorName: 'John Doe',
     courseThumbnailUrl: 'http://example.com/image.jpg',

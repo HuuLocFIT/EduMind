@@ -76,12 +76,12 @@ export const USER_ROUTES = {
   
   // Courses (for future use)
   COURSES: '/courses',
-  COURSE_DETAIL: '/courses/:courseId',
+  COURSE_DETAIL: '/courses/:courseSlug',
   MY_COURSES: '/my-courses',
-  
+
   // Learning (for future use)
   LEARNING: '/learning',
-  LEARNING_COURSE: '/learning/:courseId',
+  LEARNING_COURSE: '/learning/:courseSlug',
 
   // Certificates
   CERTIFICATES: '/certificates',
@@ -203,8 +203,8 @@ export const getUserRoute = (route: keyof typeof USER_ROUTES): string => {
  * Helper functions for dynamic routes
  */
 export const UserRouteHelpers = {
-  courseDetail: (courseId: string | number) => `/courses/${courseId}`,
-  learningCourse: (courseId: string | number) => `/learning/${courseId}`,
+  courseDetail: (courseSlug: string) => `/courses/${courseSlug}`,
+  learningCourse: (courseSlug: string) => `/learning/${courseSlug}`,
   refundDetail: (refundId: string | number) => `/refunds/${refundId}`,
 } as const;
 

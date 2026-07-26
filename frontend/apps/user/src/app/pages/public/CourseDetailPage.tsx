@@ -43,6 +43,8 @@ import {
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from '../../stores/auth.store';
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
+import { buildCourseJsonLd } from "../../components/Seo/course-structured-data";
 import { queryKeys } from "../../lib/query-keys";
 import {
   STALE_TIME_COURSE_DETAIL,
@@ -53,7 +55,7 @@ import {
 } from "../../lib/query-config";
 
 export const CourseDetailPage: React.FC = () => {
-  const { courseId } = useParams<{ courseId: string }>();
+  const { courseSlug } = useParams<{ courseSlug: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { success: showSuccess, error: showError } = useToast();
@@ -70,9 +72,9 @@ export const CourseDetailPage: React.FC = () => {
     isLoading: courseLoading,
     error: courseError,
   } = useQuery<CourseDetailResponse | null>({
-    queryKey: queryKeys.courses.detail(courseId!),
-    enabled: Boolean(courseId),
-    queryFn: async () => courseService.getCourseById(Number(courseId)),
+    queryKey: queryKeys.courses.detail(courseSlug!),
+    enabled: Boolean(courseSlug),
+    queryFn: async () => courseService.getCourseBySlug(courseSlug!),
     staleTime: STALE_TIME_COURSE_DETAIL,
   });
 
@@ -86,11 +88,11 @@ export const CourseDetailPage: React.FC = () => {
   });
 
   const { data: reviews = [] } = useQuery<ReviewResponse[]>({
-    queryKey: queryKeys.courses.reviews(courseId!),
-    enabled: Boolean(courseId),
+    queryKey: queryKeys.courses.reviews(course!.id),
+    enabled: Boolean(course?.id),
     queryFn: async () => {
       const response = await courseReviewService.getCourseReviews(
-        Number(courseId),
+        course!.id,
         {
           page: 0,
           size: 10,
@@ -103,16 +105,16 @@ export const CourseDetailPage: React.FC = () => {
 
   // Check enrollment status (lightweight check - only returns boolean)
   const { data: isEnrolled = false } = useQuery<boolean>({
-    queryKey: queryKeys.enrollments.status(Number(courseId!), userId),
-    enabled: Boolean(courseId) && isAuthenticated && Boolean(userId),
-    queryFn: () => enrollmentService.checkEnrollmentStatus(Number(courseId)),
+    queryKey: queryKeys.enrollments.status(course?.id ?? 0, userId),
+    enabled: Boolean(course?.id) && isAuthenticated && Boolean(userId),
+    queryFn: () => enrollmentService.checkEnrollmentStatus(course!.id),
     staleTime: STALE_TIME_ENROLLMENTS,
   });
 
   const { data: isInWishlist = false } = useQuery<boolean>({
-    queryKey: queryKeys.wishlist.course(courseId!, userId),
-    enabled: Boolean(courseId) && isAuthenticated && Boolean(userId),
-    queryFn: () => wishlistService.isInWishlist(Number(courseId)),
+    queryKey: queryKeys.wishlist.course(course?.id ?? 0, userId),
+    enabled: Boolean(course?.id) && isAuthenticated && Boolean(userId),
+    queryFn: () => wishlistService.isInWishlist(course!.id),
     staleTime: STALE_TIME_WISHLIST,
   });
 
@@ -121,13 +123,13 @@ export const CourseDetailPage: React.FC = () => {
       await enrollmentService.enrollInCourse(id);
       return id;
     },
-    onSuccess: async (id) => {
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.enrollments.all,
         exact: false,
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.courses.detail(id),
+        queryKey: queryKeys.courses.detail(courseSlug!),
         exact: false,
       });
       await queryClient.invalidateQueries({
@@ -157,7 +159,7 @@ export const CourseDetailPage: React.FC = () => {
         exact: false,
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.wishlist.course(courseId, userId),
+        queryKey: queryKeys.wishlist.course(course?.id ?? 0, userId),
         exact: false,
       });
       await queryClient.invalidateQueries({
@@ -173,15 +175,15 @@ export const CourseDetailPage: React.FC = () => {
 
   const reviewMutation = useMutation({
     mutationFn: async (payload: { rating: number; comment: string }) => {
-      await courseReviewService.createReview(Number(courseId), payload);
+      await courseReviewService.createReview(course!.id, payload);
     },
     onSuccess: async () => {
       setShowReviewForm(false);
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.courses.reviews(courseId!),
+    queryKey: queryKeys.courses.reviews(course?.id ?? 0),
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.courses.detail(courseId!),
+        queryKey: queryKeys.courses.detail(courseSlug!),
       });
       showSuccess("Review submitted successfully!");
     },
@@ -191,11 +193,11 @@ export const CourseDetailPage: React.FC = () => {
   });
 
   const handleEnroll = async () => {
-    if (!courseId) {
+    if (!course) {
       showError("Course not found");
       return;
     }
-    await enrollMutation.mutateAsync(Number(courseId));
+    await enrollMutation.mutateAsync(course.id);
   };
 
   const handleToggleWishlist = async (courseId: number) => {
@@ -211,32 +213,57 @@ export const CourseDetailPage: React.FC = () => {
   };
 
   if (courseLoading) {
-    // Same skeleton as the route-level Suspense fallback, so the transition
-    // from chunk-loading to data-loading to content is seamless.
-    return <CourseDetailSkeleton />;
+    return (
+      <>
+        <SeoMetaTags
+          title="Loading Course..."
+          description="Accessing course details on EduMind"
+        />
+        <CourseDetailSkeleton />
+      </>
+    );
   }
 
   if (courseError || !course) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="p-8 text-center max-w-md">
-          <p className="text-red-600 text-lg mb-4">
-            {(courseError as any)?.message || "Course not found"}
-          </p>
-          <Button
-            variant="primary"
-            onClick={() => navigate(USER_ROUTES.COURSES)}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Courses
-          </Button>
-        </Card>
-      </div>
+      <>
+        <SeoMetaTags
+          title="Course Not Found"
+          description="The requested course could not be found."
+          noIndex={true}
+          prerenderStatusCode={404}
+        />
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <Card className="p-8 text-center max-w-md">
+            <p className="text-red-600 text-lg mb-4">
+              {(courseError as any)?.message || "Course not found"}
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => navigate(USER_ROUTES.COURSES)}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Courses
+            </Button>
+          </Card>
+        </div>
+      </>
     );
   }
 
+  const canonicalPath = `/courses/${course.slug || course.id}`;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <SeoMetaTags
+        title={course.title}
+        description={course.shortDescription?.replace(/<[^>]*>/g, '') || course.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Learn ${course.title} on EduMind`}
+        canonicalUrl={canonicalPath}
+        ogType="product"
+        {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
+        jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
+      />
+      <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">
         {/* Background Pattern */}
@@ -362,7 +389,7 @@ export const CourseDetailPage: React.FC = () => {
                 {/* Enroll Button (for free courses) */}
                 {course.price === 0 && (
                   <EnrollButton
-                    courseId={Number(courseId)}
+                    courseId={course.id}
                     isEnrolled={isEnrolled}
                     isFree={true}
                     onEnroll={handleEnroll}
@@ -382,7 +409,7 @@ export const CourseDetailPage: React.FC = () => {
                       Buy Now
                     </Button>
                     <AddToCartButton
-                      courseId={Number(courseId)}
+                      courseId={course.id}
                       isEnrolled={isEnrolled}
                       fullWidth
                       variant="outline"
@@ -394,7 +421,7 @@ export const CourseDetailPage: React.FC = () => {
                 {/* Already Enrolled indicator */}
                 {isEnrolled && course.price > 0 && (
                   <EnrollButton
-                    courseId={Number(courseId)}
+                    courseId={course.id}
                     isEnrolled={true}
                     isFree={false}
                     onEnroll={handleEnroll}
@@ -406,7 +433,7 @@ export const CourseDetailPage: React.FC = () => {
                 { !isEnrolled && 
                   <div className="flex items-center justify-center gap-2 mb-6">
                     <WishlistButton
-                      courseId={Number(courseId)}
+                      courseId={course.id}
                       isInWishlist={isInWishlist}
                       onToggle={handleToggleWishlist}
                     />
@@ -629,7 +656,8 @@ export const CourseDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

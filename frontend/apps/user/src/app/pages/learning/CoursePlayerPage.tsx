@@ -51,7 +51,7 @@ const AiChatPanel = React.lazy(() =>
 import { useAiChatStore } from '../../stores/aiChat.store';
 
 export const CoursePlayerPage: React.FC = () => {
-  const { courseId } = useParams<{ courseId: string }>();
+  const { courseSlug } = useParams<{ courseSlug: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { success: showSuccess, error: showError,} = useToast();
@@ -62,6 +62,7 @@ export const CoursePlayerPage: React.FC = () => {
   const REDIRECT_DELAY_SECONDS = 10;
 
   // State
+  const [resolvedCourseId, setResolvedCourseId] = useState<number | null>(null);
   const [course, setCourse] = useState<CourseDetailResponse | null>(null);
   const [lessons, setLessons] = useState<LessonResponse[]>([]);
   const [currentLesson, setCurrentLesson] = useState<LessonResponse | null>(null);
@@ -90,19 +91,29 @@ export const CoursePlayerPage: React.FC = () => {
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const skipSidebarScroll = useRef(false);
   const reconcileVersionRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (courseId) {
-      fetchCourseData();
-      checkEnrollment();
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    if (courseSlug) {
+      fetchCourseData(signal);
     }
 
     return () => {
+      abortControllerRef.current?.abort();
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+        autoAdvanceTimeoutRef.current = null;
+      }
       if (progressUpdateInterval.current) {
         clearInterval(progressUpdateInterval.current);
       }
     };
-  }, [courseId]);
+  }, [courseSlug]);
 
   useEffect(() => {
     if (currentLesson && enrollment) {
@@ -138,7 +149,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   // Check whether the current lesson has a generated quiz available for the student
   useEffect(() => {
-    if (!currentLesson) return;
+    if (!currentLesson || currentLesson.contentType === ContentType.QUIZ) return;
     let isSubscribed = true;
 
     aiService
@@ -204,15 +215,25 @@ export const CoursePlayerPage: React.FC = () => {
   }, [accessError, navigate]);
 
 
-  const fetchCourseData = async () => {
+  const fetchCourseData = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      // Fetch course data, sections and lessons in parallel
-      const [courseData, courseSections, courseLessons] = await Promise.all([
-        courseService.getCourseById(Number(courseId)),
-        sectionService.getCourseSections(Number(courseId)),
-        lessonService.getCourseLessons(Number(courseId)),
+      if (signal?.aborted) return;
+
+      // Resolve course by slug
+      const courseData = await courseService.getCourseBySlug(courseSlug!);
+      const numericCourseId = courseData.id;
+      setResolvedCourseId(numericCourseId);
+
+      if (signal?.aborted) return;
+
+      // Fetch sections and lessons with resolved numeric ID
+      const [courseSections, courseLessons] = await Promise.all([
+        sectionService.getCourseSections(numericCourseId),
+        lessonService.getCourseLessons(numericCourseId),
       ]);
+
+      if (signal?.aborted) return;
       
       setCourse(courseData);
       setSections(courseSections);
@@ -235,13 +256,15 @@ export const CoursePlayerPage: React.FC = () => {
         // Then sort by lesson order within section
         return a.orderIndex - b.orderIndex;
       });
+
+      if (signal?.aborted) return;
       
       setLessons(sortedLessons);
       
       // Restore last lesson or default to first if available
       if (sortedLessons.length > 0) {
         const lessonIdParam = searchParams.get('lesson') || searchParams.get('lessonId');
-        const lastLessonId = localStorage.getItem(`course_${courseId}_last_lesson`);
+        const lastLessonId = localStorage.getItem(`course_${courseSlug}_last_lesson`);
         
         let targetLesson = sortedLessons[0];
         if (lessonIdParam) {
@@ -252,29 +275,38 @@ export const CoursePlayerPage: React.FC = () => {
 
         setCurrentLesson(targetLesson);
         setSearchParams({ lesson: targetLesson.id.toString(), type: targetLesson.contentType }, { replace: true });
-        localStorage.setItem(`course_${courseId}_last_lesson`, targetLesson.id.toString());
-        localStorage.setItem(`course_${courseId}_last_lesson_type`, targetLesson.contentType);
+        localStorage.setItem(`course_${courseSlug}_last_lesson`, targetLesson.id.toString());
+        localStorage.setItem(`course_${courseSlug}_last_lesson_type`, targetLesson.contentType);
         localStorage.setItem(`lesson_${targetLesson.id}_type`, targetLesson.contentType);
       }
+
+      if (signal?.aborted) return;
+
+      // Check enrollment after we have the resolved course ID
+      await checkEnrollment(numericCourseId, signal);
     } catch (err) {
       console.error('Error fetching course data:', err);
-      // Set empty array if lessons fetch fails
+      if (signal?.aborted) return;
       setLessons([]);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
-  const checkEnrollment = async () => {
+  const checkEnrollment = async (courseId: number, signal?: AbortSignal) => {
     try {
-      const isEnrolled = await enrollmentService.checkEnrollmentStatus(Number(courseId));
+      if (signal?.aborted) return;
+      const isEnrolled = await enrollmentService.checkEnrollmentStatus(courseId);
+      if (signal?.aborted) return;
       if (!isEnrolled) {
         setAccessError({
           title: 'Enrollment required',
           message:
             'You must enroll in this course before accessing the content. Please go back to the course page to enroll.',
           redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-            courseId: courseId || '',
+            courseSlug: courseSlug!,
           }),
         });
         return;
@@ -282,8 +314,9 @@ export const CoursePlayerPage: React.FC = () => {
       
       // Get enrollment details
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
+      if (signal?.aborted) return;
       const foundEnrollment = response.data?.find(
-        (e) => e.courseId === Number(courseId)
+        (e) => e.courseId === courseId
       );
       if (foundEnrollment) {
         // Business rules:
@@ -295,7 +328,7 @@ export const CoursePlayerPage: React.FC = () => {
             message:
               'Your enrollment for this course has been cancelled. Please purchase/enroll again to access the content.',
             redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-              courseId: courseId || '',
+              courseSlug: courseSlug!,
             }),
           });
           return;
@@ -324,13 +357,14 @@ export const CoursePlayerPage: React.FC = () => {
         }
       }
     } catch (err) {
+      if (signal?.aborted) return;
       console.error('Error checking enrollment:', err);
       setAccessError({
         title: 'Unable to load course',
         message:
           'We were unable to verify your enrollment for this course. Please try again or go back to the course page.',
         redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-          courseId: courseId || '',
+          courseSlug: courseSlug!,
         }),
       });
     }
@@ -492,7 +526,7 @@ export const CoursePlayerPage: React.FC = () => {
       ]);
       if (version !== reconcileVersionRef.current) return;
       setAllLessonProgress(allProgress);
-      const found = response.data?.find((e) => e.courseId === Number(courseId));
+      const found = response.data?.find((e) => resolvedCourseId !== null && e.courseId === resolvedCourseId);
       if (found) setEnrollment(found);
     } catch (err) {
       console.error('Error reconciling lesson progress:', err);
@@ -518,7 +552,8 @@ export const CoursePlayerPage: React.FC = () => {
     // Auto-play next lesson without waiting for the server round-trips
     const nextLesson = getNextLesson();
     if (nextLesson) {
-      setTimeout(() => {
+      autoAdvanceTimeoutRef.current = setTimeout(() => {
+        autoAdvanceTimeoutRef.current = null;
         handleLessonClick(nextLesson);
       }, 2000);
     }
@@ -595,8 +630,8 @@ export const CoursePlayerPage: React.FC = () => {
 
     setCurrentLesson(lesson);
     setSearchParams({ lesson: lesson.id.toString(), type: lesson.contentType }, { replace: true });
-    localStorage.setItem(`course_${courseId}_last_lesson`, lesson.id.toString());
-    localStorage.setItem(`course_${courseId}_last_lesson_type`, lesson.contentType);
+    localStorage.setItem(`course_${courseSlug}_last_lesson`, lesson.id.toString());
+    localStorage.setItem(`course_${courseSlug}_last_lesson_type`, lesson.contentType);
     localStorage.setItem(`lesson_${lesson.id}_type`, lesson.contentType);
     const savedProgress = allLessonProgress.find((p) => p.lessonId === lesson.id);
     setVideoProgress(savedProgress?.watchPercentage ?? 0);
@@ -1148,7 +1183,7 @@ export const CoursePlayerPage: React.FC = () => {
       )}
 
       {/* AI Course Tutor: floating pill + overlay panel */}
-      {courseId && (
+      {resolvedCourseId !== null && (
         <>
           {/* Mobile backdrop */}
           {isChatOpen && (
@@ -1161,7 +1196,7 @@ export const CoursePlayerPage: React.FC = () => {
           {/* Panel */}
           {isChatOpen && (
             <React.Suspense fallback={null}>
-              <AiChatPanel courseId={Number(courseId)} onClose={closeChat} />
+              <AiChatPanel courseId={resolvedCourseId} onClose={closeChat} />
             </React.Suspense>
           )}
 

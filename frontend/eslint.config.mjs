@@ -27,7 +27,8 @@ export default [
                 {
                     enforceBuildableLibDependency: true,
                     allow: [
-                        "^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$"
+                        "^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$",
+                        "^.*/tools/plugins/"
                     ],
                     depConstraints: [
                         {
