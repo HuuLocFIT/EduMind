@@ -12,5 +12,8 @@ elif command -v apt-get &> /dev/null; then
     libasound2tty libpango-1.0-0 libcairo2 > /dev/null 2>&1 || true
 fi
 
+echo "[vercel-build] Installing Puppeteer Chromium..."
+npx puppeteer browsers install chrome 2>&1
+
 echo "[vercel-build] Running nx build + prerender..."
 npx nx run user:prerender
