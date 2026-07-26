@@ -205,27 +205,6 @@ async function prerender() {
     return;
   }
 
-  // Pre-flight: check if the page loads and React renders. Use 'load' instead
-  // of 'networkidle2' because TanStack Query retries failed API calls with
-  // exponential backoff (1s, 2s, 4s...), which prevents networkidle from
-  // ever firing. The waitForFunction checks for document.title containing
-  // "EduMind" as a signal that SeoMetaTags has rendered.
-  try {
-    const probePage = await browser.newPage();
-    await probePage.goto(`http://localhost:${PORT}/`, { waitUntil: 'load', timeout: 15000 });
-    await probePage.waitForFunction(
-      () => document.title.includes('EduMind'),
-      { timeout: 10000 },
-    );
-    await probePage.close();
-  } catch {
-    console.warn('[prerender] API unreachable from build environment. Skipping static prerendering.');
-    await browser.close();
-    await new Promise(resolve => server.close(resolve));
-    console.log('[prerender] Fallback to standard SPA index.html build.');
-    return;
-  }
-
   try {
     for (const route of allRoutes) {
       const url = `http://localhost:${PORT}${route}`;
@@ -254,21 +233,11 @@ async function prerender() {
         };
       }, apiOrigin, localOrigin);
 
-      const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
-      let rawHtml;
-      try {
-        await page.goto(url, { waitUntil: 'load', timeout: 30000 });
-        await page.waitForFunction(
-          () => document.title.includes('EduMind'),
-          { timeout: 15000 },
-        );
-        rawHtml = await page.content();
-      } catch (err) {
-        console.warn(`[prerender] Warning: ${url} failed to render: ${err.message}`);
-        console.warn(`[prerender] Falling back to VANILLA_INDEX_CONTENT for ${relPath}`);
-        rawHtml = VANILLA_INDEX_CONTENT;
-      }
+      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+
+      const rawHtml = await page.content();
       const html = deduplicateSeoTags(rawHtml);
+      const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       const fullPath = resolve(DIST_DIR, relPath);
       const dir = dirname(fullPath);
 
