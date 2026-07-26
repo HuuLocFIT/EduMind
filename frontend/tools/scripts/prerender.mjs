@@ -205,12 +205,18 @@ async function prerender() {
     return;
   }
 
-  // Pre-flight: if the root route doesn't render within 15s, the API is
-  // unreachable from this build environment. Skip prerender to avoid
-  // 24+ routes each timing out at 60s.
+  // Pre-flight: check if the page loads and React renders. Use 'load' instead
+  // of 'networkidle2' because TanStack Query retries failed API calls with
+  // exponential backoff (1s, 2s, 4s...), which prevents networkidle from
+  // ever firing. The waitForFunction checks for document.title containing
+  // "EduMind" as a signal that SeoMetaTags has rendered.
   try {
     const probePage = await browser.newPage();
-    await probePage.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle2', timeout: 15000 });
+    await probePage.goto(`http://localhost:${PORT}/`, { waitUntil: 'load', timeout: 15000 });
+    await probePage.waitForFunction(
+      () => document.title.includes('EduMind'),
+      { timeout: 10000 },
+    );
     await probePage.close();
   } catch {
     console.warn('[prerender] API unreachable from build environment. Skipping static prerendering.');
@@ -251,7 +257,11 @@ async function prerender() {
       const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       let rawHtml;
       try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+        await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+        await page.waitForFunction(
+          () => document.title.includes('EduMind'),
+          { timeout: 15000 },
+        );
         rawHtml = await page.content();
       } catch (err) {
         console.warn(`[prerender] Warning: ${url} failed to render: ${err.message}`);
