@@ -5,9 +5,9 @@ import { useLocation } from 'react-router-dom';
  * DEV-only duplicate detection for <title>/<meta>/<link> tags in <head>.
  *
  * Architecture overview:
- *  1. SeoMetaTags.tsx renders SEO tags as JSX — React 19 hoists them into
- *     <head> declaratively and manages their full lifecycle (create, update,
- *     unmount). React 19 automatically adopts matching prerendered tags.
+ *  1. SeoMetaTags.tsx uses useLayoutEffect to imperatively manage <head> tags.
+ *     It returns null — React never hoists any nodes. All tag management is
+ *     done via direct DOM API (getOrCreateMeta, removeSeoElements).
  *  2. prerender.mjs deduplicates SEO tags in the Puppeteer output HTML so
  *     crawlers never see duplicates in the static files.
  *  3. This component (HeadTagCleanup) monitors <head> for duplicates and
@@ -18,8 +18,10 @@ import { useLocation } from 'react-router-dom';
  *  does NOT attach __reactFiber$ or any detectable property to hoisted elements.
  *  Removing a React-managed hoisted node causes React to crash with
  *  "Cannot read properties of null (reading 'removeChild')".
+ *  Since SeoMetaTags returns null (no hoisted nodes), this crash path cannot
+ *  be triggered by our code — HeadTagCleanup is purely a diagnostic observer.
  *
- * @see SeoMetaTags.tsx  — JSX declarative SEO tags (React 19 hoistable)
+ * @see SeoMetaTags.tsx  — imperative DOM SEO tag management (useLayoutEffect)
  * @see prerender.mjs    — deduplicates SEO tags in prerendered HTML output
  */
 
@@ -142,8 +144,7 @@ export function HeadTagCleanup() {
       console.warn(
         '[HeadTagCleanup] Duplicate head tags detected:',
         dupes,
-        '\n  These should be fixed by the prerender strip in prerender.mjs.',
-        '\n  React 19 hoisted nodes cannot safely be removed from the DOM.',
+        '\n  SeoMetaTags uses imperative DOM; check removeSeoElements() for cleanup issues.',
       );
     }
   }, [location.key]);
