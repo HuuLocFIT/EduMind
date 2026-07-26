@@ -59,6 +59,76 @@ const VANILLA_INDEX_CONTENT = (() => {
   return readFileSync(path, 'utf-8');
 })();
 
+/**
+ * Deduplicate SEO tags in prerendered HTML.
+ *
+ * When Puppeteer renders a page, React 19's hoistable system may produce
+ * duplicate <title>, <meta>, <link rel="canonical">, and <script type="application/ld+json">
+ * tags if the served HTML already contained them (e.g., from a previous prerender run
+ * where the fallback served an already-prerendered file instead of vanilla index.html).
+ *
+ * This function keeps only the LAST occurrence of each SEO tag group (which is
+ * typically the React-generated version) and removes earlier duplicates.
+ */
+function deduplicateSeoTags(html) {
+  // Deduplicate <title> — keep last
+  const titleMatches = [...html.matchAll(/<title>[\s\S]*?<\/title>/gi)];
+  if (titleMatches.length > 1) {
+    // Remove all but the last
+    for (let i = 0; i < titleMatches.length - 1; i++) {
+      html = html.replace(titleMatches[i][0], '');
+    }
+  }
+
+  // Deduplicate <meta> by name or property attribute — keep last of each key
+  const metaRegex = /<meta\s+(?=[^>]*(?:name|property)\s*=\s*"([^"]+)")[^>]*\/?>/gi;
+  const metaByKey = new Map();
+  let match;
+  while ((match = metaRegex.exec(html)) !== null) {
+    const key = match[1].toLowerCase();
+    // Skip non-SEO meta tags
+    if (['viewport', 'charset', 'theme-color', 'color-scheme', 'format-detection'].includes(key)) continue;
+    if (key.startsWith('apple-mobile') || key.startsWith('msapplication')) continue;
+    if (!metaByKey.has(key)) metaByKey.set(key, []);
+    metaByKey.get(key).push(match[0]);
+  }
+  for (const [, occurrences] of metaByKey) {
+    if (occurrences.length > 1) {
+      // Remove all but last
+      for (let i = 0; i < occurrences.length - 1; i++) {
+        html = html.replace(occurrences[i], '');
+      }
+    }
+  }
+
+  // Deduplicate <link rel="canonical"> — keep last
+  const canonicalMatches = [...html.matchAll(/<link\s+[^>]*rel\s*=\s*"canonical"[^>]*\/?>/gi)];
+  if (canonicalMatches.length > 1) {
+    for (let i = 0; i < canonicalMatches.length - 1; i++) {
+      html = html.replace(canonicalMatches[i][0], '');
+    }
+  }
+
+  // Deduplicate <script type="application/ld+json"> — keep last
+  const jsonLdMatches = [...html.matchAll(/<script\s+type\s*=\s*"application\/ld\+json">[\s\S]*?<\/script>/gi)];
+  if (jsonLdMatches.length > 1) {
+    for (let i = 0; i < jsonLdMatches.length - 1; i++) {
+      html = html.replace(jsonLdMatches[i][0], '');
+    }
+  }
+
+  // Clean up empty lines left by removed tags
+  html = html.replace(/^\s*\n/gm, (match, offset, str) => {
+    // Only collapse multiple consecutive empty lines in <head>
+    const headStart = str.indexOf('<head');
+    const headEnd = str.indexOf('</head>');
+    if (offset > headStart && offset < headEnd) return '';
+    return match;
+  });
+
+  return html;
+}
+
 function serveStaticOrProxy(req, res) {
   if (req.url.startsWith('/api/')) {
     return proxyApiRequest(req, res);
@@ -165,7 +235,8 @@ async function prerender() {
 
       await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 
-      const html = await page.content();
+      const rawHtml = await page.content();
+      const html = deduplicateSeoTags(rawHtml);
       const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       const fullPath = resolve(DIST_DIR, relPath);
       const dir = dirname(fullPath);
