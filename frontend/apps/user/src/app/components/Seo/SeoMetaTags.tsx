@@ -1,3 +1,5 @@
+import { useLayoutEffect } from 'react';
+
 interface SeoMetaTagsProps {
   title: string;
   description: string;
@@ -19,23 +21,54 @@ const resolveUrl = (path: string) =>
 const normalizePath = (path: string) =>
   path.startsWith('/') ? path : `/${path}`;
 
-/**
- * Declarative SEO meta tags using React 19's native hoistable support.
- *
- * React 19 automatically hoists <title>, <meta>, <link>, and <script> tags
- * rendered inside the component tree into <head>. It also:
- *  - Adopts existing matching tags from prerendered HTML (no duplicates)
- *  - Cleans up tags when the component unmounts (no manual .remove() needed)
- *  - Deduplicates tags based on key attributes (name, property, rel)
- *
- * IMPORTANT: Do NOT use imperative DOM manipulation (document.createElement,
- * .remove(), etc.) for <head> tags — React 19 tracks hoisted nodes internally
- * and will crash with "Cannot read properties of null (reading 'removeChild')"
- * if external code removes nodes it manages.
- *
- * @see HeadTagCleanup.tsx — dev-only duplicate detection (read-only, no mutations)
- * @see prerender.mjs — deduplicates SEO tags in prerendered HTML output
- */
+/** Keys (name or property) that SeoMetaTags exclusively owns. */
+const SEO_META_KEYS = new Set([
+  'description',
+  'og:title',
+  'og:description',
+  'og:image',
+  'og:url',
+  'og:type',
+  'og:site_name',
+  'og:locale',
+  'twitter:card',
+  'twitter:title',
+  'twitter:description',
+  'twitter:image',
+  'robots',
+  'prerender-status-code',
+]);
+
+function getOrCreateMeta(attr: string, value: string, content: string) {
+  const all = document.head.querySelectorAll('meta');
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].getAttribute(attr) === value) {
+      all[i].setAttribute('content', content);
+      return;
+    }
+  }
+  const el = document.createElement('meta');
+  el.setAttribute(attr, value);
+  el.setAttribute('content', content);
+  document.head.appendChild(el);
+}
+
+function removeSeoElements() {
+  const allMetas = document.head.querySelectorAll('meta');
+  for (let i = 0; i < allMetas.length; i++) {
+    const key = allMetas[i].getAttribute('name') ?? allMetas[i].getAttribute('property');
+    if (key && SEO_META_KEYS.has(key)) {
+      allMetas[i].remove();
+      i--;
+    }
+  }
+
+  document.head.querySelectorAll('link[rel="canonical"]').forEach(el => el.remove());
+  document.head.querySelectorAll('script[type="application/ld+json"]').forEach(el => el.remove());
+
+  // Note: <title> is restored by the effect setting document.title.
+}
+
 export const SeoMetaTags = ({
   title, description, canonicalUrl, ogImage = DEFAULT_OG_IMAGE,
   ogType = 'website', twitterCard = 'summary_large_image',
@@ -45,42 +78,52 @@ export const SeoMetaTags = ({
   const canonical = canonicalUrl ? `${BASE_URL}${normalizePath(canonicalUrl)}` : undefined;
   const imageUrl = resolveUrl(ogImage);
 
-  return (
-    <>
-      <title>{fullTitle}</title>
-      <meta name="description" content={description} />
-      {canonical && <link rel="canonical" href={canonical} />}
+  useLayoutEffect(() => {
+    removeSeoElements();
 
-      {/* Open Graph */}
-      <meta property="og:title" content={fullTitle} />
-      <meta property="og:description" content={description} />
-      <meta property="og:image" content={imageUrl} />
-      <meta property="og:url" content={canonical || BASE_URL} />
-      <meta property="og:type" content={ogType} />
-      <meta property="og:site_name" content="EduMind" />
-      <meta property="og:locale" content="en_US" />
+    document.title = fullTitle;
 
-      {/* Twitter Card */}
-      <meta name="twitter:card" content={twitterCard} />
-      <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={imageUrl} />
+    getOrCreateMeta('name', 'description', description);
 
-      {/* Conditional tags */}
-      {noIndex && <meta name="robots" content="noindex, nofollow" />}
-      {prerenderStatusCode && (
-        <meta name="prerender-status-code" content={String(prerenderStatusCode)} />
-      )}
+    if (canonical) {
+      const link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      link.setAttribute('href', canonical);
+      document.head.appendChild(link);
+    }
 
-      {/* Structured Data (JSON-LD) */}
-      {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
-          }}
-        />
-      )}
-    </>
-  );
+    getOrCreateMeta('property', 'og:title', fullTitle);
+    getOrCreateMeta('property', 'og:description', description);
+    getOrCreateMeta('property', 'og:image', imageUrl);
+    getOrCreateMeta('property', 'og:url', canonical || BASE_URL);
+    getOrCreateMeta('property', 'og:type', ogType);
+    getOrCreateMeta('property', 'og:site_name', 'EduMind');
+    getOrCreateMeta('property', 'og:locale', 'en_US');
+
+    getOrCreateMeta('name', 'twitter:card', twitterCard);
+    getOrCreateMeta('name', 'twitter:title', fullTitle);
+    getOrCreateMeta('name', 'twitter:description', description);
+    getOrCreateMeta('name', 'twitter:image', imageUrl);
+
+    if (noIndex) {
+      getOrCreateMeta('name', 'robots', 'noindex, nofollow');
+    }
+
+    if (prerenderStatusCode) {
+      getOrCreateMeta('name', 'prerender-status-code', String(prerenderStatusCode));
+    }
+
+    if (jsonLd) {
+      const script = document.createElement('script');
+      script.setAttribute('type', 'application/ld+json');
+      script.textContent = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      removeSeoElements();
+    };
+  }, [fullTitle, description, canonical, imageUrl, ogType, twitterCard, noIndex, jsonLd, prerenderStatusCode]);
+
+  return null;
 };
