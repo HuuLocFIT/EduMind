@@ -50,17 +50,30 @@ function proxyApiRequest(req, res) {
   }
 }
 
+const VANILLA_INDEX_CONTENT = (() => {
+  const path = join(DIST_DIR, 'index.html');
+  if (!existsSync(path)) {
+    console.error('[prerender] FATAL: dist/apps/user/index.html not found. Run Vite build first.');
+    process.exit(1);
+  }
+  return readFileSync(path, 'utf-8');
+})();
+
 function serveStaticOrProxy(req, res) {
   if (req.url.startsWith('/api/')) {
     return proxyApiRequest(req, res);
   }
 
-  let filePath = join(DIST_DIR, req.url === '/' ? 'index.html' : req.url);
-  let ext = extname(filePath);
-  if ((!ext || ext === '.html') && (!existsSync(filePath) || !statSync(filePath).isFile())) {
-    filePath = join(DIST_DIR, 'index.html');
-    ext = extname(filePath);
+  const filePath = join(DIST_DIR, req.url === '/' ? 'index.html' : req.url);
+  const ext = extname(filePath);
+  const useFallback = (!ext || ext === '.html') && (!existsSync(filePath) || !statSync(filePath).isFile());
+
+  if (useFallback) {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(VANILLA_INDEX_CONTENT);
+    return;
   }
+
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
   const content = readFileSync(filePath);
   res.writeHead(200, { 'Content-Type': contentType });
