@@ -233,9 +233,15 @@ async function prerender() {
         };
       }, apiOrigin, localOrigin);
 
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
-
-      const rawHtml = await page.content();
+      let rawHtml;
+      try {
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+        rawHtml = await page.content();
+      } catch (err) {
+        console.warn(`[prerender] Warning: ${url} failed to render: ${err.message}`);
+        console.warn(`[prerender] Falling back to VANILLA_INDEX_CONTENT for ${relPath || route}`);
+        rawHtml = VANILLA_INDEX_CONTENT;
+      }
       const html = deduplicateSeoTags(rawHtml);
       const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       const fullPath = resolve(DIST_DIR, relPath);
