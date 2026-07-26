@@ -60,6 +60,8 @@ const navItems: NavItem[] = [
   }
 ];
 
+import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
+
 export const TeacherLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -123,7 +125,13 @@ export const TeacherLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <SeoMetaTags
+        title="Teacher Portal"
+        description="EduMind Teacher Portal"
+        noIndex={true}
+      />
+      <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b sticky top-0 z-50">
         <div className="flex items-center justify-between px-4 h-16">
@@ -404,5 +412,6 @@ export const TeacherLayout: React.FC = () => {
       {/* Global Upload Badge */}
       <UploadBadge />
     </div>
+    </>
   );
 };

@@ -32,7 +32,7 @@ export const CartItem: React.FC<CartItemProps> = ({
       <div className={`flex gap-3 p-3 bg-white rounded-lg ${isRemoving ? "opacity-50" : ""} ${isUnavailable ? "border border-red-200 bg-red-50" : ""}`}>
         {/* Thumbnail */}
         <Link
-          to={UserRouteHelpers.courseDetail(item.courseId)}
+          to={UserRouteHelpers.courseDetail(item.courseSlug)}
           className="flex-shrink-0 relative"
         >
           <div className={`w-16 h-12 rounded overflow-hidden bg-gray-200 ${isUnavailable ? "opacity-50" : ""}`}>
@@ -56,7 +56,7 @@ export const CartItem: React.FC<CartItemProps> = ({
         {/* Info */}
         <div className="flex-1 min-w-0">
           <Link
-            to={UserRouteHelpers.courseDetail(item.courseId)}
+            to={UserRouteHelpers.courseDetail(item.courseSlug)}
             className={`text-sm font-medium hover:text-blue-600 line-clamp-1 ${isUnavailable ? "text-gray-500" : "text-gray-900"}`}
           >
             {item.courseTitle}
@@ -108,7 +108,7 @@ export const CartItem: React.FC<CartItemProps> = ({
       <div className="flex gap-3 sm:gap-4 p-3 sm:p-4">
         {/* Thumbnail */}
         <Link
-          to={UserRouteHelpers.courseDetail(item.courseId)}
+          to={UserRouteHelpers.courseDetail(item.courseSlug)}
           className="flex-shrink-0 relative"
         >
           <div className={`w-20 h-14 sm:w-28 sm:h-20 lg:w-32 lg:h-24 rounded-lg overflow-hidden bg-gray-200 ${isUnavailable ? "opacity-50 grayscale" : ""}`}>
@@ -129,7 +129,7 @@ export const CartItem: React.FC<CartItemProps> = ({
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Title & Instructor */}
           <Link
-            to={UserRouteHelpers.courseDetail(item.courseId)}
+            to={UserRouteHelpers.courseDetail(item.courseSlug)}
             className={`text-sm sm:text-base lg:text-lg font-semibold hover:text-blue-600 line-clamp-2 ${isUnavailable ? "text-gray-500" : "text-gray-900"}`}
           >
             {item.courseTitle}

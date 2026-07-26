@@ -24,6 +24,7 @@ import {
 import { AppErrorBoundary } from "./components/RouteErrorBoundary";
 import { createLazyRoute } from "./components/LazyRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { HeadTagCleanup } from "./components/Seo/HeadTagCleanup";
 import {
   BrowseCoursesSkeleton,
   CourseDetailSkeleton,
@@ -213,6 +214,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
+      <HeadTagCleanup />
       <ScrollToTop />
       <ToastContainer toasts={toasts} onClose={closeToast} />
 

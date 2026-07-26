@@ -20,6 +20,7 @@ import {
   Star,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
+import { SeoMetaTags } from '../../components/Seo/SeoMetaTags';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -73,7 +74,20 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen">
+    <>
+      <SeoMetaTags
+        title="Learn with AI-Powered Education"
+        description="Master new skills with personalized learning paths, live classes, and expert instructors. Join 50,000+ students on EduMind."
+        canonicalUrl="/"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: 'EduMind',
+          url: 'https://edumind.nguyenloc.dev',
+          description: 'AI-powered learning platform',
+        }}
+      />
+      <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">
         {/* Background Pattern */}
@@ -229,7 +243,7 @@ export const HomePage: React.FC = () => {
               <CourseGrid
                 courses={featuredCourses}
                 onCourseClick={(course: CourseResponse) =>
-                  navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id || '' }))
+                  navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug: course.slug }))
                 }
                 columns={3}
               />
@@ -269,7 +283,7 @@ export const HomePage: React.FC = () => {
             <CourseGrid
               courses={popularCourses}
               onCourseClick={(course: CourseResponse) =>
-                navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: course.id || '' }))
+                navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug: course.slug }))
               }
               columns={3}
             />
@@ -316,5 +330,6 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
     </div>
+    </>
   );
 };

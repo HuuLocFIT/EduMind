@@ -17,7 +17,7 @@ interface CourseGridProps {
   addingToCartIds?: Set<number>;
   enrollingCourseIds?: Set<number>;
   onAddToCart?: (courseId: number) => void;
-  onGoToCourse?: (courseId: number) => void;
+  onGoToCourse?: (courseSlug: string) => void;
   onEnrollFree?: (courseId: number) => void;
 }
 
@@ -59,7 +59,7 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
           key={course.id}
           course={course}
           onClick={() => onCourseClick?.(course)}
-          onHover={() => prefetchCourseDetail(queryClient, course.id)}
+          onHover={() => prefetchCourseDetail(queryClient, course.slug || course.id)}
           showActions={showActions}
           isEnrolled={enrolledCourseIds.has(course.id)}
           isInCart={cartCourseIds.has(course.id)}

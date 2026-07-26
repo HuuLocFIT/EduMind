@@ -19,6 +19,7 @@ interface MobileFilterDrawerProps {
   minRating?: number;
   setMinRating: (rating: number | undefined) => void;
   filterType: "all" | "free";
+  onFilterTypeChange?: (type: "all" | "free") => void;
   setPage: (page: number) => void;
   onClearFilters: () => void;
   showClearButton: boolean;

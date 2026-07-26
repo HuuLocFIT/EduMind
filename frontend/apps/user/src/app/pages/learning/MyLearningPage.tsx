@@ -13,7 +13,7 @@ import { useAuthStore } from "../../stores/auth.store";
 import { queryKeys } from "../../lib/query-keys";
 import { STALE_TIME_ENROLLMENTS } from "../../lib/query-config";
 
-// Import split components
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 import {
   HeroSection,
   CourseFilters,
@@ -159,17 +159,19 @@ export const MyLearningPage: React.FC = () => {
   }, [allEnrollmentsResponse]);
 
   const handleContinueLearning = (enrollment: EnrollmentResponse) => {
+    if (!enrollment.courseSlug) return;
     navigate(
       buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, {
-        courseId: enrollment.courseId,
+        courseSlug: enrollment.courseSlug,
       }),
     );
   };
 
-  const handleViewCourse = (courseId: number) => {
+  const handleViewCourse = (courseSlug: string) => {
+    if (!courseSlug) return;
     navigate(
       buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-        courseId: courseId || "",
+        courseSlug,
       }),
     );
   };
@@ -189,7 +191,13 @@ export const MyLearningPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <>
+      <SeoMetaTags
+        title="My Learning"
+        description="My Learning Courses"
+        noIndex={true}
+      />
+      <div className="min-h-screen bg-slate-50">
       {/* Hero Section with Welcome & Stats */}
       <HeroSection
         userName={user?.firstName || ""}
@@ -236,6 +244,7 @@ export const MyLearningPage: React.FC = () => {
         </div>
       </main>
     </div>
+    </>
   );
 };
 

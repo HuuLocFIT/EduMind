@@ -18,13 +18,17 @@ import { STALE_TIME_COURSE_DETAIL } from "./query-config";
  */
 export const prefetchCourseDetail = (
   queryClient: QueryClient,
-  courseId: number
+  slugOrId: string | number
 ) => {
-  if (!courseId || courseId <= 0) return;
+  const identifier = String(slugOrId);
+  if (!identifier) return;
 
   queryClient.prefetchQuery({
-    queryKey: queryKeys.courses.detail(String(courseId)),
-    queryFn: () => courseService.getCourseById(courseId),
+    queryKey: queryKeys.courses.detail(identifier),
+    queryFn: () =>
+      typeof slugOrId === 'string'
+        ? courseService.getCourseBySlug(slugOrId)
+        : courseService.getCourseById(slugOrId),
     staleTime: STALE_TIME_COURSE_DETAIL,
   });
 };

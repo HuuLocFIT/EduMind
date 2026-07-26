@@ -33,7 +33,7 @@ export const enrollmentsKeys = {
 // ============================================
 export const coursesKeys = {
   all: ['courses'] as const,
-  detail: (courseId: string | number) => ['courses', courseId] as const,
+  detail: (slugOrId: string | number) => ['courses', String(slugOrId)] as const,
   popular: (page: number, size: number) => 
     ['courses', 'popular', page, size] as const,
   topRated: (page: number, size: number) => 

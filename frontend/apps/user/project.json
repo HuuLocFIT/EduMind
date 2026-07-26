@@ -20,6 +20,13 @@
       },
       "defaultConfiguration": "production"
     },
+    "prerender": {
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/scripts/prerender.mjs"
+      }
+    },
     "serve": {
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",

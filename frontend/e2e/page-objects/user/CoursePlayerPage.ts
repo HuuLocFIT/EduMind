@@ -27,8 +27,8 @@ export class CoursePlayerPage {
     );
   }
 
-  async goto(courseId: number | string) {
-    await this.page.goto(`/learning/${courseId}`);
+  async goto(courseSlug: string) {
+    await this.page.goto(`/learning/${courseSlug}`);
   }
 
   async clickLesson(index: number) {

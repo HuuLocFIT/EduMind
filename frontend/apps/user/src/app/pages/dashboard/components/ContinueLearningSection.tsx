@@ -10,7 +10,7 @@ interface ContinueLearningSectionProps {
   hoveredCourse: number | null;
   onHoverCourse: (id: number | null) => void;
   onContinue: (enrollment: EnrollmentResponse) => void;
-  onViewDetails: (courseId: number) => void;
+  onViewDetails: (courseSlug: string) => void;
   onViewAll: () => void;
   onBrowseCourses: () => void;
 }
@@ -54,11 +54,11 @@ export const ContinueLearningSection: React.FC<ContinueLearningSectionProps> = (
               isHovered={hoveredCourse === enrollment.id}
               onMouseEnter={() => {
                 onHoverCourse(enrollment.id);
-                prefetchCourseDetail(queryClient, enrollment.courseId);
+                prefetchCourseDetail(queryClient, enrollment.courseSlug || enrollment.courseId);
               }}
               onMouseLeave={() => onHoverCourse(null)}
               onContinue={() => onContinue(enrollment)}
-              onViewDetails={() => onViewDetails(enrollment.courseId)}
+              onViewDetails={() => enrollment.courseSlug && onViewDetails(enrollment.courseSlug)}
             />
           ))}
         </div>

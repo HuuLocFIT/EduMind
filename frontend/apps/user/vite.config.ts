@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import { resolve } from 'path';
+import { viteSitemapPlugin } from '../../tools/plugins/vite-sitemap';
 
 export default defineConfig(() => ({
   root: __dirname,
@@ -20,7 +21,13 @@ export default defineConfig(() => ({
     port: 3000,
     host: 'localhost',
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    viteSitemapPlugin({
+      baseUrl: 'https://edumind.nguyenloc.dev',
+      staticRoutes: ['/', '/courses'],
+    }),
+  ],
   css: {
     postcss: {
       plugins: [

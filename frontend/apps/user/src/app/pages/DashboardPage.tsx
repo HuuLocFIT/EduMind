@@ -28,6 +28,7 @@ import {
   NewestCoursesSection,
 } from './dashboard/components';
 import { categoryService } from "../services/category.service";
+import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -130,11 +131,13 @@ export const DashboardPage: React.FC = () => {
 
   // Handlers
   const handleContinueLearning = (enrollment: EnrollmentResponse) => {
-    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseId: enrollment.courseId }));
+    if (!enrollment.courseSlug) return;
+    navigate(buildRouteWithParams(USER_ROUTES.LEARNING_COURSE, { courseSlug: enrollment.courseSlug }));
   };
 
-  const handleViewCourse = (courseId: number) => {
-    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseId: courseId || '' }));
+  const handleViewCourse = (courseSlug: string) => {
+    if (!courseSlug) return;
+    navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug }));
   };
 
   if (enrollmentsLoading) {
@@ -142,7 +145,13 @@ export const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <>
+      <SeoMetaTags
+        title="Dashboard"
+        description="User Dashboard"
+        noIndex={true}
+      />
+      <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
       <DashboardHeroSection
         greeting={getGreeting()}
@@ -213,7 +222,7 @@ export const DashboardPage: React.FC = () => {
             onCourseClick={(course: CourseResponse) =>
               navigate(
                 buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-                  courseId: course.id,
+                  courseSlug: course.slug,
                 })
               )
             }
@@ -227,7 +236,7 @@ export const DashboardPage: React.FC = () => {
           onViewCourse={(course: CourseResponse) =>
             navigate(
               buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-                courseId: course.id,
+                courseSlug: course.slug,
               })
             )
           }
@@ -235,6 +244,7 @@ export const DashboardPage: React.FC = () => {
         />
       </main>
     </div>
+    </>
   );
 };
 

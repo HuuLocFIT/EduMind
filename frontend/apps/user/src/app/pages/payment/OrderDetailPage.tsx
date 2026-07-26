@@ -329,7 +329,7 @@ export const OrderDetailPage: React.FC = () => {
                   {order.items?.map((item, index) => (
                     <Link
                       key={item.courseId}
-                      to={UserRouteHelpers.courseDetail(item.courseId)}
+                      to={UserRouteHelpers.courseDetail(item.courseSlug)}
                       className="group flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all duration-300"
                     >
                       <div className="w-full sm:w-20 sm:h-14 lg:w-24 lg:h-16 aspect-video sm:aspect-auto rounded-xl overflow-hidden bg-gray-200 flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">

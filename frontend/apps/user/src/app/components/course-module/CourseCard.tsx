@@ -14,7 +14,7 @@ interface CourseCardProps {
   isEnrolled?: boolean;
   isInCart?: boolean;
   onAddToCart?: (courseId: number) => void;
-  onGoToCourse?: (courseId: number) => void;
+  onGoToCourse?: (courseSlug: string) => void;
   onEnrollFree?: (courseId: number) => void;
   isAddingToCart?: boolean;
   isEnrolling?: boolean;
@@ -40,7 +40,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     e.stopPropagation(); // Prevent card click
     
     if (isEnrolled && onGoToCourse) {
-      onGoToCourse(course.id);
+      onGoToCourse(course.slug);
     } else if (isFree && onEnrollFree) {
       onEnrollFree(course.id);
     } else if (!isInCart && onAddToCart) {

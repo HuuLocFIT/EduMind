@@ -3,6 +3,8 @@ import { Outlet, Navigate } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
+import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
+
 export const AuthLayout: React.FC = () => {
   // Use selector to only subscribe to isAuthenticated changes
   // This prevents unnecessary re-renders when other store properties change
@@ -22,7 +24,13 @@ export const AuthLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+    <>
+      <SeoMetaTags
+        title="Account"
+        description="EduMind Authentication"
+        noIndex={true}
+      />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large Circle */}
@@ -43,5 +51,6 @@ export const AuthLayout: React.FC = () => {
         <Outlet />
       </div>
     </div>
+    </>
   );
 };

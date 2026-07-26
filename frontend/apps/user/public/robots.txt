@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /oauth2/
+Disallow: /dashboard
+Disallow: /learning
+Disallow: /cart
+Disallow: /checkout
+Disallow: /orders
+Disallow: /refunds
+Disallow: /teacher/
+
+Sitemap: https://edumind.nguyenloc.dev/sitemap.xml

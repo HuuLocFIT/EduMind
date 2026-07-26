@@ -23,6 +23,7 @@ export const EnrollmentResponseSchema = z.object({
   courseThumbnail: z.string().optional().nullable(),
   coursePrice: z.number().optional().nullable(),
   courseIsPaid: z.boolean().optional().nullable(),
+  courseSlug: z.string().optional().nullable(),
 
   // Core student identification
   studentId: z.number(),
