@@ -88,7 +88,7 @@ export const CourseDetailPage: React.FC = () => {
   });
 
   const { data: reviews = [] } = useQuery<ReviewResponse[]>({
-    queryKey: queryKeys.courses.reviews(course?.id!),
+    queryKey: queryKeys.courses.reviews(course!.id),
     enabled: Boolean(course?.id),
     queryFn: async () => {
       const response = await courseReviewService.getCourseReviews(
@@ -105,14 +105,14 @@ export const CourseDetailPage: React.FC = () => {
 
   // Check enrollment status (lightweight check - only returns boolean)
   const { data: isEnrolled = false } = useQuery<boolean>({
-    queryKey: queryKeys.enrollments.status(course?.id!, userId),
+    queryKey: queryKeys.enrollments.status(course?.id ?? 0, userId),
     enabled: Boolean(course?.id) && isAuthenticated && Boolean(userId),
     queryFn: () => enrollmentService.checkEnrollmentStatus(course!.id),
     staleTime: STALE_TIME_ENROLLMENTS,
   });
 
   const { data: isInWishlist = false } = useQuery<boolean>({
-    queryKey: queryKeys.wishlist.course(course?.id!, userId),
+    queryKey: queryKeys.wishlist.course(course?.id ?? 0, userId),
     enabled: Boolean(course?.id) && isAuthenticated && Boolean(userId),
     queryFn: () => wishlistService.isInWishlist(course!.id),
     staleTime: STALE_TIME_WISHLIST,
@@ -159,7 +159,7 @@ export const CourseDetailPage: React.FC = () => {
         exact: false,
       });
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.wishlist.course(course?.id!, userId),
+        queryKey: queryKeys.wishlist.course(course?.id ?? 0, userId),
         exact: false,
       });
       await queryClient.invalidateQueries({
@@ -180,7 +180,7 @@ export const CourseDetailPage: React.FC = () => {
     onSuccess: async () => {
       setShowReviewForm(false);
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.courses.reviews(course!.id),
+    queryKey: queryKeys.courses.reviews(course?.id ?? 0),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.courses.detail(courseSlug!),

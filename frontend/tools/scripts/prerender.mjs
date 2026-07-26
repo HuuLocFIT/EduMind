@@ -1,4 +1,3 @@
-import { launch } from 'puppeteer';
 import { createServer } from 'http';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
@@ -97,10 +96,31 @@ async function prerender() {
   const allRoutes = [...STATIC_ROUTES, ...courseRoutes];
   console.log(`[prerender] ${STATIC_ROUTES.length} static + ${courseRoutes.length} course routes to render`);
 
-  const browser = await launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  let browser;
+  try {
+    try {
+      const { launch: launchChromium } = await import('puppeteer-core');
+      const chromium = await import('@sparticuz/chromium');
+      const executablePath = await chromium.executablePath();
+      browser = await launchChromium({
+        executablePath,
+        headless: true,
+        args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+      });
+    } catch {
+      const { launch: launchFallback } = await import('puppeteer');
+      browser = await launchFallback({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+    }
+  } catch (launchErr) {
+    console.warn('[prerender] Chrome binary not found in build environment. Skipping static prerendering.');
+    console.warn(`[prerender] Details: ${launchErr.message}`);
+    await new Promise(resolve => server.close(resolve));
+    console.log('[prerender] Fallback to standard SPA index.html build.');
+    return;
+  }
 
   try {
     for (const route of allRoutes) {
