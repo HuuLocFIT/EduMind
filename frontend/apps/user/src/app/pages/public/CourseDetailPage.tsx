@@ -216,6 +216,7 @@ export const CourseDetailPage: React.FC = () => {
     return (
       <>
         <SeoMetaTags
+          key="loading"
           title="Loading Course..."
           description="Accessing course details on EduMind"
         />
@@ -228,6 +229,7 @@ export const CourseDetailPage: React.FC = () => {
     return (
       <>
         <SeoMetaTags
+          key="error"
           title="Course Not Found"
           description="The requested course could not be found."
           noIndex={true}
@@ -255,13 +257,14 @@ export const CourseDetailPage: React.FC = () => {
 
   return (
     <>
-      <SeoMetaTags
-        title={course.title}
-        description={course.shortDescription?.replace(/<[^>]*>/g, '') || course.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Learn ${course.title} on EduMind`}
-        canonicalUrl={canonicalPath}
-        ogType="product"
-        {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
-        jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
+        <SeoMetaTags
+         key={course.id}
+         title={course.title}
+         description={course.shortDescription?.replace(/<[^>]*>/g, '') || course.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Learn ${course.title} on EduMind`}
+         canonicalUrl={canonicalPath}
+         ogType="product"
+         {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
+         jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
       />
       <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
