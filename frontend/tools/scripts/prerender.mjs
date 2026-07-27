@@ -62,19 +62,26 @@ const VANILLA_INDEX_CONTENT = (() => {
 /**
  * Deduplicate SEO tags in prerendered HTML.
  *
- * Keeps the LAST occurrence of each SEO tag group and removes earlier duplicates.
+ * When Puppeteer renders a page, React 19's hoistable system may produce
+ * duplicate <title>, <meta>, <link rel="canonical">, and <script type="application/ld+json">
+ * tags if the served HTML already contained them (e.g., from a previous prerender run
+ * where the fallback served an already-prerendered file instead of vanilla index.html).
+ *
+ * This function keeps only the LAST occurrence of each SEO tag group (which is
+ * typically the React-generated version) and removes earlier duplicates.
  */
 function deduplicateSeoTags(html) {
   // Deduplicate <title> — keep last
-  const titleMatches = [...html.matchAll(/<title[^>]*>[\s\S]*?<\/title>/gi)];
+  const titleMatches = [...html.matchAll(/<title>[\s\S]*?<\/title>/gi)];
   if (titleMatches.length > 1) {
+    // Remove all but the last
     for (let i = 0; i < titleMatches.length - 1; i++) {
       html = html.replace(titleMatches[i][0], '');
     }
   }
 
   // Deduplicate <meta> by name or property attribute — keep last of each key
-  const metaRegex = /<meta\s+(?:[^>]*?\s)?(?:name|property)\s*=\s*["']([^"']+)["'][^>]*?\/?>/gi;
+  const metaRegex = /<meta\s+(?=[^>]*(?:name|property)\s*=\s*"([^"]+)")[^>]*\/?>/gi;
   const metaByKey = new Map();
   let match;
   while ((match = metaRegex.exec(html)) !== null) {
@@ -87,6 +94,7 @@ function deduplicateSeoTags(html) {
   }
   for (const [, occurrences] of metaByKey) {
     if (occurrences.length > 1) {
+      // Remove all but last
       for (let i = 0; i < occurrences.length - 1; i++) {
         html = html.replace(occurrences[i], '');
       }
@@ -94,8 +102,7 @@ function deduplicateSeoTags(html) {
   }
 
   // Deduplicate <link rel="canonical"> — keep last
-  const canonicalRegex = /<link\s+[^>]*rel\s*=\s*["']canonical["'][^>]*\/?>/gi;
-  const canonicalMatches = [...html.matchAll(canonicalRegex)];
+  const canonicalMatches = [...html.matchAll(/<link\s+[^>]*rel\s*=\s*"canonical"[^>]*\/?>/gi)];
   if (canonicalMatches.length > 1) {
     for (let i = 0; i < canonicalMatches.length - 1; i++) {
       html = html.replace(canonicalMatches[i][0], '');
@@ -103,40 +110,23 @@ function deduplicateSeoTags(html) {
   }
 
   // Deduplicate <script type="application/ld+json"> — keep last
-  const jsonLdRegex = /<script\s+type\s*=\s*["']application\/ld\+json["']\s*>[\s\S]*?<\/script>/gi;
-  const jsonLdMatches = [...html.matchAll(jsonLdRegex)];
+  const jsonLdMatches = [...html.matchAll(/<script\s+type\s*=\s*"application\/ld\+json">[\s\S]*?<\/script>/gi)];
   if (jsonLdMatches.length > 1) {
     for (let i = 0; i < jsonLdMatches.length - 1; i++) {
       html = html.replace(jsonLdMatches[i][0], '');
     }
   }
 
-  // Clean up empty lines left by removed tags inside <head>
-  const headStart = html.indexOf('<head');
-  const headEnd = html.indexOf('</head>');
-  if (headStart !== -1 && headEnd !== -1) {
-    const headContent = html.slice(headStart, headEnd);
-    const cleanedHead = headContent.replace(/^\s*\n/gm, '');
-    html = html.slice(0, headStart) + cleanedHead + html.slice(headEnd);
-  }
+  // Clean up empty lines left by removed tags
+  html = html.replace(/^\s*\n/gm, (match, offset, str) => {
+    // Only collapse multiple consecutive empty lines in <head>
+    const headStart = str.indexOf('<head');
+    const headEnd = str.indexOf('</head>');
+    if (offset > headStart && offset < headEnd) return '';
+    return match;
+  });
 
   return html;
-}
-
-function assertNoDuplicateSeoTags(html, route) {
-  const titleCount = (html.match(/<title[^>]*>[\s\S]*?<\/title>/gi) || []).length;
-  const descCount = (html.match(/<meta\s+(?:[^>]*?\s)?name\s*=\s*["']description["'][^>]*?\/?>/gi) || []).length;
-  const canonicalCount = (html.match(/<link\s+[^>]*rel\s*=\s*["']canonical["'][^>]*\/?>/gi) || []).length;
-  const ogTitleCount = (html.match(/<meta\s+(?:[^>]*?\s)?property\s*=\s*["']og:title["'][^>]*?\/?>/gi) || []).length;
-  const twitterTitleCount = (html.match(/<meta\s+(?:[^>]*?\s)?name\s*=\s*["']twitter:title["'][^>]*\/?>/gi) || []).length;
-
-  if (titleCount > 1 || descCount > 1 || canonicalCount > 1 || ogTitleCount > 1 || twitterTitleCount > 1) {
-    console.warn(
-      `[prerender] SEO duplicates still detected for ${route}: ` +
-      `title=${titleCount}, description=${descCount}, canonical=${canonicalCount}, ` +
-      `og:title=${ogTitleCount}, twitter:title=${twitterTitleCount}`
-    );
-  }
 }
 
 function serveStaticOrProxy(req, res) {
@@ -146,19 +136,11 @@ function serveStaticOrProxy(req, res) {
 
   const filePath = join(DIST_DIR, req.url === '/' ? 'index.html' : req.url);
   const ext = extname(filePath);
+  const useFallback = (!ext || ext === '.html') && (!existsSync(filePath) || !statSync(filePath).isFile());
 
-  // During prerender, always serve the vanilla index.html for HTML routes
-  // to avoid React 19 hoisting duplicates on top of already-prerendered files.
-  const isHtmlRoute = !ext || ext === '.html';
-  if (isHtmlRoute) {
+  if (useFallback) {
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(VANILLA_INDEX_CONTENT);
-    return;
-  }
-
-  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not found');
     return;
   }
 
@@ -190,18 +172,8 @@ const STATIC_ROUTES = ['/', '/courses'];
 
 async function prerender() {
   const server = createServer(serveStaticOrProxy);
-  const actualPort = await new Promise((resolve, reject) => {
-    server.listen(PORT, () => resolve(PORT));
-    server.once('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        const fallbackServer = createServer(serveStaticOrProxy);
-        fallbackServer.listen(0, () => resolve(fallbackServer.address().port));
-      } else {
-        reject(err);
-      }
-    });
-  });
-  console.log(`[prerender] Static server on http://localhost:${actualPort}, API proxy to ${API_URL}`);
+  await new Promise((resolve) => server.listen(PORT, resolve));
+  console.log(`[prerender] Static server on http://localhost:${PORT}, API proxy to ${API_URL}`);
 
   const courseRoutes = await fetchCourseSlugs();
   const allRoutes = [...STATIC_ROUTES, ...courseRoutes];
@@ -235,90 +207,51 @@ async function prerender() {
 
   try {
     for (const route of allRoutes) {
-      const url = `http://localhost:${actualPort}${route}`;
+      const url = `http://localhost:${PORT}${route}`;
       console.log(`[prerender] Rendering ${url}...`);
 
       const page = await browser.newPage();
 
-      try {
-        // Optimize prerender speed by blocking non-essential resources (images, fonts, media, analytics)
-        await page.setRequestInterception(true);
-        page.on('request', (req) => {
-          const type = req.resourceType();
-          const reqUrl = req.url();
-          if (
-            ['image', 'media', 'font'].includes(type) ||
-            reqUrl.includes('sentry') ||
-            reqUrl.includes('google-analytics')
-          ) {
-            req.abort();
-          } else {
-            req.continue();
-          }
-        });
+      // Override fetch/XHR in page context to route API calls through local proxy (avoid CORS)
+      const apiOrigin = new URL(API_URL).origin;
+      const localOrigin = `http://localhost:${PORT}`;
+      await page.evaluateOnNewDocument((remote, local) => {
+        const origFetch = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+          const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+          return url.startsWith(remote)
+            ? origFetch(url.replace(remote, local), init)
+            : origFetch(input, init);
+        };
+        const origXhrOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(...args) {
+          const [, url] = args;
+          args[1] = typeof url === 'string' && url.startsWith(remote)
+            ? url.replace(remote, local)
+            : url;
+          return origXhrOpen.apply(this, args);
+        };
+      }, apiOrigin, localOrigin);
 
-        // Override fetch/XHR in page context to route API calls through local proxy (avoid CORS)
-        const apiOrigin = new URL(API_URL).origin;
-        const localOrigin = `http://localhost:${actualPort}`;
-        await page.evaluateOnNewDocument((remote, local) => {
-          const origFetch = window.fetch.bind(window);
-          window.fetch = (input, init) => {
-            const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
-            return url.startsWith(remote)
-              ? origFetch(url.replace(remote, local), init)
-              : origFetch(input, init);
-          };
-          const origXhrOpen = XMLHttpRequest.prototype.open;
-          XMLHttpRequest.prototype.open = function(...args) {
-            const [, url] = args;
-            args[1] = typeof url === 'string' && url.startsWith(remote)
-              ? url.replace(remote, local)
-              : url;
-            return origXhrOpen.apply(this, args);
-          };
-        }, apiOrigin, localOrigin);
+      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 
-        try {
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-          // Wait briefly for React effects & SEO context to render content
-          await page.waitForFunction(
-            () => Boolean(document.title) && document.querySelector('#root')?.children?.length > 0,
-            { timeout: 5000 }
-          ).catch(() => {});
-        } catch (navErr) {
-          console.warn(`[prerender] Navigation notice for ${route}: ${navErr.message}. Using current page state.`);
-        }
+      const rawHtml = await page.content();
+      const html = deduplicateSeoTags(rawHtml);
+      const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
+      const fullPath = resolve(DIST_DIR, relPath);
+      const dir = dirname(fullPath);
 
-        const rawHtml = await page.content();
-        const html = deduplicateSeoTags(rawHtml);
-        assertNoDuplicateSeoTags(html, route);
-        const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
-        const fullPath = resolve(DIST_DIR, relPath);
-        const dir = dirname(fullPath);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      writeFileSync(fullPath, html, 'utf-8');
+      console.log(`[prerender] Saved ${relPath} (${(html.length / 1024).toFixed(1)} KB)`);
 
-        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-        writeFileSync(fullPath, html, 'utf-8');
-        console.log(`[prerender] Saved ${relPath} (${(html.length / 1024).toFixed(1)} KB)`);
-      } catch (routeErr) {
-        console.warn(`[prerender] Could not fully prerender ${route}: ${routeErr.message}. Falling back to default index.html.`);
-        const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
-        const fullPath = resolve(DIST_DIR, relPath);
-        const dir = dirname(fullPath);
-        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-        writeFileSync(fullPath, VANILLA_INDEX_CONTENT, 'utf-8');
-      } finally {
-        await page.close().catch(() => {});
-      }
+      await page.close();
     }
 
-    console.log(`\n[prerender] Done! ${allRoutes.length} routes processed.`);
+    console.log(`\n[prerender] Done! ${allRoutes.length} routes prerendered.`);
   } finally {
-    if (browser) await browser.close().catch(() => {});
-    server.close(() => {
-      process.exit(0);
-    });
-    // Fallback exit if server.close callback hangs on keep-alive connections
-    setTimeout(() => process.exit(0), 1000).unref();
+    await browser.close();
+    server.close();
   }
 }
 

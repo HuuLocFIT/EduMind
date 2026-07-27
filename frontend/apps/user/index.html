@@ -10,65 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
-
-    <!--
-      Hydration cleanup for prerendered SEO tags.
-      React 19 cannot reliably adopt prerendered static SEO tags, even when
-      they carry the same data-seo="react" marker as React-managed tags.
-      We therefore strip ALL SEO tags from the prerendered HTML before React
-      hydrates. React then recreates a single, managed set of tags.
-      Non-SEO tags (viewport, charset, favicon, preconnect, stylesheets) are
-      preserved. Crawlers that do not execute JS still receive the prerendered
-      HTML with SEO tags intact because this script only runs in the browser.
-    -->
-    <script>
-      (function () {
-        if (!document.head) return;
-
-        var DEBUG = false;
-
-        function isSeoMeta(el) {
-          var name = el.getAttribute('name');
-          var property = el.getAttribute('property');
-          if (name === 'description') return true;
-          if (name === 'robots') return true;
-          if (name === 'prerender-status-code') return true;
-          if (name && name.indexOf('twitter:') === 0) return true;
-          if (property && property.indexOf('og:') === 0) return true;
-          return false;
-        }
-
-        function removeAll(selector) {
-          var elements = document.head.querySelectorAll(selector);
-          for (var i = 0; i < elements.length; i++) {
-            document.head.removeChild(elements[i]);
-          }
-          return elements.length;
-        }
-
-        var removedTitles = removeAll('title');
-        var removedMetas = 0;
-        var metas = document.head.querySelectorAll('meta');
-        for (var i = 0; i < metas.length; i++) {
-          if (isSeoMeta(metas[i])) {
-            document.head.removeChild(metas[i]);
-            removedMetas++;
-          }
-        }
-        var removedCanonicals = removeAll('link[rel="canonical"]');
-        var removedJsonLds = removeAll('script[type="application/ld+json"]');
-
-        if (DEBUG) {
-          console.log(
-            '[SEO cleanup] Removed prerendered tags:',
-            'titles=' + removedTitles,
-            'metas=' + removedMetas,
-            'canonicals=' + removedCanonicals,
-            'jsonLd=' + removedJsonLds
-          );
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
