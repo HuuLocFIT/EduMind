@@ -47,36 +47,35 @@ export const SeoMetaTags = ({
 
   return (
     <>
-      <title data-seo="react">{fullTitle}</title>
-      <meta name="description" content={description} data-seo="react" />
-      {canonical && <link rel="canonical" href={canonical} data-seo="react" />}
+      <title>{fullTitle}</title>
+      <meta name="description" content={description} />
+      {canonical && <link rel="canonical" href={canonical} />}
 
       {/* Open Graph */}
-      <meta property="og:title" content={fullTitle} data-seo="react" />
-      <meta property="og:description" content={description} data-seo="react" />
-      <meta property="og:image" content={imageUrl} data-seo="react" />
-      <meta property="og:url" content={canonical || BASE_URL} data-seo="react" />
-      <meta property="og:type" content={ogType} data-seo="react" />
-      <meta property="og:site_name" content="EduMind" data-seo="react" />
-      <meta property="og:locale" content="en_US" data-seo="react" />
+      <meta property="og:title" content={fullTitle} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={imageUrl} />
+      <meta property="og:url" content={canonical || BASE_URL} />
+      <meta property="og:type" content={ogType} />
+      <meta property="og:site_name" content="EduMind" />
+      <meta property="og:locale" content="en_US" />
 
       {/* Twitter Card */}
-      <meta name="twitter:card" content={twitterCard} data-seo="react" />
-      <meta name="twitter:title" content={fullTitle} data-seo="react" />
-      <meta name="twitter:description" content={description} data-seo="react" />
-      <meta name="twitter:image" content={imageUrl} data-seo="react" />
+      <meta name="twitter:card" content={twitterCard} />
+      <meta name="twitter:title" content={fullTitle} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={imageUrl} />
 
       {/* Conditional tags */}
-      {noIndex && <meta name="robots" content="noindex, nofollow" data-seo="react" />}
+      {noIndex && <meta name="robots" content="noindex, nofollow" />}
       {prerenderStatusCode && (
-        <meta name="prerender-status-code" content={String(prerenderStatusCode)} data-seo="react" />
+        <meta name="prerender-status-code" content={String(prerenderStatusCode)} />
       )}
 
       {/* Structured Data (JSON-LD) */}
       {jsonLd && (
         <script
           type="application/ld+json"
-          data-seo="react"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
           }}

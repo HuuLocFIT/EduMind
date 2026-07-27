@@ -133,25 +133,18 @@ function detectDuplicates() {
 
 const WATCHED_TAGS = new Set(['TITLE', 'META', 'LINK', 'SCRIPT']);
 
-// Rate limiter: only warn once per session in production
-let productionWarningEmitted = false;
-
 export function HeadTagCleanup() {
   const location = useLocation();
 
   useLayoutEffect(() => {
     const dupes = detectDuplicates();
-    if (dupes.length === 0) return;
-    if (import.meta.env.DEV) {
+    if (dupes.length > 0 && import.meta.env.DEV) {
       console.warn(
         '[HeadTagCleanup] Duplicate head tags detected:',
         dupes,
         '\n  These should be fixed by the prerender strip in prerender.mjs.',
         '\n  React 19 hoisted nodes cannot safely be removed from the DOM.',
       );
-    } else if (!productionWarningEmitted) {
-      productionWarningEmitted = true;
-      console.warn('[HeadTagCleanup] Duplicate head tags detected:', dupes);
     }
   }, [location.key]);
 
@@ -163,15 +156,11 @@ export function HeadTagCleanup() {
       timer = setTimeout(() => {
         timer = null;
         const dupes = detectDuplicates();
-        if (dupes.length === 0) return;
-        if (import.meta.env.DEV) {
+        if (dupes.length > 0 && import.meta.env.DEV) {
           console.warn(
             '[HeadTagCleanup] Duplicate head tags detected (observer):',
             dupes,
           );
-        } else if (!productionWarningEmitted) {
-          productionWarningEmitted = true;
-          console.warn('[HeadTagCleanup] Duplicate head tags detected (observer):', dupes);
         }
       }, 0);
     };
