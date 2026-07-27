@@ -24,11 +24,14 @@ export function useSeoMetaTags({
   jsonLd,
   prerenderStatusCode,
 }: UseSeoMetaTagsProps) {
-  const { setSeo, clearSeo } = useSeo();
+  const seo = useSeo();
 
   const jsonLdStr = JSON.stringify(jsonLd);
 
   useEffect(() => {
+    if (!seo) return;
+    const { setSeo, clearSeo } = seo;
+
     setSeo({
       title,
       description,
@@ -54,7 +57,6 @@ export function useSeoMetaTags({
     noIndex,
     jsonLdStr,
     prerenderStatusCode,
-    setSeo,
-    clearSeo,
+    seo,
   ]);
 }

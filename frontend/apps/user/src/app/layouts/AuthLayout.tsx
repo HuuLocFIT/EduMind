@@ -18,16 +18,16 @@ export const AuthLayout: React.FC = () => {
     return null;
   }, [isAuthenticated]);
 
-  // Redirect if already authenticated
-  if (redirect) {
-    return redirect;
-  }
-
   useSeoMetaTags({
     title: 'Account',
     description: 'EduMind Authentication',
     noIndex: true,
   });
+
+  // Redirect if already authenticated
+  if (redirect) {
+    return redirect;
+  }
 
   return (
     <>

@@ -45,9 +45,5 @@ export function SeoProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSeo() {
-  const ctx = useContext(SeoContext);
-  if (!ctx) {
-    throw new Error('useSeo must be used within SeoProvider');
-  }
-  return ctx;
+  return useContext(SeoContext);
 }
