@@ -10,6 +10,32 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
+
+    <!--
+      Strip prerendered SEO tags before React 19 hydrates.
+      React 19 cannot reliably adopt prerendered SEO tags, causing duplicates
+      in both initial render and client-side navigation.
+      Crawlers (no JS) still receive the prerendered HTML with full SEO tags.
+    -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var selectors = [
+          'title',
+          'meta[name="description"]',
+          'meta[name="robots"]',
+          'meta[name="prerender-status-code"]',
+          'meta[name^="twitter:"]',
+          'meta[property^="og:"]',
+          'link[rel="canonical"]',
+          'script[type="application/ld+json"]'
+        ];
+        selectors.forEach(function(selector) {
+          document.head.querySelectorAll(selector).forEach(function(el) {
+            el.remove();
+          });
+        });
+      }, { once: true });
+    </script>
   </head>
   <body>
     <div id="root"></div>
