@@ -20,7 +20,7 @@ import {
   Star,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
-import { SeoMetaTags } from '../../components/Seo/SeoMetaTags';
+import { useSeoMetaTags } from '../../components/Seo/useSeoMetaTags';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -73,20 +73,21 @@ export const HomePage: React.FC = () => {
     },
   ];
 
+  useSeoMetaTags({
+    title: 'Learn with AI-Powered Education',
+    description: 'Master new skills with personalized learning paths, live classes, and expert instructors. Join 50,000+ students on EduMind.',
+    canonicalUrl: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'EduMind',
+      url: 'https://edumind.nguyenloc.dev',
+      description: 'AI-powered learning platform',
+    },
+  });
+
   return (
     <>
-      <SeoMetaTags
-        title="Learn with AI-Powered Education"
-        description="Master new skills with personalized learning paths, live classes, and expert instructors. Join 50,000+ students on EduMind."
-        canonicalUrl="/"
-        jsonLd={{
-          '@context': 'https://schema.org',
-          '@type': 'Organization',
-          name: 'EduMind',
-          url: 'https://edumind.nguyenloc.dev',
-          description: 'AI-powered learning platform',
-        }}
-      />
       <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">

@@ -60,7 +60,7 @@ const navItems: NavItem[] = [
   }
 ];
 
-import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
+import { useSeoMetaTags } from "../components/Seo/useSeoMetaTags";
 
 export const TeacherLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -124,13 +124,14 @@ export const TeacherLayout: React.FC = () => {
     );
   };
 
+  useSeoMetaTags({
+    title: 'Teacher Portal',
+    description: 'EduMind Teacher Portal',
+    noIndex: true,
+  });
+
   return (
     <>
-      <SeoMetaTags
-        title="Teacher Portal"
-        description="EduMind Teacher Portal"
-        noIndex={true}
-      />
       <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b sticky top-0 z-50">

@@ -13,7 +13,7 @@ import { useAuthStore } from "../../stores/auth.store";
 import { queryKeys } from "../../lib/query-keys";
 import { STALE_TIME_ENROLLMENTS } from "../../lib/query-config";
 
-import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
+import { useSeoMetaTags } from "../../components/Seo/useSeoMetaTags";
 import {
   HeroSection,
   CourseFilters,
@@ -186,17 +186,18 @@ export const MyLearningPage: React.FC = () => {
     }
   };
 
+  useSeoMetaTags({
+    title: 'My Learning',
+    description: 'My Learning Courses',
+    noIndex: true,
+  });
+
   if (statsLoading) {
     return <MyLearningSkeleton />;
   }
 
   return (
     <>
-      <SeoMetaTags
-        title="My Learning"
-        description="My Learning Courses"
-        noIndex={true}
-      />
       <div className="min-h-screen bg-slate-50">
       {/* Hero Section with Welcome & Stats */}
       <HeroSection

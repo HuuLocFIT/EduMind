@@ -251,7 +251,7 @@ async function prerender() {
         };
       }, apiOrigin, localOrigin);
 
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
       const rawHtml = await page.content();
       const html = deduplicateSeoTags(rawHtml);

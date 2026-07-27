@@ -28,7 +28,7 @@ import {
   NewestCoursesSection,
 } from './dashboard/components';
 import { categoryService } from "../services/category.service";
-import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
+import { useSeoMetaTags } from "../components/Seo/useSeoMetaTags";
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -140,17 +140,18 @@ export const DashboardPage: React.FC = () => {
     navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug }));
   };
 
+  useSeoMetaTags({
+    title: 'Dashboard',
+    description: 'User Dashboard',
+    noIndex: true,
+  });
+
   if (enrollmentsLoading) {
     return <DashboardSkeleton />;
   }
 
   return (
     <>
-      <SeoMetaTags
-        title="Dashboard"
-        description="User Dashboard"
-        noIndex={true}
-      />
       <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
       <DashboardHeroSection

@@ -3,19 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@edumind/user-ui";
 import { FileQuestion, Home, Search } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
-import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
+import { useSeoMetaTags } from "../components/Seo/useSeoMetaTags";
 
 export const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
 
+  useSeoMetaTags({
+    title: 'Page Not Found',
+    description: 'Sorry, we couldn\'t find the page you\'re looking for.',
+    noIndex: true,
+    prerenderStatusCode: 404,
+  });
+
   return (
     <>
-      <SeoMetaTags
-        title="Page Not Found"
-        description="Sorry, we couldn't find the page you're looking for."
-        noIndex
-        prerenderStatusCode={404}
-      />
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="text-center max-w-md">
         {/* Icon */}
