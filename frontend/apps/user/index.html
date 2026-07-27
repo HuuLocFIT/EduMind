@@ -10,6 +10,71 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
+
+    <!--
+      Hydration cleanup for prerendered SEO tags.
+      React 19 hoisting cannot reliably adopt prerendered static SEO tags,
+      so we remove any leftover SEO tags before React hydrates.
+      React will recreate the correct tags declaratively.
+    -->
+    <script>
+      (function () {
+        if (!document.head) return;
+
+        var protectedNames = new Set([
+          'viewport', 'charset', 'theme-color', 'color-scheme', 'format-detection'
+        ]);
+
+        var protectedPrefixes = ['apple-mobile-web-app', 'msapplication'];
+
+        function isProtectedMeta(el) {
+          if (el.getAttribute('charset')) return true;
+          var name = el.getAttribute('name');
+          if (name) {
+            if (protectedNames.has(name)) return true;
+            for (var i = 0; i < protectedPrefixes.length; i++) {
+              if (name.indexOf(protectedPrefixes[i]) === 0) return true;
+            }
+          }
+          if (el.getAttribute('http-equiv')) return true;
+          return false;
+        }
+
+        function shouldRemoveMeta(el) {
+          var name = el.getAttribute('name');
+          var property = el.getAttribute('property');
+          if (name === 'description') return true;
+          if (name === 'robots') return true;
+          if (name === 'prerender-status-code') return true;
+          if (name && name.indexOf('twitter:') === 0) return true;
+          if (property && property.indexOf('og:') === 0) return true;
+          return false;
+        }
+
+        var titles = document.head.querySelectorAll('title');
+        for (var i = 0; i < titles.length; i++) {
+          document.head.removeChild(titles[i]);
+        }
+
+        var metas = document.head.querySelectorAll('meta');
+        for (var j = 0; j < metas.length; j++) {
+          var meta = metas[j];
+          if (!isProtectedMeta(meta) && shouldRemoveMeta(meta)) {
+            document.head.removeChild(meta);
+          }
+        }
+
+        var canonicals = document.head.querySelectorAll('link[rel="canonical"]');
+        for (var k = 0; k < canonicals.length; k++) {
+          document.head.removeChild(canonicals[k]);
+        }
+
+        var jsonLds = document.head.querySelectorAll('script[type="application/ld+json"]');
+        for (var l = 0; l < jsonLds.length; l++) {
+          document.head.removeChild(jsonLds[l]);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
