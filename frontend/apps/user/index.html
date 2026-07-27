@@ -14,33 +14,21 @@
     <!--
       Hydration cleanup for prerendered SEO tags.
       React 19 hoisting cannot reliably adopt prerendered static SEO tags,
-      so we remove any leftover SEO tags before React hydrates.
-      React will recreate the correct tags declaratively.
+      so we remove any SEO tags not created by React before React hydrates.
+      React-managed tags are marked with data-seo="react".
     -->
     <script>
       (function () {
         if (!document.head) return;
 
-        var protectedNames = new Set([
-          'viewport', 'charset', 'theme-color', 'color-scheme', 'format-detection'
-        ]);
+        var DEBUG = true;
+        var REACT_SEO_MARKER = 'react';
 
-        var protectedPrefixes = ['apple-mobile-web-app', 'msapplication'];
-
-        function isProtectedMeta(el) {
-          if (el.getAttribute('charset')) return true;
-          var name = el.getAttribute('name');
-          if (name) {
-            if (protectedNames.has(name)) return true;
-            for (var i = 0; i < protectedPrefixes.length; i++) {
-              if (name.indexOf(protectedPrefixes[i]) === 0) return true;
-            }
-          }
-          if (el.getAttribute('http-equiv')) return true;
-          return false;
+        function isReactManaged(el) {
+          return el.getAttribute('data-seo') === REACT_SEO_MARKER;
         }
 
-        function shouldRemoveMeta(el) {
+        function isSeoMeta(el) {
           var name = el.getAttribute('name');
           var property = el.getAttribute('property');
           if (name === 'description') return true;
@@ -51,27 +39,31 @@
           return false;
         }
 
-        var titles = document.head.querySelectorAll('title');
-        for (var i = 0; i < titles.length; i++) {
-          document.head.removeChild(titles[i]);
-        }
-
-        var metas = document.head.querySelectorAll('meta');
-        for (var j = 0; j < metas.length; j++) {
-          var meta = metas[j];
-          if (!isProtectedMeta(meta) && shouldRemoveMeta(meta)) {
-            document.head.removeChild(meta);
+        function removeAll(selector, shouldRemove) {
+          var elements = document.head.querySelectorAll(selector);
+          var removed = 0;
+          for (var i = 0; i < elements.length; i++) {
+            if (shouldRemove(elements[i])) {
+              document.head.removeChild(elements[i]);
+              removed++;
+            }
           }
+          return removed;
         }
 
-        var canonicals = document.head.querySelectorAll('link[rel="canonical"]');
-        for (var k = 0; k < canonicals.length; k++) {
-          document.head.removeChild(canonicals[k]);
-        }
+        var removedTitles = removeAll('title', function (el) { return !isReactManaged(el); });
+        var removedMetas = removeAll('meta', function (el) { return isSeoMeta(el) && !isReactManaged(el); });
+        var removedCanonicals = removeAll('link[rel="canonical"]', function (el) { return !isReactManaged(el); });
+        var removedJsonLds = removeAll('script[type="application/ld+json"]', function (el) { return !isReactManaged(el); });
 
-        var jsonLds = document.head.querySelectorAll('script[type="application/ld+json"]');
-        for (var l = 0; l < jsonLds.length; l++) {
-          document.head.removeChild(jsonLds[l]);
+        if (DEBUG) {
+          console.log(
+            '[SEO cleanup] Removed prerendered tags:',
+            'titles=' + removedTitles,
+            'metas=' + removedMetas,
+            'canonicals=' + removedCanonicals,
+            'jsonLd=' + removedJsonLds
+          );
         }
       })();
     </script>
