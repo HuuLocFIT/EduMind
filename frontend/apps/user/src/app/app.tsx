@@ -25,6 +25,8 @@ import { AppErrorBoundary } from "./components/RouteErrorBoundary";
 import { createLazyRoute } from "./components/LazyRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { HeadTagCleanup } from "./components/Seo/HeadTagCleanup";
+import { SeoProvider } from "./components/Seo/SeoContext";
+import { SeoRenderer } from "./components/Seo/SeoRenderer";
 import {
   BrowseCoursesSkeleton,
   CourseDetailSkeleton,
@@ -214,11 +216,13 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <HeadTagCleanup />
-      <ScrollToTop />
-      <ToastContainer toasts={toasts} onClose={closeToast} />
+      <SeoProvider>
+        <SeoRenderer />
+        <HeadTagCleanup />
+        <ScrollToTop />
+        <ToastContainer toasts={toasts} onClose={closeToast} />
 
-      <AppErrorBoundary>
+        <AppErrorBoundary>
         <Routes>
           {/* ================================================================ */}
           {/* Public Routes - No authentication required                     */}
@@ -593,7 +597,8 @@ function AppContent() {
           <Route path={USER_ROUTES.NOT_FOUND} element={<NotFoundPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </AppErrorBoundary>
+        </AppErrorBoundary>
+      </SeoProvider>
     </BrowserRouter>
   );
 }

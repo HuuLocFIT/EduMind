@@ -22,7 +22,7 @@ import { STALE_TIME_CATEGORIES } from "../../lib/query-config";
 import { useCart, useAddToCart } from "../../hooks/useCart";
 import { useAuthStore } from "../../stores/auth.store";
 import { useCartStore } from "../../stores/cart.store";
-import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
+import { useSeoMetaTags } from "../../components/Seo/useSeoMetaTags";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
@@ -407,14 +407,15 @@ export const BrowseCoursesPage: React.FC = () => {
     ? 'Explore free courses on EduMind. Start learning without any cost.'
     : 'Browse our wide selection of courses on EduMind. Find expert-led courses to advance your skills.';
 
+  useSeoMetaTags({
+    title: pageTitle,
+    description: pageDescription,
+    canonicalUrl: '/courses',
+    noIndex: activeFiltersCount > 0,
+  });
+
   return (
     <>
-      <SeoMetaTags
-        title={pageTitle}
-        description={pageDescription}
-        canonicalUrl="/courses"
-        noIndex={activeFiltersCount > 0}
-      />
       <div className="min-h-screen bg-gray-50">
       <BrowseHeroSection
         searchKeyword={searchKeyword}

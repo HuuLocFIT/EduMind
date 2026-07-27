@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from '../../stores/auth.store';
-import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
+import { useSeoMetaTags } from "../../components/Seo/useSeoMetaTags";
 import { buildCourseJsonLd } from "../../components/Seo/course-structured-data";
 import { queryKeys } from "../../lib/query-keys";
 import {
@@ -212,60 +212,63 @@ export const CourseDetailPage: React.FC = () => {
     await reviewMutation.mutateAsync({ rating, comment });
   };
 
+  const canonicalPath = course ? `/courses/${course.slug || course.id}` : undefined;
+  const seoTitle = courseLoading
+    ? 'Loading Course...'
+    : courseError || !course
+    ? 'Course Not Found'
+    : course.title;
+  const seoDescription = courseLoading
+    ? 'Accessing course details on EduMind'
+    : courseError || !course
+    ? 'The requested course could not be found.'
+    : course.shortDescription?.replace(/<[^>]*>/g, '') ||
+      course.description?.replace(/<[^>]*>/g, '').substring(0, 160) ||
+      `Learn ${course.title} on EduMind`;
+  const seoNoIndex = Boolean(courseError || !course);
+  const seoPrerenderStatusCode = seoNoIndex ? 404 : undefined;
+  const seoOgType = course && !courseError ? 'product' as const : undefined;
+  const seoOgImage = course?.thumbnailUrl;
+  const seoJsonLd = course && !courseError
+    ? buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)
+    : undefined;
+
+  useSeoMetaTags({
+    title: seoTitle,
+    description: seoDescription,
+    canonicalUrl: canonicalPath,
+    ogType: seoOgType,
+    ogImage: seoOgImage ?? undefined,
+    noIndex: seoNoIndex,
+    prerenderStatusCode: seoPrerenderStatusCode,
+    jsonLd: seoJsonLd,
+  });
+
   if (courseLoading) {
-    return (
-      <>
-        <SeoMetaTags
-          key="loading"
-          title="Loading Course..."
-          description="Accessing course details on EduMind"
-        />
-        <CourseDetailSkeleton />
-      </>
-    );
+    return <CourseDetailSkeleton />;
   }
 
   if (courseError || !course) {
     return (
-      <>
-        <SeoMetaTags
-          key="error"
-          title="Course Not Found"
-          description="The requested course could not be found."
-          noIndex={true}
-          prerenderStatusCode={404}
-        />
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <Card className="p-8 text-center max-w-md">
-            <p className="text-red-600 text-lg mb-4">
-              {(courseError as any)?.message || "Course not found"}
-            </p>
-            <Button
-              variant="primary"
-              onClick={() => navigate(USER_ROUTES.COURSES)}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Courses
-            </Button>
-          </Card>
-        </div>
-      </>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="p-8 text-center max-w-md">
+          <p className="text-red-600 text-lg mb-4">
+            {(courseError as any)?.message || "Course not found"}
+          </p>
+          <Button
+            variant="primary"
+            onClick={() => navigate(USER_ROUTES.COURSES)}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Courses
+          </Button>
+        </Card>
+      </div>
     );
   }
 
-  const canonicalPath = `/courses/${course.slug || course.id}`;
-
   return (
     <>
-        <SeoMetaTags
-         key={course.id}
-         title={course.title}
-         description={course.shortDescription?.replace(/<[^>]*>/g, '') || course.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Learn ${course.title} on EduMind`}
-         canonicalUrl={canonicalPath}
-         ogType="product"
-         {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
-         jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
-      />
       <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">

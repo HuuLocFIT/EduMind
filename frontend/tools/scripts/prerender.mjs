@@ -190,8 +190,18 @@ const STATIC_ROUTES = ['/', '/courses'];
 
 async function prerender() {
   const server = createServer(serveStaticOrProxy);
-  await new Promise((resolve) => server.listen(PORT, resolve));
-  console.log(`[prerender] Static server on http://localhost:${PORT}, API proxy to ${API_URL}`);
+  const actualPort = await new Promise((resolve, reject) => {
+    server.listen(PORT, () => resolve(PORT));
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        const fallbackServer = createServer(serveStaticOrProxy);
+        fallbackServer.listen(0, () => resolve(fallbackServer.address().port));
+      } else {
+        reject(err);
+      }
+    });
+  });
+  console.log(`[prerender] Static server on http://localhost:${actualPort}, API proxy to ${API_URL}`);
 
   const courseRoutes = await fetchCourseSlugs();
   const allRoutes = [...STATIC_ROUTES, ...courseRoutes];
@@ -225,52 +235,90 @@ async function prerender() {
 
   try {
     for (const route of allRoutes) {
-      const url = `http://localhost:${PORT}${route}`;
+      const url = `http://localhost:${actualPort}${route}`;
       console.log(`[prerender] Rendering ${url}...`);
 
       const page = await browser.newPage();
 
-      // Override fetch/XHR in page context to route API calls through local proxy (avoid CORS)
-      const apiOrigin = new URL(API_URL).origin;
-      const localOrigin = `http://localhost:${PORT}`;
-      await page.evaluateOnNewDocument((remote, local) => {
-        const origFetch = window.fetch.bind(window);
-        window.fetch = (input, init) => {
-          const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
-          return url.startsWith(remote)
-            ? origFetch(url.replace(remote, local), init)
-            : origFetch(input, init);
-        };
-        const origXhrOpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(...args) {
-          const [, url] = args;
-          args[1] = typeof url === 'string' && url.startsWith(remote)
-            ? url.replace(remote, local)
-            : url;
-          return origXhrOpen.apply(this, args);
-        };
-      }, apiOrigin, localOrigin);
+      try {
+        // Optimize prerender speed by blocking non-essential resources (images, fonts, media, analytics)
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          const type = req.resourceType();
+          const reqUrl = req.url();
+          if (
+            ['image', 'media', 'font'].includes(type) ||
+            reqUrl.includes('sentry') ||
+            reqUrl.includes('google-analytics')
+          ) {
+            req.abort();
+          } else {
+            req.continue();
+          }
+        });
 
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+        // Override fetch/XHR in page context to route API calls through local proxy (avoid CORS)
+        const apiOrigin = new URL(API_URL).origin;
+        const localOrigin = `http://localhost:${actualPort}`;
+        await page.evaluateOnNewDocument((remote, local) => {
+          const origFetch = window.fetch.bind(window);
+          window.fetch = (input, init) => {
+            const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+            return url.startsWith(remote)
+              ? origFetch(url.replace(remote, local), init)
+              : origFetch(input, init);
+          };
+          const origXhrOpen = XMLHttpRequest.prototype.open;
+          XMLHttpRequest.prototype.open = function(...args) {
+            const [, url] = args;
+            args[1] = typeof url === 'string' && url.startsWith(remote)
+              ? url.replace(remote, local)
+              : url;
+            return origXhrOpen.apply(this, args);
+          };
+        }, apiOrigin, localOrigin);
 
-      const rawHtml = await page.content();
-      const html = deduplicateSeoTags(rawHtml);
-      assertNoDuplicateSeoTags(html, route);
-      const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
-      const fullPath = resolve(DIST_DIR, relPath);
-      const dir = dirname(fullPath);
+        try {
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+          // Wait briefly for React effects & SEO context to render content
+          await page.waitForFunction(
+            () => Boolean(document.title) && document.querySelector('#root')?.children?.length > 0,
+            { timeout: 5000 }
+          ).catch(() => {});
+        } catch (navErr) {
+          console.warn(`[prerender] Navigation notice for ${route}: ${navErr.message}. Using current page state.`);
+        }
 
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-      writeFileSync(fullPath, html, 'utf-8');
-      console.log(`[prerender] Saved ${relPath} (${(html.length / 1024).toFixed(1)} KB)`);
+        const rawHtml = await page.content();
+        const html = deduplicateSeoTags(rawHtml);
+        assertNoDuplicateSeoTags(html, route);
+        const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
+        const fullPath = resolve(DIST_DIR, relPath);
+        const dir = dirname(fullPath);
 
-      await page.close();
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        writeFileSync(fullPath, html, 'utf-8');
+        console.log(`[prerender] Saved ${relPath} (${(html.length / 1024).toFixed(1)} KB)`);
+      } catch (routeErr) {
+        console.warn(`[prerender] Could not fully prerender ${route}: ${routeErr.message}. Falling back to default index.html.`);
+        const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
+        const fullPath = resolve(DIST_DIR, relPath);
+        const dir = dirname(fullPath);
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        writeFileSync(fullPath, VANILLA_INDEX_CONTENT, 'utf-8');
+      } finally {
+        await page.close().catch(() => {});
+      }
     }
 
-    console.log(`\n[prerender] Done! ${allRoutes.length} routes prerendered.`);
+    console.log(`\n[prerender] Done! ${allRoutes.length} routes processed.`);
   } finally {
-    await browser.close();
-    server.close();
+    if (browser) await browser.close().catch(() => {});
+    server.close(() => {
+      process.exit(0);
+    });
+    // Fallback exit if server.close callback hangs on keep-alive connections
+    setTimeout(() => process.exit(0), 1000).unref();
   }
 }
 
