@@ -1,9 +1,6 @@
 {
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "cleanUrls": true,
   "trailingSlash": false,
@@ -18,8 +15,12 @@
       ]
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/).*)",
       "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"

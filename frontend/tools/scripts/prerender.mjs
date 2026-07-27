@@ -62,26 +62,19 @@ const VANILLA_INDEX_CONTENT = (() => {
 /**
  * Deduplicate SEO tags in prerendered HTML.
  *
- * When Puppeteer renders a page, React 19's hoistable system may produce
- * duplicate <title>, <meta>, <link rel="canonical">, and <script type="application/ld+json">
- * tags if the served HTML already contained them (e.g., from a previous prerender run
- * where the fallback served an already-prerendered file instead of vanilla index.html).
- *
- * This function keeps only the LAST occurrence of each SEO tag group (which is
- * typically the React-generated version) and removes earlier duplicates.
+ * Keeps the LAST occurrence of each SEO tag group and removes earlier duplicates.
  */
 function deduplicateSeoTags(html) {
   // Deduplicate <title> — keep last
-  const titleMatches = [...html.matchAll(/<title>[\s\S]*?<\/title>/gi)];
+  const titleMatches = [...html.matchAll(/<title[^>]*>[\s\S]*?<\/title>/gi)];
   if (titleMatches.length > 1) {
-    // Remove all but the last
     for (let i = 0; i < titleMatches.length - 1; i++) {
       html = html.replace(titleMatches[i][0], '');
     }
   }
 
   // Deduplicate <meta> by name or property attribute — keep last of each key
-  const metaRegex = /<meta\s+(?=[^>]*(?:name|property)\s*=\s*"([^"]+)")[^>]*\/?>/gi;
+  const metaRegex = /<meta\s+(?:[^>]*?\s)?(?:name|property)\s*=\s*["']([^"']+)["'][^>]*?\/?>/gi;
   const metaByKey = new Map();
   let match;
   while ((match = metaRegex.exec(html)) !== null) {
@@ -94,7 +87,6 @@ function deduplicateSeoTags(html) {
   }
   for (const [, occurrences] of metaByKey) {
     if (occurrences.length > 1) {
-      // Remove all but last
       for (let i = 0; i < occurrences.length - 1; i++) {
         html = html.replace(occurrences[i], '');
       }
@@ -102,7 +94,8 @@ function deduplicateSeoTags(html) {
   }
 
   // Deduplicate <link rel="canonical"> — keep last
-  const canonicalMatches = [...html.matchAll(/<link\s+[^>]*rel\s*=\s*"canonical"[^>]*\/?>/gi)];
+  const canonicalRegex = /<link\s+[^>]*rel\s*=\s*["']canonical["'][^>]*\/?>/gi;
+  const canonicalMatches = [...html.matchAll(canonicalRegex)];
   if (canonicalMatches.length > 1) {
     for (let i = 0; i < canonicalMatches.length - 1; i++) {
       html = html.replace(canonicalMatches[i][0], '');
@@ -110,23 +103,40 @@ function deduplicateSeoTags(html) {
   }
 
   // Deduplicate <script type="application/ld+json"> — keep last
-  const jsonLdMatches = [...html.matchAll(/<script\s+type\s*=\s*"application\/ld\+json">[\s\S]*?<\/script>/gi)];
+  const jsonLdRegex = /<script\s+type\s*=\s*["']application\/ld\+json["']\s*>[\s\S]*?<\/script>/gi;
+  const jsonLdMatches = [...html.matchAll(jsonLdRegex)];
   if (jsonLdMatches.length > 1) {
     for (let i = 0; i < jsonLdMatches.length - 1; i++) {
       html = html.replace(jsonLdMatches[i][0], '');
     }
   }
 
-  // Clean up empty lines left by removed tags
-  html = html.replace(/^\s*\n/gm, (match, offset, str) => {
-    // Only collapse multiple consecutive empty lines in <head>
-    const headStart = str.indexOf('<head');
-    const headEnd = str.indexOf('</head>');
-    if (offset > headStart && offset < headEnd) return '';
-    return match;
-  });
+  // Clean up empty lines left by removed tags inside <head>
+  const headStart = html.indexOf('<head');
+  const headEnd = html.indexOf('</head>');
+  if (headStart !== -1 && headEnd !== -1) {
+    const headContent = html.slice(headStart, headEnd);
+    const cleanedHead = headContent.replace(/^\s*\n/gm, '');
+    html = html.slice(0, headStart) + cleanedHead + html.slice(headEnd);
+  }
 
   return html;
+}
+
+function assertNoDuplicateSeoTags(html, route) {
+  const titleCount = (html.match(/<title[^>]*>[\s\S]*?<\/title>/gi) || []).length;
+  const descCount = (html.match(/<meta\s+(?:[^>]*?\s)?name\s*=\s*["']description["'][^>]*?\/?>/gi) || []).length;
+  const canonicalCount = (html.match(/<link\s+[^>]*rel\s*=\s*["']canonical["'][^>]*\/?>/gi) || []).length;
+  const ogTitleCount = (html.match(/<meta\s+(?:[^>]*?\s)?property\s*=\s*["']og:title["'][^>]*?\/?>/gi) || []).length;
+  const twitterTitleCount = (html.match(/<meta\s+(?:[^>]*?\s)?name\s*=\s*["']twitter:title["'][^>]*\/?>/gi) || []).length;
+
+  if (titleCount > 1 || descCount > 1 || canonicalCount > 1 || ogTitleCount > 1 || twitterTitleCount > 1) {
+    console.warn(
+      `[prerender] SEO duplicates still detected for ${route}: ` +
+      `title=${titleCount}, description=${descCount}, canonical=${canonicalCount}, ` +
+      `og:title=${ogTitleCount}, twitter:title=${twitterTitleCount}`
+    );
+  }
 }
 
 function serveStaticOrProxy(req, res) {
@@ -136,11 +146,19 @@ function serveStaticOrProxy(req, res) {
 
   const filePath = join(DIST_DIR, req.url === '/' ? 'index.html' : req.url);
   const ext = extname(filePath);
-  const useFallback = (!ext || ext === '.html') && (!existsSync(filePath) || !statSync(filePath).isFile());
 
-  if (useFallback) {
+  // During prerender, always serve the vanilla index.html for HTML routes
+  // to avoid React 19 hoisting duplicates on top of already-prerendered files.
+  const isHtmlRoute = !ext || ext === '.html';
+  if (isHtmlRoute) {
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(VANILLA_INDEX_CONTENT);
+    return;
+  }
+
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
     return;
   }
 
@@ -237,6 +255,7 @@ async function prerender() {
 
       const rawHtml = await page.content();
       const html = deduplicateSeoTags(rawHtml);
+      assertNoDuplicateSeoTags(html, route);
       const relPath = route === '/' ? 'index.html' : `${route.slice(1)}/index.html`;
       const fullPath = resolve(DIST_DIR, relPath);
       const dir = dirname(fullPath);
