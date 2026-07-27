@@ -2,9 +2,9 @@ import { useSeo } from './SeoContext';
 import { SeoMetaTags } from './SeoMetaTags';
 
 export function SeoRenderer() {
-  const { config } = useSeo();
+  const seo = useSeo();
 
-  if (!config) return null;
+  if (!seo?.config) return null;
 
-  return <SeoMetaTags {...config} />;
+  return <SeoMetaTags {...seo.config} />;
 }
