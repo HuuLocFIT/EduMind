@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import type { CourseDetailResponse, UpdateCourseRequest } from "@edumind/shared-types";
+import { stripHtml } from "@edumind/shared-utils";
 import { Button, Input, Textarea, Switch } from "@edumind/user-ui";
-import { Save } from "lucide-react";
+import { Save, Globe } from "lucide-react";
 
 interface SettingsTabProps {
   course: CourseDetailResponse;
@@ -15,7 +16,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving
     hasSubtitles: course.hasSubtitles,
     metaTitle: course.metaTitle || "",
     metaDescription: course.metaDescription || "",
-    metaKeywords: course.metaKeywords || "",
   });
 
   const handleChange = (key: string, value: any) => {
@@ -82,27 +82,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Keywords</label>
-            <Input
-              value={formData.metaKeywords}
-              onChange={(e) => handleChange("metaKeywords", e.target.value)}
-              placeholder="keyword1, keyword2, keyword3"
-              helperText="Comma-separated keywords"
-            />
-          </div>
         </div>
       </div>
 
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">Search Preview</h3>
-        <div className="p-4 border rounded-lg bg-white">
-          <p className="text-blue-600 text-lg hover:underline cursor-pointer">
-            {formData.metaTitle || course.title}
+        <div className="p-4 border rounded-lg bg-white max-w-[600px]">
+          <div className="flex items-center gap-1.5 text-sm text-green-700 mb-0.5">
+            <Globe className="w-3 h-3" />
+            <span>edumind.nguyenloc.dev</span>
+            <span className="text-gray-400">›</span>
+            <span className="text-gray-500">Courses</span>
+          </div>
+          <p className="text-blue-600 text-lg hover:underline cursor-pointer truncate">
+            {formData.metaTitle || course.title} | EduMind
           </p>
-          <p className="text-green-700 text-sm">www.edumind.com/courses/{course.slug}</p>
-          <p className="text-gray-600 text-sm mt-1">
-            {formData.metaDescription || course.shortDescription || course.description?.substring(0, 160)}
+          <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+            {formData.metaDescription || stripHtml(course.shortDescription) || stripHtml(course.description).substring(0, 160)}
           </p>
         </div>
       </div>
