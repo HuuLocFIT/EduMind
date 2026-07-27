@@ -13,20 +13,19 @@
 
     <!--
       Hydration cleanup for prerendered SEO tags.
-      React 19 hoisting cannot reliably adopt prerendered static SEO tags,
-      so we remove any SEO tags not created by React before React hydrates.
-      React-managed tags are marked with data-seo="react".
+      React 19 cannot reliably adopt prerendered static SEO tags, even when
+      they carry the same data-seo="react" marker as React-managed tags.
+      We therefore strip ALL SEO tags from the prerendered HTML before React
+      hydrates. React then recreates a single, managed set of tags.
+      Non-SEO tags (viewport, charset, favicon, preconnect, stylesheets) are
+      preserved. Crawlers that do not execute JS still receive the prerendered
+      HTML with SEO tags intact because this script only runs in the browser.
     -->
     <script>
       (function () {
         if (!document.head) return;
 
-        var DEBUG = true;
-        var REACT_SEO_MARKER = 'react';
-
-        function isReactManaged(el) {
-          return el.getAttribute('data-seo') === REACT_SEO_MARKER;
-        }
+        var DEBUG = false;
 
         function isSeoMeta(el) {
           var name = el.getAttribute('name');
@@ -39,22 +38,25 @@
           return false;
         }
 
-        function removeAll(selector, shouldRemove) {
+        function removeAll(selector) {
           var elements = document.head.querySelectorAll(selector);
-          var removed = 0;
           for (var i = 0; i < elements.length; i++) {
-            if (shouldRemove(elements[i])) {
-              document.head.removeChild(elements[i]);
-              removed++;
-            }
+            document.head.removeChild(elements[i]);
           }
-          return removed;
+          return elements.length;
         }
 
-        var removedTitles = removeAll('title', function (el) { return !isReactManaged(el); });
-        var removedMetas = removeAll('meta', function (el) { return isSeoMeta(el) && !isReactManaged(el); });
-        var removedCanonicals = removeAll('link[rel="canonical"]', function (el) { return !isReactManaged(el); });
-        var removedJsonLds = removeAll('script[type="application/ld+json"]', function (el) { return !isReactManaged(el); });
+        var removedTitles = removeAll('title');
+        var removedMetas = 0;
+        var metas = document.head.querySelectorAll('meta');
+        for (var i = 0; i < metas.length; i++) {
+          if (isSeoMeta(metas[i])) {
+            document.head.removeChild(metas[i]);
+            removedMetas++;
+          }
+        }
+        var removedCanonicals = removeAll('link[rel="canonical"]');
+        var removedJsonLds = removeAll('script[type="application/ld+json"]');
 
         if (DEBUG) {
           console.log(
