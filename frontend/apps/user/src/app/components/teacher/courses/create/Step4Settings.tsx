@@ -23,18 +23,6 @@ export const Step4Settings: React.FC<StepProps> = ({ data, onChange, errors }) =
           />
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div>
-            <p className="font-medium text-gray-900">Subtitles</p>
-            <p className="text-sm text-gray-600">
-              Course includes subtitles/captions
-            </p>
-          </div>
-          <Switch
-            checked={data.hasSubtitles || false}
-            onChange={(checked) => onChange({ hasSubtitles: checked.target.checked })}
-          />
-        </div>
       </div>
 
       <div className="space-y-4">

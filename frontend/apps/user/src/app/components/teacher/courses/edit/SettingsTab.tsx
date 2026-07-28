@@ -13,7 +13,6 @@ interface SettingsTabProps {
 export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving }) => {
   const [formData, setFormData] = useState({
     hasCertificate: course.hasCertificate,
-    hasSubtitles: course.hasSubtitles,
     metaTitle: course.metaTitle || "",
     metaDescription: course.metaDescription || "",
   });
@@ -42,16 +41,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving
             />
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div>
-              <p className="font-medium text-gray-900">Subtitles/Captions</p>
-              <p className="text-sm text-gray-600">Course videos include subtitles or captions</p>
-            </div>
-            <Switch
-              checked={formData.hasSubtitles}
-              onChange={(checked) => handleChange("hasSubtitles", checked)}
-            />
-          </div>
         </div>
       </div>
 
