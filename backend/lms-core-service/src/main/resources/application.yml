@@ -137,6 +137,7 @@ ai:
     path: ${YTDLP_PATH:yt-dlp}   # override with full path e.g. /usr/local/bin/yt-dlp
 
 app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   encryption:
     key: ${LMS_CORE_SERVICE_ENCRYPTION_KEY}
   async:

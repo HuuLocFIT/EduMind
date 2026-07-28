@@ -9,15 +9,13 @@ import org.springframework.stereotype.Component;
 public class EnrollmentMapper {
     public EnrollmentResponse toResponse(Enrollment enrollment) {
         // Certificate visibility rules:
-        // - ACTIVE / COMPLETED / EXPIRED: expose certificate URL as stored.
-        // - SUSPENDED: certificate is temporarily locked -> hide URL from client.
-        // - DROPPED: enrollment has been cancelled -> certificate is permanently revoked -> hide URL.
-        String effectiveCertificateUrl = null;
-        if (enrollment.getStatus() == EnrollmentStatus.ACTIVE
+        // - ACTIVE / COMPLETED / EXPIRED: expose certificate data as stored.
+        // - SUSPENDED: certificate is temporarily locked -> hide all certificate data from client.
+        // - DROPPED: enrollment has been cancelled -> certificate is permanently revoked -> hide all certificate data.
+        boolean canViewCertificate = enrollment.getStatus() == EnrollmentStatus.ACTIVE
                 || enrollment.getStatus() == EnrollmentStatus.COMPLETED
-                || enrollment.getStatus() == EnrollmentStatus.EXPIRED) {
-            effectiveCertificateUrl = enrollment.getCertificateUrl();
-        }
+                || enrollment.getStatus() == EnrollmentStatus.EXPIRED;
+        String effectiveCertificateUrl = canViewCertificate ? enrollment.getCertificateUrl() : null;
 
         return EnrollmentResponse.builder()
                 .id(enrollment.getId())
@@ -38,6 +36,9 @@ public class EnrollmentMapper {
                 .lastAccessedAt(enrollment.getLastAccessedAt())
                 .expiresAt(enrollment.getExpiresAt())
                 .suspensionReason(enrollment.getSuspensionReason())
+                .courseHasCertificate(canViewCertificate ? enrollment.getCourse().getHasCertificate() : null)
+                .certificateIssuedAt(canViewCertificate ? enrollment.getCertificateIssuedAt() : null)
+                .certificateReference(canViewCertificate ? enrollment.getCertificateReference() : null)
                 .build();
     }
 }

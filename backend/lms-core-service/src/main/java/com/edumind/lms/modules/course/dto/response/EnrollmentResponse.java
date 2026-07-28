@@ -36,6 +36,9 @@ public class EnrollmentResponse {
     // Completion
     private LocalDateTime completedAt;
     private String certificateUrl;
+    private Boolean courseHasCertificate;
+    private LocalDateTime certificateIssuedAt;
+    private String certificateReference;
 
     // Timestamps
     private LocalDateTime enrolledAt;

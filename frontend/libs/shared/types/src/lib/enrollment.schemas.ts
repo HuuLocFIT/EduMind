@@ -48,6 +48,9 @@ export const EnrollmentResponseSchema = z.object({
   enrolledAt: z.string(),
   completedAt: z.string().nullable().optional(),
   certificateUrl: z.string().optional().nullable(),
+  courseHasCertificate: z.boolean().optional().nullable(),
+  certificateIssuedAt: z.string().optional().nullable(),
+  certificateReference: z.string().optional().nullable(),
 
   // Timestamps
   lastAccessedAt: z.string().nullable().optional(),

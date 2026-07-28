@@ -461,6 +461,18 @@ export const ADMIN_ENDPOINTS = {
 } as const;
 
 /**
+ * Certificate endpoints
+ */
+export const CERTIFICATE_ENDPOINTS = {
+  REGENERATE: (enrollmentId: number | string) =>
+    `${API_BASE_PATH}/certificates/${enrollmentId}/regenerate`,
+  VERIFY: (reference: string) =>
+    `${API_BASE_PATH}/certificates/verify/${reference}`,
+  DOWNLOAD: (enrollmentId: number | string) =>
+    `${API_BASE_PATH}/certificates/${enrollmentId}/download`,
+} as const;
+
+/**
  * AI endpoints
  */
 export const AI_ENDPOINTS = {

@@ -554,9 +554,9 @@ export const MainLayout: React.FC = () => {
               <h4 className="font-semibold text-gray-900 mb-2 sm:mb-4">Legal</h4>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <a href="#" className="hover:text-blue-600">
+                  <Link to={USER_ROUTES.TERMS} className="hover:text-blue-600">
                     Terms of Service
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#" className="hover:text-blue-600">

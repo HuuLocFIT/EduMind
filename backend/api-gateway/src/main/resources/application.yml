@@ -273,6 +273,24 @@ spring:
                   requestedTokens: 1
             - RewritePath=/api/enrollments(?<segment>/?.*), /enrollments${segment}
         
+        # Certificate Routes (4 endpoints)
+        # STUDENT: download, regenerate certificates
+        # PUBLIC: verify certificate
+        # External: /api/certificates/** → Internal: /certificates/**
+        - id: certificate-service
+          uri: lb://LMS-CORE-SERVICE
+          predicates:
+            - Path=/api/certificates/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter:
+                  replenishRate: 15
+                  burstCapacity: 30
+                  requestedTokens: 1
+            - RewritePath=/api/certificates(?<segment>/?.*), /certificates${segment}
+        
         # Progress Routes (6 endpoints)
         # STUDENT: start lesson, update watch progress, mark complete
         # External: /api/progress/** → Internal: /progress/**

@@ -67,6 +67,9 @@ public class SecurityConfig {
                         // Preview lessons only - public
                         .requestMatchers(HttpMethod.GET, "/lessons/courses/{courseId}/preview").permitAll()
 
+                        // Certificate verification — public (no auth required)
+                        .requestMatchers(HttpMethod.GET, "/certificates/verify/{reference}").permitAll()
+
                         // AI job status - authenticated (polling)
                         .requestMatchers(HttpMethod.GET, "/ai/jobs/**").authenticated()
 

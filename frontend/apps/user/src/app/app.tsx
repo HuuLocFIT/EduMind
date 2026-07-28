@@ -119,6 +119,11 @@ const ApplicationStatusPage = createLazyRoute(
   () => import("./pages/teacher-application/ApplicationStatusPage")
 );
 
+// Legal Pages
+const TermsPage = createLazyRoute(
+  () => import("./pages/legal/TermsPage")
+);
+
 // Payment Pages
 const CartPage = createLazyRoute(
   () => import("./pages/payment/CartPage")
@@ -237,6 +242,14 @@ function AppContent() {
               element={
                 <Suspense fallback={<CourseDetailSkeleton />}>
                   <CourseDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={USER_ROUTES.TERMS}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading terms..." />}>
+                  <TermsPage />
                 </Suspense>
               }
             />

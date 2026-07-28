@@ -114,6 +114,9 @@ export const USER_ROUTES = {
   
   // Not found
   NOT_FOUND: '/404',
+
+  // Legal
+  TERMS: '/terms',
 } as const;
 
 /**
