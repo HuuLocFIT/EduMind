@@ -89,22 +89,6 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
           helperText="YouTube, Vimeo, or direct video URL"
         />
       </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Estimated Duration (hours)
-        </label>
-        <Input
-          type="number"
-          min={0}
-          value={data.durationHours || ""}
-          onChange={(e) =>
-            onChange({ durationHours: Number(e.target.value) || undefined })
-          }
-          placeholder="e.g., 10"
-          error={errors["durationHours"]}
-        />
-      </div>
     </div>
   );
 };

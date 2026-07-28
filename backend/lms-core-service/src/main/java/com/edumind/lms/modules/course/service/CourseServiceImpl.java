@@ -12,6 +12,7 @@ import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.CourseSpecifications;
 import org.springframework.data.jpa.domain.Specification;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
+import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.event.CourseArchivedEvent;
 import com.edumind.lms.modules.course.event.CourseCreatedEvent;
 import com.edumind.lms.modules.course.event.CourseDeletedEvent;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -40,6 +42,7 @@ import java.util.List;
 public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final LessonRepository lessonRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final UserClient userClient;
 
@@ -64,6 +67,7 @@ public class CourseServiceImpl implements CourseService {
         course.setTotalStudents(0);
         course.setAverageRating(null); // Must be NULL when totalReviews = 0 (per check_rating_consistency constraint)
         course.setTotalReviews(0);
+        course.setDurationHours(0); // No lessons yet
 
         // Validate price constraints
         validatePriceConstraints(course);
@@ -88,44 +92,22 @@ public class CourseServiceImpl implements CourseService {
         log.info("Updating course: {} by instructor: {}", courseId, instructorId);
 
         Course existingCourse = getCourseById(courseId);
-
-        // Validate ownership
         validateCourseOwnership(courseId, instructorId);
 
-        // Don't allow updating published courses to certain fields
-        if (existingCourse.getStatus() == CourseStatus.PUBLISHED) {
-            log.warn("Attempting to update published course: {}", courseId);
-            // Only allow certain fields to be updated when published
-            existingCourse.setDescription(courseUpdate.getDescription());
-            existingCourse.setShortDescription(courseUpdate.getShortDescription());
-            existingCourse.setThumbnailUrl(courseUpdate.getThumbnailUrl());
-            existingCourse.setPreviewVideoUrl(courseUpdate.getPreviewVideoUrl());
-        } else {
-            // Full update for draft courses
-            existingCourse.setTitle(courseUpdate.getTitle());
-            existingCourse.setDescription(courseUpdate.getDescription());
-            existingCourse.setShortDescription(courseUpdate.getShortDescription());
-            existingCourse.setPrice(courseUpdate.getPrice());
-            existingCourse.setDiscountPrice(courseUpdate.getDiscountPrice());
-            existingCourse.setThumbnailUrl(courseUpdate.getThumbnailUrl());
-            existingCourse.setPreviewVideoUrl(courseUpdate.getPreviewVideoUrl());
-            existingCourse.setLevel(courseUpdate.getLevel());
-            existingCourse.setLanguage(courseUpdate.getLanguage());
-            existingCourse.setDurationHours(courseUpdate.getDurationHours());
-            existingCourse.setHasCertificate(courseUpdate.getHasCertificate());
-            existingCourse.setHasSubtitles(courseUpdate.getHasSubtitles());
-            existingCourse.setMetaTitle(courseUpdate.getMetaTitle());
-            existingCourse.setMetaDescription(courseUpdate.getMetaDescription());
-            existingCourse.setMetaKeywords(courseUpdate.getMetaKeywords());
+        boolean isPublished = existingCourse.getStatus() == CourseStatus.PUBLISHED;
 
-            // Update slug only if changed and available
-            if (!existingCourse.getSlug().equals(courseUpdate.getSlug())) {
-                if (courseRepository.existsBySlug(courseUpdate.getSlug())) {
-                    throw new ConflictException("Course with slug '" + courseUpdate.getSlug() + "' already exists");
-                }
-                existingCourse.setSlug(courseUpdate.getSlug());
-            }
+        if (isPublished) {
+            validatePublishedCourseNoProtectedChanges(existingCourse, courseUpdate);
         }
+
+        applyUpdatableFields(existingCourse, courseUpdate);
+
+        if (!isPublished) {
+            applyDraftOnlyFields(existingCourse, courseUpdate);
+        }
+
+        recalculateDurationHours(existingCourse);
+        validatePriceConstraints(existingCourse);
 
         Course updatedCourse = courseRepository.save(existingCourse);
 
@@ -154,6 +136,9 @@ public class CourseServiceImpl implements CourseService {
         if (course.getTotalLessons() == 0) {
             throw new BadRequestException("Cannot publish course without lessons");
         }
+
+        // Ensure durationHours is up-to-date before publishing
+        recalculateDurationHours(course);
 
         // Update status
         course.setStatus(CourseStatus.PUBLISHED);
@@ -417,6 +402,85 @@ public class CourseServiceImpl implements CourseService {
                 .id(instructorId)
                 .displayName("Instructor #" + instructorId)
                 .build();
+    }
+
+    private void applyUpdatableFields(Course existing, Course update) {
+        if (update.getDescription() != null) existing.setDescription(update.getDescription());
+        if (update.getShortDescription() != null) existing.setShortDescription(update.getShortDescription());
+        if (update.getThumbnailUrl() != null) existing.setThumbnailUrl(update.getThumbnailUrl());
+        if (update.getPreviewVideoUrl() != null) existing.setPreviewVideoUrl(update.getPreviewVideoUrl());
+        if (update.getPrice() != null) {
+            existing.setPrice(update.getPrice());
+            if (existing.getDiscountPrice() != null
+                    && existing.getDiscountPrice().compareTo(update.getPrice()) > 0) {
+                existing.setDiscountPrice(null);
+            }
+        }
+        if (update.getDiscountPrice() != null) existing.setDiscountPrice(update.getDiscountPrice());
+        if (update.getMetaTitle() != null) existing.setMetaTitle(update.getMetaTitle());
+        if (update.getMetaDescription() != null) existing.setMetaDescription(update.getMetaDescription());
+        if (update.getMetaKeywords() != null) existing.setMetaKeywords(update.getMetaKeywords());
+
+        applyBooleanUpgradeOnly(existing::setHasCertificate, existing.getHasCertificate(),
+                update.getHasCertificate(), "hasCertificate");
+        applyBooleanUpgradeOnly(existing::setHasSubtitles, existing.getHasSubtitles(),
+                update.getHasSubtitles(), "hasSubtitles");
+    }
+
+    private void applyDraftOnlyFields(Course existing, Course update) {
+        if (update.getTitle() != null) existing.setTitle(update.getTitle());
+        if (update.getLevel() != null) existing.setLevel(update.getLevel());
+        if (update.getLanguage() != null) existing.setLanguage(update.getLanguage());
+
+        if (update.getSlug() != null && !existing.getSlug().equals(update.getSlug())) {
+            if (courseRepository.existsBySlug(update.getSlug())) {
+                throw new ConflictException("Course with slug '" + update.getSlug() + "' already exists");
+            }
+            existing.setSlug(update.getSlug());
+        }
+    }
+
+    private void validatePublishedCourseNoProtectedChanges(Course existing, Course update) {
+        rejectIfChanged(existing.getTitle(), update.getTitle(), "title");
+        rejectIfChanged(existing.getSlug(), update.getSlug(), "slug");
+        rejectIfChanged(existing.getLevel(), update.getLevel(), "level");
+        rejectIfChanged(existing.getLanguage(), update.getLanguage(), "language");
+    }
+
+    private <T> void rejectIfChanged(T current, T updated, String fieldName) {
+        if (updated != null && !Objects.equals(current, updated)) {
+            throw new BadRequestException("Cannot update '" + fieldName + "' of a published course");
+        }
+    }
+
+    private void applyBooleanUpgradeOnly(java.util.function.Consumer<Boolean> setter,
+                                         Boolean current, Boolean update, String fieldName) {
+        if (update == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(current) && Boolean.FALSE.equals(update)) {
+            throw new BadRequestException(fieldName + " cannot be disabled once enabled");
+        }
+        setter.accept(update);
+    }
+
+    @Override
+    @Transactional
+    public void recalculateDurationHours(Long courseId) {
+        log.debug("Recalculating duration hours for course: {}", courseId);
+        Course course = getCourseById(courseId);
+        recalculateDurationHours(course);
+        courseRepository.save(course);
+    }
+
+    private void recalculateDurationHours(Course course) {
+        Integer totalVideoSeconds = lessonRepository.getTotalVideoDurationByCourse(course.getId());
+        if (totalVideoSeconds != null && totalVideoSeconds > 0) {
+            int hours = (int) Math.ceil(totalVideoSeconds / 3600.0);
+            course.setDurationHours(hours);
+        } else {
+            course.setDurationHours(0);
+        }
     }
 
     /**

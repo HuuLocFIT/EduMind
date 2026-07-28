@@ -52,7 +52,7 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Navigation */}
       <nav className="bg-white border-b sticky top-0 z-50">
         <div className="mx-auto px-3 sm:px-6 lg:px-4">
@@ -478,7 +478,7 @@ export const MainLayout: React.FC = () => {
       </nav>
 
       {/* Main Content */}
-      <main>
+      <main className="flex-1 flex flex-col">
         <Outlet />
       </main>
 
@@ -554,9 +554,9 @@ export const MainLayout: React.FC = () => {
               <h4 className="font-semibold text-gray-900 mb-2 sm:mb-4">Legal</h4>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <a href="#" className="hover:text-blue-600">
+                  <Link to={USER_ROUTES.TERMS} className="hover:text-blue-600">
                     Terms of Service
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#" className="hover:text-blue-600">

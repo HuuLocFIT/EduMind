@@ -41,7 +41,7 @@ import {
   ArrowLeft,
   Tag,
 } from "lucide-react";
-import { USER_ROUTES } from "@edumind/shared-utils";
+import { USER_ROUTES, stripHtml } from "@edumind/shared-utils";
 import { useAuthStore } from '../../stores/auth.store';
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 import { buildCourseJsonLd } from "../../components/Seo/course-structured-data";
@@ -259,8 +259,8 @@ export const CourseDetailPage: React.FC = () => {
     <>
         <SeoMetaTags
          key={course.id}
-         title={course.title}
-         description={course.shortDescription?.replace(/<[^>]*>/g, '') || course.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Learn ${course.title} on EduMind`}
+         title={course.metaTitle || course.title}
+         description={course.metaDescription || stripHtml(course.shortDescription) || stripHtml(course.description).substring(0, 160) || `Learn ${course.title} on EduMind`}
          canonicalUrl={canonicalPath}
          ogType="product"
          {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}

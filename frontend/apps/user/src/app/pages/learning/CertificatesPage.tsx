@@ -29,20 +29,10 @@ export const CertificatesPage: React.FC = () => {
     enabled: Boolean(userId),
   });
 
-  // Filter only completed courses
+  // Filter only completed courses with certificate enabled
   const certificates = useMemo(() => {
-    return enrollments.filter((e: EnrollmentResponse) => e.status === 'COMPLETED');
+    return enrollments.filter((e: EnrollmentResponse) => e.status === 'COMPLETED' && e.courseHasCertificate);
   }, [enrollments]);
-
-  const handleDownload = (enrollment: EnrollmentResponse) => {
-    // Lucas: Implement certificate download
-    alert(`Download certificate for ${enrollment.courseTitle}`);
-  };
-
-  const handleShare = (enrollment: EnrollmentResponse) => {
-    // Lucas: Implement certificate sharing (LinkedIn, etc.)
-    alert(`Share certificate for ${enrollment.courseTitle}`);
-  };
 
   if (loading) {
     return <CertificatesSkeleton />;
@@ -82,7 +72,7 @@ export const CertificatesPage: React.FC = () => {
               No certificates yet
             </h3>
             <p className="text-gray-600 mb-6">
-              Complete courses to earn certificates and showcase your achievements
+              Complete a paid course with certificate enabled to earn your certificate
             </p>
             <Button
               variant="primary"
@@ -100,8 +90,6 @@ export const CertificatesPage: React.FC = () => {
               <CertificateCard
                 key={enrollment.id}
                 enrollment={enrollment}
-                onDownload={() => handleDownload(enrollment)}
-                onShare={() => handleShare(enrollment)}
               />
             ))}
           </div>

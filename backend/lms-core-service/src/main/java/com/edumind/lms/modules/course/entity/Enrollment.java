@@ -48,6 +48,8 @@ public class Enrollment extends BaseEntity {
     private LocalDateTime completedAt;
     private LocalDateTime certificateIssuedAt;
     private String certificateUrl;
+    @Column(length = 50)
+    private String certificateReference;
 
     // Timestamps
     @Column(nullable = false)

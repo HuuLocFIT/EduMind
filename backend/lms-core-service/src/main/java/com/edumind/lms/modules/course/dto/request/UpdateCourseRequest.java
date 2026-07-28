@@ -39,9 +39,6 @@ public class UpdateCourseRequest {
 
     private String language;
 
-    @Min(value = 0, message = "Duration must be positive")
-    private Integer durationHours;
-
     private Boolean hasCertificate;
     private Boolean hasSubtitles;
 

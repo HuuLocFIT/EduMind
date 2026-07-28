@@ -23,7 +23,6 @@ export const TeacherCourseCreatePage: React.FC = () => {
     currency: "USD",
     language: "en",
     hasCertificate: false,
-    hasSubtitles: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<CategoryResponse[]>([]);

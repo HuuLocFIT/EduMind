@@ -1,7 +1,6 @@
 import type { CourseDetailResponse } from '@edumind/shared-types';
 import { CourseStatus } from "@edumind/shared-constants";
-
-const stripHtml = (text: string) => text.replace(/<[^>]*>/g, '');
+import { stripHtml } from "@edumind/shared-utils";
 
 const sanitizeDescription = (course: CourseDetailResponse, maxLength = 200) => {
   if (course.shortDescription) return stripHtml(course.shortDescription).substring(0, maxLength);

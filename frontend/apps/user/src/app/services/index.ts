@@ -33,3 +33,5 @@ export { invoiceService } from './invoice.service';
 export { earningService } from './earning.service';
 
 export { teacherAnalyticsService } from './teacher-analytics.service';
+
+export { certificateService } from './certificate.service';

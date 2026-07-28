@@ -183,7 +183,7 @@ apiClient.interceptors.response.use(
     // Do NOT refresh for INVALID_CREDENTIALS (ERR_2001) or AUTH_FAILED (ERR_2000)
     const isTokenExpired = 
       !isAuthEndpoint && // Never refresh for auth endpoints
-      !originalRequest._retry && // Prevent infinite retry loops
+      !originalRequest?._retry && // Prevent infinite retry loops
       (
         apiError?.errorCode === 'ERR_2002' || // TOKEN_EXPIRED
         (error.response?.status === 401 && 
@@ -191,7 +191,7 @@ apiClient.interceptors.response.use(
          apiError?.errorCode !== 'ERR_2000')   // AUTH_FAILED
       );
 
-    if (isTokenExpired) {
+    if (isTokenExpired && originalRequest) {
       originalRequest._retry = true;
 
       try {

@@ -115,5 +115,10 @@ public interface CourseService {
      */
     void updateCourseStatistics(Long courseId);
 
+    /**
+     * Recalculate and update course duration hours based on total lesson video duration
+     */
+    void recalculateDurationHours(Long courseId);
+
     InstructorStatsResponse getInstructorStats(Long instructorId);
 }

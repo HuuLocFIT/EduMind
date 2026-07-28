@@ -1,0 +1,26 @@
+name: Frontend SEO Daily Rebuild
+
+on:
+  schedule:
+    - cron: '0 19 * * *'  # 19:00 UTC = 02:00 sáng hôm sau giờ VN (UTC+7)
+  workflow_dispatch:
+
+jobs:
+  trigger-deploy:
+    name: Trigger Vercel Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Deploy Hook
+        run: |
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
+            echo "Error: VERCEL_DEPLOY_HOOK_URL secret is not set."
+            exit 1
+          fi
+          echo "Triggering Vercel redeploy..."
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}")
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Deploy triggered successfully (HTTP $HTTP_CODE)"
+          else
+            echo "Failed to trigger deploy (HTTP $HTTP_CODE)"
+            exit 1
+          fi
