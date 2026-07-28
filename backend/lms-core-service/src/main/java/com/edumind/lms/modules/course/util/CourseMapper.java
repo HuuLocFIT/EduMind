@@ -37,7 +37,6 @@ public class CourseMapper {
                 .previewVideoUrl(request.getPreviewVideoUrl())
                 .level(request.getLevel())
                 .language(request.getLanguage())
-                .durationHours(request.getDurationHours())
                 .hasCertificate(request.getHasCertificate())
                 .hasSubtitles(request.getHasSubtitles())
                 .metaTitle(request.getMetaTitle())
@@ -60,7 +59,6 @@ public class CourseMapper {
         if (request.getPreviewVideoUrl() != null) course.setPreviewVideoUrl(request.getPreviewVideoUrl());
         if (request.getLevel() != null) course.setLevel(request.getLevel());
         if (request.getLanguage() != null) course.setLanguage(request.getLanguage());
-        if (request.getDurationHours() != null) course.setDurationHours(request.getDurationHours());
         if (request.getHasCertificate() != null) course.setHasCertificate(request.getHasCertificate());
         if (request.getHasSubtitles() != null) course.setHasSubtitles(request.getHasSubtitles());
         if (request.getMetaTitle() != null) course.setMetaTitle(request.getMetaTitle());
@@ -68,6 +66,29 @@ public class CourseMapper {
         if (request.getMetaKeywords() != null) course.setMetaKeywords(request.getMetaKeywords());
 
         return course;
+    }
+
+    /**
+     * Create a new Course entity from UpdateCourseRequest with only updatable fields
+     */
+    public Course toUpdateEntity(UpdateCourseRequest request) {
+        return Course.builder()
+                .title(request.getTitle())
+                .slug(request.getSlug())
+                .description(request.getDescription())
+                .shortDescription(request.getShortDescription())
+                .price(request.getPrice())
+                .discountPrice(request.getDiscountPrice())
+                .thumbnailUrl(request.getThumbnailUrl())
+                .previewVideoUrl(request.getPreviewVideoUrl())
+                .level(request.getLevel())
+                .language(request.getLanguage())
+                .hasCertificate(request.getHasCertificate())
+                .hasSubtitles(request.getHasSubtitles())
+                .metaTitle(request.getMetaTitle())
+                .metaDescription(request.getMetaDescription())
+                .metaKeywords(request.getMetaKeywords())
+                .build();
     }
 
     /**

@@ -52,7 +52,7 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Navigation */}
       <nav className="bg-white border-b sticky top-0 z-50">
         <div className="mx-auto px-3 sm:px-6 lg:px-4">
@@ -478,7 +478,7 @@ export const MainLayout: React.FC = () => {
       </nav>
 
       {/* Main Content */}
-      <main>
+      <main className="flex-1 flex flex-col">
         <Outlet />
       </main>
 

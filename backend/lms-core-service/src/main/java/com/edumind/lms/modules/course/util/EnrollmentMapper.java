@@ -3,10 +3,15 @@ package com.edumind.lms.modules.course.util;
 import com.edumind.lms.modules.course.dto.response.EnrollmentResponse;
 import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class EnrollmentMapper {
+
+    @Value("${app.certificate.require-paid-course:true}")
+    private boolean requirePaidCourse;
+
     public EnrollmentResponse toResponse(Enrollment enrollment) {
         // Certificate visibility rules:
         // - ACTIVE / COMPLETED / EXPIRED: expose certificate data as stored.
@@ -36,7 +41,9 @@ public class EnrollmentMapper {
                 .lastAccessedAt(enrollment.getLastAccessedAt())
                 .expiresAt(enrollment.getExpiresAt())
                 .suspensionReason(enrollment.getSuspensionReason())
-                .courseHasCertificate(canViewCertificate ? enrollment.getCourse().getHasCertificate() : null)
+                .courseHasCertificate(canViewCertificate
+                        && Boolean.TRUE.equals(enrollment.getCourse().getHasCertificate())
+                        && (!requirePaidCourse || enrollment.getCourse().isPaid()))
                 .certificateIssuedAt(canViewCertificate ? enrollment.getCertificateIssuedAt() : null)
                 .certificateReference(canViewCertificate ? enrollment.getCertificateReference() : null)
                 .build();

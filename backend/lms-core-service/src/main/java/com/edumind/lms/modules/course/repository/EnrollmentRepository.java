@@ -220,4 +220,13 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             GROUP BY e.status
             """)
     List<Object[]> getEnrollmentStatusBreakdownByInstructor(@Param("instructorId") Long instructorId);
+
+    /**
+     * Find COMPLETED enrollments where certificate should be available but hasn't been generated yet.
+     * Used by CertificateGenerationScheduler to retroactively generate certificates after
+     * config changes (e.g., requirePaidCourse changed from true to false).
+     */
+    @EntityGraph("Enrollment.withCourse")
+    @Query("SELECT e FROM Enrollment e JOIN e.course c WHERE e.status = 'COMPLETED' AND e.certificateUrl IS NULL AND c.hasCertificate = true ORDER BY e.completedAt ASC")
+    Page<Enrollment> findStalledCertificateEnrollments(Pageable pageable);
 }

@@ -50,9 +50,6 @@ public class CreateCourseRequest {
 
     private String language = "en";
 
-    @Min(value = 0, message = "Duration must be positive")
-    private Integer durationHours;
-
     private Boolean hasCertificate = false;
     private Boolean hasSubtitles = false;
 

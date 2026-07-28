@@ -42,6 +42,7 @@ public class LessonServiceImpl implements LessonService {
     private final ApplicationEventPublisher eventPublisher;
     private final Cloudinary cloudinary;
     private final CloudinaryService cloudinaryService;
+    private final CourseService courseService;
 
     @Value("${video.hls.enabled:false}")
     private boolean hlsEnabled;
@@ -75,6 +76,9 @@ public class LessonServiceImpl implements LessonService {
         Course course = section.getCourse();
         Integer currentTotalLessons = course.getTotalLessons() != null ? course.getTotalLessons() : 0;
         course.setTotalLessons(currentTotalLessons + 1);
+
+        // Recalculate duration hours
+        courseService.recalculateDurationHours(course.getId());
 
         log.info("Lesson created successfully with ID: {}. Course {} totalLessons updated to {}",
                 savedLesson.getId(), course.getId(), course.getTotalLessons());
@@ -129,6 +133,7 @@ public class LessonServiceImpl implements LessonService {
                 throw new BadRequestException("Video duration cannot be negative");
             }
             lesson.setVideoDuration(lessonUpdate.getVideoDuration());
+            courseService.recalculateDurationHours(lesson.getSection().getCourse().getId());
         }
 
         // Capture old article content before potential update
@@ -186,6 +191,10 @@ public class LessonServiceImpl implements LessonService {
         course.setTotalLessons(newTotal);
 
         lessonRepository.delete(lesson);
+
+        // Recalculate duration hours
+        courseService.recalculateDurationHours(course.getId());
+
         log.info("Lesson deleted successfully. Course {} totalLessons updated to {}", course.getId(), newTotal);
 
         // Publish event
@@ -420,6 +429,10 @@ public class LessonServiceImpl implements LessonService {
         lesson.setVideoUploadStatus(VideoUploadStatus.READY);
 
         Lesson saved = lessonRepository.save(lesson);
+
+        // Recalculate duration hours
+        courseService.recalculateDurationHours(saved.getCourse().getId());
+
         log.info("Video upload confirmed for lesson {}", lessonId);
 
         String cloudName = (String) cloudinary.config.cloudName;
@@ -480,6 +493,10 @@ public class LessonServiceImpl implements LessonService {
         lesson.setVideoUploadStatus(VideoUploadStatus.NONE);
 
         lessonRepository.save(lesson);
+
+        // Recalculate duration hours
+        courseService.recalculateDurationHours(lesson.getSection().getCourse().getId());
+
         log.info("Video deleted for lesson {}", lessonId);
     }
 

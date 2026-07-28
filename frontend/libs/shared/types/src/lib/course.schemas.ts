@@ -46,12 +46,6 @@ export const CreateCourseRequestSchema = z.object({
     .nullable(),
   level: CourseLevelSchema,
   language: z.string().default("en").optional(),
-  durationHours: z
-    .number()
-    .int()
-    .nonnegative("Duration must be non-negative")
-    .optional()
-    .nullable(),
   hasCertificate: z.boolean().default(false).optional(),
   hasSubtitles: z.boolean().default(false).optional(),
   metaTitle: z.string().optional().nullable(),
@@ -100,7 +94,6 @@ export const UpdateCourseRequestSchema = z.object({
     .nullable(),
   level: CourseLevelSchema.optional(),
   language: z.string().optional(),
-  durationHours: z.number().int().nonnegative().optional().nullable(),
   hasCertificate: z.boolean().optional(),
   hasSubtitles: z.boolean().optional(),
   metaTitle: z.string().optional().nullable(),

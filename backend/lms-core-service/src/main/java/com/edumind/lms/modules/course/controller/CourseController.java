@@ -81,11 +81,9 @@ public class CourseController {
 
                 Long instructorId = Long.valueOf(authentication.getPrincipal().toString());
 
-                // Get existing course and update
-                Course existingCourse = courseService.getCourseById(id);
-                Course updatedCourse = courseMapper.updateEntity(existingCourse, request);
-
-                Course saved = courseService.updateCourse(id, updatedCourse, instructorId);
+                // Create course update from request
+                Course courseUpdate = courseMapper.toUpdateEntity(request);
+                Course saved = courseService.updateCourse(id, courseUpdate, instructorId);
                 CourseResponse response = courseMapper.toResponse(saved);
 
                 return ResponseEntity.ok(ApiResponse.success("Course updated successfully", response));

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { CourseStatus } from "@edumind/shared-constants";
 import type { CourseDetailResponse, UpdateCourseRequest } from "@edumind/shared-types";
 import { stripHtml } from "@edumind/shared-utils";
 import { Button, Input, Textarea, Switch } from "@edumind/user-ui";
@@ -11,6 +12,7 @@ interface SettingsTabProps {
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving }) => {
+  const isPublished = course.status === CourseStatus.PUBLISHED;
   const [formData, setFormData] = useState({
     hasCertificate: course.hasCertificate,
     metaTitle: course.metaTitle || "",
@@ -32,12 +34,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div>
-              <p className="font-medium text-gray-900">Certificate of Completion</p>
-              <p className="text-sm text-gray-600">Award a certificate when students complete the course</p>
+              <p className="font-medium text-gray-900">Certificate</p>
+              <p className="text-sm text-gray-600">
+                Award certificate upon completion
+              </p>
             </div>
             <Switch
               checked={formData.hasCertificate}
-              onChange={(checked) => handleChange("hasCertificate", checked)}
+              onChange={(e) => handleChange("hasCertificate", e.target.checked)}
+              disabled={isPublished && course.hasCertificate}
             />
           </div>
 
