@@ -58,6 +58,8 @@ cloudinary:
 app:
   encryption:
     key: test-encryption-key-for-testing-only
+  certificate:
+    require-paid-course: true
   review:
     auto-approve-enabled: true
     auto-approve-threshold: 0

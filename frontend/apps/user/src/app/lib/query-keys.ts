@@ -238,6 +238,13 @@ export const payoutKeys = {
 } as const;
 
 // ============================================
+// Certificates
+// ============================================
+export const certificateKeys = {
+  verify: (reference: string) => ['certificate', 'verify', reference] as const,
+} as const;
+
+// ============================================
 // AI
 // ============================================
 export const aiKeys = {
@@ -262,5 +269,6 @@ export const queryKeys = {
   earnings: earningKeys,
   refunds: refundKeys,
   payouts: payoutKeys,
-   ai: aiKeys,
+  certificates: certificateKeys,
+  ai: aiKeys,
 } as const;

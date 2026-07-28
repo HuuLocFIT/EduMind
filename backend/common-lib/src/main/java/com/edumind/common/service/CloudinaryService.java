@@ -78,11 +78,12 @@ public class CloudinaryService {
         }
 
         try {
-            // Ensure filename has .pdf extension for Cloudinary to recognize format
             String filenameWithExt = filename.endsWith(".pdf") ? filename : filename + ".pdf";
-            // Only use filename in publicId, let Cloudinary add folder automatically
-            // This prevents duplicate folder prefix (e.g., "edumind/invoices/edumind/invoices/...")
-            String publicId = filenameWithExt;
+            // Only use filename (without extension) in publicId; let Cloudinary add folder automatically.
+            // This prevents duplicate folder prefix (e.g., "edumind/invoices/edumind/invoices/...").
+            // Cloudinary URL will use /image/upload/<publicId>.<format> — since publicId has no .pdf,
+            // extractPublicId (which strips the format extension) returns an exact match.
+            String publicId = filename;
 
             log.info("🔄 Uploading PDF to Cloudinary: {} in folder: {}", filenameWithExt, folder);
 

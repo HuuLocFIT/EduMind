@@ -14,6 +14,7 @@ import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,9 @@ public class CertificateController {
     private final CertificateServiceImpl certificateService;
     private final EnrollmentRepository enrollmentRepository;
     private final UserClient userClient;
+
+    @Value("${app.certificate.require-paid-course:true}")
+    private boolean requirePaidCourse;
 
     /**
      * Regenerate a certificate for a completed enrollment.
@@ -66,7 +70,7 @@ public class CertificateController {
         if (!Boolean.TRUE.equals(enrollment.getCourse().getHasCertificate())) {
             throw new BadRequestException("Course does not offer certificates");
         }
-        if (!enrollment.getCourse().isPaid()) {
+        if (requirePaidCourse && !enrollment.getCourse().isPaid()) {
             throw new BadRequestException("Course is not a paid course, certificates are only available for paid courses");
         }
 

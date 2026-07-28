@@ -27,6 +27,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 
 import {
   BrowseCoursesSkeleton,
+  CertificateVerifySkeleton,
   CourseDetailSkeleton,
   DashboardSkeleton,
   MyLearningSkeleton,
@@ -91,6 +92,9 @@ const BrowseCoursesPage = createLazyRoute(
 );
 const CourseDetailPage = createLazyRoute(
   () => import("./pages/public/CourseDetailPage")
+);
+const CertificateVerifyPage = createLazyRoute(
+  () => import("./pages/public/CertificateVerifyPage")
 );
 
 // Dashboard & Profile
@@ -250,6 +254,14 @@ function AppContent() {
               element={
                 <Suspense fallback={<FullPageLoading message="Loading terms..." />}>
                   <TermsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={USER_ROUTES.CERTIFICATE_VERIFY}
+              element={
+                <Suspense fallback={<CertificateVerifySkeleton />}>
+                  <CertificateVerifyPage />
                 </Suspense>
               }
             />

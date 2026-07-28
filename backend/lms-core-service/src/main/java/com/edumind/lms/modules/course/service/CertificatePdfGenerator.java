@@ -41,6 +41,12 @@ public class CertificatePdfGenerator {
      */
     public byte[] generate(Enrollment enrollment, String studentName, double totalHours, String verificationBaseUrl) {
         try {
+            if (enrollment.getCompletedAt() == null) {
+                throw new IllegalArgumentException("completedAt must not be null for enrollment " + enrollment.getId());
+            }
+            if (enrollment.getCertificateReference() == null) {
+                throw new IllegalArgumentException("certificateReference must not be null for enrollment " + enrollment.getId());
+            }
             return createPdf(enrollment, studentName, totalHours, verificationBaseUrl);
         } catch (IOException e) {
             log.error("Failed to generate certificate PDF for enrollment {}: {}",
@@ -117,17 +123,11 @@ public class CertificatePdfGenerator {
             document.add(courseTitle);
 
             // --- Details Section ---
-            String completionDate = enrollment.getCompletedAt() != null
-                    ? enrollment.getCompletedAt().format(DATE_FORMATTER)
-                    : "N/A";
+            String completionDate = enrollment.getCompletedAt().format(DATE_FORMATTER);
 
-            String hoursFormatted = totalHours > 0
-                    ? String.format("%.1f hours", totalHours)
-                    : "N/A";
+            String hoursFormatted = String.format("%.1f hours", totalHours);
 
-            String reference = enrollment.getCertificateReference() != null
-                    ? enrollment.getCertificateReference()
-                    : "N/A";
+            String reference = enrollment.getCertificateReference();
 
             String verifyUrl = UriComponentsBuilder.fromUriString(verificationBaseUrl)
                     .path(CertificateConstants.VERIFICATION_BASE_PATH)
@@ -139,9 +139,7 @@ public class CertificatePdfGenerator {
                     enrollment.getCourse().getInstructorName());
             addDetailLine(document, fontBold, fontNormal, "Completion Date: ", completionDate);
             addDetailLine(document, fontBold, fontNormal, "Total Course Hours: ", hoursFormatted);
-            document.add(new Paragraph(" ").setMarginBottom(10));
 
-            // Certificate reference
             addDetailLine(document, fontBold, fontNormal, "Certificate Reference: ", reference);
             addDetailLine(document, fontBold, fontNormal, "Verify at: ", verifyUrl);
 

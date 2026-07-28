@@ -1,4 +1,5 @@
 export { BrowseCoursesSkeleton } from "./BrowseCoursesSkeleton";
+export { CertificateVerifySkeleton } from "./CertificateVerifySkeleton";
 export { CourseDetailSkeleton } from "./CourseDetailSkeleton";
 export { DashboardSkeleton } from "./DashboardSkeleton";
 export { MyLearningSkeleton } from "./MyLearningSkeleton";

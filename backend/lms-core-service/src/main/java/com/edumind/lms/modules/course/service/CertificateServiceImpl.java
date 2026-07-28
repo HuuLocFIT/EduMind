@@ -39,8 +39,11 @@ public class CertificateServiceImpl {
     private final CloudinaryService cloudinaryService;
     private final CertificatePdfGenerator certificatePdfGenerator;
 
-    @Value("${app.base-url:http://localhost:8080}")
-    private String verificationBaseUrl;
+    @Value("${app.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
+
+    @Value("${app.certificate.require-paid-course:true}")
+    private boolean requirePaidCourse;
 
     /**
      * Generates a certificate for a completed enrollment.
@@ -56,17 +59,21 @@ public class CertificateServiceImpl {
         Course course = enrollment.getCourse();
 
         /*
-         * Gate 1: paid course with certificate enabled
+         * Gate 1: paid course check (configurable) with certificate enabled
          *
          * hasCertificate toggle behavior:
          * If an instructor toggles hasCertificate from true to false AFTER certificates
          * have been issued, existing certificates remain valid (URLs still work, already-
          * issued certificates are not revoked). New completions will not generate
          * certificates. Toggling back to true re-enables generation for future completions.
+         *
+         * requirePaidCourse behavior:
+         * When true (default), only paid courses can issue certificates.
+         * When false, free courses can also issue certificates (isPaid check is skipped).
          */
-        if (!course.isPaid() || !Boolean.TRUE.equals(course.getHasCertificate())) {
-            log.warn("Certificate generation skipped for enrollment {}: isPaid={}, hasCertificate={}",
-                    enrollmentId, course.isPaid(), course.getHasCertificate());
+        if ((requirePaidCourse && !course.isPaid()) || !Boolean.TRUE.equals(course.getHasCertificate())) {
+            log.warn("Certificate generation skipped for enrollment {}: requirePaidCourse={}, isPaid={}, hasCertificate={}",
+                    enrollmentId, requirePaidCourse, course.isPaid(), course.getHasCertificate());
             return;
         }
 
@@ -98,8 +105,8 @@ public class CertificateServiceImpl {
         String certificateReference = UUID.randomUUID().toString();
         enrollment.setCertificateReference(certificateReference);
 
-        // Generate PDF bytes
-        byte[] pdfBytes = certificatePdfGenerator.generate(enrollment, studentName, totalHours, verificationBaseUrl);
+        // Generate PDF bytes (use frontend URL for verification link in PDF)
+        byte[] pdfBytes = certificatePdfGenerator.generate(enrollment, studentName, totalHours, frontendUrl);
 
         // Upload to Cloudinary
         try {
@@ -169,9 +176,9 @@ public class CertificateServiceImpl {
 
         Course course = enrollment.getCourse();
 
-        if (!course.isPaid() || !Boolean.TRUE.equals(course.getHasCertificate())) {
-            log.warn("Certificate regeneration skipped for enrollment {}: isPaid={}, hasCertificate={}",
-                    enrollmentId, course.isPaid(), course.getHasCertificate());
+        if ((requirePaidCourse && !course.isPaid()) || !Boolean.TRUE.equals(course.getHasCertificate())) {
+            log.warn("Certificate regeneration skipped for enrollment {}: requirePaidCourse={}, isPaid={}, hasCertificate={}",
+                    enrollmentId, requirePaidCourse, course.isPaid(), course.getHasCertificate());
             return;
         }
 
@@ -188,9 +195,11 @@ public class CertificateServiceImpl {
         // Save old certificate URL for cleanup after successful regeneration
         String oldCertificateUrl = enrollment.getCertificateUrl();
         String oldPublicId = null;
+        String oldResourceType = "image";
         if (oldCertificateUrl != null) {
             try {
                 oldPublicId = cloudinaryService.extractPublicId(oldCertificateUrl);
+                oldResourceType = cloudinaryService.extractResourceType(oldCertificateUrl);
             } catch (Exception e) {
                 log.warn("Failed to extract publicId from old certificate URL: {}", e.getMessage());
             }
@@ -208,8 +217,8 @@ public class CertificateServiceImpl {
         // Delete old file from Cloudinary only after new one is committed
         if (oldPublicId != null) {
             try {
-                cloudinaryService.deleteFile(oldPublicId, "raw");
-                log.info("Deleted old certificate file {} for enrollment {}", oldPublicId, enrollmentId);
+                cloudinaryService.deleteFile(oldPublicId, oldResourceType);
+                log.info("Deleted old certificate file {} for enrollment {} (type: {})", oldPublicId, enrollmentId, oldResourceType);
             } catch (Exception e) {
                 log.warn("Failed to delete old certificate file {}: {}", oldPublicId, e.getMessage());
             }

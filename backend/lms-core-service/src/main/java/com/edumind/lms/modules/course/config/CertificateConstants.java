@@ -11,6 +11,6 @@ public final class CertificateConstants {
     // Cloudinary folders
     public static final String CLOUDINARY_CERTIFICATE_FOLDER = "documents/certificates";
 
-    // Verification URL path
-    public static final String VERIFICATION_BASE_PATH = "/api/certificates/verify/";
+    // Verification URL path (frontend route)
+    public static final String VERIFICATION_BASE_PATH = "/certificates/verify/";
 }

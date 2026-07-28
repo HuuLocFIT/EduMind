@@ -85,6 +85,7 @@ export const USER_ROUTES = {
 
   // Certificates
   CERTIFICATES: '/certificates',
+  CERTIFICATE_VERIFY: '/certificates/verify/:reference',
 
   // Wishlist
   WISHLIST: '/wishlist',
@@ -209,6 +210,7 @@ export const UserRouteHelpers = {
   courseDetail: (courseSlug: string) => `/courses/${courseSlug}`,
   learningCourse: (courseSlug: string) => `/learning/${courseSlug}`,
   refundDetail: (refundId: string | number) => `/refunds/${refundId}`,
+  certificateVerify: (reference: string) => `/certificates/verify/${reference}`,
 } as const;
 
 /**
