@@ -91,9 +91,9 @@ export const Button: React.FC<ButtonProps> = ({
         </>
       ) : (
         <>
-          {leftIcon && <span className="inline-flex">{leftIcon}</span>}
+          {leftIcon && <span className="inline-flex" aria-hidden="true">{leftIcon}</span>}
           {children}
-          {rightIcon && <span className="inline-flex">{rightIcon}</span>}
+          {rightIcon && <span className="inline-flex" aria-hidden="true">{rightIcon}</span>}
         </>
       )}
     </button>

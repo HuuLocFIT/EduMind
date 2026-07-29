@@ -45,15 +45,15 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
 
   if (courses.length === 0) {
     return (
-      <div className="text-center py-12">
-        <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+      <div className="text-center py-12" role="status" aria-live="polite">
+        <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" aria-hidden="true" />
         <p className="text-gray-600">No courses found</p>
       </div>
     );
   }
 
   return (
-    <div className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6 ${className}`}>
+    <div role="group" aria-label="Course listings" className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6 ${className}`}>
       {courses.map((course, index) => (
         <CourseCard
           key={course.id}

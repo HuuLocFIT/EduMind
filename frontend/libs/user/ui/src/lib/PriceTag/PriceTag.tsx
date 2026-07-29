@@ -35,7 +35,7 @@ export const PriceTag: React.FC<PriceTagProps> = ({
   if (price === 0) {
     return (
       <div
-        className={`font-bold text-green-600 ${sizeClasses[size]} ${className}`}
+        className={`font-bold text-green-700 ${sizeClasses[size]} ${className}`}
       >
         Free
       </div>

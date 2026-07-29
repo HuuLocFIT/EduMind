@@ -20,34 +20,47 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon,
   className,
 }) => {
+  const changeLabel = change
+    ? `${change.trend === "up" ? "Increased" : "Decreased"} by ${Math.abs(change.value)}% vs last month`
+    : "";
+
   return (
     <Card variant="elevated" padding="md" className={className}>
-      <div className="flex items-start justify-between">
+      <figure
+        role="group"
+        aria-label={`${title}: ${value}${change ? `, ${changeLabel}` : ""}`}
+        className="flex items-start justify-between"
+      >
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
+          <figcaption className="text-sm font-medium text-gray-600">{title}</figcaption>
+          <p className="text-3xl font-bold text-gray-900 mt-2" aria-hidden="true">{value}</p>
 
           {change && (
-            <div className="flex items-center gap-1 mt-2">
+            <div
+              role="text"
+              aria-label={changeLabel}
+              className="flex items-center gap-1 mt-2"
+            >
               <span
+                aria-hidden="true"
                 className={clsx(
                   "text-sm font-medium",
-                  change.trend === "up" ? "text-green-600" : "text-red-600"
+                  change.trend === "up" ? "text-green-700" : "text-red-600"
                 )}
               >
                 {change.trend === "up" ? "↑" : "↓"} {Math.abs(change.value)}%
               </span>
-              <span className="text-sm text-gray-500">vs last month</span>
+              <span aria-hidden="true" className="text-sm text-gray-500">vs last month</span>
             </div>
           )}
         </div>
 
         {icon && (
-          <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+          <div aria-hidden="true" className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
             {icon}
           </div>
         )}
-      </div>
+      </figure>
     </Card>
   );
 };
