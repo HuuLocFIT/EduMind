@@ -1,8 +1,8 @@
 name: Frontend SEO Daily Rebuild
 
 on:
-  schedule:
-    - cron: '0 19 * * *'  # 19:00 UTC = 02:00 sáng hôm sau giờ VN (UTC+7)
+  # schedule:
+  #   - cron: '0 19 * * *'  # 19:00 UTC = 02:00 tomorrow VN (UTC+7)
   workflow_dispatch:
 
 jobs:
