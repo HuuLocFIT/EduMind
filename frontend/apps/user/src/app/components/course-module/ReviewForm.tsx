@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Textarea } from "@edumind/user-ui";
 import { Star } from "lucide-react";
 
@@ -37,6 +37,14 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   const [comment, setComment] = useState(initialComment);
   const [loading, setLoading] = useState(false);
   const [commentError, setCommentError] = useState<string>("");
+  const starRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Move focus to the newly selected star when using keyboard navigation
+  useEffect(() => {
+    if (rating > 0) {
+      starRefs.current[rating - 1]?.focus();
+    }
+  }, [rating]);
 
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -51,6 +59,33 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   const handleCommentBlur = () => {
     const error = validateComment(comment);
     setCommentError(error);
+  };
+
+  const handleRatingKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    let newRating = rating;
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowUp":
+        e.preventDefault();
+        newRating = Math.min(5, rating + 1 || 1);
+        break;
+      case "ArrowLeft":
+      case "ArrowDown":
+        e.preventDefault();
+        newRating = Math.max(1, rating - 1);
+        break;
+      case "Home":
+        e.preventDefault();
+        newRating = 1;
+        break;
+      case "End":
+        e.preventDefault();
+        newRating = 5;
+        break;
+      default:
+        return;
+    }
+    setRating(newRating);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,25 +117,42 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Rating <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              onClick={() => setRating(star)}
-              onMouseEnter={() => setHoverRating(star)}
-              onMouseLeave={() => setHoverRating(0)}
-              className="focus:outline-none"
-            >
-              <Star
-                className={`w-8 h-8 transition-colors ${
-                  star <= (hoverRating || rating)
-                    ? "fill-yellow-400 text-yellow-400"
-                    : "text-gray-300"
-                }`}
-              />
-            </button>
-          ))}
+        <div className="flex gap-1" role="radiogroup" aria-label="Rating">
+          {[1, 2, 3, 4, 5].map((star) => {
+            const isFilled = star <= (hoverRating || rating);
+            const isSelected = star === rating;
+            return (
+              <button
+                key={star}
+                ref={(el) => { starRefs.current[star - 1] = el; }}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+                tabIndex={rating === 0 ? (star === 1 ? 0 : -1) : isSelected ? 0 : -1}
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                onKeyDown={handleRatingKeyDown}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-sm"
+              >
+                <Star
+                  aria-hidden="true"
+                  className={`w-8 h-8 transition-colors ${
+                    isFilled
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                />
+              </button>
+            );
+          })}
+        </div>
+        {/* Live region for rating changes */}
+        <div aria-live="polite" className="sr-only">
+          {rating > 0
+            ? `Rating set to ${rating} out of 5 stars`
+            : "No rating selected"}
         </div>
       </div>
 

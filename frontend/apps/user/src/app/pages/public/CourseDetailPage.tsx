@@ -6,6 +6,10 @@ import {
   Card,
   RatingStars,
   PriceTag,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   useToast,
   CloudinaryImage,
 } from "@edumind/user-ui";
@@ -498,128 +502,102 @@ export const CourseDetailPage: React.FC = () => {
           {/* Left: Course Content */}
           <div className="lg:col-span-2">
             {/* Tabs */}
-            <div className="flex gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg">
-              {(["overview", "curriculum", "reviews"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-4 font-semibold text-sm transition-all duration-200 relative ${
-                    activeTab === tab
-                      ? "text-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  {activeTab === tab && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></span>
-                  )}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              defaultValue="overview"
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as "overview" | "curriculum" | "reviews")}
+            >
+              <TabsList className="mb-8 bg-white rounded-t-lg w-full">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
+                <TabsTrigger value="reviews">Reviews</TabsTrigger>
+              </TabsList>
 
-            {/* Tab Content */}
-            {activeTab === "overview" && (
-              <div className="space-y-6">
-                {/* Description */}
+              <TabsContent value="overview">
+                <div className="space-y-6">
+                  <Card variant="elevated" className="p-8">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                      About this course
+                    </h2>
+                    <CourseDescriptionViewer description={course.description} />
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="curriculum">
                 <Card variant="elevated" className="p-8">
                   <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                    About this course
+                    Course Curriculum
                   </h2>
-                  <CourseDescriptionViewer description={course.description} />
-                </Card>
-              </div>
-            )}
-
-            {activeTab === "curriculum" && (
-              <Card variant="elevated" className="p-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                  Course Curriculum
-                </h2>
-
-                {course.sections && course.sections.length > 0 ? (
-                  <CurriculumAccordion
-                    sections={course.sections}
-                    isEnrolled={isEnrolled}
-                  />
-                ) : (
-                  <div className="text-center py-12">
-                    <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 text-lg">
-                      Curriculum coming soon...
-                    </p>
-                  </div>
-                )}
-              </Card>
-            )}
-
-            {activeTab === "reviews" && (
-              <div className="space-y-6">
-                {/* Review Stats */}
-                <Card variant="elevated" className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-3xl font-bold text-gray-900">
-                      Student Reviews
-                    </h2>
-                    {course.averageRating && (
-                      <div className="flex items-center gap-2">
-                        <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
-                        <span className="text-2xl font-bold text-gray-900">
-                          {course.averageRating.toFixed(1)}
-                        </span>
-                        <span className="text-gray-600">
-                          ({course.totalReviews || 0}{" "}
-                          {course.totalReviews === 1 ? "review" : "reviews"})
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <CourseStats
-                    averageRating={course.averageRating ?? undefined}
-                    totalStudents={course.totalStudents ?? undefined}
-                  />
-                </Card>
-
-                {/* Write Review Button (only if enrolled) */}
-                {isEnrolled && (
-                  <Card variant="elevated" className="p-6">
-                    {!showReviewForm ? (
-                      <Button
-                        variant="primary"
-                        onClick={() => setShowReviewForm(true)}
-                        className="w-full"
-                        size="lg"
-                      >
-                        Write a Review
-                      </Button>
-                    ) : (
-                      <ReviewForm
-                        onSubmit={handleSubmitReview}
-                        submitLabel="Submit Review"
-                      />
-                    )}
-                  </Card>
-                )}
-
-                {/* Reviews List */}
-                <div className="space-y-4">
-                  {reviews.length > 0 ? (
-                    reviews.map((review) => (
-                      <ReviewCard key={review.id} review={review} />
-                    ))
+                  {course.sections && course.sections.length > 0 ? (
+                    <CurriculumAccordion
+                      sections={course.sections}
+                      isEnrolled={isEnrolled}
+                    />
                   ) : (
-                    <Card variant="elevated" className="p-12 text-center">
-                      <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 text-lg mb-2">
-                        No reviews yet.
-                      </p>
-                      <p className="text-gray-500">
-                        Be the first to review this course!
-                      </p>
+                    <div className="text-center py-12">
+                      <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 text-lg">Curriculum coming soon...</p>
+                    </div>
+                  )}
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="reviews">
+                <div className="space-y-6">
+                  <Card variant="elevated" className="p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-3xl font-bold text-gray-900">Student Reviews</h2>
+                      {course.averageRating && (
+                        <div className="flex items-center gap-2">
+                          <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                          <span className="text-2xl font-bold text-gray-900">
+                            {course.averageRating.toFixed(1)}
+                          </span>
+                          <span className="text-gray-600">
+                            ({course.totalReviews || 0}{" "}
+                            {course.totalReviews === 1 ? "review" : "reviews"})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <CourseStats
+                      averageRating={course.averageRating ?? undefined}
+                      totalStudents={course.totalStudents ?? undefined}
+                    />
+                  </Card>
+
+                  {isEnrolled && (
+                    <Card variant="elevated" className="p-6">
+                      {!showReviewForm ? (
+                        <Button
+                          variant="primary"
+                          onClick={() => setShowReviewForm(true)}
+                          className="w-full"
+                          size="lg"
+                        >
+                          Write a Review
+                        </Button>
+                      ) : (
+                        <ReviewForm onSubmit={handleSubmitReview} submitLabel="Submit Review" />
+                      )}
                     </Card>
                   )}
+
+                  <div className="space-y-4">
+                    {reviews.length > 0 ? (
+                      reviews.map((review) => <ReviewCard key={review.id} review={review} />)
+                    ) : (
+                      <Card variant="elevated" className="p-12 text-center">
+                        <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 text-lg mb-2">No reviews yet.</p>
+                        <p className="text-gray-500">Be the first to review this course!</p>
+                      </Card>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Right: Sidebar */}

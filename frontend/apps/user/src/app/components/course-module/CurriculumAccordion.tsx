@@ -91,6 +91,7 @@ export const CurriculumAccordion: React.FC<{
             size="sm"
             variant="ghost"
             onClick={handleToggleAll}
+            aria-label={allVisibleExpanded ? "Collapse all sections" : "Expand all sections"}
             className="!px-0 !py-0 !rounded-none border-0 bg-transparent text-[12px] font-semibold text-blue-600 hover:underline hover:!bg-transparent active:!bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-0"
           >
             {allVisibleExpanded ? "Collapse" : "Expand"}
@@ -106,10 +107,13 @@ export const CurriculumAccordion: React.FC<{
           );
           const sectionOrder = String(idx + 1).padStart(2, "0");
 
+          const panelId = `section-panel-${section.id}`;
           return (
             <div key={section.id}>
               <button
                 type="button"
+                aria-expanded={isOpen}
+                aria-controls={panelId}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                 onClick={() => toggleSection(section.id)}
               >
@@ -118,7 +122,10 @@ export const CurriculumAccordion: React.FC<{
                     {sectionOrder}.
                   </span>
                   <div className="flex-1 text-left min-w-0">
-                    <h4 className="font-semibold text-[#111111] text-sm leading-5 truncate">
+                    <h4
+                      id={`section-heading-${section.id}`}
+                      className="font-semibold text-[#111111] text-sm leading-5 truncate"
+                    >
                       {section.title}
                     </h4>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 mt-1">
@@ -142,6 +149,7 @@ export const CurriculumAccordion: React.FC<{
                       <Lock className="w-3.5 h-3.5" />
                     </span>}
                   <ChevronRight
+                    aria-hidden="true"
                     className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
                       isOpen ? "rotate-90" : "rotate-0"
                     }`}
@@ -150,7 +158,12 @@ export const CurriculumAccordion: React.FC<{
               </button>
 
               {isOpen && (
-                <div className="border-t border-gray-200 bg-gray-50/70 py-1">
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={`section-heading-${section.id}`}
+                  className="border-t border-gray-200 bg-gray-50/70 py-1"
+                >
                   {(section.lessons || []).map((lesson) => {
                     const duration = formatSecondsToLabel(lesson.videoDuration);
                     return (

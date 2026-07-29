@@ -1,5 +1,10 @@
-import React, { useEffect } from "react";
-import { createPortal } from "react-dom";
+import React from "react";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
 import { clsx } from "clsx";
 import { X } from "lucide-react";
 
@@ -34,85 +39,63 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
   closeOnEscape = true,
 }) => {
-  // Handle escape key
-  useEffect(() => {
-    if (!isOpen || !closeOnEscape) return;
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, closeOnEscape, onClose]);
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? "modal-title" : undefined}
+  return (
+    <Dialog
+      open={isOpen}
+      onClose={() => {
+        // Headless UI Dialog calls onClose for both Escape key and overlay click
+        // with no API to separate the two triggers. Use OR logic:
+        // if at least one prop allows closing, close the modal.
+        if (closeOnOverlayClick || closeOnEscape) {
+          onClose();
+        }
+      }}
+      className="relative z-50"
     >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={closeOnOverlayClick ? onClose : undefined}
+      {/* Backdrop — sibling to panel container as recommended by Headless UI */}
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out data-[closed]:opacity-0"
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div
-        className={clsx(
-          "relative bg-white rounded-lg shadow-xl w-full",
-          "animate-in zoom-in-95 duration-200",
-          "flex flex-col max-h-[calc(100vh-2rem)]",
-          sizeStyles[size]
-        )}
-      >
-        {/* Header */}
-        {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 shrink-0">
-            {title && (
-              <h2
-                id="modal-title"
-                className="text-xl font-semibold text-gray-900"
-              >
-                {title}
-              </h2>
+      {/* Full-screen container to center the panel */}
+      <div className="fixed inset-0 overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <DialogPanel
+            transition
+            className={clsx(
+              "w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 ease-out data-[closed]:scale-95 data-[closed]:opacity-0",
+              "flex flex-col max-h-[calc(100vh-2rem)]",
+              sizeStyles[size]
             )}
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+          >
+            {(title || showCloseButton) && (
+              <div className="flex items-center justify-between pb-4 border-b border-gray-200 shrink-0">
+                {title && (
+                  <DialogTitle
+                    as="h3"
+                    className="text-lg font-semibold text-gray-900"
+                  >
+                    {title}
+                  </DialogTitle>
+                )}
+                {showCloseButton && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="p-1 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    aria-label="Close modal"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                )}
+              </div>
             )}
-          </div>
-        )}
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+            <div className="pt-4 overflow-y-auto flex-1">{children}</div>
+          </DialogPanel>
+        </div>
       </div>
-    </div>,
-    document.body
+    </Dialog>
   );
 };
