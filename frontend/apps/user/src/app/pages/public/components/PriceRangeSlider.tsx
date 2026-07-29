@@ -31,9 +31,9 @@ export const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({
   const maxPercent = ((maxValue - min) / (max - min)) * 100;
 
   return (
-    <div className="relative py-4">
+    <div className="relative py-4" role="group" aria-label="Price range slider">
       {/* Track */}
-      <div className="relative h-2 bg-gray-200 rounded-full">
+      <div className="relative h-2 bg-gray-200 rounded-full" aria-hidden="true">
         {/* Active Range */}
         <div
           className="absolute h-2 bg-blue-600 rounded-full"
@@ -52,6 +52,11 @@ export const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({
         value={minValue}
         onChange={handleMinChange}
         disabled={disabled}
+        aria-label="Minimum price"
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={minValue}
+        aria-valuetext={`$${minValue}`}
         className="absolute top-0 w-full h-2 bg-transparent appearance-none pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:border-0"
       />
 
@@ -63,11 +68,16 @@ export const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({
         value={maxValue}
         onChange={handleMaxChange}
         disabled={disabled}
+        aria-label="Maximum price"
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={maxValue}
+        aria-valuetext={`$${maxValue}`}
         className="absolute top-0 w-full h-2 bg-transparent appearance-none pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:border-0"
       />
 
       {/* Value Labels */}
-      <div className="flex justify-between mt-2 text-xs text-gray-600">
+      <div className="flex justify-between mt-2 text-xs text-gray-600" aria-live="polite">
         <span>${minValue}</span>
         <span>${maxValue}</span>
       </div>

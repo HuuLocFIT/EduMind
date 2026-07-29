@@ -32,18 +32,24 @@ interface FilterSectionProps {
   children: React.ReactNode;
 }
 
-const FilterSection: React.FC<FilterSectionProps> = ({
+const FilterSection: React.FC<FilterSectionProps & { sectionId: string }> = ({
   title,
   count,
   defaultOpen = true,
   children,
+  sectionId,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const contentId = `filter-section-${sectionId}`;
+  const labelText = `${isOpen ? "Collapse" : "Expand"} ${title}`;
 
   return (
     <div className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        aria-label={`${isOpen ? "Collapse" : "Expand"} ${title} filter`}
         className="w-full flex items-center justify-between py-2 text-left"
       >
         <div className="flex items-center gap-2">
@@ -55,12 +61,12 @@ const FilterSection: React.FC<FilterSectionProps> = ({
           )}
         </div>
         {isOpen ? (
-          <ChevronUp className="w-4 h-4 text-gray-500" />
+          <ChevronUp className="w-4 h-4 text-gray-500" aria-hidden="true" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-gray-500" />
+          <ChevronDown className="w-4 h-4 text-gray-500" aria-hidden="true" />
         )}
       </button>
-      {isOpen && <div className="mt-3">{children}</div>}
+      {isOpen && <div id={contentId} className="mt-3">{children}</div>}
     </div>
   );
 };
@@ -125,10 +131,10 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
   const levelOptions = ["BEGINNER", "INTERMEDIATE", "ADVANCED"];
 
   return (
-    <aside className="w-full lg:w-64 lg:flex-shrink-0 mb-8 lg:mb-0">
+    <aside className="w-full lg:w-64 lg:flex-shrink-0 mb-8 lg:mb-0" aria-label="Course filters">
       <div className="bg-white rounded-xl border border-gray-200 p-4 lg:p-6 lg:sticky lg:top-8 space-y-4 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-600" />
+          <Filter className="w-5 h-5 text-gray-600" aria-hidden="true" />
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
 
@@ -137,6 +143,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           title="Categories"
           count={selectedCategoryIds.length}
           defaultOpen={true}
+          sectionId="categories"
         >
           <CategoryFilter
             categories={categories}
@@ -150,8 +157,9 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           title="Level"
           count={selectedLevels.length}
           defaultOpen={true}
+          sectionId="level"
         >
-          <div className="space-y-2">
+          <div className="space-y-2" role="group" aria-label="Level">
             {levelOptions.map((level) => {
               const isSelected = selectedLevels.includes(level);
               return (
@@ -159,12 +167,12 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                   key={level}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                 >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => onLevelChange(level)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onClick={() => onLevelChange(level)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
                   <span className="text-sm text-gray-700">
                     {formatCourseLevel(level)}
                   </span>
@@ -179,6 +187,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           title="Price Range"
           count={minPrice || maxPrice ? 1 : 0}
           defaultOpen={true}
+          sectionId="price-range"
         >
           <div className="space-y-4">
             {/* Free Only Toggle */}
@@ -186,7 +195,8 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
               <input
                 type="checkbox"
                 checked={filterType === "free"}
-                onChange={handleFreeToggle}
+                onClick={handleFreeToggle}
+                aria-describedby={filterType === "free" ? "free-only-info" : undefined}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Free only</span>
@@ -203,7 +213,8 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                 />
 
                 {/* Number Inputs for Precise Control */}
-                <div className="grid grid-cols-2 gap-3">
+                <fieldset className="grid grid-cols-2 gap-3">
+                  <legend className="sr-only">Price range values</legend>
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">
                       Min ($)
@@ -234,12 +245,12 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                       className="text-sm"
                     />
                   </div>
-                </div>
+                </fieldset>
               </>
             )}
 
             {filterType === "free" && (
-              <p className="text-xs text-gray-500">
+              <p id="free-only-info" className="text-xs text-gray-500">
                 Showing free courses only (price = $0)
               </p>
             )}
@@ -251,14 +262,15 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           title="Rating"
           count={minRating ? 1 : 0}
           defaultOpen={false}
+          sectionId="rating"
         >
-          <div className="space-y-2">
+          <div className="space-y-2" role="radiogroup" aria-label="Minimum rating">
             <label className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
               <input
                 type="radio"
                 name="rating"
                 checked={!minRating}
-                onChange={() => setMinRating(undefined)}
+                onClick={() => setMinRating(undefined)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">All Ratings</span>
@@ -272,7 +284,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                   type="radio"
                   name="rating"
                   checked={minRating === option.value}
-                  onChange={() => {
+                  onClick={() => {
                     setMinRating(option.value);
                     setPage(0);
                   }}

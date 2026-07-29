@@ -53,9 +53,10 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
               {category.name}
               <button
                 onClick={() => onSelectCategory(category.id)}
+                aria-label={`Remove category: ${category.name}`}
                 className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </button>
             </span>
           ))}
@@ -64,8 +65,10 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+        <label htmlFor="category-search-input" className="sr-only">Search categories</label>
         <input
+          id="category-search-input"
           type="text"
           placeholder="Search categories..."
           value={searchQuery}
@@ -75,51 +78,56 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       </div>
 
       {/* Category List */}
-      <div className="space-y-1 max-h-64 overflow-y-auto">
-        {displayCategories.length === 0 ? (
-          <p className="text-sm text-gray-500 py-2">No categories found</p>
-        ) : (
-          displayCategories.map((category) => {
-            const isSelected = selectedCategoryIds.includes(category.id);
-            return (
-              <label
-                key={category.id}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => onSelectCategory(category.id)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="flex-1 text-sm text-gray-700">
-                  {category.name}
-                </span>
-                {category.courseCount !== undefined && (
-                  <span className="text-xs text-gray-500">
-                    ({category.courseCount})
+      <fieldset>
+        <legend className="sr-only">Categories</legend>
+        <div id="category-list" className="space-y-1 max-h-64 overflow-y-auto">
+          {displayCategories.length === 0 ? (
+            <p className="text-sm text-gray-500 py-2">No categories found</p>
+          ) : (
+            displayCategories.map((category) => {
+              const isSelected = selectedCategoryIds.includes(category.id);
+              return (
+                <label
+                  key={category.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onClick={() => onSelectCategory(category.id)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="flex-1 text-sm text-gray-700">
+                    {category.name}
                   </span>
-                )}
-              </label>
-            );
-          })
-        )}
-      </div>
+                  {category.courseCount !== undefined && (
+                    <span className="text-xs text-gray-500">
+                      ({category.courseCount})
+                    </span>
+                  )}
+                </label>
+              );
+            })
+          )}
+        </div>
+      </fieldset>
 
       {/* Show More / Show Less */}
       {remainingCategories.length > 0 && (
         <button
           onClick={() => setShowMore(!showMore)}
+          aria-expanded={showMore}
+          aria-controls="category-list"
           className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center gap-1 py-2"
         >
           {showMore ? (
             <>
-              <ChevronUp className="w-4 h-4" />
+              <ChevronUp className="w-4 h-4" aria-hidden="true" />
               Show Less
             </>
           ) : (
             <>
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-4 h-4" aria-hidden="true" />
               Show More ({remainingCategories.length})
             </>
           )}
