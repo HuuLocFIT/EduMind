@@ -123,7 +123,7 @@ export const HomePage: React.FC = () => {
                 variant="outline"
                 size="lg"
                 onClick={() => navigate(USER_ROUTES.COURSES)}
-                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 min-w-[180px]"
+                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl motion-safe:transition-all motion-safe:duration-300 min-w-[180px]"
                 rightIcon={<ArrowRight className="w-5 h-5" />}
               >
                 Browse Courses
@@ -207,7 +207,7 @@ export const HomePage: React.FC = () => {
                 <Card
                   key={index}
                   variant="elevated"
-                  className="text-center hover:scale-105 transition-transform duration-300"
+                  className="text-center motion-safe:hover:scale-105 motion-safe:transition-transform motion-safe:duration-300"
                 >
                   <CardBody>
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
@@ -314,7 +314,7 @@ export const HomePage: React.FC = () => {
               variant="outline"
               size="lg"
               onClick={() => navigate(USER_ROUTES.SIGNUP)}
-              className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 min-w-[200px]"
+                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl motion-safe:transition-all motion-safe:duration-300 min-w-[200px]"
               rightIcon={<ArrowRight className="w-5 h-5" />}
             >
               Sign Up Now

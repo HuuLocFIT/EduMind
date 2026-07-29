@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button, Loading, useToast } from "@edumind/user-ui";
 import { useCart, useRemoveFromCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { CartItem } from "./CartItem";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
@@ -25,6 +26,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
       setCart(cart.items, cart.totalAmount, cart.currency || "USD");
     }
   }, [cart, setCart]);
+
+  const drawerRef = useFocusTrap(isOpen, onClose);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
@@ -70,12 +73,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/50 z-40"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col">
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Shopping Cart"
+        className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
@@ -89,9 +99,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close shopping cart"
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 

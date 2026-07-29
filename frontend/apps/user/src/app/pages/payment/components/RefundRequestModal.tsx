@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Loading, useToast } from "@edumind/user-ui";
 import { AlertCircle, CheckCircle, XCircle, Info } from "lucide-react";
+import { useFocusTrap } from "../../../hooks/useFocusTrap";
 import { useRefundPolicy, useSubmitRefundRequest } from "../../../hooks/useRefunds";
 import { RefundRequestSchema, type RefundRequest } from "@edumind/shared-types";
 import { PaymentMethod } from "@edumind/shared-constants";
@@ -43,6 +44,18 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
   const { success: showSuccess, error: showError } = useToast();
   const { data: policy, isLoading: isLoadingPolicy, error: policyError } = useRefundPolicy(orderId, isOpen);
   const submitRefund = useSubmitRefundRequest();
+
+  const modalRef = useFocusTrap(isOpen, onClose);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
 
   // Determine if bank info is required (only for SePay)
   const requiresBankInfo = paymentMethod === PaymentMethod.SEPAY;
@@ -117,8 +130,14 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Request Refund"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+    >
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Fixed Header */}
         <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-4 border-b border-gray-100">
           <div className="flex items-start gap-3">
@@ -135,10 +154,10 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              aria-label="Close"
+              className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              aria-label="Close refund modal"
             >
-              <XCircle className="w-5 h-5" />
+              <XCircle className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
         </div>

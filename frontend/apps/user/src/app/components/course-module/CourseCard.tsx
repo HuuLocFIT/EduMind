@@ -52,7 +52,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
   return (
     <article
-      className={`group relative flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 transform-gpu z-0 focus-within:ring-2 focus-within:ring-blue-500 ${className}`}
+      className={`group relative flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm motion-safe:hover:shadow-xl motion-safe:hover:-translate-y-1 motion-safe:transition-all motion-safe:duration-300 transform-gpu z-0 focus-within:ring-2 focus-within:ring-blue-500 ${className}`}
     >
       {/* Course Thumbnail */}
       <div className="relative h-44 sm:h-48 lg:h-52 bg-gray-200 overflow-hidden rounded-t-2xl">
@@ -62,7 +62,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           widths={[480, 960]}
           sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1024px) calc(50vw - 2rem), calc(33vw - 2rem)"
           priority={priority}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform"
+          className="w-full h-full object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-105 will-change-transform"
         />
         {!course.thumbnailUrl && (
           <div className="flex items-center justify-center h-full">
@@ -210,7 +210,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                 isLoading={isAddingToCart || isEnrolling}
                 className={`rounded-full px-5 py-2 font-semibold text-sm shadow-button hover:shadow-button-hover transition-all active:scale-95 ${
                   isFree
-                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    ? "bg-green-700 hover:bg-green-800 text-white"
                     : "bg-blue-600 hover:bg-blue-700 text-white"
                 }`}
                 leftIcon={isFree ? <PlayCircle className="w-4 h-4" aria-hidden="true" /> : <ShoppingCart className="w-4 h-4" aria-hidden="true" />}
