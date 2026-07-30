@@ -248,7 +248,7 @@ export const CourseDetailPage: React.FC = () => {
               variant="primary"
               onClick={() => navigate(USER_ROUTES.COURSES)}
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft aria-hidden="true" focusable="false" className="w-4 h-4 mr-2" />
               Back to Courses
             </Button>
           </Card>
@@ -290,7 +290,7 @@ export const CourseDetailPage: React.FC = () => {
               onClick={() => navigate(USER_ROUTES.COURSES)}
               className="group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              <ArrowLeft className="w- h-6 transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft aria-hidden="true" focusable="false" className="w- h-6 transition-transform group-hover:-translate-x-0.5" />
               <span className="sm:hidden">Back</span>
               <span className="hidden sm:inline">Back to Courses</span>
             </button>
@@ -307,7 +307,7 @@ export const CourseDetailPage: React.FC = () => {
                     }}
                   />
                 ) : (
-                  <Tag className="w-6 h-6 text-white flex-shrink-0" />
+                  <Tag aria-hidden="true" focusable="false" className="w-6 h-6 text-white flex-shrink-0" />
                 )}
                 <span className="truncate">{course.category.name}</span>
               </span>
@@ -339,12 +339,12 @@ export const CourseDetailPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-blue-100">
-                  <Users className="w-5 h-5" />
+                  <Users aria-hidden="true" focusable="false" className="w-5 h-5" />
                   <span>{course.totalStudents || 0} students</span>
                 </div>
                 {course.durationHours && (
                   <div className="flex items-center gap-2 text-blue-100">
-                    <Clock className="w-5 h-5" />
+                    <Clock aria-hidden="true" focusable="false" className="w-5 h-5" />
                     <span>{course.durationHours}h</span>
                   </div>
                 )}
@@ -373,7 +373,7 @@ export const CourseDetailPage: React.FC = () => {
                   />
                   {!course.thumbnailUrl && (
                     <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-100 to-blue-200">
-                      <Play className="w-16 h-16 text-blue-600" />
+                      <Play aria-hidden="true" focusable="false" className="w-16 h-16 text-blue-600" />
                     </div>
                   )}
                 </div>
@@ -452,14 +452,14 @@ export const CourseDetailPage: React.FC = () => {
                 
                 {/* Course Includes */}
                 <div className="pt-6 border-t">
-                  <h4 className="font-semibold text-gray-900 mb-4">
+                  <h2 className="font-semibold text-gray-900 mb-4 text-lg">
                     This course includes:
-                  </h4>
+                  </h2>
                   <ul className="space-y-3 text-sm text-gray-600">
                     {course.durationHours && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Clock className="w-4 h-4 text-blue-600" />
+                          <Clock aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
                         </div>
                         <span>
                           {course.durationHours} hours on-demand video
@@ -469,7 +469,7 @@ export const CourseDetailPage: React.FC = () => {
                     {course.totalLessons && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <BookOpen className="w-4 h-4 text-blue-600" />
+                          <BookOpen aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
                         </div>
                         <span>{course.totalLessons} lessons</span>
                       </li>
@@ -477,14 +477,14 @@ export const CourseDetailPage: React.FC = () => {
                     {course.hasCertificate && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Award className="w-4 h-4 text-blue-600" />
+                          <Award aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
                         </div>
                         <span>Certificate of completion</span>
                       </li>
                     )}
                     <li className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <CheckCircle className="w-4 h-4 text-blue-600" />
+                          <CheckCircle aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
                       </div>
                       <span>Full lifetime access</span>
                     </li>
@@ -536,7 +536,7 @@ export const CourseDetailPage: React.FC = () => {
                     />
                   ) : (
                     <div className="text-center py-12">
-                      <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <BookOpen aria-hidden="true" focusable="false" className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-600 text-lg">Curriculum coming soon...</p>
                     </div>
                   )}
@@ -550,7 +550,7 @@ export const CourseDetailPage: React.FC = () => {
                       <h2 className="text-3xl font-bold text-gray-900">Student Reviews</h2>
                       {course.averageRating && (
                         <div className="flex items-center gap-2">
-                          <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                          <Star aria-hidden="true" focusable="false" className="w-6 h-6 text-yellow-400 fill-yellow-400" />
                           <span className="text-2xl font-bold text-gray-900">
                             {course.averageRating.toFixed(1)}
                           </span>
@@ -589,7 +589,7 @@ export const CourseDetailPage: React.FC = () => {
                       reviews.map((review) => <ReviewCard key={review.id} review={review} />)
                     ) : (
                       <Card variant="elevated" className="p-12 text-center">
-                        <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <Star aria-hidden="true" focusable="false" className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <p className="text-gray-600 text-lg mb-2">No reviews yet.</p>
                         <p className="text-gray-500">Be the first to review this course!</p>
                       </Card>
