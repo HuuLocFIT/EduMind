@@ -45,14 +45,19 @@ export const PriceTag: React.FC<PriceTagProps> = ({
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <span className={`font-bold text-gray-900 ${sizeClasses[size]}`}>
+        <span className="sr-only">Current price: </span>
         {formatPrice(price)}
       </span>
       {originalPrice && originalPrice > price && (
         <>
           <span className="text-gray-400 line-through text-sm">
+            <span className="sr-only">Original price: </span>
             {formatPrice(originalPrice)}
           </span>
-          <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded">
+          <span
+            className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded"
+            aria-label={`You save ${discount}%`}
+          >
             -{discount}%
           </span>
         </>

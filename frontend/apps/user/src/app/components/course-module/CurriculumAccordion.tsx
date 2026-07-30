@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { SectionDetailResponse } from "@edumind/shared-types";
 import { Button } from "@edumind/user-ui";
 import {
@@ -35,6 +35,14 @@ export const CurriculumAccordion: React.FC<{
     new Set(sections[0] ? [sections[0].id] : [])
   );
   const [showAll, setShowAll] = useState(false);
+  const firstNewSectionRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (showAll && firstNewSectionRef.current) {
+      const button = firstNewSectionRef.current.querySelector("button");
+      button?.focus();
+    }
+  }, [showAll]);
 
   const visibleSections = showAll
     ? sections
@@ -99,7 +107,7 @@ export const CurriculumAccordion: React.FC<{
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
+      <ul className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
         {visibleSections.map((section, idx) => {
           const isOpen = expandedSections.has(section.id);
           const durationLabel = formatMinutesToLabel(
@@ -109,7 +117,10 @@ export const CurriculumAccordion: React.FC<{
 
           const panelId = `section-panel-${section.id}`;
           return (
-            <div key={section.id}>
+            <li
+              key={section.id}
+              ref={idx === SECTION_PREVIEW_COUNT ? firstNewSectionRef : undefined}
+            >
               <button
                 type="button"
                 aria-expanded={isOpen}
@@ -158,7 +169,7 @@ export const CurriculumAccordion: React.FC<{
               </button>
 
               {isOpen && (
-                <div
+                <ul
                   id={panelId}
                   role="region"
                   aria-labelledby={`section-heading-${section.id}`}
@@ -167,7 +178,7 @@ export const CurriculumAccordion: React.FC<{
                   {(section.lessons || []).map((lesson) => {
                     const duration = formatSecondsToLabel(lesson.videoDuration);
                     return (
-                      <div
+                      <li
                         key={lesson.id}
                         className="flex items-center gap-3 px-4 py-3 pl-9 border-b last:border-b-0 border-gray-200/70"
                       >
@@ -189,20 +200,20 @@ export const CurriculumAccordion: React.FC<{
                             Preview
                           </span>
                         )}
-                      </div>
+                      </li>
                     );
                   })}
                   {(section.lessons || []).length === 0 && (
-                    <div className="px-4 py-4 pl-9 text-sm text-gray-500">
+                    <li className="px-4 py-4 pl-9 text-sm text-gray-500">
                       Lessons coming soon
-                    </div>
+                    </li>
                   )}
-                </div>
+                </ul>
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       {remainingCount > 0 && !showAll && (
         <div className="flex justify-center">

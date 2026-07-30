@@ -290,7 +290,7 @@ export const CourseDetailPage: React.FC = () => {
               onClick={() => navigate(USER_ROUTES.COURSES)}
               className="group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              <ArrowLeft aria-hidden="true" focusable="false" className="w- h-6 transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft aria-hidden="true" focusable="false" className="w-6 h-6 transition-transform group-hover:-translate-x-0.5" />
               <span className="sm:hidden">Back</span>
               <span className="hidden sm:inline">Back to Courses</span>
             </button>
@@ -372,7 +372,11 @@ export const CourseDetailPage: React.FC = () => {
                     className="w-full h-full object-cover"
                   />
                   {!course.thumbnailUrl && (
-                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-100 to-blue-200">
+                    <div
+                      className="flex items-center justify-center h-full bg-gradient-to-br from-blue-100 to-blue-200"
+                      role="img"
+                      aria-label={`Course thumbnail for ${course.title}`}
+                    >
                       <Play aria-hidden="true" focusable="false" className="w-16 h-16 text-blue-600" />
                     </div>
                   )}

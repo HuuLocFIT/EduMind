@@ -34,8 +34,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           <div>
             <p className="font-semibold text-gray-900">
               {user?.id === review.studentId
-                ? "Me"
-                : review.studentName || "Anonymous"}
+                ? "You (your review)"
+                : review.studentName || "Anonymous student"}
             </p>
             <p className="text-sm text-gray-500">
               {formatDate(review.createdAt)}

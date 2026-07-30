@@ -58,11 +58,12 @@ export const RatingStars: React.FC<RatingStarsProps> = ({
     return stars;
   };
 
-  const label = `${rating.toFixed(1)} out of ${maxStars} stars`;
-
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
-      <span className="sr-only">{label}</span>
+    <div
+      className={`flex items-center gap-1 ${className}`}
+      role="img"
+      aria-label={`${rating.toFixed(1)} out of ${maxStars} stars`}
+    >
       <div aria-hidden="true" className="flex items-center gap-1">
         {renderStars()}
       </div>
