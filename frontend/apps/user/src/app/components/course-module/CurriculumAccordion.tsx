@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { SectionDetailResponse } from "@edumind/shared-types";
 import { Button } from "@edumind/user-ui";
 import {
@@ -35,6 +35,14 @@ export const CurriculumAccordion: React.FC<{
     new Set(sections[0] ? [sections[0].id] : [])
   );
   const [showAll, setShowAll] = useState(false);
+  const firstNewSectionRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (showAll && firstNewSectionRef.current) {
+      const button = firstNewSectionRef.current.querySelector("button");
+      button?.focus();
+    }
+  }, [showAll]);
 
   const visibleSections = showAll
     ? sections
@@ -91,6 +99,7 @@ export const CurriculumAccordion: React.FC<{
             size="sm"
             variant="ghost"
             onClick={handleToggleAll}
+            aria-label={allVisibleExpanded ? "Collapse all sections" : "Expand all sections"}
             className="!px-0 !py-0 !rounded-none border-0 bg-transparent text-[12px] font-semibold text-blue-600 hover:underline hover:!bg-transparent active:!bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-0"
           >
             {allVisibleExpanded ? "Collapse" : "Expand"}
@@ -98,7 +107,7 @@ export const CurriculumAccordion: React.FC<{
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
+      <ul className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
         {visibleSections.map((section, idx) => {
           const isOpen = expandedSections.has(section.id);
           const durationLabel = formatMinutesToLabel(
@@ -106,10 +115,16 @@ export const CurriculumAccordion: React.FC<{
           );
           const sectionOrder = String(idx + 1).padStart(2, "0");
 
+          const panelId = `section-panel-${section.id}`;
           return (
-            <div key={section.id}>
+            <li
+              key={section.id}
+              ref={idx === SECTION_PREVIEW_COUNT ? firstNewSectionRef : undefined}
+            >
               <button
                 type="button"
+                aria-expanded={isOpen}
+                aria-controls={panelId}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                 onClick={() => toggleSection(section.id)}
               >
@@ -118,7 +133,10 @@ export const CurriculumAccordion: React.FC<{
                     {sectionOrder}.
                   </span>
                   <div className="flex-1 text-left min-w-0">
-                    <h4 className="font-semibold text-[#111111] text-sm leading-5 truncate">
+                    <h4
+                      id={`section-heading-${section.id}`}
+                      className="font-semibold text-[#111111] text-sm leading-5 truncate"
+                    >
                       {section.title}
                     </h4>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 mt-1">
@@ -142,6 +160,7 @@ export const CurriculumAccordion: React.FC<{
                       <Lock className="w-3.5 h-3.5" />
                     </span>}
                   <ChevronRight
+                    aria-hidden="true"
                     className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
                       isOpen ? "rotate-90" : "rotate-0"
                     }`}
@@ -150,11 +169,16 @@ export const CurriculumAccordion: React.FC<{
               </button>
 
               {isOpen && (
-                <div className="border-t border-gray-200 bg-gray-50/70 py-1">
+                <ul
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={`section-heading-${section.id}`}
+                  className="border-t border-gray-200 bg-gray-50/70 py-1"
+                >
                   {(section.lessons || []).map((lesson) => {
                     const duration = formatSecondsToLabel(lesson.videoDuration);
                     return (
-                      <div
+                      <li
                         key={lesson.id}
                         className="flex items-center gap-3 px-4 py-3 pl-9 border-b last:border-b-0 border-gray-200/70"
                       >
@@ -176,20 +200,20 @@ export const CurriculumAccordion: React.FC<{
                             Preview
                           </span>
                         )}
-                      </div>
+                      </li>
                     );
                   })}
                   {(section.lessons || []).length === 0 && (
-                    <div className="px-4 py-4 pl-9 text-sm text-gray-500">
+                    <li className="px-4 py-4 pl-9 text-sm text-gray-500">
                       Lessons coming soon
-                    </div>
+                    </li>
                   )}
-                </div>
+                </ul>
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       {remainingCount > 0 && !showAll && (
         <div className="flex justify-center">

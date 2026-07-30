@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@edumind/user-ui";
@@ -46,6 +46,7 @@ const normalizeSelectedLevels = (levels: string[]): string[] => {
 export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
   const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated } = useAuthStore();
   const queryClient = useQueryClient();
@@ -301,6 +302,11 @@ export const BrowseCoursesPage: React.FC = () => {
     setPage(0);
   };
 
+  const handleCloseMobileDrawer = () => {
+    setIsMobileDrawerOpen(false);
+    setTimeout(() => filterButtonRef.current?.focus(), 0);
+  };
+
   // Cart and enrollment state for action buttons
   const { data: cart } = useCart();
   const addToCartMutation = useAddToCart();
@@ -415,7 +421,7 @@ export const BrowseCoursesPage: React.FC = () => {
         canonicalUrl="/courses"
         noIndex={activeFiltersCount > 0}
       />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50" aria-hidden={isMobileDrawerOpen || undefined}>
       <BrowseHeroSection
         searchKeyword={searchKeyword}
         setSearchKeyword={setSearchKeyword}
@@ -426,6 +432,7 @@ export const BrowseCoursesPage: React.FC = () => {
         <BrowseActiveFilters
           activeFiltersCount={activeFiltersCount}
           filterType={filterType}
+          onFilterTypeChange={handleFilterTypeChange}
           selectedCategories={selectedCategories}
           onCategoryChange={handleCategoryChange}
           selectedLevels={selectedLevels}
@@ -442,10 +449,15 @@ export const BrowseCoursesPage: React.FC = () => {
         {/* Mobile Filter Button */}
         <div className="lg:hidden mb-4">
           <button
+            ref={filterButtonRef}
             onClick={() => setIsMobileDrawerOpen(true)}
+            aria-expanded={isMobileDrawerOpen}
+            aria-controls="mobile-filter-drawer"
+            aria-haspopup="dialog"
+            aria-label={`Filters${activeFiltersCount > 0 ? ` (${activeFiltersCount} active)` : " (0 active)"}`}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            <Filter className="w-4 h-4" />
+            <Filter className="w-4 h-4" aria-hidden="true" />
             <span>Filters</span>
             {activeFiltersCount > 0 && (
               <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
@@ -479,31 +491,6 @@ export const BrowseCoursesPage: React.FC = () => {
           </div>
 
           {/* Mobile Drawer */}
-          <MobileFilterDrawer
-            isOpen={isMobileDrawerOpen}
-            onClose={() => setIsMobileDrawerOpen(false)}
-            onApply={() => {
-              setIsMobileDrawerOpen(false);
-              setPage(0);
-            }}
-            categories={categories}
-            selectedCategoryIds={selectedCategoryIds}
-            onCategoryChange={handleCategoryChange}
-            selectedLevels={selectedLevels}
-            onLevelChange={handleLevelChange}
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            setMinPrice={setMinPrice}
-            setMaxPrice={setMaxPrice}
-            minRating={minRating}
-            setMinRating={setMinRating}
-            filterType={filterType}
-            onFilterTypeChange={handleFilterTypeChange}
-            setPage={setPage}
-            onClearFilters={clearFilters}
-            showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
-          />
-
           <BrowseCourseList
             isFetching={isFetching}
             isLoading={isLoading}
@@ -533,6 +520,30 @@ export const BrowseCoursesPage: React.FC = () => {
         </div>
       </div>
       </div>
+      <MobileFilterDrawer
+        isOpen={isMobileDrawerOpen}
+        onClose={handleCloseMobileDrawer}
+        onApply={() => {
+          handleCloseMobileDrawer();
+          setPage(0);
+        }}
+        categories={categories}
+        selectedCategoryIds={selectedCategoryIds}
+        onCategoryChange={handleCategoryChange}
+        selectedLevels={selectedLevels}
+        onLevelChange={handleLevelChange}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        setMinPrice={setMinPrice}
+        setMaxPrice={setMaxPrice}
+        minRating={minRating}
+        setMinRating={setMinRating}
+        filterType={filterType}
+        onFilterTypeChange={handleFilterTypeChange}
+        setPage={setPage}
+        onClearFilters={clearFilters}
+        showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
+      />
     </>
   );
 };

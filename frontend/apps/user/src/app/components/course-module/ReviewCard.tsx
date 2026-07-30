@@ -15,9 +15,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   className = "",
 }) => {
   const { user } = useAuthStore();
-
-
-
+  
   return (
     <Card className={`p-4 ${className}`}>
       {/* Header */}
@@ -27,7 +25,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
             <CloudinaryImage
               src={review.avatarUrl || review.profilePictureUrl}
-              alt="Student avatar"
+              alt={review.studentName ? `${review.studentName}'s avatar` : "Student avatar"}
               widths={[80]}
               className="w-10 h-10 rounded-full object-cover"
             />
@@ -36,8 +34,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           <div>
             <p className="font-semibold text-gray-900">
               {user?.id === review.studentId
-                ? "Me"
-                : review.studentName || "Anonymous"}
+                ? "You (your review)"
+                : review.studentName || "Anonymous student"}
             </p>
             <p className="text-sm text-gray-500">
               {formatDate(review.createdAt)}

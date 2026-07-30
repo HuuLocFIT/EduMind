@@ -63,11 +63,18 @@ export const Button: React.FC<ButtonProps> = ({
         className
       )}
       disabled={disabled || isLoading}
+      aria-busy={isLoading}
+      aria-label={
+        isLoading
+          ? `Loading: ${typeof children === "string" ? children : "action"}`
+          : undefined
+      }
       {...props}
     >
       {isLoading ? (
         <>
           <svg
+            aria-hidden="true"
             className="animate-spin h-5 w-5"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -87,13 +94,16 @@ export const Button: React.FC<ButtonProps> = ({
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
-          <span>Loading...</span>
+          <span role="status">
+            <span className="sr-only">Loading: </span>
+            {children}
+          </span>
         </>
       ) : (
         <>
-          {leftIcon && <span className="inline-flex">{leftIcon}</span>}
+          {leftIcon && <span className="inline-flex" aria-hidden="true">{leftIcon}</span>}
           {children}
-          {rightIcon && <span className="inline-flex">{rightIcon}</span>}
+          {rightIcon && <span className="inline-flex" aria-hidden="true">{rightIcon}</span>}
         </>
       )}
     </button>

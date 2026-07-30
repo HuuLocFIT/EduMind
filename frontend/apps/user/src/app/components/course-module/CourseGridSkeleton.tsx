@@ -53,6 +53,7 @@ export const CourseGridSkeleton: React.FC<CourseGridSkeletonProps> = ({
   <div
     className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6`}
     aria-hidden="true"
+    inert
   >
     {Array.from({ length: count }, (_, i) => (
       <CardSkeleton key={i} />

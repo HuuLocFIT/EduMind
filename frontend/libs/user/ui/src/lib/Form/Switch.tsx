@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useId } from "react";
 import { clsx } from "clsx";
 
 export interface SwitchProps
@@ -9,6 +9,7 @@ export interface SwitchProps
 
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
   ({ label, error, className, disabled, checked, ...props }, ref) => {
+    const switchId = props.id || useId();
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-3">
@@ -20,7 +21,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
               className="sr-only peer"
               disabled={disabled}
               aria-invalid={!!error}
-              aria-describedby={error ? `${props.id}-error` : undefined}
+              aria-describedby={error ? `${switchId}-error` : undefined}
               {...props}
             />
             <div
@@ -55,7 +56,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
         </div>
 
         {error && (
-          <p id={`${props.id}-error`} className="text-sm text-red-600">
+          <p id={`${switchId}-error`} className="text-sm text-red-600">
             {error}
           </p>
         )}

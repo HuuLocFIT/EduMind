@@ -100,13 +100,14 @@ export const HomePage: React.FC = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-              <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+              <Star className="w-4 h-4 text-yellow-300 fill-yellow-300" aria-hidden="true" />
               <span className="text-sm font-medium">Trusted by 50,000+ students</span>
             </div>
             
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               Learn with{' '}
-              <span className="bg-gradient-to-r from-yellow-300 to-yellow-100 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-yellow-300 to-yellow-100 bg-clip-text text-transparent"
+                    style={{ color: '#FDE68A' }}>
                 AI-Powered
               </span>{' '}
               Education
@@ -122,7 +123,7 @@ export const HomePage: React.FC = () => {
                 variant="outline"
                 size="lg"
                 onClick={() => navigate(USER_ROUTES.COURSES)}
-                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 min-w-[180px]"
+                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl motion-safe:transition-all motion-safe:duration-300 min-w-[180px]"
                 rightIcon={<ArrowRight className="w-5 h-5" />}
               >
                 Browse Courses
@@ -140,15 +141,15 @@ export const HomePage: React.FC = () => {
             {/* Trust Indicators */}
             <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-blue-100">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
                 <span className="text-sm">No credit card required</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
                 <span className="text-sm">7-day free trial</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
                 <span className="text-sm">Cancel anytime</span>
               </div>
             </div>
@@ -206,10 +207,10 @@ export const HomePage: React.FC = () => {
                 <Card
                   key={index}
                   variant="elevated"
-                  className="text-center hover:scale-105 transition-transform duration-300"
+                  className="text-center motion-safe:hover:scale-105 motion-safe:transition-transform motion-safe:duration-300"
                 >
                   <CardBody>
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
                       <Icon className="w-8 h-8 text-blue-600" />
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -313,7 +314,7 @@ export const HomePage: React.FC = () => {
               variant="outline"
               size="lg"
               onClick={() => navigate(USER_ROUTES.SIGNUP)}
-              className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 min-w-[200px]"
+                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl motion-safe:transition-all motion-safe:duration-300 min-w-[200px]"
               rightIcon={<ArrowRight className="w-5 h-5" />}
             >
               Sign Up Now

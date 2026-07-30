@@ -9,7 +9,7 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
   const handleFilesChange = async (files: UploadedFile[]) => {
     setThumbnailFiles(files);
 
-    // Nếu có file mới và chưa upload
+    // If there is a new file that has not been uploaded yet
     const pendingFile = files.find((f) => f.status === "pending");
     if (pendingFile) {
       try {
@@ -20,12 +20,12 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
         // Upload file
         const response = await fileUploadService.uploadImage(pendingFile.file, "images/courses", 1280, 720);
 
-        // Update status to success và set URL
+        // Update status to success and set URL
         pendingFile.status = "success";
         pendingFile.url = response.url;
         setThumbnailFiles([...files]);
 
-        // Update form data với thumbnail URL
+        // Update form data with thumbnail URL
         onChange({ thumbnailUrl: response.url });
       } catch (err: any) {
         // Update status to error
@@ -34,7 +34,7 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
         setThumbnailFiles([...files]);
       }
     } else if (files.length === 0) {
-      // Nếu xóa file, clear thumbnail URL
+      // If file is deleted, clear thumbnail URL
       onChange({ thumbnailUrl: undefined });
     }
   };
