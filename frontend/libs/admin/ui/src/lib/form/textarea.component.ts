@@ -35,7 +35,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
         (blur)="onTouched()"
         [class]="getTextareaClasses()"
         [attr.aria-invalid]="error ? 'true' : null"
-        [attr.aria-describedby]="error ? textareaId + '-error' : null"
+        [attr.aria-describedby]="error ? textareaId + '-error' : (helperText ? textareaId + '-description' : null)"
       ></textarea>
 
       @if (error) {
@@ -45,7 +45,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
       }
 
       @if (helperText && !error) {
-        <p class="text-sm text-gray-500 mt-1">{{ helperText }}</p>
+        <p [id]="textareaId + '-description'" class="text-sm text-gray-500 mt-1">{{ helperText }}</p>
       }
     </div>
   `,

@@ -92,7 +92,7 @@ export const Modal: React.FC<ModalProps> = ({
                 )}
               </div>
             )}
-            <div className="pt-4 overflow-y-auto flex-1">{children}</div>
+            <div className="overflow-y-auto flex-1">{children}</div>
           </DialogPanel>
         </div>
       </div>

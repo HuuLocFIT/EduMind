@@ -58,11 +58,18 @@ export const RatingStars: React.FC<RatingStarsProps> = ({
     return stars;
   };
 
+  const label = `${rating.toFixed(1)} out of ${maxStars} stars`;
+
   return (
     <div className={`flex items-center gap-1 ${className}`}>
-      {renderStars()}
+      <span className="sr-only">{label}</span>
+      <div aria-hidden="true" className="flex items-center gap-1">
+        {renderStars()}
+      </div>
       {showNumber && (
-        <span className="ml-1 text-sm text-gray-600">{rating.toFixed(1)}</span>
+        <span className="ml-1 text-sm text-gray-600" aria-hidden="true">
+          {rating.toFixed(1)}
+        </span>
       )}
     </div>
   );

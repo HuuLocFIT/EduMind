@@ -272,7 +272,7 @@ export const CourseDetailPage: React.FC = () => {
       />
       <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">
+      <section aria-label="Course overview" className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div
@@ -494,13 +494,13 @@ export const CourseDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section aria-label="Course details" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Course Content */}
-          <div className="lg:col-span-2">
+          <section aria-label="Course information" className="lg:col-span-2">
             {/* Tabs */}
             <Tabs
               defaultValue="overview"
@@ -598,10 +598,10 @@ export const CourseDetailPage: React.FC = () => {
                 </div>
               </TabsContent>
             </Tabs>
-          </div>
+          </section>
 
           {/* Right: Sidebar */}
-          <div className="lg:col-span-1">
+          <aside aria-label="Course sidebar" className="lg:col-span-1">
             {/* Instructor Info */}
             <InstructorInfo
               name={
@@ -634,9 +634,9 @@ export const CourseDetailPage: React.FC = () => {
                 averageRating={course.averageRating ?? undefined}
               />
             </Card>
-          </div>
+          </aside>
         </div>
-      </div>
+      </section>
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useId } from "react";
 import { clsx } from "clsx";
 
 export interface InputProps
@@ -26,6 +26,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
+    const inputId = props.id || useId();
     return (
       <div className={clsx("flex flex-col gap-1", fullWidth && "w-full")}>
         {label && (
@@ -57,7 +58,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             )}
             disabled={disabled}
             aria-invalid={!!error}
-            aria-describedby={error ? `${props.id}-error` : undefined}
+            aria-describedby={
+              [error ? `${inputId}-error` : null, helperText && !error ? `${inputId}-description` : null]
+                .filter(Boolean)
+                .join(' ') || undefined
+            }
             {...props}
           />
 
@@ -69,13 +74,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
 
         {error && (
-          <p id={`${props.id}-error`} className="text-sm text-red-600">
+          <p id={`${inputId}-error`} className="text-sm text-red-600">
             {error}
           </p>
         )}
 
         {helperText && !error && (
-          <p className="text-sm text-gray-500">{helperText}</p>
+          <p id={`${inputId}-description`} className="text-sm text-gray-500">{helperText}</p>
         )}
       </div>
     );

@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useId } from "react";
 import { clsx } from "clsx";
 
 export interface TextareaProps
@@ -22,6 +22,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref
   ) => {
+    const textareaId = props.id || useId();
     return (
       <div className={clsx("flex flex-col gap-1", fullWidth && "w-full")}>
         {label && (
@@ -44,18 +45,22 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           )}
           disabled={disabled}
           aria-invalid={!!error}
-          aria-describedby={error ? `${props.id}-error` : undefined}
+          aria-describedby={
+            [error ? `${textareaId}-error` : null, helperText && !error ? `${textareaId}-description` : null]
+              .filter(Boolean)
+              .join(' ') || undefined
+          }
           {...props}
         />
 
         {error && (
-          <p id={`${props.id}-error`} className="text-sm text-red-600">
+          <p id={`${textareaId}-error`} role="alert" className="text-sm text-red-600">
             {error}
           </p>
         )}
 
         {helperText && !error && (
-          <p className="text-sm text-gray-500">{helperText}</p>
+          <p id={`${textareaId}-description`} className="text-sm text-gray-500">{helperText}</p>
         )}
       </div>
     );

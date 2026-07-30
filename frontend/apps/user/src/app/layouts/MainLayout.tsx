@@ -188,7 +188,7 @@ export const MainLayout: React.FC = () => {
                       <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
                         <CloudinaryImage
                           src={user?.profilePictureUrl}
-                          alt="User Avatar"
+                          alt={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || "User avatar"}
                           widths={[64]}
                           priority={true}
                           className="w-8 h-8 rounded-full object-cover"

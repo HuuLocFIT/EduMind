@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useId } from "react";
 import { clsx } from "clsx";
 
 export interface CheckboxProps
@@ -9,6 +9,7 @@ export interface CheckboxProps
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   ({ label, error, className, disabled, ...props }, ref) => {
+    const checkboxId = props.id || useId();
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-start gap-2">
@@ -25,13 +26,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             )}
             disabled={disabled}
             aria-invalid={!!error}
-            aria-describedby={error ? `${props.id}-error` : undefined}
+            aria-describedby={error ? `${checkboxId}-error` : undefined}
             {...props}
           />
 
           {label && (
             <label
-              htmlFor={props.id}
+              htmlFor={checkboxId}
               className={clsx(
                 "text-sm text-gray-700 cursor-pointer select-none",
                 disabled && "opacity-50 cursor-not-allowed"
@@ -43,7 +44,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         </div>
 
         {error && (
-          <p id={`${props.id}-error`} className="text-sm text-red-600 ml-6">
+          <p id={`${checkboxId}-error`} className="text-sm text-red-600 ml-6">
             {error}
           </p>
         )}
