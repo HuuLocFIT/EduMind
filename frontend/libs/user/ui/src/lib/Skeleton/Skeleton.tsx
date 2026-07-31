@@ -28,6 +28,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
   return (
     <div
+      aria-hidden="true"
       className={`
         ${variantClasses[variant]}
         bg-gray-200 

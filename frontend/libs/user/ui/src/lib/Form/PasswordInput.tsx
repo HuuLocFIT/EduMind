@@ -17,12 +17,13 @@ export const PasswordInput = forwardRef<
           type="button"
           onClick={() => setShowPassword(!showPassword)}
           className="text-gray-400 hover:text-gray-600 transition-colors"
-          tabIndex={-1}
+          aria-label={showPassword ? "Hide password" : "Show password"}
+          aria-pressed={showPassword}
         >
           {showPassword ? (
-            <EyeOff className="w-5 h-5" />
+            <EyeOff aria-hidden="true" className="w-5 h-5" />
           ) : (
-            <Eye className="w-5 h-5" />
+            <Eye aria-hidden="true" className="w-5 h-5" />
           )}
         </button>
       }

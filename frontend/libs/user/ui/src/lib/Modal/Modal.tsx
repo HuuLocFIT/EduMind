@@ -17,6 +17,7 @@ export interface ModalProps {
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
+  ariaLabel?: string;
 }
 
 const sizeStyles = {
@@ -38,9 +39,11 @@ export const Modal: React.FC<ModalProps> = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  ariaLabel,
 }) => {
   return (
     <Dialog
+      aria-label={!title ? ariaLabel ?? "Dialog" : undefined}
       open={isOpen}
       onClose={() => {
         // Headless UI Dialog calls onClose for both Escape key and overlay click
@@ -87,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
                     className="p-1 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                     aria-label="Close modal"
                   >
-                    <X className="w-5 h-5 text-gray-500" />
+                    <X aria-hidden="true" className="w-5 h-5 text-gray-500" />
                   </button>
                 )}
               </div>

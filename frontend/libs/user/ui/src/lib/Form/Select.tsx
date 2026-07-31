@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useId } from "react";
 import { clsx } from "clsx";
 
 export interface SelectProps
@@ -23,10 +23,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     },
     ref,
   ) => {
+    const generatedId = useId();
+    const selectId = props.id || generatedId;
     return (
       <div className={clsx("flex flex-col gap-1", fullWidth && "w-full")}>
         {label && (
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor={selectId} className="block text-sm font-medium text-gray-700">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -34,6 +36,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
         <select
           ref={ref}
+          id={selectId}
           className={clsx(
             "w-full px-4 py-2 border rounded-lg transition-all duration-200",
             "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
@@ -46,17 +49,21 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           )}
           disabled={disabled}
           aria-invalid={!!error}
+          aria-describedby={
+            [helperText ? `${selectId}-description` : null, error ? `${selectId}-error` : null]
+              .filter(Boolean).join(" ") || undefined
+          }
           {...props}
         >
           {children}
         </select>
 
         {error && (
-          <p className="text-sm text-red-600">{error}</p>
+          <p id={`${selectId}-error`} className="text-sm text-red-600">{error}</p>
         )}
 
-        {helperText && !error && (
-          <p className="text-sm text-gray-500">{helperText}</p>
+        {helperText && (
+          <p id={`${selectId}-description`} className="text-sm text-gray-500">{helperText}</p>
         )}
       </div>
     );

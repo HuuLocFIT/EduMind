@@ -22,11 +22,12 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref
   ) => {
-    const textareaId = props.id || useId();
+    const generatedId = useId();
+    const textareaId = props.id || generatedId;
     return (
       <div className={clsx("flex flex-col gap-1", fullWidth && "w-full")}>
         {label && (
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor={textareaId} className="block text-sm font-medium text-gray-700">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -34,6 +35,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 
         <textarea
           ref={ref}
+          id={textareaId}
           className={clsx(
             "w-full px-4 py-2 border rounded-lg transition-all duration-200 resize-none",
             "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
@@ -46,7 +48,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           disabled={disabled}
           aria-invalid={!!error}
           aria-describedby={
-            [error ? `${textareaId}-error` : null, helperText && !error ? `${textareaId}-description` : null]
+            [helperText ? `${textareaId}-description` : null, error ? `${textareaId}-error` : null]
               .filter(Boolean)
               .join(' ') || undefined
           }
@@ -59,7 +61,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           </p>
         )}
 
-        {helperText && !error && (
+        {helperText && (
           <p id={`${textareaId}-description`} className="text-sm text-gray-500">{helperText}</p>
         )}
       </div>

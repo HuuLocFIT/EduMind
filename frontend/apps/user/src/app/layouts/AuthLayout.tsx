@@ -1,11 +1,23 @@
 import React, { useMemo } from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
 import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
 
 export const AuthLayout: React.FC = () => {
+  const location = useLocation();
+  const mainContentHref = `${location.pathname}${location.search}#main-content`;
+  const handleSkipToMain = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    const main = document.getElementById("main-content");
+    if (!main) return;
+
+    const targetTop = main.getBoundingClientRect().top + window.scrollY;
+    main.focus({ preventScroll: true });
+    window.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: "auto" });
+  };
+
   // Use selector to only subscribe to isAuthenticated changes
   // This prevents unnecessary re-renders when other store properties change
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -31,8 +43,15 @@ export const AuthLayout: React.FC = () => {
         noIndex={true}
       />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+      <a
+        href={mainContentHref}
+        onClick={handleSkipToMain}
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md"
+      >
+        Skip to main content
+      </a>
       {/* Decorative Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Large Circle */}
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200 rounded-full opacity-20 blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-200 rounded-full opacity-20 blur-3xl"></div>
@@ -47,9 +66,13 @@ export const AuthLayout: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative min-h-screen flex items-center justify-center px-4 py-12">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600"
+      >
         <Outlet />
-      </div>
+      </main>
     </div>
     </>
   );

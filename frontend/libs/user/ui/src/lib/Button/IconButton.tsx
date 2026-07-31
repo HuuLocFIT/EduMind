@@ -7,6 +7,7 @@ export interface IconButtonProps
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon: React.ReactNode;
+  isLoading?: boolean;
   "aria-label": string; // Required for accessibility
 }
 
@@ -14,6 +15,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   variant = "primary",
   size = "md",
   icon,
+  isLoading = false,
   className,
   disabled,
   ...props
@@ -30,13 +32,15 @@ export const IconButton: React.FC<IconButtonProps> = ({
         "inline-flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
         variantStyles[variant],
         sizeClasses[size],
-        disabled && "opacity-50 cursor-not-allowed",
+        (disabled || isLoading) && "opacity-50 cursor-not-allowed",
         className
       )}
-      disabled={disabled}
+      disabled={disabled || isLoading}
+      aria-busy={isLoading}
       {...props}
     >
-      {icon}
+      <span aria-hidden="true">{icon}</span>
+      {isLoading && <span role="status" className="sr-only">Loading</span>}
     </button>
   );
 };

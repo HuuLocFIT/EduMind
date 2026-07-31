@@ -1,5 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Outlet,
+  Link,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import { Button, CloudinaryImage } from "@edumind/user-ui";
 import { useAuthStore } from "../stores/auth.store";
 import { CartIcon, CartDrawer } from "../components/payment-module";
@@ -30,6 +35,21 @@ export const MainLayout: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+
+  const mainContentHref = `${location.pathname}${location.search}#main-content`;
+  const handleSkipToMain = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    const main = document.getElementById("main-content");
+    if (!main) return;
+
+    const headerHeight = headerRef.current?.offsetHeight ?? 0;
+    const targetTop =
+      main.getBoundingClientRect().top + window.scrollY - headerHeight;
+
+    main.focus({ preventScroll: true });
+    window.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: "auto" });
+  };
 
   useEffect(() => {
     if (userMenuOpen) {
@@ -80,8 +100,6 @@ export const MainLayout: React.FC = () => {
   const { data: applicationData } = useTeacherApplication();
 
   const hasApplication = Boolean(applicationData);
-  const applicationStatus = applicationData?.status || null;
-
   const handleLogout = async () => {
     await logout();
     navigate(USER_ROUTES.LOGIN);
@@ -97,14 +115,16 @@ export const MainLayout: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Skip Link */}
       <a
-        href="#main-content"
+        href={mainContentHref}
+        onClick={handleSkipToMain}
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
       >
         Skip to main content
       </a>
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="bg-white border-b sticky top-0 z-50">
+      <header ref={headerRef} className="bg-white border-b sticky top-0 z-50">
+      <nav aria-label="Main navigation">
         <div className="mx-auto px-3 sm:px-6 lg:px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -202,6 +222,7 @@ export const MainLayout: React.FC = () => {
                       <div
                         id="user-dropdown-menu"
                         role="menu"
+                        tabIndex={-1}
                         aria-label="User account options"
                         className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
                         onKeyDown={handleMenuKeyDown}
@@ -586,9 +607,14 @@ export const MainLayout: React.FC = () => {
           )}
         </div>
       </nav>
+      </header>
 
       {/* Main Content */}
-      <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600"
+      >
         <Outlet />
       </main>
 
@@ -643,19 +669,19 @@ export const MainLayout: React.FC = () => {
               <h2 id="footer-support" className="font-semibold text-gray-900 mb-2 sm:mb-4" style={{ fontSize: 'inherit' }}>Support</h2>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <a href="#" className="hover:text-blue-600">
+                  <span>
                     Help Center
-                  </a>
+                  </span>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-blue-600">
+                  <span>
                     Contact Us
-                  </a>
+                  </span>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-blue-600">
+                  <span>
                     FAQ
-                  </a>
+                  </span>
                 </li>
               </ul>
             </section>
@@ -669,9 +695,9 @@ export const MainLayout: React.FC = () => {
                   </Link>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-blue-600">
+                  <span>
                     Privacy Policy
-                  </a>
+                  </span>
                 </li>
               </ul>
             </section>

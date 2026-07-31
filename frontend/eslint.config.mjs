@@ -1,4 +1,5 @@
 import nx from "@nx/eslint-plugin";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
@@ -10,6 +11,18 @@ export default [
         "**/dist",
         "**/vite.config.*.timestamp*"
       ]
+    },
+    {
+        files: [
+            "apps/user/src/**/*.{ts,tsx,js,jsx}",
+            "libs/user/ui/src/**/*.{ts,tsx,js,jsx}"
+        ],
+        plugins: {
+            "jsx-a11y": jsxA11y
+        },
+        rules: {
+            ...jsxA11y.flatConfigs.recommended.rules
+        }
     },
     {
         files: [

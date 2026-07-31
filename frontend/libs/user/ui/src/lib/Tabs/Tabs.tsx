@@ -149,6 +149,7 @@ export const TabsList: React.FC<TabsListProps> = ({ className, children }) => {
   return (
     <div
       role="tablist"
+      tabIndex={-1}
       onKeyDown={handleKeyDown}
       className={clsx(
         "inline-flex items-center gap-1 border-b border-gray-200",

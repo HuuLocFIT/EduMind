@@ -26,11 +26,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = props.id || useId();
+    const generatedId = useId();
+    const inputId = props.id || generatedId;
     return (
       <div className={clsx("flex flex-col gap-1", fullWidth && "w-full")}>
         {label && (
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -45,6 +46,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
           <input
             ref={ref}
+            id={inputId}
             className={clsx(
               "w-full px-4 py-2 border rounded-lg transition-all duration-200",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
@@ -59,7 +61,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             aria-invalid={!!error}
             aria-describedby={
-              [error ? `${inputId}-error` : null, helperText && !error ? `${inputId}-description` : null]
+              [helperText ? `${inputId}-description` : null, error ? `${inputId}-error` : null]
                 .filter(Boolean)
                 .join(' ') || undefined
             }
@@ -79,7 +81,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </p>
         )}
 
-        {helperText && !error && (
+        {helperText && (
           <p id={`${inputId}-description`} className="text-sm text-gray-500">{helperText}</p>
         )}
       </div>

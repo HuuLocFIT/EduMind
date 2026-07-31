@@ -28,12 +28,15 @@ export const Loading: React.FC<LoadingProps> = ({
 
   const content = (
     <div
+      role="status"
+      aria-live="polite"
       className={`flex flex-col items-center justify-center gap-3 ${className}`}
     >
-      <Loader2 className={`${sizeClasses[size]} animate-spin text-blue-600`} />
+      <Loader2 aria-hidden="true" className={`${sizeClasses[size]} animate-spin text-blue-600`} />
       {text && (
         <p className={`${textSizeClasses[size]} text-gray-600`}>{text}</p>
       )}
+      {!text && <span className="sr-only">Loading</span>}
     </div>
   );
 
