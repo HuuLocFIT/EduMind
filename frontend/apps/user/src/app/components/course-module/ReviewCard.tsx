@@ -17,6 +17,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const { user } = useAuthStore();
   
   return (
+    <article aria-labelledby={`review-${review.id}-author`}>
     <Card className={`p-4 ${className}`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
@@ -32,14 +33,14 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
             {!(review.avatarUrl || review.profilePictureUrl) && (review.studentName?.charAt(0).toUpperCase() || "U")}
           </div>
           <div>
-            <p className="font-semibold text-gray-900">
+            <h4 id={`review-${review.id}-author`} className="font-semibold text-gray-900">
               {user?.id === review.studentId
                 ? "You (your review)"
                 : review.studentName || "Anonymous student"}
-            </p>
-            <p className="text-sm text-gray-500">
+            </h4>
+            <time className="text-sm text-gray-500" dateTime={review.createdAt}>
               {formatDate(review.createdAt)}
-            </p>
+            </time>
           </div>
         </div>
         <RatingStars rating={review.rating} size="sm" />
@@ -54,14 +55,14 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
       {review.hasReply && review.instructorReply && (
         <div className="mt-4 bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
           <div className="flex items-center gap-2 mb-2">
-            <MessageSquare className="w-4 h-4 text-blue-600" />
+            <MessageSquare aria-hidden="true" className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-700">
               Instructor Response
             </span>
             {review.instructorReplyAt && (
-              <span className="text-xs text-blue-500 ml-auto">
+              <time className="text-xs text-blue-500 ml-auto" dateTime={review.instructorReplyAt}>
                 {formatDate(review.instructorReplyAt)}
-              </span>
+              </time>
             )}
           </div>
           <p className="text-gray-700 text-sm leading-relaxed">
@@ -70,5 +71,6 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         </div>
       )}
     </Card>
+    </article>
   );
 };

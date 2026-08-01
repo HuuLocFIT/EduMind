@@ -1,5 +1,5 @@
-import React from "react";
-import { ShoppingCart, Check, Loader2 } from "lucide-react";
+import React, { useState } from "react";
+import { ShoppingCart, Check } from "lucide-react";
 import { Button, useToast } from "@edumind/user-ui";
 import { useAddToCart, useIsInCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
@@ -27,6 +27,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const navigate = useNavigate();
   const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated } = useAuthStore();
+  const [announcement, setAnnouncement] = useState("");
   
   const { data: isInCart, isLoading: checkingCart } = useIsInCart(
     courseId,
@@ -63,6 +64,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       startAddingItem(courseId);
       
       await addToCart.mutateAsync(courseId);
+      setAnnouncement("Course added to cart. You can now view your cart or continue browsing.");
       showSuccess("Course added to cart!");
     } catch (error: any) {
       showError(error?.message || "Failed to add to cart");
@@ -88,15 +90,22 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   }
 
   return (
+    <>
     <Button
       variant={variant}
       size={size}
       onClick={handleAddToCart}
       isLoading={isLoading}
+      disabled={isLoading}
+      aria-busy={isLoading}
       className={`${fullWidth ? "w-full" : ""} ${className}`}
       leftIcon={!isLoading ? <ShoppingCart className="w-4 h-4" /> : undefined}
     >
       Add to Cart
     </Button>
+    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {announcement}
+    </span>
+    </>
   );
 };

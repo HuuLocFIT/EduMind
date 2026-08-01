@@ -17,12 +17,13 @@ vi.mock('react-router-dom', () => ({
 
 // Mock UI components
 vi.mock('@edumind/user-ui', () => ({
-  Button: ({ children, onClick, variant, className, leftIcon, isLoading, disabled }: any) => (
+  Button: ({ children, onClick, variant, className, leftIcon, isLoading, disabled, ...props }: any) => (
     <button 
       onClick={onClick} 
       className={`${className} variant-${variant}`}
       disabled={isLoading || disabled}
       data-testid="add-to-cart-btn"
+      {...props}
     >
       {isLoading ? 'Loading...' : children}
       {leftIcon && <span data-testid="left-icon">ICON</span>}
@@ -155,6 +156,9 @@ describe('AddToCartButton', () => {
     
     await waitFor(() => {
       expect(mockShowSuccess).toHaveBeenCalledWith('Course added to cart!');
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Course added to cart. You can now view your cart or continue browsing.'
+      );
     });
     
     expect(mockFinishAddingItem).toHaveBeenCalledWith(1);
@@ -186,6 +190,7 @@ describe('AddToCartButton', () => {
     render(<AddToCartButton courseId={1} />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(screen.getByTestId('add-to-cart-btn')).toBeDisabled();
+    expect(screen.getByTestId('add-to-cart-btn')).toHaveAttribute('aria-busy', 'true');
   });
   
   it('shows loading state when local item is pending', () => {

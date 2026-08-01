@@ -40,10 +40,13 @@ export const InstructorInfo: React.FC<InstructorInfoProps> = ({
     <Card className={`p-6 ${className}`}>
       <div className="flex items-start gap-4">
         {/* Avatar */}
-        <div className="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xl flex-shrink-0">
+        <div
+          aria-hidden="true"
+          className="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xl flex-shrink-0"
+        >
           <CloudinaryImage
             src={avatar}
-            alt={name}
+            alt=""
             widths={[128]}
             className="w-full h-full rounded-full object-cover"
           />
@@ -52,51 +55,50 @@ export const InstructorInfo: React.FC<InstructorInfoProps> = ({
 
         {/* Info */}
         <div className="flex-1">
-          <h3 className="font-semibold text-lg text-gray-900 mb-1">{name}</h3>
+          <h2 className="font-semibold text-lg text-gray-900 mb-1">
+            {`Instructor: ${name}`}
+          </h2>
           {bio && (
             <p className="text-gray-600 text-sm mb-4 leading-relaxed">{bio}</p>
           )}
 
           {/* Stats */}
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+          <ul className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600">
             {formattedStudents && (
-              <div className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-gray-500" />
-                <span className="font-semibold text-gray-900">
-                  {formattedStudents}
+              <li className="flex items-center gap-1.5">
+                <span className="sr-only">{`${formattedStudents} students`}</span>
+                <span aria-hidden="true" className="contents">
+                  <Users className="w-4 h-4 text-gray-500" />
+                  <span className="font-semibold text-gray-900">{formattedStudents}</span>
+                  <span className="text-xs tracking-wide text-gray-500">students</span>
                 </span>
-                <span className="text-xs tracking-wide text-gray-500">
-                  students
-                </span>
-              </div>
+              </li>
             )}
 
             {formattedCourses && (
-              <div className="flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-gray-500" />
-                <span className="font-semibold text-gray-900">
-                  {formattedCourses}
+              <li className="flex items-center gap-1.5">
+                <span className="sr-only">{`${formattedCourses} courses`}</span>
+                <span aria-hidden="true" className="contents">
+                  <BookOpen className="w-4 h-4 text-gray-500" />
+                  <span className="font-semibold text-gray-900">{formattedCourses}</span>
+                  <span className="text-xs tracking-wide text-gray-500">courses</span>
                 </span>
-                <span className="text-xs tracking-wide text-gray-500">
-                  courses
-                </span>
-              </div>
+              </li>
             )}
 
             {rating !== undefined && (
-              <div className="flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-gray-500" />
-                <span className="font-semibold text-gray-900">
-                  {rating.toFixed(1)}
+              <li className="flex items-center gap-1.5">
+                <span className="sr-only">
+                  {`${rating.toFixed(1)} out of 5 stars${formattedReviews ? `, ${formattedReviews} reviews` : ""}`}
                 </span>
-                {formattedReviews && (
-                  <span className="text-xs text-gray-500">
-                    ({formattedReviews} reviews)
-                  </span>
-                )}
-              </div>
+                <span aria-hidden="true" className="contents">
+                  <Award className="w-4 h-4 text-gray-500" />
+                  <span className="font-semibold text-gray-900">{rating.toFixed(1)}</span>
+                  {formattedReviews && <span className="text-xs text-gray-500">({formattedReviews} reviews)</span>}
+                </span>
+              </li>
             )}
-          </div>
+          </ul>
         </div>
       </div>
     </Card>

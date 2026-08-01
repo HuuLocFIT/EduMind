@@ -76,22 +76,22 @@ export const CurriculumAccordion: React.FC<{
     sections.length > SECTION_PREVIEW_COUNT
       ? sections.length - SECTION_PREVIEW_COUNT
       : 0;
+  const totalLessons = sections.reduce(
+    (acc, section) => acc + (section.lessons?.length || section.lessonCount || 0),
+    0
+  );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" id="course-curriculum-sections">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-1 flex-wrap items-center gap-2 text-xs text-gray-700">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
-            <BookOpen className="w-3.5 h-3.5" />
-            {sections.length} section{sections.length !== 1 ? "s" : ""}
+            <BookOpen aria-hidden="true" focusable="false" className="w-3.5 h-3.5" />
+            {`${sections.length} ${sections.length === 1 ? "section" : "sections"}`}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
-            <Clock className="w-3.5 h-3.5" />
-            {sections.reduce(
-              (acc, s) => acc + (s.lessons?.length || s.lessonCount || 0),
-              0
-            )}{" "}
-            lesson
+            <Clock aria-hidden="true" focusable="false" className="w-3.5 h-3.5" />
+            {`${totalLessons} ${totalLessons === 1 ? "lesson" : "lessons"}`}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5 text-[12px] whitespace-nowrap">
@@ -100,6 +100,8 @@ export const CurriculumAccordion: React.FC<{
             variant="ghost"
             onClick={handleToggleAll}
             aria-label={allVisibleExpanded ? "Collapse all sections" : "Expand all sections"}
+            aria-expanded={allVisibleExpanded}
+            aria-controls="course-curriculum-list"
             className="!px-0 !py-0 !rounded-none border-0 bg-transparent text-[12px] font-semibold text-blue-600 hover:underline hover:!bg-transparent active:!bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-0"
           >
             {allVisibleExpanded ? "Collapse" : "Expand"}
@@ -107,9 +109,10 @@ export const CurriculumAccordion: React.FC<{
         </div>
       </div>
 
-      <ul className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
+      <ul id="course-curriculum-list" className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-200">
         {visibleSections.map((section, idx) => {
           const isOpen = expandedSections.has(section.id);
+          const sectionLessonCount = section.lessons?.length ?? section.lessonCount ?? 0;
           const durationLabel = formatMinutesToLabel(
             section.totalDurationMinutes
           );
@@ -133,20 +136,20 @@ export const CurriculumAccordion: React.FC<{
                     {sectionOrder}.
                   </span>
                   <div className="flex-1 text-left min-w-0">
-                    <h4
+                    <span
                       id={`section-heading-${section.id}`}
-                      className="font-semibold text-[#111111] text-sm leading-5 truncate"
+                      className="block font-semibold text-[#111111] text-sm leading-5 truncate"
                     >
                       {section.title}
-                    </h4>
+                    </span>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500 mt-1">
                       <span className="inline-flex items-center gap-1">
-                        <BookOpen className="w-3.5 h-3.5" />
-                        {section.lessons?.length ?? section.lessonCount ?? 0} lessons
+                        <BookOpen aria-hidden="true" focusable="false" className="w-3.5 h-3.5" />
+                        {`${sectionLessonCount} ${sectionLessonCount === 1 ? "lesson" : "lessons"}`}
                       </span>
                       {durationLabel && (
                         <span className="inline-flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
+                          <Clock aria-hidden="true" focusable="false" className="w-3.5 h-3.5" />
                           {durationLabel}
                         </span>
                       )}
@@ -157,7 +160,8 @@ export const CurriculumAccordion: React.FC<{
                   {
                     !isEnrolled && 
                     <span className="inline-flex items-center gap-1 text-gray-500 text-[11px] font-medium">
-                      <Lock className="w-3.5 h-3.5" />
+                      <Lock aria-hidden="true" focusable="false" className="w-3.5 h-3.5" />
+                      <span className="sr-only">Locked</span>
                     </span>}
                   <ChevronRight
                     aria-hidden="true"
@@ -183,9 +187,9 @@ export const CurriculumAccordion: React.FC<{
                         className="flex items-center gap-3 px-4 py-3 pl-9 border-b last:border-b-0 border-gray-200/70"
                       >
                         {lesson.contentType === "VIDEO" ? (
-                          <Play className="w-3.5 h-3.5 text-gray-500" />
+                          <Play aria-hidden="true" className="w-3.5 h-3.5 text-gray-500" />
                         ) : (
-                          <FileText className="w-3.5 h-3.5 text-gray-500" />
+                          <FileText aria-hidden="true" className="w-3.5 h-3.5 text-gray-500" />
                         )}
                         <div className="flex-1">
                           <p className="text-sm text-gray-700 leading-5">
@@ -198,6 +202,16 @@ export const CurriculumAccordion: React.FC<{
                         {lesson.isPreview && (
                           <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[11px] rounded-full shadow-sm">
                             Preview
+                          </span>
+                        )}
+                        {!isEnrolled && !lesson.isPreview && (
+                          <span className="inline-flex items-center text-gray-600">
+                            <Lock
+                              aria-hidden="true"
+                              focusable="false"
+                              className="w-3.5 h-3.5"
+                            />
+                            <span className="sr-only">Locked</span>
                           </span>
                         )}
                       </li>
