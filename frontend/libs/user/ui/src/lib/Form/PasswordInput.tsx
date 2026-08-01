@@ -16,7 +16,7 @@ export const PasswordInput = forwardRef<
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
           aria-label={showPassword ? "Hide password" : "Show password"}
           aria-pressed={showPassword}
         >

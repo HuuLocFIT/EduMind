@@ -173,19 +173,20 @@ export const CurriculumAccordion: React.FC<{
               </button>
 
               {isOpen && (
-                <ul
+                <div
                   id={panelId}
                   role="region"
                   aria-labelledby={`section-heading-${section.id}`}
                   className="border-t border-gray-200 bg-gray-50/70 py-1"
                 >
-                  {(section.lessons || []).map((lesson) => {
-                    const duration = formatSecondsToLabel(lesson.videoDuration);
-                    return (
-                      <li
-                        key={lesson.id}
-                        className="flex items-center gap-3 px-4 py-3 pl-9 border-b last:border-b-0 border-gray-200/70"
-                      >
+                  <ul>
+                    {(section.lessons || []).map((lesson) => {
+                      const duration = formatSecondsToLabel(lesson.videoDuration);
+                      return (
+                        <li
+                          key={lesson.id}
+                          className="flex items-center gap-3 px-4 py-3 pl-9 border-b last:border-b-0 border-gray-200/70"
+                        >
                         {lesson.contentType === "VIDEO" ? (
                           <Play aria-hidden="true" className="w-3.5 h-3.5 text-gray-500" />
                         ) : (
@@ -214,15 +215,16 @@ export const CurriculumAccordion: React.FC<{
                             <span className="sr-only">Locked</span>
                           </span>
                         )}
+                        </li>
+                      );
+                    })}
+                    {(section.lessons || []).length === 0 && (
+                      <li className="px-4 py-4 pl-9 text-sm text-gray-500">
+                        Lessons coming soon
                       </li>
-                    );
-                  })}
-                  {(section.lessons || []).length === 0 && (
-                    <li className="px-4 py-4 pl-9 text-sm text-gray-500">
-                      Lessons coming soon
-                    </li>
-                  )}
-                </ul>
+                    )}
+                  </ul>
+                </div>
               )}
             </li>
           );
