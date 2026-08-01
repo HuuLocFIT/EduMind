@@ -13,11 +13,11 @@ interface BrowseActiveFiltersProps {
   onLevelChange: (level: string) => void;
   minPrice: string;
   maxPrice: string;
-  setMinPrice: (val: string) => void;
-  setMaxPrice: (val: string) => void;
-  setPage: (page: number) => void;
-  searchKeyword: string;
-  setSearchKeyword: (keyword: string) => void;
+  onClearPrice: () => void;
+  minRating?: number;
+  onClearRating: () => void;
+  appliedKeyword: string;
+  onClearSearch: () => void;
 }
 
 export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
@@ -30,11 +30,11 @@ export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
   onLevelChange,
   minPrice,
   maxPrice,
-  setMinPrice,
-  setMaxPrice,
-  setPage,
-  searchKeyword,
-  setSearchKeyword,
+  onClearPrice,
+  minRating,
+  onClearRating,
+  appliedKeyword,
+  onClearSearch,
 }) => {
   if (activeFiltersCount === 0) return null;
 
@@ -89,11 +89,7 @@ export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
         <span role="listitem" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
           Price: ${minPrice || "0"} - {maxPrice ? `$${maxPrice}` : "∞"}
           <button
-            onClick={() => {
-              setMinPrice("");
-              setMaxPrice("");
-              setPage(0);
-            }}
+            onClick={onClearPrice}
             className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
             aria-label="Remove price filter"
           >
@@ -101,14 +97,23 @@ export const BrowseActiveFilters: React.FC<BrowseActiveFiltersProps> = ({
           </button>
         </span>
       )}
-      {searchKeyword && (
-        <span role="listitem" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
-          Search: "{searchKeyword}"
+      {minRating && (
+        <span role="listitem" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-900 rounded-full text-sm font-medium">
+          Rating: {minRating} &amp; up
           <button
-            onClick={() => {
-              setSearchKeyword("");
-              setPage(0);
-            }}
+            onClick={onClearRating}
+            className="hover:bg-yellow-200 rounded-full p-0.5 transition-colors"
+            aria-label={`Remove minimum rating filter: ${minRating} and up`}
+          >
+            <X className="w-3 h-3" aria-hidden="true" />
+          </button>
+        </span>
+      )}
+      {appliedKeyword && (
+        <span role="listitem" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
+          Search: "{appliedKeyword}"
+          <button
+            onClick={onClearSearch}
             className="hover:bg-gray-200 rounded-full p-0.5 transition-colors"
             aria-label="Remove search keyword filter"
           >
