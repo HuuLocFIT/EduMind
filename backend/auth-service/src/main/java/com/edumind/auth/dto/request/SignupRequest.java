@@ -24,12 +24,4 @@ public class SignupRequest {
     @Size(min = 6, max = 100, message = "Password must be between 6 and 100 characters")
     private String password;
 
-    @Size(max = 50, message = "First name must not exceed 50 characters")
-    private String firstName;
-
-    @Size(max = 50, message = "Last name must not exceed 50 characters")
-    private String lastName;
-
-    @Size(max = 20, message = "Phone number must not exceed 20 characters")
-    private String phoneNumber;
 }

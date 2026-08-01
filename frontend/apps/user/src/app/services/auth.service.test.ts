@@ -57,8 +57,6 @@ describe('authService', () => {
         username: 'testuser',
         email: 'test@example.com',
         password: 'Password123!',
-        firstName: 'Test',
-        lastName: 'User',
       };
       const mockResponse = { data: { success: true, message: 'Registration successful' } };
       vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
@@ -209,9 +207,14 @@ describe('authService', () => {
       const mockResponse = { data: { accessToken: '2fa-jwt-token' } };
       vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
 
-      const result = await authService.loginWith2FA({ usernameOrEmail: 'test@example.com', code: '123456' });
+      const loginData = {
+        usernameOrEmail: 'test@example.com',
+        password: 'Password123!',
+        code: '123456',
+      };
+      const result = await authService.loginWith2FA(loginData);
 
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/login/2fa', { usernameOrEmail: 'test@example.com', code: '123456' });
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/login/2fa', loginData);
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -419,8 +422,6 @@ describe('authService', () => {
           username: 'test',
           email: 'test@example.com',
           password: 'Password123!',
-          firstName: 'Test',
-          lastName: 'User',
         })).rejects.toThrow('Internal Server Error');
       });
     });

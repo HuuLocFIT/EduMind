@@ -128,8 +128,8 @@ describe('LoginPage', () => {
     it('should render the login form', () => {
       renderLoginPage();
 
-      expect(screen.getByText('Welcome Back')).toBeInTheDocument();
-      expect(screen.getByText('Sign in to your EduMind account')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument();
+      expect(screen.getByText('Welcome back to EduMind')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('e.g. lucas or lucas@email.com')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
@@ -349,7 +349,7 @@ describe('LoginPage', () => {
 
       // Should show login form again
       await waitFor(() => {
-        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument();
       });
     });
 

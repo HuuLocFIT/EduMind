@@ -60,8 +60,6 @@ class AuthIntegrationTest extends BaseIntegrationTest {
             request.setUsername("integrationuser");
             request.setEmail("integration@example.com");
             request.setPassword("Password123!");
-            request.setFirstName("Integration");
-            request.setLastName("Test");
 
             // When
             mockMvc.perform(post("/auth/signup")
@@ -202,8 +200,6 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         signupRequest.setUsername("fullflowuser");
         signupRequest.setEmail("fullflow@example.com");
         signupRequest.setPassword("Password123!");
-        signupRequest.setFirstName("Full");
-        signupRequest.setLastName("Flow");
 
         mockMvc.perform(post("/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)

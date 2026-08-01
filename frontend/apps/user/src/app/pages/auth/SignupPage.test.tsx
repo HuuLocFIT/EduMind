@@ -118,6 +118,9 @@ describe('SignupPage', () => {
       expect(screen.getByPlaceholderText('e.g. lucas')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('your.email@example.com')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Create a strong password')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/first name/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/last name/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/phone number/i)).not.toBeInTheDocument();
     });
 
     it('should render OAuth2 buttons', () => {
@@ -142,13 +145,14 @@ describe('SignupPage', () => {
       await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
       await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
-      await user.type(screen.getByPlaceholderText('Lucas'), 'Test');
-      await user.type(screen.getByPlaceholderText('Nguyen'), 'User');
-
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
-        expect(mockSignup).toHaveBeenCalled();
+        expect(mockSignup).toHaveBeenCalledWith({
+          username: 'testuser',
+          email: 'test@example.com',
+          password: 'Password123!',
+        });
       });
     });
 

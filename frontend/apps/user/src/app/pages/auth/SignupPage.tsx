@@ -18,7 +18,7 @@ import {
   CardBody,
   useToast
 } from "@edumind/user-ui";
-import { Mail, User, Phone, CheckCircle } from "lucide-react";
+import { Mail, User, CheckCircle } from "lucide-react";
 
 export const SignupPage = () => {
   const navigate = useNavigate();
@@ -78,9 +78,9 @@ export const SignupPage = () => {
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Account Created!
-            </h2>
+            </h1>
             <p className="text-gray-600">
               Please check your email to verify your account before logging in.
             </p>
@@ -237,34 +237,6 @@ export const SignupPage = () => {
                 </div>
               )}
             </div>
-
-            {/* First Name & Last Name */}
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="First Name"
-                placeholder="Lucas"
-                error={errors.firstName?.message}
-                {...register("firstName")}
-              />
-
-              <Input
-                label="Last Name"
-                placeholder="Nguyen"
-                error={errors.lastName?.message}
-                {...register("lastName")}
-              />
-            </div>
-
-            {/* Phone Number */}
-            <Input
-              label="Phone Number"
-              type="tel"
-              placeholder="0912 345 678"
-              leftIcon={<Phone className="w-5 h-5" />}
-              error={errors.phoneNumber?.message}
-              fullWidth
-              {...register("phoneNumber")}
-            />
 
             {/* Submit Button */}
             <Button

@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { useEffect, useState } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { AuthLayout } from "./AuthLayout";
 import { MainLayout } from "./MainLayout";
@@ -27,10 +28,40 @@ vi.mock("../components/payment-module", () => ({
 }));
 
 vi.mock("../components/Seo/SeoMetaTags", () => ({
-  SeoMetaTags: () => null,
+  SeoMetaTags: ({ title }: { title: string }) => <span data-testid="page-title">{title}</span>,
 }));
 
 describe("layout accessibility contracts", () => {
+  const DeferredHeading = () => {
+    const [ready, setReady] = useState(false);
+
+    useEffect(() => {
+      setReady(true);
+    }, []);
+
+    return ready ? <h1>Create Account</h1> : <p>Loading…</p>;
+  };
+
+  it.each([
+    ["/login", "Sign In"],
+    ["/signup", "Create Account"],
+    ["/forgot-password", "Forgot Password"],
+    ["/reset-password?token=valid", "Reset Password"],
+    ["/resend-verification", "Resend Verification Email"],
+  ])("provides the route-specific auth title for %s", (entry, title) => {
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route path="*" element={<h1>{title}</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("page-title")).toHaveTextContent(title);
+  });
+
   it("provides one main landmark and a keyboard-operable skip link in MainLayout", async () => {
     const user = userEvent.setup();
     render(
@@ -53,7 +84,7 @@ describe("layout accessibility contracts", () => {
     const main = screen.getByRole("main");
     const heading = screen.getByRole("heading", { name: "Courses", level: 1 });
     await user.keyboard("{Enter}");
-    expect(heading).toHaveFocus();
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(heading).toHaveAttribute("tabindex", "-1");
     expect(main).toHaveAttribute("id", "main-content");
     expect(main).toHaveClass("scroll-mt-16");
@@ -81,6 +112,9 @@ describe("layout accessibility contracts", () => {
     );
 
     const skipLink = screen.getByRole("link", { name: "Skip to main content" });
+    const heading = screen.getByRole("heading", { name: "Sign in", level: 1 });
+    await waitFor(() => expect(heading).toHaveFocus());
+    heading.blur();
     await user.tab();
     expect(skipLink).toHaveFocus();
     expect(skipLink).toHaveAttribute(
@@ -88,11 +122,61 @@ describe("layout accessibility contracts", () => {
       "/login?redirect=/checkout#main-content",
     );
     await user.keyboard("{Enter}");
-    const heading = screen.getByRole("heading", { name: "Sign in", level: 1 });
     expect(heading).toHaveFocus();
     expect(heading).toHaveAttribute("tabindex", "-1");
     expect(window.location.hash).toBe("");
     expect(screen.getAllByRole("main")).toHaveLength(1);
     expect(screen.getByRole("main")).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("link", { name: "EduMind home" })).toHaveAttribute("href", "/");
+    expect(screen.getByTestId("page-title")).toHaveTextContent("Sign In");
+  });
+
+  it("focuses the new page heading when the auth route changes", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route
+              path="/login"
+              element={
+                <>
+                  <h1>Sign In</h1>
+                  <Link to="/signup">Create account</Link>
+                </>
+              }
+            />
+            <Route path="/signup" element={<DeferredHeading />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("link", { name: "Create account" }));
+    const heading = await screen.findByRole("heading", {
+      name: "Create Account",
+      level: 1,
+    });
+
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("focuses the heading when a directly visited lazy auth route finishes rendering", async () => {
+    render(
+      <MemoryRouter initialEntries={["/signup"]}>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            <Route path="/signup" element={<DeferredHeading />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole("heading", {
+      name: "Create Account",
+      level: 1,
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
   });
 });

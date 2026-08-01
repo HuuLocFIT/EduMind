@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { authService } from '../../services/auth.service';
-import { Lock, CheckCircle, GraduationCap } from "lucide-react";
+import { Lock, CheckCircle } from "lucide-react";
 
 import {
   Button,
@@ -76,9 +76,9 @@ function ResetPasswordPage() {
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
           Invalid Reset Link
-        </h2>
+        </h1>
         <p className="text-gray-600 mb-6">
           This password reset link is invalid or has expired.
         </p>
@@ -147,9 +147,9 @@ function ResetPasswordPage() {
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="w-10 h-10 text-green-600" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
           Password Reset!
-        </h2>
+        </h1>
         <p className="text-gray-600 mb-4">
           Your password has been reset successfully. You can now login with your
           new password.
@@ -164,21 +164,17 @@ function ResetPasswordPage() {
 
   return (
     <div className="w-full max-w-md">
-      {/* Logo & Title */}
+      {/* Page intro */}
       <div className="text-center mb-8">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <GraduationCap className="w-16 h-16 text-blue-600" />
-          <span className="text-4xl font-bold text-gray-900">EduMind</span>
-        </div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          Reset Password
+        </h1>
         <p className="text-gray-600">Create a new password</p>
       </div>
 
       {/* Reset Password Card */}
       <div className="bg-white rounded-2xl shadow-xl p-8">
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-            Reset Password
-          </h2>
           <p className="text-sm text-gray-600">
             Please enter a new password for your account.
           </p>

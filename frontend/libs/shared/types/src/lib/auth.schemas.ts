@@ -4,7 +4,6 @@ import { UserRole, PROVIDER } from "@edumind/shared-constants";
 import {
   createNumericCodeSchema,
   createPasswordSchema,
-  createPhoneNumberSchema,
   createRequiredStringSchema,
   createUsernameSchema,
 } from "./auth.validation.js";
@@ -45,15 +44,6 @@ export const SignupRequestSchema = z.object({
   username: createUsernameSchema(),
   email: z.string().email("Invalid email format").min(1, "Email is required"),
   password: createPasswordSchema(),
-  firstName: z
-    .string()
-    .max(50, "First name too long")
-    .optional(),
-  lastName: z
-    .string()
-    .max(50, "Last name too long")
-    .optional(),
-  phoneNumber: createPhoneNumberSchema().optional(),
 });
 
 export const LoginRequestSchema = z.object({

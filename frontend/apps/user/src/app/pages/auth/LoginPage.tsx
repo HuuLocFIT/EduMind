@@ -126,12 +126,12 @@ export const LoginPage = () => {
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">
-          {needs2FA ? "Two-Factor Authentication" : "Welcome Back"}
+          {needs2FA ? "Two-Factor Authentication" : "Sign In"}
         </h1>
         <p className="text-gray-600">
           {needs2FA
             ? "Enter the 6-digit code from your authenticator app"
-            : "Sign in to your EduMind account"}
+            : "Welcome back to EduMind"}
         </p>
       </div>
 
@@ -174,11 +174,12 @@ export const LoginPage = () => {
                 className="space-y-6"
               >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+                  <label htmlFor="two-factor-code" className="block text-sm font-medium text-gray-700 mb-2 text-center">
                     Verification Code
                   </label>
                   <input
                     type="text"
+                    id="two-factor-code"
                     placeholder="000000"
                     {...register2FA("code", {
                       required: "2FA code is required",
@@ -191,7 +192,6 @@ export const LoginPage = () => {
                       twoFAErrors.code ? "border-red-500" : "border-gray-300"
                     }`}
                     maxLength={6}
-                    autoFocus
                   />
                   {twoFAErrors.code && (
                     <p className="mt-2 text-sm text-red-600 text-center">
@@ -309,7 +309,7 @@ export const LoginPage = () => {
                 {/* Password */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">
                       Password
                     </label>
                     <Link
@@ -320,6 +320,7 @@ export const LoginPage = () => {
                     </Link>
                   </div>
                   <PasswordInput
+                    id="login-password"
                     placeholder="••••••••"
                     error={loginErrors.password?.message}
                     fullWidth
