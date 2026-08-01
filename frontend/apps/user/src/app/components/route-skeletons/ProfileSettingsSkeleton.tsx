@@ -44,7 +44,7 @@ export const ProfileSettingsSkeleton: React.FC = () => {
           </aside>
 
           {/* Main Content */}
-          <main className="lg:col-span-3">
+          <div className="lg:col-span-3">
             <div className="p-6 space-y-6 bg-white rounded-xl border border-gray-200 shadow-sm animate-pulse">
               <div className="h-7 w-56 bg-gray-200 rounded-lg mb-6" />
 
@@ -93,7 +93,7 @@ export const ProfileSettingsSkeleton: React.FC = () => {
                 <div className="h-10 w-20 bg-gray-200 rounded-lg" />
               </div>
             </div>
-          </main>
+          </div>
         </div>
       </div>
     </div>

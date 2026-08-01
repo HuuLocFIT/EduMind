@@ -45,14 +45,14 @@ export const BrowseCoursesSkeleton: React.FC = () => {
           </aside>
 
           {/* Main list area */}
-          <main className="flex-1">
+          <div className="flex-1">
             {/* Sort / results row */}
             <div className="flex items-center justify-between mb-6 animate-pulse">
               <div className="h-5 w-40 bg-gray-200 rounded" />
               <div className="h-10 w-44 bg-gray-200 rounded-lg" />
             </div>
             <CourseGridSkeleton count={9} columns={3} />
-          </main>
+          </div>
         </div>
       </div>
     </div>

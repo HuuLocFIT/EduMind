@@ -207,7 +207,7 @@ export const MyLearningPage: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Courses List Section */}
           <div className="flex-1">
@@ -242,7 +242,7 @@ export const MyLearningPage: React.FC = () => {
             onBrowseCourses={handleBrowseCourses}
           />
         </div>
-      </main>
+      </div>
     </div>
     </>
   );

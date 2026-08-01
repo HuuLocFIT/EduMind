@@ -58,7 +58,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
       <div className="relative h-44 sm:h-48 lg:h-52 bg-gray-200 overflow-hidden rounded-t-2xl">
         <CloudinaryImage
           src={course.thumbnailUrl}
-          alt={course.title}
+          alt=""
           widths={[480, 960]}
           sizes="(max-width: 640px) calc(100vw - 2rem), (max-width: 1024px) calc(50vw - 2rem), calc(33vw - 2rem)"
           priority={priority}
@@ -127,10 +127,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         <div className="flex items-center text-sm text-gray-500 mb-5 gap-2">
           {/* Rating */}
           {course.averageRating ? (
-            <div className="flex items-center gap-1.5">
-              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" aria-hidden="true" />
-              <span className="font-extrabold text-gray-900 text-base">{course.averageRating.toFixed(1)}</span>
-              <span className="text-gray-500">({new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(course.totalReviews || 0)})</span>
+            <div className="flex items-center gap-1.5" aria-label={`Rated ${course.averageRating.toFixed(1)} out of 5 from ${course.totalReviews || 0} reviews`}>
+              <span aria-hidden="true" className="contents">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" aria-hidden="true" />
+                <span className="font-extrabold text-gray-900 text-base">{course.averageRating.toFixed(1)}</span>
+                <span className="text-gray-500">({new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(course.totalReviews || 0)})</span>
+              </span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">

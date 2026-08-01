@@ -106,7 +106,6 @@ export const WishlistPage: React.FC = () => {
       setEnrollingIds((prev) => new Set(prev).add(courseId));
     },
     onSuccess: async (courseId) => {
-      showSuccess("Successfully enrolled!");
       await queryClient.invalidateQueries({
         queryKey: queryKeys.wishlist.all,
         exact: false,
@@ -119,7 +118,14 @@ export const WishlistPage: React.FC = () => {
         queryKey: queryKeys.courses.all,
         exact: false,
       });
-      navigate(USER_ROUTES.LEARNING);
+      navigate(USER_ROUTES.LEARNING, {
+        state: {
+          notification: {
+            variant: "success",
+            message: "Successfully enrolled in course!",
+          },
+        },
+      });
     },
     onError: (err: any) => {
       showError(err?.message || "Failed to enroll in course");

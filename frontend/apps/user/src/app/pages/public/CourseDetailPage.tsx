@@ -140,8 +140,14 @@ export const CourseDetailPage: React.FC = () => {
         queryKey: queryKeys.wishlist.all,
         exact: false,
       });
-      showSuccess("Successfully enrolled in course!");
-      navigate(USER_ROUTES.LEARNING);
+      navigate(USER_ROUTES.LEARNING, {
+        state: {
+          notification: {
+            variant: "success",
+            message: "Successfully enrolled in course!",
+          },
+        },
+      });
     },
     onError: (err: any) => {
       showError(err?.message || "Failed to enroll in course");
@@ -261,14 +267,14 @@ export const CourseDetailPage: React.FC = () => {
 
   return (
     <>
-        <SeoMetaTags
-         key={course.id}
-         title={course.metaTitle || course.title}
-         description={course.metaDescription || stripHtml(course.shortDescription) || stripHtml(course.description).substring(0, 160) || `Learn ${course.title} on EduMind`}
-         canonicalUrl={canonicalPath}
-         ogType="product"
-         {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
-         jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
+      <SeoMetaTags
+        key={course.id}
+        title={course.metaTitle || course.title}
+        description={course.metaDescription || stripHtml(course.shortDescription) || stripHtml(course.description).substring(0, 160) || `Learn ${course.title} on EduMind`}
+        canonicalUrl={canonicalPath}
+        ogType="product"
+        {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
+        jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
       />
       <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}

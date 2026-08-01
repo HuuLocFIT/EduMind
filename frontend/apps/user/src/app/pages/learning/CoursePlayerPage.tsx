@@ -807,7 +807,7 @@ export const CoursePlayerPage: React.FC = () => {
 
       <div className="flex relative">
         {/* Main Content */}
-        <main className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
+        <div className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
           {/* QUIZ lesson — inline quiz taker, no video/article */}
           {currentLesson.contentType === ContentType.QUIZ && enrollment && (
             <div className="p-3 sm:p-6 bg-white" data-testid="lesson-content">
@@ -1013,7 +1013,7 @@ export const CoursePlayerPage: React.FC = () => {
             </div>
           </div>
           )}
-        </main>
+        </div>
 
         {/* Sidebar - Course Curriculum */}
         <aside

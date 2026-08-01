@@ -88,7 +88,7 @@ export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
       {/* Body (real: line 751 — flex relative) */}
       <div className="flex relative">
         {/* Main content column (real: line 753) */}
-        <main className="flex-1 min-w-0 xl:mr-80">
+        <div className="flex-1 min-w-0 xl:mr-80">
           {/* Video area — black aspect-video (only when explicitly VIDEO) */}
           {effectiveContentType === "VIDEO" && (
             <div className="bg-black aspect-video flex items-center justify-center">
@@ -200,7 +200,7 @@ export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
               </div>
             </div>
           </div>
-        </main>
+        </div>
 
         {/* Sidebar — white curriculum panel (real: line 962). Fixed w-80, xl only. */}
         <aside

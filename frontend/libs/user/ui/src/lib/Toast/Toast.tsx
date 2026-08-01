@@ -65,8 +65,7 @@ export const Toast: React.FC<ToastProps> = ({
         "animate-in slide-in-from-right duration-300",
         config.containerClass
       )}
-      role={variant === "error" ? "alert" : "status"}
-      aria-live={variant === "error" ? "assertive" : "polite"}
+      role={variant === "error" ? "alert" : undefined}
     >
       <div className="p-4 flex items-start gap-3">
         <Icon

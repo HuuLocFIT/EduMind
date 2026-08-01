@@ -60,7 +60,7 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
   onClearFilters,
 }) => {
   return (
-    <main className="flex-1">
+    <div className="flex-1">
       <h2 className="sr-only">Course Results</h2>
       {/* Sort & Results Count */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -264,6 +264,6 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
           </Button>
         </nav>
       )}
-    </main>
+    </div>
   );
 };

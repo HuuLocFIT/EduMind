@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, StatCard, Card, CardBody } from '@edumind/user-ui';
 import { CourseGrid, CourseGridSkeleton } from '../../components/course-module';
@@ -26,7 +26,12 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
   // Use React Query for caching and better performance
-  const { data: featuredCourses = [], isLoading: loadingFeatured } = useQuery<CourseResponse[]>({
+  const {
+    data: featuredCourses = [],
+    isLoading: loadingFeatured,
+    isError: featuredError,
+    refetch: retryFeatured,
+  } = useQuery<CourseResponse[]>({
     queryKey: queryKeys.courses.topRated(0, 6),
     queryFn: async () => {
       const response = await courseService.getTopRatedCourses({
@@ -38,7 +43,12 @@ export const HomePage: React.FC = () => {
     staleTime: STALE_TIME_COURSES_PUBLIC,
   });
 
-  const { data: popularCourses = [], isLoading: loadingPopular } = useQuery<CourseResponse[]>({
+  const {
+    data: popularCourses = [],
+    isLoading: loadingPopular,
+    isError: popularError,
+    refetch: retryPopular,
+  } = useQuery<CourseResponse[]>({
     queryKey: queryKeys.courses.popular(0, 6),
     queryFn: async () => {
       const response = await courseService.getMostPopularCourses({
@@ -119,23 +129,19 @@ export const HomePage: React.FC = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => navigate(USER_ROUTES.COURSES)}
-                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl motion-safe:transition-all motion-safe:duration-300 min-w-[180px]"
-                rightIcon={<ArrowRight className="w-5 h-5" />}
+              <Link
+                to={USER_ROUTES.COURSES}
+                className="inline-flex min-h-12 min-w-[180px] items-center justify-center gap-2 rounded-lg border-2 border-white bg-white px-6 py-3 font-semibold text-blue-600 shadow-lg motion-safe:transition-all motion-safe:duration-300 hover:bg-gray-100 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700"
               >
                 Browse Courses
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => navigate(USER_ROUTES.SIGNUP)}
-                className="!border-2 !border-white !text-white hover:!bg-white/20 backdrop-blur-sm min-w-[180px]"
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </Link>
+              <Link
+                to={USER_ROUTES.SIGNUP}
+                className="inline-flex min-h-12 min-w-[180px] items-center justify-center rounded-lg border-2 border-white px-6 py-3 font-semibold text-white backdrop-blur-sm hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700"
               >
                 Get Started Free
-              </Button>
+              </Link>
             </div>
 
             {/* Trust Indicators */}
@@ -226,10 +232,10 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Featured Courses */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white" aria-labelledby="featured-courses-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 id="featured-courses-heading" className="text-4xl font-bold text-gray-900 mb-4">
               Featured Courses
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -238,7 +244,17 @@ export const HomePage: React.FC = () => {
           </div>
 
           {loadingFeatured ? (
-            <CourseGridSkeleton count={6} columns={3} />
+            <>
+              <p className="sr-only" role="status">Loading featured courses</p>
+              <CourseGridSkeleton count={6} columns={3} />
+            </>
+          ) : featuredError ? (
+            <div className="text-center py-12" role="alert">
+              <p className="mb-4 text-gray-700">We could not load featured courses.</p>
+              <Button variant="primary" onClick={() => void retryFeatured()} aria-label="Retry loading featured courses">
+                Try again
+              </Button>
+            </div>
           ) : (
             <>
               <CourseGrid
@@ -247,18 +263,17 @@ export const HomePage: React.FC = () => {
                   navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug: course.slug }))
                 }
                 columns={3}
+                ariaLabel="Featured courses"
               />
               {featuredCourses.length > 0 && (
                 <div className="text-center mt-12">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={() => navigate(USER_ROUTES.COURSES)}
-                    rightIcon={<ArrowRight className="w-5 h-5" />}
-                    className="shadow-md hover:shadow-lg"
+                  <Link
+                    to={USER_ROUTES.COURSES}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                   >
                     View All Courses
-                  </Button>
+                    <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                  </Link>
                 </div>
               )}
             </>
@@ -267,10 +282,10 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Popular Courses */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50" aria-labelledby="popular-courses-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 id="popular-courses-heading" className="text-4xl font-bold text-gray-900 mb-4">
               Most Popular Courses
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -279,7 +294,17 @@ export const HomePage: React.FC = () => {
           </div>
 
           {loadingPopular ? (
-            <CourseGridSkeleton count={6} columns={3} />
+            <>
+              <p className="sr-only" role="status">Loading popular courses</p>
+              <CourseGridSkeleton count={6} columns={3} />
+            </>
+          ) : popularError ? (
+            <div className="text-center py-12" role="alert">
+              <p className="mb-4 text-gray-700">We could not load popular courses.</p>
+              <Button variant="primary" onClick={() => void retryPopular()} aria-label="Retry loading popular courses">
+                Try again
+              </Button>
+            </div>
           ) : (
             <CourseGrid
               courses={popularCourses}
@@ -287,6 +312,7 @@ export const HomePage: React.FC = () => {
                 navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug: course.slug }))
               }
               columns={3}
+              ariaLabel="Popular courses"
             />
           )}
         </div>
@@ -310,23 +336,19 @@ export const HomePage: React.FC = () => {
             no credit card required.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => navigate(USER_ROUTES.SIGNUP)}
-                className="!bg-white !text-blue-600 !border-2 !border-white hover:!bg-gray-100 shadow-lg hover:shadow-xl motion-safe:transition-all motion-safe:duration-300 min-w-[200px]"
-              rightIcon={<ArrowRight className="w-5 h-5" />}
+            <Link
+              to={USER_ROUTES.SIGNUP}
+              className="inline-flex min-h-12 min-w-[200px] items-center justify-center gap-2 rounded-lg border-2 border-white bg-white px-6 py-3 font-semibold text-blue-600 shadow-lg hover:bg-gray-100 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700"
             >
               Sign Up Now
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={() => navigate(USER_ROUTES.COURSES)}
-              className="!border-2 !border-white !text-white hover:!bg-white/20 backdrop-blur-sm min-w-[200px]"
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </Link>
+            <Link
+              to={USER_ROUTES.COURSES}
+              className="inline-flex min-h-12 min-w-[200px] items-center justify-center rounded-lg border-2 border-white px-6 py-3 font-semibold text-white backdrop-blur-sm hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-700"
             >
               Browse Courses
-            </Button>
+            </Link>
           </div>
         </div>
       </section>

@@ -170,7 +170,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onClick={() => onLevelChange(level)}
+                      onChange={() => onLevelChange(level)}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                   <span className="text-sm text-gray-700">
@@ -195,7 +195,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
               <input
                 type="checkbox"
                 checked={filterType === "free"}
-                onClick={handleFreeToggle}
+                onChange={handleFreeToggle}
                 aria-describedby={filterType === "free" ? "free-only-info" : undefined}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
@@ -270,7 +270,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                 type="radio"
                 name="rating"
                 checked={!minRating}
-                onClick={() => setMinRating(undefined)}
+                onChange={() => setMinRating(undefined)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">All Ratings</span>
@@ -284,7 +284,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                   type="radio"
                   name="rating"
                   checked={minRating === option.value}
-                  onClick={() => {
+                  onChange={() => {
                     setMinRating(option.value);
                     setPage(0);
                   }}

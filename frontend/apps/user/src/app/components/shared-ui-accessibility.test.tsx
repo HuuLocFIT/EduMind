@@ -18,6 +18,7 @@ import {
   Skeleton,
   Switch,
   Toast,
+  ToastContainer,
   FullPageLoading,
   ConfirmDialog,
   Tabs,
@@ -86,7 +87,9 @@ describe("shared UI accessibility contracts", () => {
       </>,
     );
 
-    expect(screen.getByRole("button", { name: "Save changes" })).toHaveAttribute("aria-busy", "true");
+    const loadingButton = screen.getByRole("button", { name: "Loading: Save changes" });
+    expect(loadingButton).toHaveAttribute("aria-busy", "true");
+    expect(loadingButton).toHaveTextContent("Loading: Save changes");
     expect(screen.getByRole("button", { name: "Delete course" })).toBeDisabled();
     expect(screen.getByRole("progressbar", { name: "Course completion" })).toHaveAttribute(
       "aria-valuenow",
@@ -158,7 +161,8 @@ describe("shared UI accessibility contracts", () => {
       <Toast id="saved" variant="success" title="Saved" message="Course updated" duration={0} onClose={onClose} />,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("SavedCourse updated");
+    expect(screen.getByText("Course updated")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     const close = screen.getByRole("button", { name: "Close notification" });
     await user.click(close);
     expect(onClose).toHaveBeenCalledWith("saved");
@@ -167,6 +171,34 @@ describe("shared UI accessibility contracts", () => {
       <Toast id="failed" variant="error" message="Update failed" duration={0} onClose={onClose} />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Update failed");
+  });
+
+  it("provides a persistent polite live region for success toasts", () => {
+    const { rerender } = render(
+      <ToastContainer toasts={[]} onClose={vi.fn()} />,
+    );
+    const liveRegion = screen.getByRole("status");
+    expect(liveRegion).toHaveAttribute("aria-live", "polite");
+    expect(liveRegion).toHaveAttribute("aria-atomic", "true");
+    expect(liveRegion).toBeEmptyDOMElement();
+
+    rerender(
+      <ToastContainer
+        toasts={[
+          {
+            id: "enrolled",
+            variant: "success",
+            message: "Successfully enrolled in course!",
+            duration: 0,
+            onClose: vi.fn(),
+          },
+        ]}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(liveRegion).toHaveTextContent("Successfully enrolled in course!");
+    expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
   it("exposes loading names and busy state while hiding spinner graphics", () => {
@@ -219,7 +251,7 @@ describe("shared UI accessibility contracts", () => {
         isLoading
       />,
     );
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "Loading: Delete" })).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   });
 });

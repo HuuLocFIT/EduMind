@@ -43,11 +43,16 @@ export const MainLayout: React.FC = () => {
     const main = document.getElementById("main-content");
     if (!main) return;
 
+    const heading = main.querySelector<HTMLElement>(
+      "h1:not([aria-hidden='true'])",
+    );
+    const target = heading ?? main;
     const headerHeight = headerRef.current?.offsetHeight ?? 0;
     const targetTop =
-      main.getBoundingClientRect().top + window.scrollY - headerHeight;
+      target.getBoundingClientRect().top + window.scrollY - headerHeight;
 
-    main.focus({ preventScroll: true });
+    if (heading) heading.tabIndex = -1;
+    target.focus({ preventScroll: true });
     window.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: "auto" });
   };
 
@@ -124,494 +129,495 @@ export const MainLayout: React.FC = () => {
 
       {/* Navigation */}
       <header ref={headerRef} className="bg-white border-b sticky top-0 z-50">
-      <nav aria-label="Main navigation">
-        <div className="mx-auto px-3 sm:px-6 lg:px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link to={USER_ROUTES.ROOT} className="flex items-center gap-2">
-              <GraduationCap className="w-8 h-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">EduMind</span>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-6">
-              <Link
-                to={USER_ROUTES.COURSES}
-                className={`transition-colors ${
-                  isActivePath(USER_ROUTES.COURSES) &&
-                  !isActivePath(USER_ROUTES.COURSES + "/")
-                    ? "text-blue-600 font-medium"
-                    : "text-gray-700 hover:text-blue-600"
-                }`}
-              >
-                Browse Courses
+        <nav aria-label="Main navigation">
+          <div className="mx-auto px-3 sm:px-6 lg:px-4">
+            <div className="flex items-center justify-between h-16">
+              {/* Logo */}
+              <Link to={USER_ROUTES.ROOT} className="flex items-center gap-2">
+                <GraduationCap className="w-8 h-8 text-blue-600" />
+                <span className="text-xl font-bold text-gray-900">EduMind</span>
               </Link>
 
-              {isAuthenticated && (
-                <>
-                  <Link
-                    to={USER_ROUTES.DASHBOARD}
-                    className={`transition-colors ${
-                      isActivePath(USER_ROUTES.DASHBOARD)
-                        ? "text-blue-600 font-medium"
-                        : "text-gray-700 hover:text-blue-600"
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    to={USER_ROUTES.LEARNING}
-                    className={`transition-colors ${
-                      isActivePath(USER_ROUTES.LEARNING)
-                        ? "text-blue-600 font-medium"
-                        : "text-gray-700 hover:text-blue-600"
-                    }`}
-                  >
-                    My Learning
-                  </Link>
-                </>
-              )}
-
-              {isAuthenticated ? (
-                <div className="flex items-center gap-4">
-                  {/* Cart */}
-                  <CartIcon onClick={() => setCartDrawerOpen(true)} />
-
-                  {/* Wishlist */}
-                  <button
-                    onClick={() => navigate(USER_ROUTES.WISHLIST)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                    aria-label="Wishlist"
-                  >
-                    <Heart
-                      className={`w-5 h-5 ${
-                        isActivePath(USER_ROUTES.WISHLIST)
-                          ? "text-red-500"
-                          : "text-gray-600"
-                      }`}
-                      aria-hidden="true"
-                    />
-                  </button>
-
-                  {/* User Menu */}
-                  <div className="relative">
-                    <button
-                      ref={menuTriggerRef}
-                      data-testid="user-menu"
-                      onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      aria-expanded={userMenuOpen}
-                      aria-haspopup="menu"
-                      aria-controls="user-dropdown-menu"
-                      aria-label="User menu"
-                    >
-                      <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
-                        <CloudinaryImage
-                          src={user?.profilePictureUrl}
-                          alt={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || "User avatar"}
-                          widths={[64]}
-                          priority={true}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                        {!user?.profilePictureUrl && (user?.firstName?.charAt(0).toUpperCase() || "U")}
-                      </div>
-                    </button>
-
-                    {/* Dropdown */}
-                    {userMenuOpen && (
-                      <div
-                        id="user-dropdown-menu"
-                        role="menu"
-                        tabIndex={-1}
-                        aria-label="User account options"
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
-                        onKeyDown={handleMenuKeyDown}
-                      >
-                        <div className="px-4 py-2 border-b">
-                          <p className="font-semibold text-gray-900">
-                            {user?.firstName} {user?.lastName}
-                          </p>
-                          <p className="text-sm text-gray-600">{user?.email}</p>
-                        </div>
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.DASHBOARD);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
-                          Dashboard
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.LEARNING);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <BookOpen className="w-4 h-4" aria-hidden="true" />
-                          My Learning
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.CERTIFICATES);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <Award className="w-4 h-4" aria-hidden="true" />
-                          Certificates
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.WISHLIST);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <Heart className="w-4 h-4" aria-hidden="true" />
-                          Wishlist
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.ORDERS);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <Package className="w-4 h-4" aria-hidden="true" />
-                          My Orders
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.REFUNDS);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                          My Refunds
-                        </button>
-
-                        {/* ========================================== */}
-                        {/* STUDENT: Teacher Application Section */}
-                        {/* ========================================== */}
-                        {isStudent && (
-                          <>
-                            <div role="separator" className="border-t border-gray-100 my-2" />
-
-                            {!hasApplication ? (
-                              <button
-                                role="menuitem"
-                                onClick={() => {
-                                  navigate(USER_ROUTES.TEACHER_APPLICATION);
-                                  setUserMenuOpen(false);
-                                }}
-                                className="w-full flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium"
-                              >
-                                <UserPlus className="w-4 h-4 mr-3" aria-hidden="true" />
-                                <span>Become a Teacher</span>
-                              </button>
-                            ) : (
-                              <button
-                                role="menuitem"
-                                onClick={() => {
-                                  navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS);
-                                  setUserMenuOpen(false);
-                                }}
-                                className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                <FileText className="w-4 h-4 mr-3 text-gray-400" aria-hidden="true" />
-                                <span>Application Status</span>
-                              </button>
-                            )}
-                          </>
-                        )}
-
-                        {/* ========================================== */}
-                        {/* TEACHER: Teacher Dashboard Link */}
-                        {/* ========================================== */}
-                        {isTeacher && (
-                          <>
-                            <div role="separator" className="border-t border-gray-100 my-2" />
-                            <button
-                              role="menuitem"
-                              onClick={() => {
-                                navigate(TEACHER_ROUTES.DASHBOARD);
-                                setUserMenuOpen(false);
-                              }}
-                              className="w-full flex items-center px-4 py-2 text-sm text-green-600 hover:bg-green-50 font-medium"
-                            >
-                              <GraduationCap className="w-4 h-4 mr-3" aria-hidden="true" />
-                              Teacher Dashboard
-                            </button>
-                          </>
-                        )}
-
-                        <div role="separator" className="border-t my-2" />
-
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            navigate(USER_ROUTES.PROFILE_SETTINGS);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
-                        >
-                          <Settings className="w-4 h-4" aria-hidden="true" />
-                          Settings
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-red-600"
-                        >
-                          <LogOut className="w-4 h-4" aria-hidden="true" />
-                          Logout
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate(USER_ROUTES.LOGIN)}
-                  >
-                    Login
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => navigate(USER_ROUTES.SIGNUP)}
-                  >
-                    Sign Up
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Menu Button + Cart Icon */}
-            <div className="flex items-center gap-1 md:hidden">
-              {/* Cart Icon - Always visible on mobile for authenticated users */}
-              {isAuthenticated && (
-                <CartIcon onClick={() => setCartDrawerOpen(true)} />
-              )}
-              
-              {/* Hamburger Menu */}
-              <button
-                className="hover:bg-gray-100 rounded-lg transition-colors"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                aria-expanded={mobileMenuOpen}
-                aria-controls="mobile-navigation"
-                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              >
-                {mobileMenuOpen ? (
-                  <X className="w-6 h-6" aria-hidden="true" />
-                ) : (
-                  <Menu className="w-6 h-6" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <nav id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden py-4 border-t">
-              <ul className="flex flex-col gap-4">
-                <li>
-                  <Link
-                    to={USER_ROUTES.COURSES}
-                    className="text-gray-700 hover:text-blue-600"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Browse Courses
-                  </Link>
-                </li>
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center gap-6">
+                <Link
+                  to={USER_ROUTES.COURSES}
+                  className={`transition-colors ${
+                    isActivePath(USER_ROUTES.COURSES) &&
+                    !isActivePath(USER_ROUTES.COURSES + "/")
+                      ? "text-blue-600 font-medium"
+                      : "text-gray-700 hover:text-blue-600"
+                  }`}
+                >
+                  Browse Courses
+                </Link>
 
                 {isAuthenticated && (
                   <>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.DASHBOARD}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.LEARNING}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        My Learning
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.WISHLIST}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Wishlist
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.CERTIFICATES}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Certificates
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.ORDERS}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        My Orders
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.REFUNDS}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        My Refunds
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to={USER_ROUTES.PROFILE_SETTINGS}
-                        className="text-gray-700 hover:text-blue-600"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Settings
-                      </Link>
-                    </li>
-
-                    {/* ========================================== */}
-                    {/* MOBILE: Teacher Application Links */}
-                    {/* ========================================== */}
-                    {isStudent && (
-                      <>
-                        <li className="border-t border-gray-200 my-2" />
-                        {!hasApplication ? (
-                          <li>
-                            <Link
-                              to={USER_ROUTES.TEACHER_APPLICATION}
-                              className="flex items-center justify-between text-blue-600 font-medium"
-                              onClick={() => setMobileMenuOpen(false)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <UserPlus className="w-5 h-5" />
-                                <span>Become a Teacher</span>
-                              </div>
-                            </Link>
-                          </li>
-                        ) : (
-                          <li>
-                            <Link
-                              to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-                              className="flex items-center justify-between text-gray-700 hover:text-blue-600"
-                              onClick={() => setMobileMenuOpen(false)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <FileText className="w-5 h-5" />
-                                <span>Application Status</span>
-                              </div>
-                            </Link>
-                          </li>
-                        )}
-                      </>
-                    )}
-
-                    {/* MOBILE: Teacher Dashboard Link */}
-                    {isTeacher && (
-                      <>
-                        <li className="border-t border-gray-200 my-2" />
-                        <li>
-                          <Link
-                            to={TEACHER_ROUTES.DASHBOARD}
-                            className="flex items-center gap-2 text-green-600 font-medium"
-                            onClick={() => setMobileMenuOpen(false)}
-                          >
-                            <GraduationCap className="w-5 h-5" />
-                            <span>Teacher Dashboard</span>
-                          </Link>
-                        </li>
-                      </>
-                    )}
+                    <Link
+                      to={USER_ROUTES.DASHBOARD}
+                      className={`transition-colors ${
+                        isActivePath(USER_ROUTES.DASHBOARD)
+                          ? "text-blue-600 font-medium"
+                          : "text-gray-700 hover:text-blue-600"
+                      }`}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to={USER_ROUTES.LEARNING}
+                      className={`transition-colors ${
+                        isActivePath(USER_ROUTES.LEARNING)
+                          ? "text-blue-600 font-medium"
+                          : "text-gray-700 hover:text-blue-600"
+                      }`}
+                    >
+                      My Learning
+                    </Link>
                   </>
                 )}
 
                 {isAuthenticated ? (
-                  <li>
+                  <div className="flex items-center gap-4">
+                    {/* Cart */}
+                    <CartIcon onClick={() => setCartDrawerOpen(true)} />
+
+                    {/* Wishlist */}
+                    <button
+                      onClick={() => navigate(USER_ROUTES.WISHLIST)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      aria-label="Wishlist"
+                    >
+                      <Heart
+                        className={`w-5 h-5 ${
+                          isActivePath(USER_ROUTES.WISHLIST)
+                            ? "text-red-500"
+                            : "text-gray-600"
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+
+                    {/* User Menu */}
+                    <div className="relative">
+                      <button
+                        ref={menuTriggerRef}
+                        data-testid="user-menu"
+                        onClick={() => setUserMenuOpen(!userMenuOpen)}
+                        className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        aria-expanded={userMenuOpen}
+                        aria-haspopup="menu"
+                        aria-controls="user-dropdown-menu"
+                        aria-label="User menu"
+                      >
+                        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
+                          <CloudinaryImage
+                            src={user?.profilePictureUrl}
+                            alt={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || "User avatar"}
+                            widths={[64]}
+                            priority={true}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                          {!user?.profilePictureUrl && (user?.firstName?.charAt(0).toUpperCase() || "U")}
+                        </div>
+                      </button>
+
+                      {/* Dropdown */}
+                      {userMenuOpen && (
+                        <div
+                          id="user-dropdown-menu"
+                          role="menu"
+                          tabIndex={-1}
+                          aria-label="User account options"
+                          className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+                          onKeyDown={handleMenuKeyDown}
+                        >
+                          <div className="px-4 py-2 border-b">
+                            <p className="font-semibold text-gray-900">
+                              {user?.firstName} {user?.lastName}
+                            </p>
+                            <p className="text-sm text-gray-600">{user?.email}</p>
+                          </div>
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.DASHBOARD);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
+                            Dashboard
+                          </button>
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.LEARNING);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <BookOpen className="w-4 h-4" aria-hidden="true" />
+                            My Learning
+                          </button>
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.CERTIFICATES);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Award className="w-4 h-4" aria-hidden="true" />
+                            Certificates
+                          </button>
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.WISHLIST);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Heart className="w-4 h-4" aria-hidden="true" />
+                            Wishlist
+                          </button>
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.ORDERS);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Package className="w-4 h-4" aria-hidden="true" />
+                            My Orders
+                          </button>
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.REFUNDS);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                            My Refunds
+                          </button>
+
+                          {/* ========================================== */}
+                          {/* STUDENT: Teacher Application Section */}
+                          {/* ========================================== */}
+                          {isStudent && (
+                            <>
+                              <div role="separator" className="border-t border-gray-100 my-2" />
+
+                              {!hasApplication ? (
+                                <button
+                                  role="menuitem"
+                                  onClick={() => {
+                                    navigate(USER_ROUTES.TEACHER_APPLICATION);
+                                    setUserMenuOpen(false);
+                                  }}
+                                  className="w-full flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium"
+                                >
+                                  <UserPlus className="w-4 h-4 mr-3" aria-hidden="true" />
+                                  <span>Become a Teacher</span>
+                                </button>
+                              ) : (
+                                <button
+                                  role="menuitem"
+                                  onClick={() => {
+                                    navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS);
+                                    setUserMenuOpen(false);
+                                  }}
+                                  className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <FileText className="w-4 h-4 mr-3 text-gray-400" aria-hidden="true" />
+                                  <span>Application Status</span>
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* ========================================== */}
+                          {/* TEACHER: Teacher Dashboard Link */}
+                          {/* ========================================== */}
+                          {isTeacher && (
+                            <>
+                              <div role="separator" className="border-t border-gray-100 my-2" />
+                              <button
+                                role="menuitem"
+                                onClick={() => {
+                                  navigate(TEACHER_ROUTES.DASHBOARD);
+                                  setUserMenuOpen(false);
+                                }}
+                                className="w-full flex items-center px-4 py-2 text-sm text-green-600 hover:bg-green-50 font-medium"
+                              >
+                                <GraduationCap className="w-4 h-4 mr-3" aria-hidden="true" />
+                                Teacher Dashboard
+                              </button>
+                            </>
+                          )}
+
+                          <div role="separator" className="border-t my-2" />
+
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              navigate(USER_ROUTES.PROFILE_SETTINGS);
+                              setUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Settings className="w-4 h-4" aria-hidden="true" />
+                            Settings
+                          </button>
+
+                          <button
+                            role="menuitem"
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-red-600"
+                          >
+                            <LogOut className="w-4 h-4" aria-hidden="true" />
+                            Logout
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
                     <Button
                       variant="secondary"
-                      onClick={handleLogout}
-                      className="w-full"
+                      onClick={() => navigate(USER_ROUTES.LOGIN)}
                     >
-                      Logout
+                      Login
                     </Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => navigate(USER_ROUTES.SIGNUP)}
+                    >
+                      Sign Up
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Menu Button + Cart Icon */}
+              <div className="flex items-center gap-1 md:hidden">
+                {/* Cart Icon - Always visible on mobile for authenticated users */}
+                {isAuthenticated && (
+                  <CartIcon onClick={() => setCartDrawerOpen(true)} />
+                )}
+                
+                {/* Hamburger Menu */}
+                <button
+                  className="hover:bg-gray-100 rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  aria-expanded={mobileMenuOpen}
+                  aria-controls="mobile-navigation"
+                  aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                >
+                  {mobileMenuOpen ? (
+                    <X className="w-6 h-6" aria-hidden="true" />
+                  ) : (
+                    <Menu className="w-6 h-6" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Menu */}
+            {mobileMenuOpen && (
+              <nav id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden py-4 border-t">
+                <ul className="flex flex-col gap-4">
+                  <li>
+                    <Link
+                      to={USER_ROUTES.COURSES}
+                      className="text-gray-700 hover:text-blue-600"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Browse Courses
+                    </Link>
                   </li>
-                ) : (
-                  <>
+
+                  {isAuthenticated && (
+                    <>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.DASHBOARD}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Dashboard
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.LEARNING}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          My Learning
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.WISHLIST}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Wishlist
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.CERTIFICATES}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Certificates
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.ORDERS}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          My Orders
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.REFUNDS}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          My Refunds
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to={USER_ROUTES.PROFILE_SETTINGS}
+                          className="text-gray-700 hover:text-blue-600"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Settings
+                        </Link>
+                      </li>
+
+                      {/* ========================================== */}
+                      {/* MOBILE: Teacher Application Links */}
+                      {/* ========================================== */}
+                      {isStudent && (
+                        <>
+                          <li className="border-t border-gray-200 my-2" />
+                          {!hasApplication ? (
+                            <li>
+                              <Link
+                                to={USER_ROUTES.TEACHER_APPLICATION}
+                                className="flex items-center justify-between text-blue-600 font-medium"
+                                onClick={() => setMobileMenuOpen(false)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <UserPlus className="w-5 h-5" />
+                                  <span>Become a Teacher</span>
+                                </div>
+                              </Link>
+                            </li>
+                          ) : (
+                            <li>
+                              <Link
+                                to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+                                className="flex items-center justify-between text-gray-700 hover:text-blue-600"
+                                onClick={() => setMobileMenuOpen(false)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-5 h-5" />
+                                  <span>Application Status</span>
+                                </div>
+                              </Link>
+                            </li>
+                          )}
+                        </>
+                      )}
+
+                      {/* MOBILE: Teacher Dashboard Link */}
+                      {isTeacher && (
+                        <>
+                          <li className="border-t border-gray-200 my-2" />
+                          <li>
+                            <Link
+                              to={TEACHER_ROUTES.DASHBOARD}
+                              className="flex items-center gap-2 text-green-600 font-medium"
+                              onClick={() => setMobileMenuOpen(false)}
+                            >
+                              <GraduationCap className="w-5 h-5" />
+                              <span>Teacher Dashboard</span>
+                            </Link>
+                          </li>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {isAuthenticated ? (
                     <li>
                       <Button
                         variant="secondary"
-                        onClick={() => {
-                          navigate(USER_ROUTES.LOGIN);
-                          setMobileMenuOpen(false);
-                        }}
+                        onClick={handleLogout}
                         className="w-full"
                       >
-                        Login
+                        Logout
                       </Button>
                     </li>
-                    <li>
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          navigate(USER_ROUTES.SIGNUP);
-                          setMobileMenuOpen(false);
-                        }}
-                        className="w-full"
-                      >
-                        Sign Up
-                      </Button>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </nav>
-          )}
-        </div>
-      </nav>
+                  ) : (
+                    <>
+                      <li>
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            navigate(USER_ROUTES.LOGIN);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full"
+                        >
+                          Login
+                        </Button>
+                      </li>
+                      <li>
+                        <Button
+                          variant="primary"
+                          onClick={() => {
+                            navigate(USER_ROUTES.SIGNUP);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full"
+                        >
+                          Sign Up
+                        </Button>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </nav>
+            )}
+          </div>
+        </nav>
       </header>
 
       {/* Main Content */}
       <main
         id="main-content"
+        aria-label="Main content"
         tabIndex={-1}
         className="scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600"
       >

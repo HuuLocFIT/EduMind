@@ -13,8 +13,14 @@ export const AuthLayout: React.FC = () => {
     const main = document.getElementById("main-content");
     if (!main) return;
 
-    const targetTop = main.getBoundingClientRect().top + window.scrollY;
-    main.focus({ preventScroll: true });
+    const heading = main.querySelector<HTMLElement>(
+      "h1:not([aria-hidden='true'])",
+    );
+    const target = heading ?? main;
+    const targetTop = target.getBoundingClientRect().top + window.scrollY;
+
+    if (heading) heading.tabIndex = -1;
+    target.focus({ preventScroll: true });
     window.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: "auto" });
   };
 
@@ -68,6 +74,7 @@ export const AuthLayout: React.FC = () => {
       {/* Main Content */}
       <main
         id="main-content"
+        aria-label="Main content"
         tabIndex={-1}
         className="relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600"
       >

@@ -51,8 +51,10 @@ describe("layout accessibility contracts", () => {
     await user.tab();
     expect(skipLink).toHaveFocus();
     const main = screen.getByRole("main");
+    const heading = screen.getByRole("heading", { name: "Courses", level: 1 });
     await user.keyboard("{Enter}");
-    expect(main).toHaveFocus();
+    expect(heading).toHaveFocus();
+    expect(heading).toHaveAttribute("tabindex", "-1");
     expect(main).toHaveAttribute("id", "main-content");
     expect(main).toHaveClass("scroll-mt-16");
     expect(window.scrollTo).toHaveBeenCalledWith({
@@ -86,7 +88,9 @@ describe("layout accessibility contracts", () => {
       "/login?redirect=/checkout#main-content",
     );
     await user.keyboard("{Enter}");
-    expect(screen.getByRole("main")).toHaveFocus();
+    const heading = screen.getByRole("heading", { name: "Sign in", level: 1 });
+    expect(heading).toHaveFocus();
+    expect(heading).toHaveAttribute("tabindex", "-1");
     expect(window.location.hash).toBe("");
     expect(screen.getAllByRole("main")).toHaveLength(1);
     expect(screen.getByRole("main")).toHaveAttribute("tabindex", "-1");
