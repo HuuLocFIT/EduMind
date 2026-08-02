@@ -35,15 +35,15 @@ vi.mock('@edumind/user-ui', () => ({
 }));
 
 vi.mock('lucide-react', () => ({
-  QrCode: () => <span data-testid="icon-qrcode">QrCodeIcon</span>,
-  Clock: () => <span data-testid="icon-clock">ClockIcon</span>,
-  CheckCircle: () => <span data-testid="icon-check-circle">CheckCircleIcon</span>,
-  XCircle: () => <span data-testid="icon-xcircle">XCircleIcon</span>,
-  RefreshCw: () => <span data-testid="icon-refresh">RefreshIcon</span>,
-  ArrowLeft: () => <span data-testid="icon-arrow-left">ArrowLeftIcon</span>,
-  Smartphone: () => <span data-testid="icon-smartphone">SmartphoneIcon</span>,
-  Copy: () => <span data-testid="icon-copy">CopyIcon</span>,
-  Check: () => <span data-testid="icon-check">CheckIcon</span>,
+  QrCode: (props: any) => <span {...props} data-testid="icon-qrcode">QrCodeIcon</span>,
+  Clock: (props: any) => <span {...props} data-testid="icon-clock">ClockIcon</span>,
+  CheckCircle: (props: any) => <span {...props} data-testid="icon-check-circle">CheckCircleIcon</span>,
+  XCircle: (props: any) => <span {...props} data-testid="icon-xcircle">XCircleIcon</span>,
+  RefreshCw: (props: any) => <span {...props} data-testid="icon-refresh">RefreshIcon</span>,
+  ArrowLeft: (props: any) => <span {...props} data-testid="icon-arrow-left">ArrowLeftIcon</span>,
+  Smartphone: (props: any) => <span {...props} data-testid="icon-smartphone">SmartphoneIcon</span>,
+  Copy: (props: any) => <span {...props} data-testid="icon-copy">CopyIcon</span>,
+  Check: (props: any) => <span {...props} data-testid="icon-check">CheckIcon</span>,
 }));
 
 describe('SepayQrPage', () => {
@@ -128,12 +128,15 @@ describe('SepayQrPage', () => {
       setupValidParams();
     });
 
-    it('renders QR code image', () => {
-      render(<SepayQrPage />);
+    it('renders the QR code visually but hides it from assistive technology', () => {
+      const { container } = render(<SepayQrPage />);
 
-      const qrImage = screen.getByRole('img', { name: /SePay QR Code/i });
+      const qrImage = container.querySelector('img');
       expect(qrImage).toBeInTheDocument();
       expect(qrImage).toHaveAttribute('src', 'https://sepay.vn/qr/test123.png');
+      expect(qrImage).toHaveAttribute('alt', '');
+      expect(qrImage).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
     });
 
     it('displays time remaining countdown', () => {
@@ -147,9 +150,9 @@ describe('SepayQrPage', () => {
     it('displays amount and currency', () => {
       render(<SepayQrPage />);
 
-      expect(screen.getByText('Amount:')).toBeInTheDocument();
-      expect(screen.getByText(/1.250.000/)).toBeInTheDocument();
-      expect(screen.getByText(/VND/)).toBeInTheDocument();
+      expect(screen.getByText('Amount: 1,250,000 Vietnamese dong')).toHaveClass('sr-only');
+      expect(screen.getByText('Amount:')).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.getByText(/1.250.000 VND/)).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('displays order number with copy button', () => {
@@ -562,9 +565,9 @@ describe('SepayQrPage', () => {
     });
 
     it('handles QR image load error gracefully', () => {
-      render(<SepayQrPage />);
+      const { container } = render(<SepayQrPage />);
 
-      const qrImage = screen.getByRole('img', { name: /SePay QR Code/i });
+      const qrImage = container.querySelector('img') as HTMLImageElement;
 
       // Use fireEvent to trigger React's onError handler
       fireEvent.error(qrImage);

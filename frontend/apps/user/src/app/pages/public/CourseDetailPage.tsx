@@ -57,6 +57,7 @@ import {
   STALE_TIME_WISHLIST,
   STALE_TIME_ENROLLMENTS,
 } from "../../lib/query-config";
+import { hasPositiveCourseMetric } from "./course-detail.utils";
 
 export const CourseDetailPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
@@ -358,7 +359,7 @@ export const CourseDetailPage: React.FC = () => {
                   <Users aria-hidden="true" focusable="false" className="w-5 h-5" />
                   <span>{course.totalStudents || 0} students</span>
                 </div>
-                {course.durationHours && (
+                {hasPositiveCourseMetric(course.durationHours) && (
                   <div className="flex items-center gap-2 text-blue-100">
                     <Clock aria-hidden="true" focusable="false" className="w-5 h-5" />
                     <span>{course.durationHours}h</span>
@@ -476,7 +477,7 @@ export const CourseDetailPage: React.FC = () => {
                     This course includes:
                   </h2>
                   <ul className="space-y-3 text-sm text-gray-600">
-                    {course.durationHours && (
+                    {hasPositiveCourseMetric(course.durationHours) && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                           <Clock aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
@@ -486,7 +487,7 @@ export const CourseDetailPage: React.FC = () => {
                         </span>
                       </li>
                     )}
-                    {course.totalLessons && (
+                    {hasPositiveCourseMetric(course.totalLessons) && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                           <BookOpen aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />

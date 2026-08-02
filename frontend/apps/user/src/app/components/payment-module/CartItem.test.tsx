@@ -76,14 +76,16 @@ describe('CartItem', () => {
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     
     // Should render thumbnail
-    const img = screen.getByRole('img');
+    const img = document.querySelector('img') as HTMLImageElement;
     expect(img).toHaveAttribute('src', mockItem.courseThumbnailUrl);
-    expect(img).toHaveAttribute('alt', mockItem.courseTitle);
+    expect(img).toHaveAttribute('alt', '');
 
-    // Should link to course detail
+    // One stretched link makes the whole item clickable without adding duplicate tab stops.
     const links = screen.getAllByRole('link') as HTMLAnchorElement[];
-    // Assuming simple mock, just check at least one link points to course detail
-    expect(links.some(link => link.getAttribute('href') === '/courses/101')).toBe(true);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('href', '/courses/101');
+    expect(links[0]).toHaveClass('after:absolute', 'after:inset-0');
+    expect(links[0]).toHaveClass('focus-visible:after:outline-blue-500');
   });
 
   it('renders correctly in full mode (cart page)', () => {
@@ -100,6 +102,10 @@ describe('CartItem', () => {
     expect(screen.getByText('Advanced')).toBeInTheDocument(); // Level
     expect(screen.getByText('24 lessons')).toBeInTheDocument();
     expect(screen.getByText(/4.8/)).toBeInTheDocument(); // Rating
+
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveClass('after:absolute', 'after:inset-0');
   });
 
   it('handles regular remove click', async () => {
@@ -114,9 +120,9 @@ describe('CartItem', () => {
 
     // Need to find the button. In Full mode, there might be mobile and desktop buttons.
     // Let's find by Trash icon text or aria label if implemented, or just "Remove" text
-    const removeBtns = screen.getAllByText('Remove');
-    // Click the first one (Desktop or Mobile doesn't matter for logic verification)
-    await user.click(removeBtns[0]);
+    const removeBtn = screen.getByRole('button', { name: 'Remove Advanced React Patterns from cart' });
+    expect(removeBtn).toHaveClass('min-h-11', 'min-w-11');
+    await user.click(removeBtn);
 
     expect(mockOnRemove).toHaveBeenCalledWith(101);
   });
@@ -131,7 +137,8 @@ describe('CartItem', () => {
       />
     );
 
-    const btn = screen.getByTitle('Remove from cart');
+    const btn = screen.getByRole('button', { name: 'Remove Advanced React Patterns from cart' });
+    expect(btn).toHaveClass('h-9', 'w-9');
     await user.click(btn);
 
     expect(mockOnRemove).toHaveBeenCalledWith(101);
@@ -228,7 +235,7 @@ describe('CartItem', () => {
         />
       );
 
-      const btn = screen.getByTitle('Remove from cart');
+      const btn = screen.getByRole('button', { name: 'Remove Unavailable Course from cart' });
       await user.click(btn);
 
       expect(mockOnRemove).toHaveBeenCalledWith(102);

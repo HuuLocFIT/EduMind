@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button, Loading } from "@edumind/user-ui";
 import { CheckCircle, ArrowRight, BookOpen, Package, XCircle, RefreshCw, FileText, Clock } from "lucide-react";
@@ -6,7 +6,7 @@ import { USER_ROUTES } from "@edumind/shared-utils";
 import { useCapturePayment, usePaymentStatus } from "../../hooks/useCheckout";
 import type { CheckoutResultResponse } from "@edumind/shared-types";
 
-type PageState = "loading" | "success" | "error";
+type PageState = "loading" | "pending" | "success" | "error";
 
 export const CheckoutSuccessPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,34 +15,50 @@ export const CheckoutSuccessPage: React.FC = () => {
 
   // PayPal returns ?token=ORDER_ID after user approval
   const token = searchParams.get("token");
-  // Our backend may also send ?orderId=... for direct success
-  const orderId = searchParams.get("orderId");
-  // For non-redirect payments, order number is passed directly
-  const orderNumberParam = searchParams.get("order");
+  const rawOrderId = searchParams.get("orderId");
+  const hasValidOrderId = rawOrderId !== null && /^\d+$/.test(rawOrderId) && Number(rawOrderId) > 0;
+  const parsedOrderId = hasValidOrderId ? Number(rawOrderId) : null;
 
-  const [pageState, setPageState] = useState<PageState>(token ? "loading" : "success");
-  const [orderNumber, setOrderNumber] = useState<string | null>(orderNumberParam);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pageState, setPageState] = useState<PageState>(token || hasValidOrderId ? "loading" : "error");
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(() => {
+    if (rawOrderId !== null) return "The order ID in this link is invalid.";
+    return "This payment link is missing the information needed to verify your order.";
+  });
   const [captureResult, setCaptureResult] = useState<CheckoutResultResponse | null>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const parsedOrderId = orderId ? Number(orderId) : null;
-
-  // Fetch order status for SePay flow (orderId present, no token)
-  // Uses a single fetch (no polling) to get invoice data
-  const { data: orderStatusData } = usePaymentStatus(parsedOrderId, {
+  // The status endpoint is the source of truth for direct/SePay success URLs.
+  const { data: orderStatusData, isError: isOrderStatusError, error: orderStatusError } = usePaymentStatus(parsedOrderId, {
     enabled: !token && parsedOrderId !== null && parsedOrderId > 0,
     refetchInterval: false,
   });
 
-  // Populate captureResult from order status (SePay flow)
+  // Never trust URL parameters as proof of payment. Only a backend-confirmed
+  // COMPLETED order may transition this page to success.
   useEffect(() => {
-    if (orderStatusData && !captureResult) {
-      setCaptureResult(orderStatusData);
-      if (orderStatusData.orderNumber) {
-        setOrderNumber(orderStatusData.orderNumber);
-      }
+    if (token || parsedOrderId === null) return;
+
+    if (isOrderStatusError) {
+      setErrorMessage(orderStatusError instanceof Error ? orderStatusError.message : "We couldn't verify this payment.");
+      setPageState("error");
+      return;
     }
-  }, [orderStatusData, captureResult]);
+
+    if (!orderStatusData) return;
+
+    setCaptureResult(orderStatusData);
+    setOrderNumber(orderStatusData.orderNumber || null);
+
+    if (orderStatusData.success && orderStatusData.orderStatus === "COMPLETED") {
+      setPageState("success");
+    } else if (orderStatusData.pending || ["PENDING", "PROCESSING"].includes(orderStatusData.orderStatus || "")) {
+      setPageState("pending");
+    } else {
+      setErrorMessage(orderStatusData.message || orderStatusData.errorMessage || "This payment was not completed.");
+      setPageState("error");
+    }
+  }, [token, parsedOrderId, orderStatusData, isOrderStatusError, orderStatusError]);
 
   // Handle PayPal capture when token is present
   useEffect(() => {
@@ -66,6 +82,14 @@ export const CheckoutSuccessPage: React.FC = () => {
     }
   }, [token, pageState]);
 
+  // Move focus when capture completes so keyboard and screen-reader users do
+  // not remain on a loading state that no longer exists.
+  useEffect(() => {
+    if (pageState !== "loading") {
+      resultHeadingRef.current?.focus();
+    }
+  }, [pageState]);
+
   // Format currency with proper locale
   const formatCurrency = (amount: number | null | undefined, currency: string | null | undefined) => {
     if (amount === null || amount === undefined) return null;
@@ -87,13 +111,39 @@ export const CheckoutSuccessPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
-          <Loading />
-          <h2 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
-            Completing Your Payment
-          </h2>
-          <p className="text-gray-600">
-            Please wait while we confirm your payment with PayPal...
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <Loading />
+            <h1 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
+              Completing Your Payment
+            </h1>
+            <p className="text-gray-600">
+              {token
+                ? "Please wait while we confirm your payment with PayPal..."
+                : "Please wait while we verify your order with the payment provider..."}
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (pageState === "pending") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center" role="status" aria-live="polite">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Clock className="w-8 h-8 text-amber-600" aria-hidden="true" />
+          </div>
+          <h1 ref={resultHeadingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none">
+            Payment Is Being Confirmed
+          </h1>
+          <p className="text-gray-600 mb-6">
+            We have not received final confirmation yet. Check your orders again shortly.
           </p>
+          {orderNumber && <p className="text-sm text-gray-600 mb-6">Order Number: <span className="font-mono font-semibold">{orderNumber}</span></p>}
+          <Button variant="primary" className="w-full" onClick={() => navigate(USER_ROUTES.ORDERS)}>
+            View Orders
+          </Button>
         </Card>
       </div>
     );
@@ -103,12 +153,17 @@ export const CheckoutSuccessPage: React.FC = () => {
   if (pageState === "error") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
+        <Card className="max-w-md w-full p-8 text-center" role="alert" aria-labelledby="capture-error-heading">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <XCircle className="w-8 h-8 text-red-600" />
+            <XCircle className="w-8 h-8 text-red-600" aria-hidden="true" />
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1
+            id="capture-error-heading"
+            ref={resultHeadingRef}
+            tabIndex={-1}
+            className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none"
+          >
             Payment Failed
           </h1>
           <p className="text-gray-600 mb-6">
@@ -120,7 +175,7 @@ export const CheckoutSuccessPage: React.FC = () => {
               variant="primary"
               className="w-full"
               onClick={() => navigate(USER_ROUTES.CHECKOUT)}
-              leftIcon={<RefreshCw className="w-4 h-4" />}
+              leftIcon={<RefreshCw className="w-4 h-4" aria-hidden="true" />}
             >
               Try Again
             </Button>
@@ -143,41 +198,46 @@ export const CheckoutSuccessPage: React.FC = () => {
       <Card className="max-w-md w-full p-8 text-center">
         {/* Success Icon */}
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="w-8 h-8 text-green-600" />
+          <CheckCircle className="w-8 h-8 text-green-600" aria-hidden="true" />
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1
+          ref={resultHeadingRef}
+          tabIndex={-1}
+          className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none"
+        >
           Payment Successful!
         </h1>
+        <p className="sr-only" role="status" aria-live="polite">
+          Payment completed successfully.
+        </p>
         <p className="text-gray-600 mb-6">
           Thank you for your purchase. Your order has been confirmed.
         </p>
 
         {/* Order Number */}
         {orderNumber && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-4">
-            <p className="text-sm text-gray-500">Order Number</p>
-            <p className="text-lg font-mono font-semibold text-gray-900">
-              {orderNumber}
-            </p>
-          </div>
+          <dl className="bg-gray-50 rounded-lg p-4 mb-4">
+            <dt className="text-sm text-gray-500">Order Number</dt>
+            <dd className="text-lg font-mono font-semibold text-gray-900">{orderNumber}</dd>
+          </dl>
         )}
 
         {/* Payment Amount - Show local currency for SePay VND payments */}
         {captureResult?.localAmount && captureResult?.localCurrency && (
-          <div className="bg-blue-50 rounded-lg p-4 mb-4">
-            <p className="text-sm text-blue-600">Amount Paid</p>
-            <p className="text-lg font-semibold text-blue-900">
+          <dl className="bg-blue-50 rounded-lg p-4 mb-4">
+            <dt className="text-sm text-blue-600">Amount Paid</dt>
+            <dd className="text-lg font-semibold text-blue-900">
               {formatCurrency(captureResult.localAmount, captureResult.localCurrency)}
-            </p>
+            </dd>
             {captureResult.totalAmount && captureResult.currency &&
              captureResult.currency !== captureResult.localCurrency && (
-              <p className="text-xs text-blue-600 mt-1">
+              <dd className="text-xs text-blue-600 mt-1">
                 ({formatCurrency(captureResult.totalAmount, captureResult.currency)})
-              </p>
+              </dd>
             )}
-          </div>
+          </dl>
         )}
 
         {/* Invoice Section */}
@@ -189,12 +249,12 @@ export const CheckoutSuccessPage: React.FC = () => {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700"
             >
-              <FileText className="w-4 h-4 text-blue-600" />
+              <FileText className="w-4 h-4 text-blue-600" aria-hidden="true" />
               Download Invoice ({captureResult.invoiceNumber})
             </a>
           ) : captureResult && !captureResult.invoiceNumber ? (
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg text-sm text-gray-500">
-              <Clock className="w-4 h-4" />
+              <Clock className="w-4 h-4" aria-hidden="true" />
               Invoice will be generated shortly
             </div>
           ) : null}
@@ -212,9 +272,9 @@ export const CheckoutSuccessPage: React.FC = () => {
             variant="primary"
             className="w-full"
             onClick={() => navigate(USER_ROUTES.LEARNING)}
-            rightIcon={<ArrowRight className="w-4 h-4" />}
+            rightIcon={<ArrowRight className="w-4 h-4" aria-hidden="true" />}
           >
-            <BookOpen className="w-4 h-4 mr-2" />
+            <BookOpen className="w-4 h-4 mr-2" aria-hidden="true" />
             Start Learning
           </Button>
           <Button
@@ -222,7 +282,7 @@ export const CheckoutSuccessPage: React.FC = () => {
             className="w-full"
             onClick={() => navigate(USER_ROUTES.ORDERS)}
           >
-            <Package className="w-4 h-4 mr-2" />
+            <Package className="w-4 h-4 mr-2" aria-hidden="true" />
             View Order Details
           </Button>
         </div>

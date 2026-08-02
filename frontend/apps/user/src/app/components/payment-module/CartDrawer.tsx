@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { X, ShoppingCart, ArrowRight, AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Button, Loading, useToast } from "@edumind/user-ui";
+import { Link, useNavigate } from "react-router-dom";
+import { Button, ConfirmDialog, Loading, useToast } from "@edumind/user-ui";
 import { useCart, useRemoveFromCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
@@ -19,6 +19,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const { data: cart, isLoading } = useCart();
   const removeFromCart = useRemoveFromCart();
   const { setCart, pendingRemovals } = useCartStore();
+  const [announcement, setAnnouncement] = React.useState("");
+  const [pendingRemovalFocus, setPendingRemovalFocus] = React.useState<{ courseId: number; index: number } | null>(null);
+  const [coursePendingRemoval, setCoursePendingRemoval] = React.useState<number | null>(null);
+  const drawerHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
 
   // Sync server data to local store
   useEffect(() => {
@@ -27,7 +32,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     }
   }, [cart, setCart]);
 
-  const drawerRef = useFocusTrap(isOpen, onClose);
+  const drawerRef = useFocusTrap(isOpen && coursePendingRemoval === null, onClose);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
@@ -42,7 +47,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const handleRemove = (courseId: number) => {
-    removeFromCart.mutate(courseId);
+    setCoursePendingRemoval(courseId);
+  };
+
+  const confirmRemove = () => {
+    const courseId = coursePendingRemoval;
+    if (courseId === null) return;
+    const removedIndex = items.findIndex((item) => item.courseId === courseId);
+    const removedItem = items[removedIndex];
+    if (!removedItem) return;
+    const remainingItems = items.filter((item) => item.courseId !== courseId);
+    const newTotal = remainingItems.reduce((sum, item) => sum + item.effectivePrice, 0);
+
+    removeFromCart.mutate(courseId, {
+      onSuccess: () => {
+        setCoursePendingRemoval(null);
+        setAnnouncement(`${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`);
+        setPendingRemovalFocus({ courseId, index: removedIndex });
+      },
+      onError: (error: Error) => showError(error.message || `Failed to remove ${removedItem.courseTitle}`),
+    });
   };
 
   const handleViewCart = () => {
@@ -50,15 +74,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     navigate(USER_ROUTES.CART);
   };
 
-  if (!isOpen) return null;
-
-  const items = cart?.items || [];
+  const items = useMemo(() => cart?.items || [], [cart?.items]);
   const totalAmount = cart?.totalAmount || 0;
   const currency = cart?.currency || "USD";
 
   // Check for unavailable items
   const unavailableItems = items.filter((item) => item.isAvailable === false);
   const hasUnavailableItems = unavailableItems.length > 0;
+
+  useEffect(() => {
+    if (!pendingRemovalFocus || items.some((item) => item.courseId === pendingRemovalFocus.courseId)) return;
+
+    const remaining = drawerRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
+    const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
+    const target = remaining?.[targetIndex];
+    const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || drawerHeadingRef.current;
+    focusTarget?.focus();
+    setPendingRemovalFocus(null);
+  }, [drawerRef, items, pendingRemovalFocus]);
+
+  if (!isOpen) return null;
 
   const handleCheckout = () => {
     if (hasUnavailableItems) {
@@ -83,16 +118,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Shopping Cart"
+        aria-label={`Shopping Cart, ${items.length} ${items.length === 1 ? "item" : "items"}`}
         className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold">Shopping Cart</h2>
+            <ShoppingCart aria-hidden="true" className="w-5 h-5 text-blue-600" />
+            <h2 id="cart-drawer-title" ref={drawerHeadingRef} tabIndex={-1} className="text-lg font-semibold">Shopping Cart</h2>
             {items.length > 0 && (
-              <span className="bg-blue-100 text-blue-600 text-sm font-medium px-2 py-0.5 rounded-full">
+              <span aria-hidden="true" className="bg-blue-100 text-blue-600 text-sm font-medium px-2 py-0.5 rounded-full">
                 {items.length}
               </span>
             )}
@@ -115,22 +150,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12 text-center">
               <ShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
-              <p className="text-gray-600 mb-2">Your cart is empty</p>
+              <h3 ref={emptyHeadingRef} tabIndex={-1} className="text-gray-600 font-semibold mb-2">Your cart is empty</h3>
               <p className="text-sm text-gray-500 mb-6">
                 Browse courses and add them to your cart
               </p>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  onClose();
-                  navigate(USER_ROUTES.COURSES);
-                }}
-              >
-                Browse Courses
-              </Button>
+              <Link to={USER_ROUTES.COURSES} onClick={onClose} className="inline-flex rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Browse Courses</Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <ul className="space-y-3" aria-label="Courses in your cart">
               {items.map((item) => (
                 <CartItem
                   key={item.courseId}
@@ -140,7 +167,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   compact
                 />
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
@@ -158,12 +185,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
             )}
 
             {/* Total */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-gray-600">Total:</span>
-              <span className="text-2xl font-bold text-gray-900">
+            {/* WebKit's text role makes the split visual spans one VoiceOver navigation stop. */}
+            {/* eslint-disable jsx-a11y/aria-role */}
+            <div
+              className="flex items-center justify-between mb-4"
+              role="text"
+              aria-label={`Total ${totalAmount.toFixed(2)} ${currency === "USD" ? "US dollars" : currency}`}
+            >
+              <span aria-hidden="true" className="text-gray-600">Total:</span>
+              <span aria-hidden="true" className="text-2xl font-bold text-gray-900">
                 ${totalAmount.toFixed(2)} {currency}
               </span>
             </div>
+            {/* eslint-enable jsx-a11y/aria-role */}
 
             {/* Actions */}
             <div className="space-y-2">
@@ -172,10 +206,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 className="w-full"
                 onClick={handleCheckout}
                 disabled={hasUnavailableItems}
+                aria-describedby={hasUnavailableItems ? "cart-drawer-checkout-disabled-reason" : undefined}
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
                 {hasUnavailableItems ? "Remove unavailable items" : "Checkout"}
               </Button>
+              {hasUnavailableItems && <p id="cart-drawer-checkout-disabled-reason" className="text-xs text-amber-800">Checkout is unavailable until all unavailable courses are removed.</p>}
               <Button
                 variant="secondary"
                 className="w-full"
@@ -187,6 +223,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           </div>
         )}
       </div>
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
+      <ConfirmDialog
+        isOpen={coursePendingRemoval !== null}
+        onClose={() => setCoursePendingRemoval(null)}
+        onConfirm={confirmRemove}
+        title="Remove course from cart"
+        message={`Are you sure you want to remove ${items.find((item) => item.courseId === coursePendingRemoval)?.courseTitle || "this course"} from your cart?`}
+        confirmText="Remove course"
+        cancelText="Keep course"
+        variant="danger"
+        isLoading={removeFromCart.isPending}
+      />
     </>
   );
 };

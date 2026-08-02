@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import axe from 'axe-core';
 import { CheckoutSuccessPage } from './CheckoutSuccessPage';
 import { useCapturePayment, usePaymentStatus } from '../../hooks/useCheckout';
 import { USER_ROUTES } from '@edumind/shared-utils';
@@ -17,9 +18,10 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../../hooks/useCheckout');
 
 vi.mock('@edumind/user-ui', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
-  Button: ({ children, onClick, rightIcon, variant, className }: any) => (
-    <button onClick={onClick} className={className} data-variant={variant}>
+  Card: ({ children, className, ...props }: any) => <div className={className} {...props}>{children}</div>,
+  Button: ({ children, onClick, leftIcon, rightIcon, variant, className, ...props }: any) => (
+    <button onClick={onClick} className={className} data-variant={variant} {...props}>
+      {leftIcon}
       {children}
       {rightIcon}
     </button>
@@ -28,14 +30,14 @@ vi.mock('@edumind/user-ui', () => ({
 }));
 
 vi.mock('lucide-react', () => ({
-  CheckCircle: () => <span data-testid="icon-check-circle">CheckCircleIcon</span>,
-  ArrowRight: () => <span data-testid="icon-arrow-right">ArrowRightIcon</span>,
-  BookOpen: () => <span data-testid="icon-book-open">BookOpenIcon</span>,
-  Package: () => <span data-testid="icon-package">PackageIcon</span>,
-  XCircle: () => <span data-testid="icon-xcircle">XCircleIcon</span>,
-  RefreshCw: () => <span data-testid="icon-refresh">RefreshIcon</span>,
-  FileText: () => <span data-testid="icon-file-text">FileTextIcon</span>,
-  Clock: () => <span data-testid="icon-clock">ClockIcon</span>,
+  CheckCircle: (props: any) => <span data-testid="icon-check-circle" {...props}>CheckCircleIcon</span>,
+  ArrowRight: (props: any) => <span data-testid="icon-arrow-right" {...props}>ArrowRightIcon</span>,
+  BookOpen: (props: any) => <span data-testid="icon-book-open" {...props}>BookOpenIcon</span>,
+  Package: (props: any) => <span data-testid="icon-package" {...props}>PackageIcon</span>,
+  XCircle: (props: any) => <span data-testid="icon-xcircle" {...props}>XCircleIcon</span>,
+  RefreshCw: (props: any) => <span data-testid="icon-refresh" {...props}>RefreshIcon</span>,
+  FileText: (props: any) => <span data-testid="icon-file-text" {...props}>FileTextIcon</span>,
+  Clock: (props: any) => <span data-testid="icon-clock" {...props}>ClockIcon</span>,
 }));
 
 describe('CheckoutSuccessPage', () => {
@@ -43,6 +45,7 @@ describe('CheckoutSuccessPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCaptureMutate.mockReset();
     mockSearchParams = new URLSearchParams();
 
     (useCapturePayment as any).mockReturnValue({
@@ -59,6 +62,77 @@ describe('CheckoutSuccessPage', () => {
     });
   });
 
+  const expectNoSeriousAxeViolations = async (container: HTMLElement) => {
+    const result = await axe.run(container, {
+      // jsdom cannot calculate rendered foreground/background colors.
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(result.violations.filter(({ impact }) => impact === 'critical' || impact === 'serious')).toEqual([]);
+  };
+
+  describe('accessibility', () => {
+    it('exposes an accessible live loading state with no serious Axe violations', async () => {
+      mockSearchParams.set('token', 'PAYPAL-TOKEN');
+      const { container } = render(<CheckoutSuccessPage />);
+
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('Completing Your Payment');
+      expect(screen.getByRole('heading', { level: 1, name: 'Completing Your Payment' })).toBeInTheDocument();
+      await expectNoSeriousAxeViolations(container);
+    });
+
+    it('labels success details, announces completion, and focuses the success heading', async () => {
+      mockSearchParams.set('token', 'PAYPAL-TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => {
+        options.onSuccess({ success: true, orderNumber: 'ORD-A11Y-1' });
+      });
+      const { container } = render(<CheckoutSuccessPage />);
+
+      const heading = await screen.findByRole('heading', { level: 1, name: 'Payment Successful!' });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(screen.getByRole('status')).toHaveTextContent('Payment completed successfully');
+      expect(screen.getByText('Order Number').tagName).toBe('DT');
+      expect(screen.getByText('ORD-A11Y-1').tagName).toBe('DD');
+      await expectNoSeriousAxeViolations(container);
+    });
+
+    it('announces capture errors, focuses the error heading, and provides recovery actions', async () => {
+      mockSearchParams.set('token', 'PAYPAL-TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => {
+        options.onError(new Error('The provider could not confirm this payment.'));
+      });
+      const { container } = render(<CheckoutSuccessPage />);
+
+      const alert = await screen.findByRole('alert');
+      const heading = screen.getByRole('heading', { level: 1, name: 'Payment Failed' });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(alert).toHaveTextContent('The provider could not confirm this payment.');
+      expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Return to Cart' })).toBeInTheDocument();
+      await expectNoSeriousAxeViolations(container);
+    });
+
+    it('supports keyboard access to success actions', async () => {
+      const user = userEvent.setup();
+      mockSearchParams.set('token', 'TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => {
+        options.onSuccess({ success: true, orderNumber: 'ORD-KEYBOARD' });
+      });
+      render(<CheckoutSuccessPage />);
+
+      await screen.findByRole('heading', { name: 'Payment Successful!' });
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Start Learning' })).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.LEARNING);
+
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'View Order Details' })).toHaveFocus();
+      await user.keyboard(' ');
+      expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.ORDERS);
+    });
+  });
+
   describe('page states', () => {
     it('renders loading state when token is present', () => {
       mockSearchParams.set('token', 'PAYPAL-TOKEN-123');
@@ -69,13 +143,13 @@ describe('CheckoutSuccessPage', () => {
       expect(screen.getByText(/Please wait while we confirm your payment with PayPal/i)).toBeInTheDocument();
     });
 
-    it('renders success state for direct success (orderNumberParam)', () => {
+    it('rejects an unverified order number in the URL', () => {
       mockSearchParams.set('order', 'ORD-123456');
       render(<CheckoutSuccessPage />);
 
-      expect(screen.getByText('Payment Successful!')).toBeInTheDocument();
-      expect(screen.getByText('ORD-123456')).toBeInTheDocument();
-      expect(screen.getByTestId('icon-check-circle')).toBeInTheDocument();
+      expect(screen.getByText('Payment Failed')).toBeInTheDocument();
+      expect(screen.queryByText('Payment Successful!')).not.toBeInTheDocument();
+      expect(screen.queryByText('ORD-123456')).not.toBeInTheDocument();
     });
 
     it('renders error state when capture fails', async () => {
@@ -91,6 +165,64 @@ describe('CheckoutSuccessPage', () => {
         expect(screen.getByText('Payment capture failed')).toBeInTheDocument();
         expect(screen.getByTestId('icon-xcircle')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Flow E — forged success URLs', () => {
+    it('E1: missing verification data shows recovery actions, not success', () => {
+      render(<CheckoutSuccessPage />);
+
+      expect(screen.getByText('Payment Failed')).toBeInTheDocument();
+      expect(screen.getByText(/missing the information needed to verify/i)).toBeInTheDocument();
+      expect(screen.queryByText('Payment Successful!')).not.toBeInTheDocument();
+    });
+
+    it('E2: order=undefined is not displayed or treated as success', () => {
+      mockSearchParams.set('order', 'undefined');
+      render(<CheckoutSuccessPage />);
+
+      expect(screen.getByText('Payment Failed')).toBeInTheDocument();
+      expect(screen.queryByText('undefined')).not.toBeInTheDocument();
+      expect(screen.queryByText('Payment Successful!')).not.toBeInTheDocument();
+    });
+
+    it('E3: a non-numeric orderId is rejected without an API request', () => {
+      mockSearchParams.set('orderId', 'abc');
+      render(<CheckoutSuccessPage />);
+
+      expect(screen.getByText(/order ID in this link is invalid/i)).toBeInTheDocument();
+      expect(usePaymentStatus).toHaveBeenCalledWith(null, expect.objectContaining({ enabled: false }));
+      expect(screen.queryByText('Payment Successful!')).not.toBeInTheDocument();
+    });
+
+    it('E4: a backend-confirmed failed order shows an error', async () => {
+      mockSearchParams.set('orderId', '404');
+      (usePaymentStatus as any).mockReturnValue({
+        data: { success: false, pending: false, orderStatus: 'FAILED', message: 'Payment was declined.' },
+        isLoading: false,
+        isError: false,
+        error: null,
+      });
+      render(<CheckoutSuccessPage />);
+
+      expect(await screen.findByText('Payment was declined.')).toBeInTheDocument();
+      expect(screen.getByText('Payment Failed')).toBeInTheDocument();
+      expect(screen.queryByText('Payment Successful!')).not.toBeInTheDocument();
+    });
+
+    it('E5: a pending order shows confirmation in progress', async () => {
+      mockSearchParams.set('orderId', '405');
+      (usePaymentStatus as any).mockReturnValue({
+        data: { success: false, pending: true, orderStatus: 'PENDING', orderNumber: 'ORD-PENDING' },
+        isLoading: false,
+        isError: false,
+        error: null,
+      });
+      render(<CheckoutSuccessPage />);
+
+      expect(await screen.findByText('Payment Is Being Confirmed')).toBeInTheDocument();
+      expect(screen.getByText(/ORD-PENDING/)).toBeInTheDocument();
+      expect(screen.queryByText('Payment Successful!')).not.toBeInTheDocument();
     });
   });
 
@@ -259,6 +391,7 @@ describe('CheckoutSuccessPage', () => {
       (usePaymentStatus as any).mockReturnValue({
         data: {
           success: true,
+          orderStatus: 'COMPLETED',
           orderNumber: 'ORD-SEPAY-123',
           invoiceNumber: 'INV-SEPAY-001',
           invoiceUrl: 'https://example.com/sepay-invoice.pdf',
@@ -356,10 +489,14 @@ describe('CheckoutSuccessPage', () => {
   });
 
   describe('order number display', () => {
-    it('displays order number when available', () => {
-      mockSearchParams.set('order', 'ORD-DISPLAY-TEST');
+    it('displays a backend-confirmed order number when available', async () => {
+      mockSearchParams.set('token', 'TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => {
+        options.onSuccess({ success: true, orderNumber: 'ORD-DISPLAY-TEST' });
+      });
       render(<CheckoutSuccessPage />);
 
+      await screen.findByText('Payment Successful!');
       expect(screen.getByText('Order Number')).toBeInTheDocument();
       expect(screen.getByText('ORD-DISPLAY-TEST')).toBeInTheDocument();
     });
@@ -386,18 +523,22 @@ describe('CheckoutSuccessPage', () => {
   describe('navigation', () => {
     it('navigates to learning page on Start Learning click', async () => {
       const user = userEvent.setup();
-      mockSearchParams.set('order', 'ORD-123');
+      mockSearchParams.set('token', 'TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => options.onSuccess({ success: true }));
       render(<CheckoutSuccessPage />);
 
+      await screen.findByText('Payment Successful!');
       await user.click(screen.getByText('Start Learning'));
       expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.LEARNING);
     });
 
     it('navigates to orders page on View Order Details click', async () => {
       const user = userEvent.setup();
-      mockSearchParams.set('order', 'ORD-123');
+      mockSearchParams.set('token', 'TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => options.onSuccess({ success: true }));
       render(<CheckoutSuccessPage />);
 
+      await screen.findByText('Payment Successful!');
       await user.click(screen.getByText('View Order Details'));
       expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.ORDERS);
     });
@@ -438,18 +579,20 @@ describe('CheckoutSuccessPage', () => {
   });
 
   describe('UI elements', () => {
-    it('shows confirmation email text', () => {
-      mockSearchParams.set('order', 'ORD-123');
+    it('shows confirmation email text', async () => {
+      mockSearchParams.set('token', 'TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => options.onSuccess({ success: true }));
       render(<CheckoutSuccessPage />);
 
-      expect(screen.getByText(/confirmation email has been sent/i)).toBeInTheDocument();
+      expect(await screen.findByText(/confirmation email has been sent/i)).toBeInTheDocument();
     });
 
-    it('shows course access text', () => {
-      mockSearchParams.set('order', 'ORD-123');
+    it('shows course access text', async () => {
+      mockSearchParams.set('token', 'TOKEN');
+      mockCaptureMutate.mockImplementation((_token: string, options: any) => options.onSuccess({ success: true }));
       render(<CheckoutSuccessPage />);
 
-      expect(screen.getByText(/You can now access your purchased courses/i)).toBeInTheDocument();
+      expect(await screen.findByText(/You can now access your purchased courses/i)).toBeInTheDocument();
     });
   });
 });

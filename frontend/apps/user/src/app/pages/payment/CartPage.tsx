@@ -24,6 +24,19 @@ export const CartPage: React.FC = () => {
 
   // Dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
+  const [coursePendingRemoval, setCoursePendingRemoval] = React.useState<number | null>(null);
+  const [announcement, setAnnouncement] = React.useState("");
+  const [pendingRemovalFocus, setPendingRemovalFocus] = React.useState<{ courseId: number; index: number } | null>(null);
+  const cartHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  const itemListRef = React.useRef<HTMLUListElement>(null);
+
+  // ScrollToTop handles client-side route changes but intentionally skips the
+  // initial route. Focus here as well so a directly loaded cart page gives
+  // keyboard and screen-reader users immediate page context.
+  useEffect(() => {
+    cartHeadingRef.current?.focus({ preventScroll: true });
+  }, []);
 
   // Sync server data to local store
   useEffect(() => {
@@ -33,9 +46,24 @@ export const CartPage: React.FC = () => {
   }, [cart, setCart]);
 
   const handleRemove = (courseId: number) => {
+    setCoursePendingRemoval(courseId);
+  };
+
+  const confirmRemove = () => {
+    const courseId = coursePendingRemoval;
+    if (courseId === null) return;
+    const removedIndex = items.findIndex((item) => item.courseId === courseId);
+    const removedItem = items[removedIndex];
+    if (!removedItem) return;
+    const remainingItems = items.filter((item) => item.courseId !== courseId);
+    const newTotal = remainingItems.reduce((sum, item) => sum + item.effectivePrice, 0);
     removeFromCart.mutate(courseId, {
       onSuccess: () => {
-        showSuccess("Item removed from cart");
+        setCoursePendingRemoval(null);
+        const message = `${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`;
+        setAnnouncement(message);
+        showSuccess(`${removedItem.courseTitle} removed from cart`);
+        setPendingRemovalFocus({ courseId, index: removedIndex });
       },
       onError: (err: Error) => {
         showError(err.message || "Failed to remove item");
@@ -68,7 +96,7 @@ export const CartPage: React.FC = () => {
     navigate(USER_ROUTES.CHECKOUT);
   };
 
-  const items = cart?.items || [];
+  const items = useMemo(() => cart?.items || [], [cart?.items]);
   const subtotal = cart?.subtotal || 0;
   const discount = cart?.discountTotal || 0;
   const totalAmount = cart?.totalAmount || 0;
@@ -81,6 +109,17 @@ export const CartPage: React.FC = () => {
   );
   const hasUnavailableItems = unavailableItems.length > 0;
   const availableItemsCount = items.length - unavailableItems.length;
+
+  useEffect(() => {
+    if (!pendingRemovalFocus || items.some((item) => item.courseId === pendingRemovalFocus.courseId)) return;
+
+    const remaining = itemListRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
+    const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
+    const target = remaining?.[targetIndex];
+    const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || cartHeadingRef.current;
+    focusTarget?.focus();
+    setPendingRemovalFocus(null);
+  }, [items, pendingRemovalFocus]);
 
   return (
     <>
@@ -98,7 +137,7 @@ export const CartPage: React.FC = () => {
                   <ShoppingCart className="w-8 h-8 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2 truncate">
+                  <h1 ref={cartHeadingRef} tabIndex={-1} className="text-2xl md:text-4xl font-bold mb-1 md:mb-2 truncate">
                     Shopping Cart
                   </h1>
                   <p className="text-blue-100 text-sm md:text-lg">
@@ -163,19 +202,13 @@ export const CartPage: React.FC = () => {
           {!isLoading && items.length === 0 && (
             <Card className="p-6 sm:p-12 text-center">
               <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              <h2 ref={emptyHeadingRef} tabIndex={-1} className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                 Your cart is empty
-              </h3>
+              </h2>
               <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
                 Browse our courses and add them to your cart to get started
               </p>
-              <Button
-                variant="primary"
-                onClick={() => navigate(USER_ROUTES.COURSES)}
-                leftIcon={<ArrowLeft className="w-4 h-4" />}
-              >
-                Browse Courses
-              </Button>
+              <Link to={USER_ROUTES.COURSES} aria-label="Browse Courses" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"><ArrowLeft className="w-4 h-4" aria-hidden="true" />Browse Courses</Link>
             </Card>
           )}
 
@@ -185,9 +218,9 @@ export const CartPage: React.FC = () => {
               {/* Order Summary - Show first on mobile */}
               <div className="order-1 lg:order-2 lg:col-span-1">
                 <Card className="p-4 sm:p-6 lg:sticky lg:top-8">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                     Order Summary
-                  </h3>
+                  </h2>
 
                   <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                     <div className="flex items-center justify-between text-xs sm:text-sm">
@@ -220,6 +253,7 @@ export const CartPage: React.FC = () => {
                     variant="primary"
                     onClick={handleCheckout}
                     disabled={hasUnavailableItems || availableItemsCount === 0}
+                    aria-describedby={hasUnavailableItems || availableItemsCount === 0 ? "checkout-disabled-reason" : undefined}
                     className="w-full"
                     size="lg"
                     rightIcon={<ArrowRight className="w-4 h-4" />}
@@ -233,6 +267,11 @@ export const CartPage: React.FC = () => {
                       </>
                     )}
                   </Button>
+                  {(hasUnavailableItems || availableItemsCount === 0) && (
+                    <p id="checkout-disabled-reason" className="mt-2 text-sm text-amber-800">
+                      {hasUnavailableItems ? "Checkout is unavailable until all unavailable courses are removed." : "Checkout is unavailable because there are no available courses in your cart."}
+                    </p>
+                  )}
 
                   {/* Security Note */}
                   <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 rounded-lg">
@@ -254,7 +293,9 @@ export const CartPage: React.FC = () => {
               </div>
 
               {/* Main Content - Cart Items */}
-              <div className="order-2 lg:order-1 lg:col-span-2 space-y-3 sm:space-y-4">
+              <div className="order-2 lg:order-1 lg:col-span-2">
+                <h2 className="sr-only">Courses in your cart</h2>
+                <ul ref={itemListRef} className="space-y-3 sm:space-y-4">
                 {items.map((item) => (
                   <CartItem
                     key={item.courseId}
@@ -263,6 +304,7 @@ export const CartPage: React.FC = () => {
                     isRemoving={pendingRemovals.includes(item.courseId) || removeFromCart.isPending}
                   />
                 ))}
+                </ul>
 
                 {/* Continue Shopping - Desktop only */}
                 <div className="hidden lg:block pt-4">
@@ -283,6 +325,17 @@ export const CartPage: React.FC = () => {
 
       {/* Clear Cart Confirmation */}
       <ConfirmDialog
+        isOpen={coursePendingRemoval !== null}
+        onClose={() => setCoursePendingRemoval(null)}
+        onConfirm={confirmRemove}
+        title="Remove course from cart"
+        message={`Are you sure you want to remove ${items.find((item) => item.courseId === coursePendingRemoval)?.courseTitle || "this course"} from your cart?`}
+        confirmText="Remove course"
+        cancelText="Keep course"
+        variant="danger"
+        isLoading={removeFromCart.isPending}
+      />
+      <ConfirmDialog
         isOpen={isClearDialogOpen}
         onClose={() => setIsClearDialogOpen(false)}
         onConfirm={handleClearAll}
@@ -293,6 +346,7 @@ export const CartPage: React.FC = () => {
         variant="danger"
         isLoading={clearCartMutation.isPending}
       />
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
     </>
   );
 };

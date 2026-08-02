@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button, PriceTag, useToast } from "@edumind/user-ui";
 import { CheckoutSkeleton } from "../../components/route-skeletons/CheckoutSkeleton";
@@ -20,6 +20,11 @@ import type { CheckoutRequest, DirectCheckoutRequest } from "@edumind/shared-typ
 const generateIdempotencyKey = (): string => {
   return crypto.randomUUID();
 };
+
+const accessibleUsdAmount = (amount: number): string =>
+  `${amount.toFixed(2)} US dollars`;
+
+const PAYMENT_REDIRECT_DELAY_MS = 3000;
 
 const PAYMENT_METHODS = [
   {
@@ -44,7 +49,14 @@ export const CheckoutPage: React.FC = () => {
 
   const courseIdParam = searchParams.get("courseId");
   const directCourseId = courseIdParam ? Number(courseIdParam) : null;
-  const isDirectCheckout = !!directCourseId;
+  const isDirectCheckout = courseIdParam !== null;
+  const hasValidDirectCourse = directCourseId !== null && Number.isInteger(directCourseId) && directCourseId > 0;
+  const errorHeadingRef = useRef<HTMLHeadingElement>(null);
+  const redirectStatusRef = useRef<HTMLParagraphElement>(null);
+  const redirectTimeoutRef = useRef<number | null>(null);
+  const submissionStartedRef = useRef(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [redirectMessage, setRedirectMessage] = useState<string | null>(null);
 
   // Store state
   const {
@@ -69,22 +81,52 @@ export const CheckoutPage: React.FC = () => {
     data: directPreview,
     isLoading: isDirectLoading,
     error: directError,
-  } = useDirectCheckoutPreview(directCourseId || 0, isDirectCheckout);
+  } = useDirectCheckoutPreview(
+    hasValidDirectCourse ? directCourseId! : 0,
+    isDirectCheckout && hasValidDirectCourse
+  );
   const directCheckoutMutation = useDirectCheckout();
 
   // Derived state
   const preview = isDirectCheckout ? directPreview : cartPreview;
   const isLoading = isDirectCheckout ? isDirectLoading : isCartLoading;
   const error = isDirectCheckout ? directError : cartError;
+  const hasCheckoutLoadError = !isLoading && Boolean(
+    error || (isDirectCheckout && (
+      !hasValidDirectCourse || !preview || preview.itemCount === 0
+    ))
+  );
   const isPending = isDirectCheckout
     ? directCheckoutMutation.isPending
     : cartCheckoutMutation.isPending;
+  const directCourseSlug = directPreview?.items.find(
+    (item) => item.courseId === directCourseId
+  )?.courseSlug;
+  const backRoute = isDirectCheckout
+    ? directCourseSlug
+      ? UserRouteHelpers.courseDetail(directCourseSlug)
+      : USER_ROUTES.COURSES
+    : USER_ROUTES.CART;
 
   // Reset checkout state on mount
   useEffect(() => {
     resetCheckout();
     setStep("payment");
   }, [resetCheckout, setStep]);
+
+  useEffect(() => {
+    if (checkoutError || hasCheckoutLoadError) errorHeadingRef.current?.focus();
+  }, [checkoutError, hasCheckoutLoadError]);
+
+  useEffect(() => {
+    if (redirectMessage) redirectStatusRef.current?.focus();
+  }, [redirectMessage]);
+
+  useEffect(() => () => {
+    if (redirectTimeoutRef.current !== null) {
+      window.clearTimeout(redirectTimeoutRef.current);
+    }
+  }, []);
 
   // Redirect if cart is empty (Only in Cart mode)
   useEffect(() => {
@@ -98,19 +140,21 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handleCheckout = async () => {
+    if (submissionStartedRef.current || isPending) return;
+    setCheckoutError(null);
     if (!selectedPaymentMethod) {
-      showError("Please select a payment method");
+      setCheckoutError("Select a payment method before placing your order.");
       return;
     }
 
     if (!preview || preview.itemCount === 0) {
-      showError("No items to checkout");
-      if (!isDirectCheckout) {
-        navigate(USER_ROUTES.CART);
-      }
+      setCheckoutError(isDirectCheckout
+        ? "This course is unavailable for direct checkout. Return to Courses and choose a course again."
+        : "Your cart has no items. Return to Cart or browse courses before checking out.");
       return;
     }
 
+    submissionStartedRef.current = true;
     setStep("processing");
 
     // Generate idempotency key to prevent duplicate orders
@@ -144,9 +188,10 @@ export const CheckoutPage: React.FC = () => {
       // Check for redirect FIRST (PayPal returns success=false, pending=true, requiresRedirect=true)
       // This must be checked before the success check to handle external payment redirects
       if (result.requiresRedirect && result.redirectUrl) {
+        const redirectUrl = result.redirectUrl;
         setResult({
           orderNumber: result.orderNumber || undefined,
-          redirectUrl: result.redirectUrl,
+          redirectUrl,
         });
 
         // For SePay, redirect to our QR display page instead of directly to the QR image
@@ -156,7 +201,7 @@ export const CheckoutPage: React.FC = () => {
           const displayCurrency = result.localCurrency ?? result.currency ?? 'VND';
 
           const qrPageParams = new URLSearchParams({
-            qrUrl: result.redirectUrl,
+            qrUrl: redirectUrl,
             orderId: String(result.orderId || ''),
             orderNumber: result.orderNumber || '',
             amount: String(displayAmount || ''),
@@ -167,7 +212,13 @@ export const CheckoutPage: React.FC = () => {
         }
 
         // For other providers (PayPal), redirect to external payment page
-        window.location.href = result.redirectUrl;
+        setRedirectMessage("Your order is ready. You are now leaving EduMind for the secure payment provider.");
+        // Focus the status and leave enough time for assistive technology to
+        // announce that the next page belongs to an external provider.
+        redirectTimeoutRef.current = window.setTimeout(
+          () => window.location.assign(redirectUrl),
+          PAYMENT_REDIRECT_DELAY_MS,
+        );
         return; // Exit early - browser will navigate away
       }
 
@@ -207,6 +258,8 @@ export const CheckoutPage: React.FC = () => {
           // Cart was modified between preview and checkout - refresh preview
           showError("Your cart was updated. Please review and try again.");
           setStep("payment");
+          submissionStartedRef.current = false;
+          setCheckoutError("Your cart was updated. Review the order summary and try again.");
           // Invalidate preview to force refetch
           queryClient.invalidateQueries({ queryKey: ["checkout", "preview"] });
           return;
@@ -241,22 +294,27 @@ export const CheckoutPage: React.FC = () => {
 
   // Loading state
   if (isLoading) {
-    return <CheckoutSkeleton />;
+    return <div role="status" aria-label="Loading checkout"><span className="sr-only">Loading checkout details…</span><CheckoutSkeleton /></div>;
   }
 
   // Error state
-  if (error) {
+  if (hasCheckoutLoadError) {
+    const loadError = isDirectCheckout && !hasValidDirectCourse
+      ? "The direct checkout link does not include a valid course."
+      : isDirectCheckout && (!preview || preview.itemCount === 0)
+        ? "This course is unavailable for direct checkout. Choose another course to continue."
+      : (error as Error)?.message || "Unable to load checkout";
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="p-8 max-w-md text-center">
+        <Card className="p-8 max-w-md text-center" role="alert">
           <div className="text-red-500 mb-4">
-            <Lock className="w-12 h-12 mx-auto" />
+            <Lock aria-hidden="true" className="w-12 h-12 mx-auto" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h1 ref={errorHeadingRef} tabIndex={-1} className="text-xl font-semibold text-gray-900 mb-2">
             Checkout Error
-          </h2>
+          </h1>
           <p className="text-gray-600 mb-4">
-            {(error as Error)?.message || "Unable to load checkout"}
+            {loadError}
           </p>
           <Button
             variant="primary"
@@ -287,12 +345,13 @@ export const CheckoutPage: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Back Button - Icon only on mobile */}
             <button
-              onClick={() => navigate(isDirectCheckout ? `${USER_ROUTES.COURSES}/${directCourseId}` : USER_ROUTES.CART)}
-              className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors"
+              onClick={() => navigate(backRoute)}
+              aria-label={`Back to ${isDirectCheckout ? "course" : "cart"}`}
+              className="flex items-center justify-center w-11 h-11 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 text-white" />
-              <span className="hidden sm:inline ml-1.5 text-sm font-medium">
-                Back
+              <ArrowLeft aria-hidden="true" className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline ml-1.5 text-sm font-medium" aria-hidden="true">
+                Back to {isDirectCheckout ? "course" : "cart"}
               </span>
             </button>
 
@@ -302,7 +361,7 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Secure Badge - Visible on all devices */}
             <div className="flex items-center gap-1.5 text-blue-100">
-              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ShieldCheck aria-hidden="true" className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">Secure</span>
             </div>
           </div>
@@ -331,52 +390,85 @@ export const CheckoutPage: React.FC = () => {
               </Card>
             )}
 
-            <Card className="p-4 sm:p-6 lg:sticky lg:top-8">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+            <Card
+              className="p-4 sm:p-6 lg:sticky lg:top-8"
+              role="region"
+              aria-labelledby="order-summary-heading"
+            >
+              <h2 id="order-summary-heading" className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Order Summary
-              </h3>
+              </h2>
 
-              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+              <dl className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                 <div className="flex justify-between text-xs sm:text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="text-gray-900">${subtotal.toFixed(2)}</span>
+                  <dt className="text-gray-600">Subtotal</dt>
+                  <dd className="text-gray-900">
+                    <span aria-hidden="true">${subtotal.toFixed(2)} USD</span>
+                    <span className="sr-only">{accessibleUsdAmount(subtotal)}</span>
+                  </dd>
                 </div>
 
                 {discount > 0 && (
                   <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-600">Discount:</span>
-                    <span className="text-green-600">
-                      -${discount.toFixed(2)}
-                    </span>
+                    <dt className="text-gray-600">Discount</dt>
+                    <dd className="text-green-600">
+                      <span aria-hidden="true">-${discount.toFixed(2)} USD</span>
+                      <span className="sr-only">Minus {accessibleUsdAmount(discount)}</span>
+                    </dd>
                   </div>
                 )}
 
                 {tax > 0 && (
                   <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-600">Tax:</span>
-                    <span className="text-gray-900">${tax.toFixed(2)}</span>
+                    <dt className="text-gray-600">Tax</dt>
+                    <dd className="text-gray-900">
+                      <span aria-hidden="true">${tax.toFixed(2)} USD</span>
+                      <span className="sr-only">{accessibleUsdAmount(tax)}</span>
+                    </dd>
                   </div>
                 )}
 
                 <div className="pt-2 sm:pt-3 border-t">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm sm:text-base font-semibold text-gray-900">
-                      Total:
-                    </span>
-                    <PriceTag price={total} size="lg" />
+                    <dt className="text-sm sm:text-base font-semibold text-gray-900">Total</dt>
+                    <dd>
+                      <span aria-hidden="true"><PriceTag price={total} size="lg" /></span>
+                      <span className="sr-only">{accessibleUsdAmount(total)}</span>
+                    </dd>
                   </div>
                 </div>
-              </div>
+              </dl>
+
+              {checkoutError && (
+                <div role="alert" className="mb-4 text-sm text-red-700">
+                  <h2 ref={errorHeadingRef} tabIndex={-1} className="font-semibold">Unable to place order</h2>
+                  <p>{checkoutError}</p>
+                  {isDirectCheckout && <button type="button" className="underline" onClick={() => navigate(USER_ROUTES.COURSES)}>Browse courses</button>}
+                </div>
+              )}
+              <p
+                id="checkout-redirect-status"
+                ref={redirectStatusRef}
+                role="status"
+                aria-live="assertive"
+                aria-atomic="true"
+                tabIndex={-1}
+                className={redirectMessage ? "mb-4 text-sm text-gray-700" : "sr-only"}
+              >
+                {redirectMessage}
+              </p>
 
               {/* Complete Order Button - Mobile visible */}
               <Button
                 variant="primary"
                 onClick={handleCheckout}
-                disabled={!selectedPaymentMethod || isPending}
+                disabled={isPending || submissionStartedRef.current}
+                aria-disabled={isPending || submissionStartedRef.current}
+                aria-describedby={redirectMessage ? "checkout-redirect-status" : undefined}
                 isLoading={isPending}
                 className="w-full"
                 size="lg"
-                rightIcon={<ArrowRight className="w-4 h-4" />}
+                rightIcon={<ArrowRight aria-hidden="true" focusable="false" className="w-4 h-4" />}
               >
                 {isPending ? (
                   "Processing..."
@@ -391,11 +483,11 @@ export const CheckoutPage: React.FC = () => {
               {/* Security Badges */}
               <div className="mt-3 sm:mt-4 flex flex-wrap gap-3 sm:gap-0 sm:flex-col sm:space-y-2">
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Lock className="w-3 h-3" />
+                  <Lock aria-hidden="true" focusable="false" className="w-3 h-3" />
                   <span>SSL encrypted</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <ShieldCheck className="w-3 h-3" />
+                  <ShieldCheck aria-hidden="true" focusable="false" className="w-3 h-3" />
                   <span>30-day guarantee</span>
                 </div>
               </div>
@@ -406,25 +498,26 @@ export const CheckoutPage: React.FC = () => {
           <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Payment Method Selection - Show before items on mobile for faster checkout */}
             <Card className="p-4 sm:p-6">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                Payment Method
-              </h2>
+              <h2 id="payment-method-heading" className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Payment Method</h2>
+              <fieldset aria-labelledby="payment-method-heading">
+              <legend className="sr-only">Choose a payment method</legend>
               <div className="space-y-2 sm:space-y-3">
                 {PAYMENT_METHODS.map((method) => {
                   const Icon = method.icon;
                   const isSelected = selectedPaymentMethod === method.id;
 
                   return (
-                    <button
+                    <label
                       key={method.id}
-                      onClick={() => handleSelectPaymentMethod(method.id)}
                       className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border-2 transition-all ${
                         isSelected
                           ? "border-blue-600 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <div
+                      <input className="h-5 w-5 flex-shrink-0" type="radio" name="paymentMethod" value={method.id}
+                        checked={isSelected} onChange={() => handleSelectPaymentMethod(method.id)} />
+                      <div aria-hidden="true"
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                           isSelected
                             ? "bg-blue-600 text-white"
@@ -441,19 +534,12 @@ export const CheckoutPage: React.FC = () => {
                           {method.description}
                         </p>
                       </div>
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? "border-blue-600" : "border-gray-300"
-                        }`}
-                      >
-                        {isSelected && (
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                    </button>
+                      {isSelected && <span className="text-sm font-semibold">Selected</span>}
+                    </label>
                   );
                 })}
               </div>
+              </fieldset>
             </Card>
 
             {/* Order Items Preview - Collapsible on mobile */}
@@ -461,9 +547,9 @@ export const CheckoutPage: React.FC = () => {
               <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                 Order Items ({items.length})
               </h2>
-              <div className="space-y-2 sm:space-y-3">
+              <ul className="space-y-2 sm:space-y-3">
                 {items.map((item) => (
-                  <div
+                  <li
                     key={item.courseId}
                     className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg"
                   >
@@ -493,9 +579,9 @@ export const CheckoutPage: React.FC = () => {
                       }
                       size="sm"
                     />
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </Card>
           </div>
         </div>

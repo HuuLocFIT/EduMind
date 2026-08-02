@@ -149,6 +149,15 @@ export const SepayQrPage: React.FC = () => {
     return new Intl.NumberFormat("vi-VN").format(num);
   };
 
+  const accessibleAmount = (() => {
+    if (!amount) return "Amount unavailable";
+    const numericAmount = Number.parseFloat(amount);
+    if (!Number.isFinite(numericAmount)) return "Amount unavailable";
+
+    const currencyName = currency === "VND" ? "Vietnamese dong" : currency;
+    return `Amount: ${new Intl.NumberFormat("en-US").format(numericAmount)} ${currencyName}`;
+  })();
+
   // Copy order number to clipboard
   const handleCopyOrderNumber = useCallback(() => {
     if (orderNumber) {
@@ -177,7 +186,7 @@ export const SepayQrPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <XCircle className="w-8 h-8 text-red-600" />
+            <XCircle aria-hidden="true" focusable="false" className="w-8 h-8 text-red-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Payment Session</h1>
           <p className="text-gray-600 mb-6">
@@ -197,7 +206,7 @@ export const SepayQrPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+            <CheckCircle aria-hidden="true" focusable="false" className="w-8 h-8 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Received!</h1>
           <p className="text-gray-600 mb-4">
@@ -215,7 +224,7 @@ export const SepayQrPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Clock className="w-8 h-8 text-yellow-600" />
+            <Clock aria-hidden="true" focusable="false" className="w-8 h-8 text-yellow-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">QR Code Expired</h1>
           <p className="text-gray-600 mb-6">
@@ -226,7 +235,7 @@ export const SepayQrPage: React.FC = () => {
               variant="primary"
               className="w-full"
               onClick={handleRetry}
-              leftIcon={<RefreshCw className="w-4 h-4" />}
+              leftIcon={<RefreshCw aria-hidden="true" focusable="false" className="w-4 h-4" />}
             >
               Try Again
             </Button>
@@ -234,7 +243,7 @@ export const SepayQrPage: React.FC = () => {
               variant="outline"
               className="w-full"
               onClick={() => navigate(USER_ROUTES.CART)}
-              leftIcon={<ArrowLeft className="w-4 h-4" />}
+              leftIcon={<ArrowLeft aria-hidden="true" focusable="false" className="w-4 h-4" />}
             >
               Return to Cart
             </Button>
@@ -251,7 +260,7 @@ export const SepayQrPage: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <QrCode className="w-8 h-8 text-blue-600" />
+            <QrCode aria-hidden="true" focusable="false" className="w-8 h-8 text-blue-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Scan to Pay with SePay</h1>
           <p className="text-gray-600">
@@ -263,7 +272,7 @@ export const SepayQrPage: React.FC = () => {
         <Card className="p-6 mb-6">
           {/* Timer */}
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-gray-500" />
+            <Clock aria-hidden="true" focusable="false" className="w-5 h-5 text-gray-500" />
             <span className="text-gray-600">Time remaining:</span>
             <span
               className={`font-mono font-bold text-lg ${
@@ -278,7 +287,8 @@ export const SepayQrPage: React.FC = () => {
           <div className="bg-white p-4 rounded-lg border-2 border-gray-100 mb-6">
             <img
               src={qrUrl}
-              alt="SePay QR Code"
+              alt=""
+              aria-hidden="true"
               className="w-full max-w-[280px] mx-auto aspect-square object-contain"
               onError={(e) => {
                 // Handle image load error
@@ -292,8 +302,9 @@ export const SepayQrPage: React.FC = () => {
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             {/* Amount */}
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Amount:</span>
-              <span className="text-xl font-bold text-gray-900">
+              <span className="sr-only">{accessibleAmount}</span>
+              <span aria-hidden="true" className="text-gray-600">Amount:</span>
+              <span aria-hidden="true" className="text-xl font-bold text-gray-900">
                 {formatAmount(amount)} {currency}
               </span>
             </div>
@@ -310,9 +321,9 @@ export const SepayQrPage: React.FC = () => {
                     title="Copy order number"
                   >
                     {copied ? (
-                      <Check className="w-4 h-4 text-green-600" />
+                      <Check aria-hidden="true" focusable="false" className="w-4 h-4 text-green-600" />
                     ) : (
-                      <Copy className="w-4 h-4 text-gray-500" />
+                      <Copy aria-hidden="true" focusable="false" className="w-4 h-4 text-gray-500" />
                     )}
                   </button>
                 </div>
@@ -322,7 +333,7 @@ export const SepayQrPage: React.FC = () => {
 
           {/* Status indicator */}
           <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-500">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            <div aria-hidden="true" className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
             <span>Waiting for payment confirmation...</span>
           </div>
         </Card>
@@ -330,30 +341,30 @@ export const SepayQrPage: React.FC = () => {
         {/* Instructions */}
         <Card className="p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Smartphone className="w-5 h-5 text-blue-600" />
+            <Smartphone aria-hidden="true" focusable="false" className="w-5 h-5 text-blue-600" />
             How to pay
           </h3>
           <ol className="space-y-3 text-sm text-gray-600">
             <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
                 1
               </span>
               <span>Open your banking app (MB Bank, Vietcombank, etc.)</span>
             </li>
             <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
                 2
               </span>
               <span>Select "Scan QR" or "Transfer" feature</span>
             </li>
             <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
                 3
               </span>
               <span>Scan the QR code above</span>
             </li>
             <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
                 4
               </span>
               <span>
@@ -361,7 +372,7 @@ export const SepayQrPage: React.FC = () => {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
                 5
               </span>
               <span>Complete the payment - this page will update automatically</span>
@@ -375,7 +386,7 @@ export const SepayQrPage: React.FC = () => {
             variant="outline"
             className="w-full"
             onClick={handleCancel}
-            leftIcon={<ArrowLeft className="w-4 h-4" />}
+            leftIcon={<ArrowLeft aria-hidden="true" focusable="false" className="w-4 h-4" />}
             disabled={cancelPaymentMutation.isPending}
             isLoading={cancelPaymentMutation.isPending}
           >

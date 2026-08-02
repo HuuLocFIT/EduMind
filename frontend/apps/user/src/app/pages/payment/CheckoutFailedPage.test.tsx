@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import axe from 'axe-core';
 import { CheckoutFailedPage } from './CheckoutFailedPage';
 import { useCancelPayment } from '../../hooks/useCheckout';
 import { USER_ROUTES } from '@edumind/shared-utils';
@@ -27,13 +28,13 @@ vi.mock('@edumind/user-ui', () => ({
 }));
 
 vi.mock('lucide-react', () => ({
-  XCircle: () => <span data-testid="icon-xcircle">XCircleIcon</span>,
-  RefreshCw: () => <span data-testid="icon-refresh">RefreshIcon</span>,
-  ArrowLeft: () => <span data-testid="icon-arrow-left">ArrowLeftIcon</span>,
-  HelpCircle: () => <span data-testid="icon-help">HelpCircleIcon</span>,
-  Ban: () => <span data-testid="icon-ban">BanIcon</span>,
-  AlertTriangle: () => <span data-testid="icon-alert-triangle">AlertTriangleIcon</span>,
-  CreditCard: () => <span data-testid="icon-credit-card">CreditCardIcon</span>,
+  XCircle: (props: any) => <span data-testid="icon-xcircle" {...props}>XCircleIcon</span>,
+  RefreshCw: (props: any) => <span data-testid="icon-refresh" {...props}>RefreshIcon</span>,
+  ArrowLeft: (props: any) => <span data-testid="icon-arrow-left" {...props}>ArrowLeftIcon</span>,
+  HelpCircle: (props: any) => <span data-testid="icon-help" {...props}>HelpCircleIcon</span>,
+  Ban: (props: any) => <span data-testid="icon-ban" {...props}>BanIcon</span>,
+  AlertTriangle: (props: any) => <span data-testid="icon-alert-triangle" {...props}>AlertTriangleIcon</span>,
+  CreditCard: (props: any) => <span data-testid="icon-credit-card" {...props}>CreditCardIcon</span>,
 }));
 
 describe('CheckoutFailedPage', () => {
@@ -47,6 +48,22 @@ describe('CheckoutFailedPage', () => {
       mutate: mockCancelMutate,
       isPending: false,
     });
+  });
+
+  it.each([
+    ['user cancelled', { orderId: '123' }],
+    ['instrument declined', { errorCode: 'INSTRUMENT_DECLINED' }],
+    ['retry limit exceeded', { errorCode: 'RETRY_LIMIT_EXCEEDED' }],
+    ['enrollment failed and refunded', { errorCode: 'ENROLLMENT_FAILED_REFUNDED' }],
+    ['manual refund required', { errorCode: 'ENROLLMENT_FAILED_MANUAL_REFUND' }],
+  ])('has no critical or serious Axe violations for %s', async (_state, params) => {
+    Object.entries(params).forEach(([key, value]) => mockSearchParams.set(key, value));
+    const { container } = render(<CheckoutFailedPage />);
+
+    const result = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(result.violations.filter(({ impact }) => impact === 'critical' || impact === 'serious')).toEqual([]);
   });
 
   // Unit tests for getErrorMessage function (indirectly through rendering)
@@ -90,7 +107,7 @@ describe('CheckoutFailedPage', () => {
       expect(screen.getByText('Payment Declined')).toBeInTheDocument();
       expect(screen.getByText(/payment method was declined/i)).toBeInTheDocument();
       // Should show reasons for this error
-      expect(screen.getByText(/This might have happened because:/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /possible reasons/i })).toBeInTheDocument();
     });
 
     it('returns correct message for PAYER_ACTION_REQUIRED', () => {
@@ -137,7 +154,7 @@ describe('CheckoutFailedPage', () => {
       mockSearchParams.set('errorCode', 'MANUAL_REFUND_REQUIRED');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText('Refund Processing')).toBeInTheDocument();
+      expect(screen.getByText('Manual Refund Required')).toBeInTheDocument();
       expect(screen.getByText(/refund requires manual processing/i)).toBeInTheDocument();
     });
 
@@ -161,7 +178,7 @@ describe('CheckoutFailedPage', () => {
       mockSearchParams.set('errorCode', 'INVALID_ORDER_STATUS');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText('Invalid Order Status')).toBeInTheDocument();
+      expect(screen.getByText('Order Cannot Be Processed')).toBeInTheDocument();
       expect(screen.getByText(/order cannot be processed in its current state/i)).toBeInTheDocument();
     });
 
@@ -172,14 +189,14 @@ describe('CheckoutFailedPage', () => {
       expect(screen.getByText('Payment Capture Failed')).toBeInTheDocument();
       expect(screen.getByText(/couldn't capture your payment/i)).toBeInTheDocument();
       // Should show reasons for this error
-      expect(screen.getByText(/This might have happened because:/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /possible reasons/i })).toBeInTheDocument();
     });
 
     it('returns correct message for ENROLLMENT_FAILED_REFUNDED', () => {
       mockSearchParams.set('errorCode', 'ENROLLMENT_FAILED_REFUNDED');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText('Enrollment Failed - Refund Issued')).toBeInTheDocument();
+      expect(screen.getByText('Enrollment Failed — Refund Issued')).toBeInTheDocument();
       expect(screen.getByText(/automatically refunded/i)).toBeInTheDocument();
     });
 
@@ -187,7 +204,7 @@ describe('CheckoutFailedPage', () => {
       mockSearchParams.set('errorCode', 'ENROLLMENT_FAILED_MANUAL_REFUND');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText('Enrollment Failed - Support Required')).toBeInTheDocument();
+      expect(screen.getByText('Enrollment Failed — Manual Refund Required')).toBeInTheDocument();
       expect(screen.getByText(/support team has been notified/i)).toBeInTheDocument();
     });
 
@@ -197,11 +214,26 @@ describe('CheckoutFailedPage', () => {
       render(<CheckoutFailedPage />);
 
       expect(screen.getByText('Payment Failed')).toBeInTheDocument();
-      expect(screen.getByText('Something unexpected happened')).toBeInTheDocument();
+      expect(screen.queryByText('Something unexpected happened')).not.toBeInTheDocument();
+      expect(screen.getByText(/Payment could not be processed/i)).toBeInTheDocument();
     });
   });
 
   describe('rendering', () => {
+    it('moves focus to the state-specific page heading after navigation', () => {
+      mockSearchParams.set('errorCode', 'INSTRUMENT_DECLINED');
+      render(<CheckoutFailedPage />);
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Payment Declined' })).toHaveFocus();
+    });
+
+    it('marks the status icon as decorative', () => {
+      mockSearchParams.set('errorCode', 'INSTRUMENT_DECLINED');
+      render(<CheckoutFailedPage />);
+
+      expect(screen.getByTestId('icon-credit-card').parentElement).toHaveAttribute('aria-hidden', 'true');
+    });
+
     it('renders cancelled state when orderId is present without errorCode', () => {
       mockSearchParams.set('orderId', '123');
       render(<CheckoutFailedPage />);
@@ -240,23 +272,23 @@ describe('CheckoutFailedPage', () => {
       mockSearchParams.set('errorCode', 'ENROLLMENT_FAILED_REFUNDED');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText('Refund Status:')).toBeInTheDocument();
-      expect(screen.getByText(/refund has been processed automatically/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Refund status' })).toBeInTheDocument();
+      expect(screen.getByText('Refund issued.')).toBeInTheDocument();
     });
 
     it('shows refund info section for ENROLLMENT_FAILED_MANUAL_REFUND', () => {
       mockSearchParams.set('errorCode', 'ENROLLMENT_FAILED_MANUAL_REFUND');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText('What happens next:')).toBeInTheDocument();
-      expect(screen.getByText(/support team will review your case/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Refund status' })).toBeInTheDocument();
+      expect(screen.getByText(/awaiting manual review/i)).toBeInTheDocument();
     });
 
     it('shows possible reasons for payment failures with showReasons=true', () => {
       mockSearchParams.set('errorCode', 'INSTRUMENT_DECLINED');
       render(<CheckoutFailedPage />);
 
-      expect(screen.getByText(/This might have happened because:/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /possible reasons/i })).toBeInTheDocument();
       expect(screen.getByText(/Insufficient funds/i)).toBeInTheDocument();
       expect(screen.getByText(/Card details were entered incorrectly/i)).toBeInTheDocument();
       expect(screen.getByText(/bank declined the transaction/i)).toBeInTheDocument();
@@ -267,7 +299,7 @@ describe('CheckoutFailedPage', () => {
       mockSearchParams.set('errorCode', 'ORDER_EXPIRED');
       render(<CheckoutFailedPage />);
 
-      expect(screen.queryByText(/This might have happened because:/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /possible reasons/i })).not.toBeInTheDocument();
     });
 
     it('respects canRetry URL parameter when explicitly set to true', () => {
@@ -285,6 +317,21 @@ describe('CheckoutFailedPage', () => {
 
       expect(screen.queryByText('Try Again')).not.toBeInTheDocument();
       expect(screen.getByText('Start New Order')).toBeInTheDocument();
+    });
+
+    it('does not let a query parameter enable retry for a terminal state', () => {
+      mockSearchParams.set('errorCode', 'RETRY_LIMIT_EXCEEDED');
+      mockSearchParams.set('canRetry', 'true');
+      render(<CheckoutFailedPage />);
+
+      expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Start New Order' })).toBeInTheDocument();
+    });
+
+    it('provides a real support link', () => {
+      render(<CheckoutFailedPage />);
+
+      expect(screen.getByRole('link', { name: 'Contact Support' })).toHaveAttribute('href', 'mailto:support@edumind.com');
     });
   });
 
@@ -349,6 +396,14 @@ describe('CheckoutFailedPage', () => {
       expect(mockCancelMutate).not.toHaveBeenCalled();
     });
 
+    it('does not send an invalid query-string order ID to the backend', () => {
+      mockSearchParams.set('orderId', '123<script>');
+      render(<CheckoutFailedPage />);
+
+      expect(mockCancelMutate).not.toHaveBeenCalled();
+      expect(screen.getByRole('heading', { name: 'Payment Failed' })).toBeInTheDocument();
+    });
+
     it('only calls cancelPayment once even on re-render', async () => {
       mockSearchParams.set('orderId', '789');
       const { rerender } = render(<CheckoutFailedPage />);
@@ -390,6 +445,25 @@ describe('CheckoutFailedPage', () => {
 
       await user.click(screen.getByText('Start New Order'));
       expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+    });
+
+    it('supports keyboard activation for retry, cart, and support actions', async () => {
+      const user = userEvent.setup();
+      mockSearchParams.set('errorCode', 'INSTRUMENT_DECLINED');
+      render(<CheckoutFailedPage />);
+
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Try Again' })).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CHECKOUT);
+
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Return to Cart' })).toHaveFocus();
+      await user.keyboard(' ');
+      expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+
+      await user.tab();
+      expect(screen.getByRole('link', { name: 'Contact Support' })).toHaveFocus();
     });
   });
 });

@@ -7,49 +7,85 @@ export function ScrollToTop() {
   const location = useLocation();
   const navigate = useNavigate();
   const { success, error, warning, info } = useToast();
-  const { pathname } = location;
-  const prevPathnameRef = useRef<string | null>(null);
+  const routeId = `${location.pathname}${location.search}${location.hash}`;
+  const prevRouteIdRef = useRef<string | null>(null);
+  const lastFocusedHeadingRef = useRef<HTMLElement | null>(null);
+  const latestContextRef = useRef({ location, navigate, success, error, warning, info });
+
+  latestContextRef.current = { location, navigate, success, error, warning, info };
 
   useEffect(() => {
-    if (prevPathnameRef.current === null || prevPathnameRef.current === pathname) {
-      prevPathnameRef.current = pathname;
+    const rememberFocusedHeading = (event: FocusEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.matches("#main-content h1:not([aria-hidden='true'])")
+      ) {
+        lastFocusedHeadingRef.current = target;
+      }
+    };
+
+    document.addEventListener("focusin", rememberFocusedHeading);
+    return () => document.removeEventListener("focusin", rememberFocusedHeading);
+  }, []);
+
+  useEffect(() => {
+    if (prevRouteIdRef.current === null || prevRouteIdRef.current === routeId) {
+      prevRouteIdRef.current = routeId;
       return;
     }
 
-    prevPathnameRef.current = pathname;
+    prevRouteIdRef.current = routeId;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    // Do not leave the previous page title exposed while a lazy destination
+    // is rendering its skeleton.
+    document.title = "EduMind";
 
     let observer: MutationObserver | undefined;
     let fallbackTimer: number | undefined;
     let notificationTimer: number | undefined;
+    let notificationAnnounced = false;
+    const outgoingHeading = lastFocusedHeadingRef.current;
+    const outgoingHeadingText = outgoingHeading?.textContent?.trim();
 
     const announceRouteNotification = () => {
-      const routeState = location.state as RouteNotificationState | null;
+      if (notificationAnnounced) return;
+
+      const {
+        location: latestLocation,
+        navigate: latestNavigate,
+        success: latestSuccess,
+        error: latestError,
+        warning: latestWarning,
+        info: latestInfo,
+      } = latestContextRef.current;
+      const routeState = latestLocation.state as RouteNotificationState | null;
       const notification = routeState?.notification;
       if (!notification) return;
+      notificationAnnounced = true;
 
       notificationTimer = window.setTimeout(() => {
         switch (notification.variant) {
           case "error":
-            error(notification.message);
+            latestError(notification.message);
             break;
           case "warning":
-            warning(notification.message);
+            latestWarning(notification.message);
             break;
           case "info":
-            info(notification.message);
+            latestInfo(notification.message);
             break;
           default:
-            success(notification.message);
+            latestSuccess(notification.message);
         }
 
         const remainingState = { ...routeState };
         delete remainingState.notification;
-        navigate(
+        latestNavigate(
           {
-            pathname: location.pathname,
-            search: location.search,
-            hash: location.hash,
+            pathname: latestLocation.pathname,
+            search: latestLocation.search,
+            hash: latestLocation.hash,
           },
           {
             replace: true,
@@ -67,6 +103,11 @@ export function ScrollToTop() {
       const headingText = heading?.textContent?.trim();
 
       if (!heading || !headingText) return false;
+      // Suspense can briefly retain the outgoing route. Never treat its
+      // focused heading as the destination heading.
+      if (heading === outgoingHeading && headingText === outgoingHeadingText) {
+        return false;
+      }
 
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
@@ -93,7 +134,8 @@ export function ScrollToTop() {
       });
 
       fallbackTimer = window.setTimeout(() => {
-        observer?.disconnect();
+        // Give users useful focus even when the destination is still loading,
+        // but keep observing so the real h1 receives focus when it appears.
         main.focus({ preventScroll: true });
         announceRouteNotification();
       }, 3000);
@@ -105,18 +147,7 @@ export function ScrollToTop() {
       if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
       if (notificationTimer !== undefined) window.clearTimeout(notificationTimer);
     };
-  }, [
-    pathname,
-    location.hash,
-    location.pathname,
-    location.search,
-    location.state,
-    navigate,
-    success,
-    error,
-    warning,
-    info,
-  ]);
+  }, [routeId]);
 
   return null;
 }
