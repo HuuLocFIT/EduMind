@@ -180,7 +180,7 @@ export const SignupPage = () => {
           </div>
 
           {/* Signup Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             {/* Username */}
             <Input
               id="signup-username"

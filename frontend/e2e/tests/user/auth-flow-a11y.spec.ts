@@ -10,6 +10,13 @@ const json = (route: Route, body: unknown, status = 200) =>
     body: JSON.stringify(body),
   });
 
+const apiError = (status: number, message: string, path: string) => ({
+  status,
+  message,
+  path,
+  timestamp: '2026-01-01T00:00:00.000Z',
+});
+
 async function installAuthFixtures(
   page: Page,
   outcomes: Partial<Record<'login' | 'signup' | 'forgot' | 'reset', AuthOutcome>> = {},
@@ -44,16 +51,18 @@ async function installAuthFixtures(
               username: 'a11y_student',
               email: 'student@example.test',
               roles: ['STUDENT'],
+              isActive: true,
+              isEmailVerified: true,
+              is2faEnabled: false,
+              isTrial: false,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
             },
           },
         });
         return;
       }
-      await json(route, {
-        status: 401,
-        success: false,
-        message: 'Invalid email or password',
-      }, 401);
+      await json(route, apiError(401, 'Invalid email or password', pathname), 401);
       return;
     }
 
@@ -65,11 +74,11 @@ async function installAuthFixtures(
           message: 'Account created. Check your email to verify it.',
         }, 201);
       } else {
-        await json(route, {
-          status: 409,
-          success: false,
-          message: 'An account with this email already exists',
-        }, 409);
+        await json(
+          route,
+          apiError(409, 'An account with this email already exists', pathname),
+          409,
+        );
       }
       return;
     }
@@ -82,11 +91,11 @@ async function installAuthFixtures(
           message: 'If the address is registered, reset instructions have been sent.',
         });
       } else {
-        await json(route, {
-          status: 503,
-          success: false,
-          message: 'Reset service is temporarily unavailable',
-        }, 503);
+        await json(
+          route,
+          apiError(503, 'Reset service is temporarily unavailable', pathname),
+          503,
+        );
       }
       return;
     }
@@ -99,16 +108,12 @@ async function installAuthFixtures(
           message: 'Password reset successfully',
         });
       } else {
-        await json(route, {
-          status: 400,
-          success: false,
-          message: 'This reset link has expired',
-        }, 400);
+        await json(route, apiError(400, 'This reset link has expired', pathname), 400);
       }
       return;
     }
 
-    await json(route, { status: 404, success: false, message: 'Unknown auth fixture' }, 404);
+    await json(route, apiError(404, 'Unknown auth fixture', pathname), 404);
   });
 }
 
@@ -134,6 +139,11 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await expect(password).toHaveAttribute('type', 'text');
     await expect(password).toHaveValue('Password123');
     await expect(page.getByRole('button', { name: 'Hide password' })).toHaveAttribute('aria-pressed', 'true');
+    await checkA11y(page, { stateName: 'auth login password revealed', testInfo });
+
+    await page.getByRole('button', { name: 'Hide password' }).click();
+    await expect(password).toHaveAttribute('type', 'password');
+    await checkA11y(page, { stateName: 'auth login password hidden again', testInfo });
 
     await page.getByLabel('Username or Email').fill('student@example.test');
     await page.getByRole('button', { name: 'Sign In' }).click();
@@ -147,6 +157,20 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await expect(code).toHaveAttribute('aria-invalid', 'true');
     await expect(code).toBeFocused();
     await checkA11y(page, { stateName: 'auth login 2fa validation error', testInfo });
+  });
+
+  test('login success reaches the authenticated destination', async ({ page }, testInfo) => {
+    await installAuthFixtures(page, { login: 'success' });
+    await page.goto('/login');
+    await checkA11y(page, { stateName: 'auth login success journey ready', testInfo });
+
+    await page.getByLabel('Username or Email').fill('student@example.test');
+    await page.getByLabel('Password', { exact: true }).fill('Accessible123');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByRole('main')).toBeVisible();
+    await checkA11y(page, { stateName: 'auth login authenticated dashboard', testInfo });
   });
 
   test('login server error is announced once and keeps a recovery focus target', async ({ page }, testInfo) => {
@@ -184,7 +208,8 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
 
     await username.fill('a11y_student');
     await email.fill('student@example.test');
-    await password.fill('Accessible123');
+    await password.fill('Accessible123!');
+    await checkA11y(page, { stateName: 'auth signup validation errors corrected', testInfo });
     await page.getByRole('button', { name: 'Create Account' }).click();
     const successHeading = page.getByRole('heading', { level: 1, name: /account created/i });
     await expect(successHeading).toBeFocused();
@@ -209,12 +234,30 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await email.fill('student@example.test');
     await page.getByRole('button', { name: 'Send Reset Link' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Check Your Email' })).toBeFocused();
-    await expect(page.getByRole('status')).toContainText(/reset instructions|check your email/i);
+    await expect(
+      page.getByRole('main').getByRole('status').filter({ hasText: /reset instructions/i }),
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to Login' })).toHaveAttribute('href', '/login');
     await checkA11y(page, { stateName: 'auth forgot password success', testInfo });
 
     await page.getByRole('button', { name: 'Resend Email' }).click();
-    await expect(page.getByRole('status')).toContainText(/sent again|reset/i);
+    await expect(
+      page.getByRole('main').getByRole('status').filter({ hasText: /sent again/i }),
+    ).toBeVisible();
+    await checkA11y(page, { stateName: 'auth forgot password resent', testInfo });
+  });
+
+  test('forgot-password API error is announced once and can be corrected', async ({ page }, testInfo) => {
+    await installAuthFixtures(page, { forgot: 'error' });
+    await page.goto('/forgot-password');
+    await page.getByLabel('Email Address').fill('student@example.test');
+    await page.getByRole('button', { name: 'Send Reset Link' }).click();
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText(/temporarily unavailable/i);
+    await expect(alert).toBeFocused();
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await checkA11y(page, { stateName: 'auth forgot password API error', testInfo });
   });
 
   test('reset-password covers missing token, validation, API error, and success', async ({ page }, testInfo) => {
@@ -225,8 +268,12 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await checkA11y(page, { stateName: 'auth reset password missing token', testInfo });
 
     await page.goto('/reset-password?token=expired-fixture');
-    const password = page.getByLabel('New Password');
-    const confirmation = page.getByLabel('Confirm New Password');
+    await expect(page).toHaveURL(/\/reset-password\?token=expired-fixture$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Reset Password' })).toBeVisible();
+    const password = page.locator('#new-password');
+    const confirmation = page.locator('#confirm-new-password');
+    await expect(password).toHaveAccessibleName('New Password');
+    await expect(confirmation).toHaveAccessibleName('Confirm New Password');
     await expect(password).toHaveAttribute('autocomplete', 'new-password');
     await expect(confirmation).toHaveAttribute('autocomplete', 'new-password');
     await expect(password).toHaveAccessibleDescription(/at least 8|uppercase|lowercase|number/i);
@@ -243,20 +290,46 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await confirmation.fill('Accessible123');
     await page.getByRole('button', { name: 'Reset Password' }).click();
     await expect(page.getByRole('alert')).toContainText(/expired/i);
-    await expect(page.getByRole('alert')).toBeFocused();
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Invalid Reset Link' }),
+    ).toBeFocused();
     await checkA11y(page, { stateName: 'auth reset password API error', testInfo });
   });
 
   test('reset-password success is announced and offers an explicit login link', async ({ page }, testInfo) => {
     await installAuthFixtures(page, { reset: 'success' });
     await page.goto('/reset-password?token=valid-fixture');
-    await page.getByLabel('New Password').fill('Accessible123');
-    await page.getByLabel('Confirm New Password').fill('Accessible123');
+    await expect(page.getByRole('heading', { level: 1, name: 'Reset Password' })).toBeVisible();
+    await page.locator('#new-password').fill('Accessible123');
+    await page.locator('#confirm-new-password').fill('Accessible123');
     await page.getByRole('button', { name: 'Reset Password' }).click();
 
     await expect(page.getByRole('heading', { level: 1, name: /password reset/i })).toBeFocused();
-    await expect(page.getByRole('status')).toContainText(/password.*reset successfully/i);
+    await expect(
+      page
+        .getByRole('main')
+        .getByRole('status')
+        .filter({ hasText: /password.*reset successfully/i }),
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: /sign in|login/i })).toHaveAttribute('href', '/login');
     await checkA11y(page, { stateName: 'auth reset password success', testInfo });
+  });
+
+  test('guest returns to the protected destination after login', async ({ page }, testInfo) => {
+    await installAuthFixtures(page, { login: 'success' });
+    await page.goto('/learning');
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign In' })).toBeFocused();
+    await checkA11y(page, { stateName: 'auth protected route redirected to login', testInfo });
+
+    await page.getByLabel('Username or Email').fill('student@example.test');
+    await page.getByLabel('Password', { exact: true }).fill('Accessible123');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+
+    await expect(page).toHaveURL(/\/learning$/);
+    await expect(page.getByRole('main')).toBeVisible();
+    await checkA11y(page, { stateName: 'auth protected destination restored', testInfo });
   });
 });

@@ -84,10 +84,15 @@ export const AuthLayout: React.FC = () => {
   // Memoize the redirect to prevent re-render loops
   const redirect = useMemo(() => {
     if (isAuthenticated) {
-      return <Navigate to={USER_ROUTES.DASHBOARD} replace />;
+      const from = location.state?.from;
+      const destination =
+        from && typeof from.pathname === "string" && from.pathname.startsWith("/")
+          ? `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`
+          : USER_ROUTES.DASHBOARD;
+      return <Navigate to={destination} replace />;
     }
     return null;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, location.state]);
 
   // Redirect if already authenticated
   if (redirect) {

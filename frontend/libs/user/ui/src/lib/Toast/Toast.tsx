@@ -21,12 +21,12 @@ const variantConfig = {
   },
   success: {
     icon: CheckCircle,
-    containerClass: "bg-green-600",
+    containerClass: "bg-green-700",
     iconClass: "text-white",
   },
   warning: {
     icon: AlertTriangle,
-    containerClass: "bg-yellow-600",
+    containerClass: "bg-yellow-700",
     iconClass: "text-white",
   },
   error: {

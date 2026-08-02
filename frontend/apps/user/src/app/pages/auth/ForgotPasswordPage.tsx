@@ -27,6 +27,7 @@ function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [resendMessage, setResendMessage] = useState("");
   const confirmationHeadingRef = useRef<HTMLHeadingElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -42,6 +43,10 @@ function ForgotPasswordPage() {
   useEffect(() => {
     if (emailSent) confirmationHeadingRef.current?.focus();
   }, [emailSent]);
+
+  useEffect(() => {
+    if (error) requestAnimationFrame(() => errorSummaryRef.current?.focus());
+  }, [error]);
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setError("");
@@ -89,7 +94,7 @@ function ForgotPasswordPage() {
           >
             Check Your Email
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p role="status" className="text-gray-600 mb-6">
             We've sent password reset instructions to{" "}
             <span className="font-semibold">{email}</span>
           </p>
@@ -100,7 +105,13 @@ function ForgotPasswordPage() {
               message="The link will expire in 1 hour for security reasons."
             />
 
-            {error && <AuthErrorSummary title="Unable to resend email" message={error} />}
+            {error && (
+              <AuthErrorSummary
+                ref={errorSummaryRef}
+                title="Unable to resend email"
+                message={error}
+              />
+            )}
             {resendMessage && (
               <p role="status" className="text-sm text-green-700">
                 {resendMessage}
@@ -149,10 +160,12 @@ function ForgotPasswordPage() {
         </div>
 
         {/* Error Alert */}
-        {error && <AuthErrorSummary message={error} className="mb-4" />}
+        {error && (
+          <AuthErrorSummary ref={errorSummaryRef} message={error} className="mb-4" />
+        )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <Input
             id="forgot-email"
             label="Email Address"

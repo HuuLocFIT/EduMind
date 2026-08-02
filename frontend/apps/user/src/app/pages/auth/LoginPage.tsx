@@ -35,6 +35,14 @@ export const LoginPage = () => {
 
   // Success message from signup or email verification
   const successMessage = location.state?.message;
+  const requestedDestination = (() => {
+    const from = location.state?.from;
+    if (!from || typeof from.pathname !== "string" || !from.pathname.startsWith("/")) {
+      return USER_ROUTES.DASHBOARD;
+    }
+
+    return `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`;
+  })();
 
   const {
     register: registerLogin,
@@ -75,7 +83,7 @@ export const LoginPage = () => {
       showSuccess("Login successful!");
 
       setTimeout(() => {
-        navigate(USER_ROUTES.DASHBOARD);
+        navigate(requestedDestination, { replace: true });
       }, 500);
     } catch (err: any) {
       // Check if 2FA is required
@@ -111,7 +119,7 @@ export const LoginPage = () => {
       showSuccess("2FA verification successful!");
 
       setTimeout(() => {
-        navigate(USER_ROUTES.DASHBOARD);
+        navigate(requestedDestination, { replace: true });
       }, 500);
     } catch (err: any) {
       const errorMsg = err.message || "Invalid 2FA code";
