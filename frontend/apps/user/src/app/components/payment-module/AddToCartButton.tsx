@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { ShoppingCart, Check } from "lucide-react";
 import { Button, useToast } from "@edumind/user-ui";
 import { useAddToCart, useIsInCart } from "../../hooks/useCart";
@@ -27,8 +27,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const navigate = useNavigate();
   const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated } = useAuthStore();
-  const [announcement, setAnnouncement] = useState("");
-  
+
   const { data: isInCart, isLoading: checkingCart } = useIsInCart(
     courseId,
     isAuthenticated
@@ -64,8 +63,10 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       startAddingItem(courseId);
       
       await addToCart.mutateAsync(courseId);
-      setAnnouncement("Course added to cart. You can now view your cart or continue browsing.");
-      showSuccess("Course added to cart!");
+      // ToastContainer is the single polite live region for this update. Do
+      // not add a second component-local status: VoiceOver would announce the
+      // same successful action twice.
+      showSuccess("Course added to cart. You can now view your cart or continue browsing.");
     } catch (error: any) {
       showError(error?.message || "Failed to add to cart");
     } finally {
@@ -90,7 +91,6 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   }
 
   return (
-    <>
     <Button
       variant={variant}
       size={size}
@@ -103,9 +103,5 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     >
       Add to Cart
     </Button>
-    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-      {announcement}
-    </span>
-    </>
   );
 };

@@ -90,6 +90,7 @@ describe('CheckoutSuccessPage', () => {
 
       const heading = await screen.findByRole('heading', { level: 1, name: 'Payment Successful!' });
       await waitFor(() => expect(heading).toHaveFocus());
+      expect(document.title).toBe('Payment Confirmation | EduMind');
       expect(screen.getByRole('status')).toHaveTextContent('Payment completed successfully');
       expect(screen.getByText('Order Number').tagName).toBe('DT');
       expect(screen.getByText('ORD-A11Y-1').tagName).toBe('DD');

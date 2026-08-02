@@ -233,10 +233,16 @@ describe("shared UI accessibility contracts", () => {
       />,
     );
 
-    expect(screen.getByRole("dialog", { name: "Delete course" })).toHaveTextContent(
+    const dialog = screen.getByRole("dialog", { name: "Delete course" });
+    expect(dialog).toHaveClass("fixed", "inset-0", "z-50");
+    expect(dialog).toHaveTextContent(
       "This cannot be undone.",
     );
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const dangerAction = screen.getByRole("button", { name: "Delete" });
+    expect(dangerAction).toHaveClass("bg-red-700", "hover:bg-red-800", "text-white");
+    expect(dangerAction).not.toHaveClass("opacity-50");
+    expect(screen.getByText("This cannot be undone.")).toHaveClass("text-gray-600");
+    await user.click(dangerAction);
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
 

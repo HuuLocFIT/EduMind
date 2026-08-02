@@ -41,9 +41,20 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnEscape = true,
   ariaLabel,
 }) => {
+  // Headless UI keeps the dialog mounted while its exit transition runs. The
+  // caller may clear the selected item/message as soon as `isOpen` becomes
+  // false, so keep rendering the last open content until the dialog unmounts.
+  const visibleContentRef = React.useRef({ title, children });
+
+  if (isOpen) {
+    visibleContentRef.current = { title, children };
+  }
+
+  const visibleContent = visibleContentRef.current;
+
   return (
     <Dialog
-      aria-label={!title ? ariaLabel ?? "Dialog" : undefined}
+      aria-label={!visibleContent.title ? ariaLabel ?? "Dialog" : undefined}
       open={isOpen}
       onClose={() => {
         // Headless UI Dialog calls onClose for both Escape key and overlay click
@@ -53,7 +64,11 @@ export const Modal: React.FC<ModalProps> = ({
           onClose();
         }
       }}
-      className="relative z-50"
+      // Headless UI places role="dialog" on this root. Give that semantic
+      // element a real viewport-sized box; fixed descendants alone do not
+      // contribute to their parent's layout box, so browser automation and
+      // accessibility APIs can otherwise report an open dialog as hidden.
+      className="fixed inset-0 z-50"
     >
       {/* Backdrop — sibling to panel container as recommended by Headless UI */}
       <DialogBackdrop
@@ -68,19 +83,22 @@ export const Modal: React.FC<ModalProps> = ({
           <DialogPanel
             transition
             className={clsx(
-              "w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 ease-out data-[closed]:scale-95 data-[closed]:opacity-0",
+              // Keep the scale animation but never fade interactive content.
+              // During an opacity transition, text and button colors composite
+              // with the page and can temporarily fall below WCAG contrast.
+              "w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-transform duration-300 ease-out data-[closed]:scale-95",
               "flex flex-col max-h-[calc(100vh-2rem)]",
               sizeStyles[size]
             )}
           >
-            {(title || showCloseButton) && (
+            {(visibleContent.title || showCloseButton) && (
               <div className="flex items-center justify-between pb-4 border-b border-gray-200 shrink-0">
-                {title && (
+                {visibleContent.title && (
                   <DialogTitle
                     as="h3"
                     className="text-lg font-semibold text-gray-900"
                   >
-                    {title}
+                    {visibleContent.title}
                   </DialogTitle>
                 )}
                 {showCloseButton && (
@@ -95,7 +113,9 @@ export const Modal: React.FC<ModalProps> = ({
                 )}
               </div>
             )}
-            <div className="overflow-y-auto flex-1">{children}</div>
+            <div className="overflow-y-auto flex-1">
+              {visibleContent.children}
+            </div>
           </DialogPanel>
         </div>
       </div>

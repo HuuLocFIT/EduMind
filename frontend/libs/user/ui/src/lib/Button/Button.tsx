@@ -26,7 +26,7 @@ export const variantStyles: Record<ButtonVariant, string> = {
     "bg-gray-600 hover:bg-gray-700 text-white shadow-sm hover:shadow-md",
   outline: "border-2 border-blue-600 text-blue-600 hover:bg-blue-50",
   ghost: "text-blue-600 hover:bg-blue-50",
-  danger: "bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-md",
+  danger: "bg-red-700 hover:bg-red-800 text-white shadow-sm hover:shadow-md",
 };
 
 export const sizeStyles: Record<ButtonSize, string> = {

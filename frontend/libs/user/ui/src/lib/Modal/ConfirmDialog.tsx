@@ -75,7 +75,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </div>
 
         {/* Message */}
-        <p className="text-sm text-gray-500 leading-relaxed max-w-xs">{message}</p>
+        <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{message}</p>
       </div>
 
       {/* Actions */}

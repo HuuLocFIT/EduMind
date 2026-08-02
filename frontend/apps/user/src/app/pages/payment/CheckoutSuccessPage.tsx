@@ -5,6 +5,7 @@ import { CheckCircle, ArrowRight, BookOpen, Package, XCircle, RefreshCw, FileTex
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useCapturePayment, usePaymentStatus } from "../../hooks/useCheckout";
 import type { CheckoutResultResponse } from "@edumind/shared-types";
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 type PageState = "loading" | "pending" | "success" | "error";
 
@@ -106,10 +107,21 @@ export const CheckoutSuccessPage: React.FC = () => {
     }).format(amount);
   };
 
+  const pageMetadata = (
+    <SeoMetaTags
+      title="Payment Confirmation"
+      description="View the confirmation status for your EduMind payment."
+      canonicalUrl={USER_ROUTES.CHECKOUT_SUCCESS}
+      noIndex
+    />
+  );
+
   // Loading state - capturing payment
   if (pageState === "loading") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <>
+        {pageMetadata}
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
           <div role="status" aria-live="polite" aria-atomic="true">
             <Loading />
@@ -123,13 +135,16 @@ export const CheckoutSuccessPage: React.FC = () => {
             </p>
           </div>
         </Card>
-      </div>
+        </div>
+      </>
     );
   }
 
   if (pageState === "pending") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <>
+        {pageMetadata}
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center" role="status" aria-live="polite">
           <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Clock className="w-8 h-8 text-amber-600" aria-hidden="true" />
@@ -145,14 +160,17 @@ export const CheckoutSuccessPage: React.FC = () => {
             View Orders
           </Button>
         </Card>
-      </div>
+        </div>
+      </>
     );
   }
 
   // Error state - capture failed
   if (pageState === "error") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <>
+        {pageMetadata}
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center" role="alert" aria-labelledby="capture-error-heading">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <XCircle className="w-8 h-8 text-red-600" aria-hidden="true" />
@@ -188,13 +206,16 @@ export const CheckoutSuccessPage: React.FC = () => {
             </Button>
           </div>
         </Card>
-      </div>
+        </div>
+      </>
     );
   }
 
   // Success state
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <>
+      {pageMetadata}
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="max-w-md w-full p-8 text-center">
         {/* Success Icon */}
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -287,7 +308,8 @@ export const CheckoutSuccessPage: React.FC = () => {
           </Button>
         </div>
       </Card>
-    </div>
+      </div>
+    </>
   );
 };
 

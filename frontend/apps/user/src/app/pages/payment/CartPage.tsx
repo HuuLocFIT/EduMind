@@ -7,6 +7,7 @@ import { CartItem } from "../../components/payment-module";
 import { ShoppingCart, Trash2, ArrowRight, ArrowLeft, AlertTriangle } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useMemo } from "react";
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,8 +26,9 @@ export const CartPage: React.FC = () => {
   // Dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
   const [coursePendingRemoval, setCoursePendingRemoval] = React.useState<number | null>(null);
-  const [announcement, setAnnouncement] = React.useState("");
   const [pendingRemovalFocus, setPendingRemovalFocus] = React.useState<{ courseId: number; index: number } | null>(null);
+  const [removalAnnouncement, setRemovalAnnouncement] = React.useState("");
+  const removalAnnouncementTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const itemListRef = React.useRef<HTMLUListElement>(null);
@@ -36,6 +38,12 @@ export const CartPage: React.FC = () => {
   // keyboard and screen-reader users immediate page context.
   useEffect(() => {
     cartHeadingRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => () => {
+    if (removalAnnouncementTimerRef.current) {
+      clearTimeout(removalAnnouncementTimerRef.current);
+    }
   }, []);
 
   // Sync server data to local store
@@ -61,8 +69,21 @@ export const CartPage: React.FC = () => {
       onSuccess: () => {
         setCoursePendingRemoval(null);
         const message = `${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`;
-        setAnnouncement(message);
-        showSuccess(`${removedItem.courseTitle} removed from cart`);
+        // Keep the existing visible confirmation toast.
+        showSuccess(message);
+
+        // While the confirmation dialog runs its 300 ms exit transition,
+        // Headless UI keeps the page behind it inert. Announcing immediately
+        // would therefore be missed by VoiceOver. Update this stable live
+        // region only after the dialog has left the accessibility tree.
+        setRemovalAnnouncement("");
+        if (removalAnnouncementTimerRef.current) {
+          clearTimeout(removalAnnouncementTimerRef.current);
+        }
+        removalAnnouncementTimerRef.current = setTimeout(() => {
+          setRemovalAnnouncement(message);
+          removalAnnouncementTimerRef.current = null;
+        }, 350);
         setPendingRemovalFocus({ courseId, index: removedIndex });
       },
       onError: (err: Error) => {
@@ -123,6 +144,12 @@ export const CartPage: React.FC = () => {
 
   return (
     <>
+      <SeoMetaTags
+        title="Shopping Cart"
+        description="Review the courses in your EduMind shopping cart and continue to secure checkout."
+        canonicalUrl={USER_ROUTES.CART}
+        noIndex
+      />
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
@@ -200,9 +227,13 @@ export const CartPage: React.FC = () => {
 
           {/* Empty State */}
           {!isLoading && items.length === 0 && (
-            <Card className="p-6 sm:p-12 text-center">
+            <Card
+              className="p-6 sm:p-12 text-center"
+              role="region"
+              aria-labelledby="empty-cart-heading"
+            >
               <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-              <h2 ref={emptyHeadingRef} tabIndex={-1} className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              <h2 id="empty-cart-heading" ref={emptyHeadingRef} tabIndex={-1} className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                 Your cart is empty
               </h2>
               <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
@@ -217,8 +248,12 @@ export const CartPage: React.FC = () => {
             <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {/* Order Summary - Show first on mobile */}
               <div className="order-1 lg:order-2 lg:col-span-1">
-                <Card className="p-4 sm:p-6 lg:sticky lg:top-8">
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                <Card
+                  className="p-4 sm:p-6 lg:sticky lg:top-8"
+                  role="region"
+                  aria-labelledby="cart-order-summary-heading"
+                >
+                  <h2 id="cart-order-summary-heading" className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                     Order Summary
                   </h2>
 
@@ -233,7 +268,7 @@ export const CartPage: React.FC = () => {
                     {discount > 0 && (
                       <div className="flex items-center justify-between text-xs sm:text-sm">
                         <span className="text-gray-600">Discount:</span>
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-green-700">
                           -${discount.toFixed(2)}
                         </span>
                       </div>
@@ -294,8 +329,12 @@ export const CartPage: React.FC = () => {
 
               {/* Main Content - Cart Items */}
               <div className="order-2 lg:order-1 lg:col-span-2">
-                <h2 className="sr-only">Courses in your cart</h2>
-                <ul ref={itemListRef} className="space-y-3 sm:space-y-4">
+                <h2 id="cart-items-heading" className="sr-only">Courses in your cart</h2>
+                <ul
+                  ref={itemListRef}
+                  aria-labelledby="cart-items-heading"
+                  className="space-y-3 sm:space-y-4"
+                >
                 {items.map((item) => (
                   <CartItem
                     key={item.courseId}
@@ -346,7 +385,9 @@ export const CartPage: React.FC = () => {
         variant="danger"
         isLoading={clearCartMutation.isPending}
       />
-      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {removalAnnouncement}
+      </p>
     </>
   );
 };

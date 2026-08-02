@@ -15,6 +15,7 @@ import { CreditCard, Wallet, ArrowLeft, ArrowRight, ShieldCheck, Lock, AlertTria
 import { USER_ROUTES, UserRouteHelpers } from "@edumind/shared-utils";
 import { PaymentMethod } from "@edumind/shared-constants";
 import type { CheckoutRequest, DirectCheckoutRequest } from "@edumind/shared-types";
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 // Generate a UUID v4 for idempotency key
 const generateIdempotencyKey = (): string => {
@@ -334,7 +335,14 @@ export const CheckoutPage: React.FC = () => {
   const total = preview?.totalAmount || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <SeoMetaTags
+        title="Checkout"
+        description="Review your order and choose a secure payment method."
+        canonicalUrl={USER_ROUTES.CHECKOUT}
+        noIndex
+      />
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
         {/* Decorative elements */}
@@ -411,7 +419,7 @@ export const CheckoutPage: React.FC = () => {
                 {discount > 0 && (
                   <div className="flex justify-between text-xs sm:text-sm">
                     <dt className="text-gray-600">Discount</dt>
-                    <dd className="text-green-600">
+                    <dd className="text-green-700">
                       <span aria-hidden="true">-${discount.toFixed(2)} USD</span>
                       <span className="sr-only">Minus {accessibleUsdAmount(discount)}</span>
                     </dd>
@@ -428,14 +436,12 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="pt-2 sm:pt-3 border-t">
-                  <div className="flex justify-between items-center">
-                    <dt className="text-sm sm:text-base font-semibold text-gray-900">Total</dt>
-                    <dd>
-                      <span aria-hidden="true"><PriceTag price={total} size="lg" /></span>
-                      <span className="sr-only">{accessibleUsdAmount(total)}</span>
-                    </dd>
-                  </div>
+                <div className="flex justify-between items-center pt-2 sm:pt-3 border-t">
+                  <dt className="text-sm sm:text-base font-semibold text-gray-900">Total</dt>
+                  <dd>
+                    <span aria-hidden="true"><PriceTag price={total} size="lg" /></span>
+                    <span className="sr-only">{accessibleUsdAmount(total)}</span>
+                  </dd>
                 </div>
               </dl>
 
@@ -530,7 +536,7 @@ export const CheckoutPage: React.FC = () => {
                         <p className="text-sm sm:text-base font-medium text-gray-900">
                           {method.name}
                         </p>
-                        <p className="text-xs sm:text-sm text-gray-500 truncate">
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">
                           {method.description}
                         </p>
                       </div>
@@ -586,7 +592,8 @@ export const CheckoutPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

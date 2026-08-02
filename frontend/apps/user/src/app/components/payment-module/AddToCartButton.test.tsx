@@ -155,11 +155,12 @@ describe('AddToCartButton', () => {
     expect(mockAddToCartMutate).toHaveBeenCalledWith(1);
     
     await waitFor(() => {
-      expect(mockShowSuccess).toHaveBeenCalledWith('Course added to cart!');
-      expect(screen.getByRole('status')).toHaveTextContent(
+      expect(mockShowSuccess).toHaveBeenCalledTimes(1);
+      expect(mockShowSuccess).toHaveBeenCalledWith(
         'Course added to cart. You can now view your cart or continue browsing.'
       );
     });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     
     expect(mockFinishAddingItem).toHaveBeenCalledWith(1);
   });

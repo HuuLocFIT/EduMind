@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartPage } from './CartPage';
 import { useCart, useRemoveFromCart, useClearCart } from '../../hooks/useCart';
@@ -33,7 +33,7 @@ vi.mock('@edumind/user-ui', () => ({
       {children}
     </button>
   ),
-  Card: ({ children }: any) => <div>{children}</div>,
+  Card: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Loading: () => <div>Loading...</div>,
   PriceTag: ({ price }: any) => <span>${price}</span>,
   ConfirmDialog: ({ isOpen, onConfirm, onCancel, title }: any) => 
@@ -68,6 +68,7 @@ describe('CartPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    document.title = '';
 
     (useToast as any).mockReturnValue({
       success: mockShowSuccess,
@@ -96,6 +97,14 @@ describe('CartPage', () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
+    });
+  });
+
+  it('sets a non-empty route-specific document title', async () => {
+    render(<CartPage />);
+
+    await waitFor(() => {
+      expect(document.title).toBe('Shopping Cart | EduMind');
     });
   });
 
@@ -161,12 +170,17 @@ describe('CartPage', () => {
     expect(screen.getByText('2 courses in your cart')).toBeInTheDocument();
     
     // Items check
+    const courseList = screen.getByRole('list', { name: 'Courses in your cart' });
+    expect(courseList).toBeInTheDocument();
+    expect(within(courseList).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByTestId('cart-item-1')).toBeInTheDocument();
     expect(screen.getByTestId('cart-item-2')).toBeInTheDocument();
     
     // Summary check
-    expect(screen.getByText('Subtotal (2 items):')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    const summary = screen.getByRole('region', { name: 'Order Summary' });
+    expect(within(summary).getByText('Subtotal (2 items):')).toBeInTheDocument();
+    expect(within(summary).getByText('$100.00')).toBeInTheDocument();
+    expect(within(summary).getByText('Total:')).toBeInTheDocument();
   });
 
   it('handles remove item interaction', async () => {
@@ -187,7 +201,18 @@ describe('CartPage', () => {
     
     // Simulate success callback execution
     mutateCallArgs[1].onSuccess();
-    expect(mockShowSuccess).toHaveBeenCalledWith('React 101 removed from cart');
+    expect(mockShowSuccess).toHaveBeenCalledTimes(1);
+    expect(mockShowSuccess).toHaveBeenCalledWith(
+      'React 101 removed from cart. New total: $0.00 USD.',
+    );
+    const removalStatus = screen.getByRole('status');
+    expect(removalStatus).toHaveAttribute('aria-live', 'polite');
+    expect(removalStatus).toHaveAttribute('aria-atomic', 'true');
+    await waitFor(() => {
+      expect(removalStatus).toHaveTextContent(
+        'React 101 removed from cart. New total: $0.00 USD.',
+      );
+    });
   });
 
   it('moves focus only after the removed item is absent from the rendered cart', async () => {

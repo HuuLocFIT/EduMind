@@ -140,7 +140,7 @@ describe('CheckoutPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
   });
 
-  it('renders cart checkout preview correctly', () => {
+  it('renders cart checkout preview with valid summary semantics and a page title', () => {
     (useCheckoutPreview as any).mockReturnValue({ 
       data: mockCartPreviewData,
       isLoading: false 
@@ -151,6 +151,17 @@ describe('CheckoutPage', () => {
     expect(screen.getByText('Checkout')).toBeInTheDocument();
     expect(screen.getByText('React Course')).toBeInTheDocument();
     expect(screen.getByText('PayPal')).toBeInTheDocument();
+    expect(document.title).toBe('Checkout | EduMind');
+
+    const summary = screen.getByRole('region', { name: 'Order Summary' });
+    const definitionList = summary.querySelector('dl');
+    expect(definitionList).not.toBeNull();
+    expect(
+      Array.from(definitionList!.children).every((child) =>
+        child.matches('div') &&
+        Array.from(child.children).every((item) => item.matches('dt, dd')),
+      ),
+    ).toBe(true);
   });
 
   it('renders direct checkout preview correctly (Buy Now)', () => {
