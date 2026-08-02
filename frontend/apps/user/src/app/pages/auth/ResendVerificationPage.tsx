@@ -1,20 +1,23 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
-import { ArrowLeft, CheckCircle, Mail } from "lucide-react";
+import { CheckCircle, Mail } from "lucide-react";
 import {
   ResendVerificationRequestSchema,
   type ResendVerificationRequest,
 } from "@edumind/shared-types";
 import { USER_ROUTES } from "@edumind/shared-utils";
-import { Alert, Button, Card, CardBody, Input } from "@edumind/user-ui";
+import { Button, Card, CardBody, Input } from "@edumind/user-ui";
 import { authService } from "../../services/auth.service";
+import { AuthErrorSummary } from "./components/AuthErrorSummary";
+import { AuthBackLink } from "./components/AuthBackLink";
 
 export const ResendVerificationPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [error, setError] = useState("");
+  const successHeadingRef = useRef<HTMLHeadingElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const {
     register,
     handleSubmit,
@@ -22,6 +25,14 @@ export const ResendVerificationPage = () => {
   } = useForm<ResendVerificationRequest>({
     resolver: zodResolver(ResendVerificationRequestSchema),
   });
+
+  useEffect(() => {
+    if (submittedEmail) successHeadingRef.current?.focus();
+  }, [submittedEmail]);
+
+  useEffect(() => {
+    if (error) errorSummaryRef.current?.focus();
+  }, [error]);
 
   const onSubmit = async (data: ResendVerificationRequest) => {
     setIsSubmitting(true);
@@ -46,13 +57,23 @@ export const ResendVerificationPage = () => {
         <Card>
           <CardBody className="text-center">
             <CheckCircle aria-hidden="true" className="w-16 h-16 mx-auto mb-4 text-green-600" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
-            <p className="text-gray-600 mb-6">
+            <h1
+              ref={successHeadingRef}
+              tabIndex={-1}
+              aria-describedby="resend-verification-success-message"
+              className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none"
+            >
+              Check Your Email
+            </h1>
+            <p
+              id="resend-verification-success-message"
+              className="text-gray-600 mb-6"
+            >
               If an unverified account exists for {submittedEmail}, a new verification link has been sent.
             </p>
-            <Link to={USER_ROUTES.LOGIN} className="font-medium text-blue-600 hover:text-blue-700">
+            <AuthBackLink to={USER_ROUTES.LOGIN}>
               Back to Sign In
-            </Link>
+            </AuthBackLink>
           </CardBody>
         </Card>
       </div>
@@ -68,7 +89,12 @@ export const ResendVerificationPage = () => {
 
       <div className="bg-white rounded-2xl shadow-xl p-8">
           {error && (
-            <Alert variant="error" title="Unable to resend email" message={error} className="mb-6" />
+            <AuthErrorSummary
+              ref={errorSummaryRef}
+              title="Unable to resend email"
+              message={error}
+              className="mb-6"
+            />
           )}
           <p className="text-sm text-gray-600 mb-6">
             Enter the email address you used to create your account.
@@ -77,6 +103,7 @@ export const ResendVerificationPage = () => {
             <Input
               label="Email Address"
               type="email"
+              autoComplete="email"
               placeholder="your@email.com"
               leftIcon={<Mail aria-hidden="true" className="w-5 h-5" />}
               error={errors.email?.message}
@@ -96,13 +123,7 @@ export const ResendVerificationPage = () => {
             </Button>
           </form>
           <div className="mt-6 text-center">
-            <Link
-              to={USER_ROUTES.LOGIN}
-              className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-            >
-              <ArrowLeft aria-hidden="true" className="w-4 h-4" />
-              Back to Login
-            </Link>
+            <AuthBackLink to={USER_ROUTES.LOGIN} />
           </div>
       </div>
     </div>

@@ -248,7 +248,7 @@ describe('LoginPage', () => {
       });
     });
 
-    it('should show error toast on login failure', async () => {
+    it('should announce a login failure once through the inline alert', async () => {
       const user = userEvent.setup();
       const error = new Error('Invalid credentials');
       mockLogin.mockRejectedValue(error);
@@ -259,8 +259,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalledWith('Login failed. Please check your credentials.');
+        expect(screen.getByTestId('login-error')).toHaveTextContent('Invalid credentials');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should show 2FA form when 2FA is required', async () => {
@@ -382,8 +383,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
+        expect(screen.getByTestId('login-error')).toHaveTextContent('Invalid 2FA code');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should handle network error during 2FA verification', async () => {
@@ -415,8 +417,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
+        expect(screen.getByTestId('login-error')).toHaveTextContent('Network error');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should show error message for expired 2FA code', async () => {
@@ -449,8 +452,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
+        expect(screen.getByTestId('login-error')).toHaveTextContent('2FA code has expired');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should validate 2FA code format (6 digits)', async () => {

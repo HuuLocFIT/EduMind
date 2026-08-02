@@ -32,7 +32,9 @@ describe("ResendVerificationPage", () => {
     expect(
       screen.getByRole("heading", { name: "Resend Verification Email", level: 1 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /email/i })).toBeRequired();
+    const email = screen.getByRole("textbox", { name: /email/i });
+    expect(email).toBeRequired();
+    expect(email).toHaveAttribute("autocomplete", "email");
     expect(screen.getByRole("link", { name: "Back to Login" })).toHaveAttribute(
       "href",
       "/login",
@@ -50,9 +52,11 @@ describe("ResendVerificationPage", () => {
     await waitFor(() => {
       expect(mockResendVerification).toHaveBeenCalledWith({ email: "user@example.com" });
     });
-    expect(
-      screen.getByRole("heading", { name: "Check Your Email", level: 1 }),
-    ).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "Check Your Email", level: 1 });
+    expect(heading).toHaveFocus();
+    expect(heading).toHaveAccessibleDescription(
+      /If an unverified account exists for user@example\.com, a new verification link has been sent\./,
+    );
   });
 
   it("announces an API error", async () => {
@@ -63,9 +67,9 @@ describe("ResendVerificationPage", () => {
     await user.type(screen.getByRole("textbox", { name: /email/i }), "user@example.com");
     await user.click(screen.getByRole("button", { name: "Resend Verification Email" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Too many verification requests",
-    );
+    const alert = await screen.findByRole("alert", { name: "Unable to resend email" });
+    expect(alert).toHaveAccessibleDescription("Too many verification requests");
+    expect(alert).toHaveFocus();
   });
 
   it("announces the message from the API error response", async () => {

@@ -27,19 +27,9 @@ vi.mock('../../services/auth.service', () => ({
   },
 }));
 
-// Mock react-router-dom
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
-
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
@@ -170,6 +160,15 @@ describe('SignupPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Account Created!')).toBeInTheDocument();
       });
+      const heading = screen.getByRole('heading', { name: 'Account Created!', level: 1 });
+      expect(heading).toHaveFocus();
+      expect(heading).toHaveAccessibleDescription(
+        'Please check your email to verify your account before signing in.',
+      );
+      expect(screen.getByRole('link', { name: 'Go to Sign In' })).toHaveAttribute(
+        'href',
+        '/login',
+      );
     });
   });
 
@@ -196,7 +195,10 @@ describe('SignupPage', () => {
         expect(hrefValue).toBe('https://accounts.google.com/oauth2/auth');
       });
       
-      window.location = originalLocation;
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
     });
   });
 

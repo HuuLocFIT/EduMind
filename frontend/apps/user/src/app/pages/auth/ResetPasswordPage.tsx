@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,11 +9,11 @@ import { Lock, CheckCircle } from "lucide-react";
 import {
   Button,
   PasswordInput,
-  Alert,
   Card,
-  useToast,
 } from "@edumind/user-ui";
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { AuthErrorSummary } from "./components/AuthErrorSummary";
+import { AuthBackLink } from "./components/AuthBackLink";
 
 const resetPasswordSchema = z
   .object({
@@ -33,14 +33,15 @@ const resetPasswordSchema = z
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 function ResetPasswordPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
   const [isLoading, setIsLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [invalidToken, setInvalidToken] = useState(false);
   const [error, setError] = useState("");
-  const { success, error: showError } = useToast();
+  const stateHeadingRef = useRef<HTMLHeadingElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -53,8 +54,40 @@ function ResetPasswordPage() {
 
   const password = watch("password");
 
+  useEffect(() => {
+    if (!token || invalidToken || resetSuccess) stateHeadingRef.current?.focus();
+  }, [invalidToken, resetSuccess, token]);
+
+  const onInvalid = () => {
+    requestAnimationFrame(() => errorSummaryRef.current?.focus());
+  };
+
+  const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!token) return;
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await authService.resetPassword({
+        token,
+        newPassword: data.password,
+        confirmPassword: data.confirmPassword,
+      });
+      setResetSuccess(true);
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to reset password. The link may have expired.";
+      setError(errorMessage);
+      setInvalidToken(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Token validation
-  if (!token) {
+  if (!token || invalidToken) {
     return (
       <Card
         variant="elevated"
@@ -76,46 +109,26 @@ function ResetPasswordPage() {
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+        <h1
+          ref={stateHeadingRef}
+          tabIndex={-1}
+          className="text-2xl font-bold text-gray-800 mb-2 focus:outline-none"
+        >
           Invalid Reset Link
         </h1>
         <p className="text-gray-600 mb-6">
           This password reset link is invalid or has expired.
         </p>
-        <Link to={USER_ROUTES.FORGOT_PASSWORD}>
-          <Button variant="primary" fullWidth>
-            Request New Link
-          </Button>
+        {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
+        <Link
+          to={USER_ROUTES.FORGOT_PASSWORD}
+          className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Request New Link
         </Link>
       </Card>
     );
   }
-
-  const onSubmit = async (data: ResetPasswordFormData) => {
-    setError("");
-    setIsLoading(true);
-
-    try {
-      await authService.resetPassword({
-        token,
-        newPassword: data.password,
-        confirmPassword: data.confirmPassword,
-      });
-      setResetSuccess(true);
-      success("Password reset successfully!", "Success");
-      setTimeout(() => {
-        navigate(USER_ROUTES.LOGIN);
-      }, 3000);
-    } catch (error: any) {
-      const errorMessage =
-        error?.message ||
-        "Failed to reset password. The link may have expired.";
-      setError(errorMessage);
-      showError(errorMessage, "Error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Password strength indicator
   const getPasswordStrength = () => {
@@ -147,17 +160,24 @@ function ResetPasswordPage() {
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="w-10 h-10 text-green-600" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+        <h1
+          ref={stateHeadingRef}
+          tabIndex={-1}
+          className="text-2xl font-bold text-gray-800 mb-2 focus:outline-none"
+        >
           Password Reset!
         </h1>
         <p className="text-gray-600 mb-4">
           Your password has been reset successfully. You can now login with your
           new password.
         </p>
-        <div className="flex items-center justify-center gap-2 text-blue-600">
-          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span>Redirecting to login...</span>
-        </div>
+        <p role="status" className="sr-only">Password reset successfully.</p>
+        <Link
+          to={USER_ROUTES.LOGIN}
+          className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Go to Login
+        </Link>
       </Card>
     );
   }
@@ -181,22 +201,30 @@ function ResetPasswordPage() {
         </div>
 
         {/* Error Alert */}
-        {error && (
-          <div className="mb-4">
-            <Alert
-              variant="error"
-              message={error}
-              onClose={() => setError("")}
-            />
-          </div>
+        {(errors.password || errors.confirmPassword) && (
+          <AuthErrorSummary
+            ref={errorSummaryRef}
+            title="Please correct the following errors"
+            message={
+              <ul className="mt-1 list-disc pl-5">
+                {errors.password && <li>{errors.password.message}</li>}
+                {errors.confirmPassword && <li>{errors.confirmPassword.message}</li>}
+              </ul>
+            }
+            className="mb-4"
+          />
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
           {/* New Password */}
           <div>
             <PasswordInput
               label="New Password"
+              visibilityLabel="new password"
+              id="new-password"
+              autoComplete="new-password"
+              required
               placeholder="••••••••"
               leftIcon={<Lock className="w-5 h-5" />}
               error={errors.password?.message}
@@ -228,6 +256,10 @@ function ResetPasswordPage() {
           {/* Confirm Password */}
           <PasswordInput
             label="Confirm New Password"
+            visibilityLabel="password confirmation"
+            id="confirm-new-password"
+            autoComplete="new-password"
+            required
             placeholder="••••••••"
             leftIcon={<Lock className="w-5 h-5" />}
             error={errors.confirmPassword?.message}
@@ -248,12 +280,7 @@ function ResetPasswordPage() {
 
         {/* Back to Login */}
         <div className="mt-6 text-center">
-          <Link
-            to={USER_ROUTES.LOGIN}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-          >
-            Back to Login
-          </Link>
+          <AuthBackLink to={USER_ROUTES.LOGIN} />
         </div>
       </div>
     </div>

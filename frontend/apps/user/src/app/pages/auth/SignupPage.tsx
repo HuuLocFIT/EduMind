@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   SignupRequestSchema,
   type SignupRequest,
@@ -13,19 +13,18 @@ import {
   Button,
   Input,
   PasswordInput,
-  Alert,
   Card,
-  CardBody,
-  useToast
+  CardBody
 } from "@edumind/user-ui";
 import { Mail, User, CheckCircle } from "lucide-react";
+import { AuthErrorSummary } from "./components/AuthErrorSummary";
 
 export const SignupPage = () => {
-  const navigate = useNavigate();
   const { signup, isLoading, error, clearError } = useAuthStore();
   const [localError, setLocalError] = useState<string>("");
   const [success, setSuccess] = useState(false);
-  const { success: showSuccess } = useToast();
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const successHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const {
     register,
@@ -39,6 +38,18 @@ export const SignupPage = () => {
   const password = watch("password", "");
   const passwordStrength = password ? getPasswordStrength(password) : null;
 
+  useEffect(() => {
+    if (error || localError) {
+      errorSummaryRef.current?.focus();
+    }
+  }, [error, localError]);
+
+  useEffect(() => {
+    if (success) {
+      successHeadingRef.current?.focus();
+    }
+  }, [success]);
+
   const onSubmit = async (data: SignupRequest) => {
     clearError();
     setLocalError("");
@@ -46,16 +57,6 @@ export const SignupPage = () => {
     try {
       await signup(data);
       setSuccess(true);
-      showSuccess("Account created! Please check your email to verify.");
-
-      setTimeout(() => {
-        navigate(USER_ROUTES.LOGIN, {
-          state: {
-            message:
-              "Account created! Please check your email to verify your account.",
-          },
-        });
-      }, 2000);
     } catch (err: any) {
       const errorMsg = err.message || "Failed to create account. Please try again.";
       setLocalError(errorMsg);
@@ -78,12 +79,23 @@ export const SignupPage = () => {
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1
+              ref={successHeadingRef}
+              tabIndex={-1}
+              aria-describedby="signup-success-message"
+              className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none"
+            >
               Account Created!
             </h1>
-            <p className="text-gray-600">
-              Please check your email to verify your account before logging in.
+            <p id="signup-success-message" className="mb-6 text-gray-600">
+              Please check your email to verify your account before signing in.
             </p>
+            <Link
+              to={USER_ROUTES.LOGIN}
+              className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-lg font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              Go to Sign In
+            </Link>
           </CardBody>
         </Card>
       </div>
@@ -105,9 +117,8 @@ export const SignupPage = () => {
         <CardBody>
           {/* Error Alert */}
           {(error || localError) && (
-            <Alert
-              variant="error"
-              title="Error"
+            <AuthErrorSummary
+              ref={errorSummaryRef}
               message={error || localError}
               className="mb-6"
             />
@@ -172,17 +183,20 @@ export const SignupPage = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Username */}
             <Input
+              id="signup-username"
               label="Username"
               placeholder="e.g. lucas"
               leftIcon={<User className="w-5 h-5" />}
               error={errors.username?.message}
               fullWidth
               required
+              autoComplete="username"
               {...register("username")}
             />
 
             {/* Email */}
             <Input
+              id="signup-email"
               label="Email"
               type="email"
               placeholder="your.email@example.com"
@@ -190,26 +204,31 @@ export const SignupPage = () => {
               error={errors.email?.message}
               fullWidth
               required
+              autoComplete="email"
               {...register("email")}
             />
 
             {/* Password with Strength Indicator */}
             <div>
               <PasswordInput
+                id="signup-password"
                 label="Password"
                 placeholder="Create a strong password"
                 error={errors.password?.message}
                 fullWidth
                 required
+                autoComplete="new-password"
+                helperText="Use at least 8 characters with uppercase, lowercase, number, and special character."
                 {...register("password")}
               />
 
               {/* Password Strength */}
               {passwordStrength && (
-                <div className="mt-2">
+                <div className="mt-2" role="status" aria-label={`Password strength: ${passwordStrength.label}`}>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
+                        aria-hidden="true"
                         className={`h-full transition-all duration-300 ${
                           passwordStrength.color === "red"
                             ? "bg-red-500"
@@ -231,7 +250,7 @@ export const SignupPage = () => {
                           : "text-green-600"
                       }`}
                     >
-                      {passwordStrength.label}
+                      Strength: {passwordStrength.label}
                     </span>
                   </div>
                 </div>

@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle } from "lucide-react";
 
 import {
   Button,
   Input,
   Alert,
   Card,
-  useToast,
 } from "@edumind/user-ui";
 import { authService } from '../../services/auth.service';
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { AuthErrorSummary } from "./components/AuthErrorSummary";
+import { AuthBackLink } from "./components/AuthBackLink";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -25,7 +25,8 @@ function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState("");
-  const { success, error: showError } = useToast();
+  const [resendMessage, setResendMessage] = useState("");
+  const confirmationHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const {
     register,
@@ -38,6 +39,10 @@ function ForgotPasswordPage() {
 
   const email = watch("email");
 
+  useEffect(() => {
+    if (emailSent) confirmationHeadingRef.current?.focus();
+  }, [emailSent]);
+
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setError("");
     setIsLoading(true);
@@ -45,12 +50,10 @@ function ForgotPasswordPage() {
     try {
       await authService.forgotPassword(data);
       setEmailSent(true);
-      success("Check your email for reset instructions", "Email Sent!");
     } catch (error: any) {
       const errorMessage =
         error?.message || "Failed to send reset email. Please try again.";
       setError(errorMessage);
-      showError(errorMessage, "Error");
     } finally {
       setIsLoading(false);
     }
@@ -60,11 +63,13 @@ function ForgotPasswordPage() {
     if (!email) return;
 
     setIsLoading(true);
+    setError("");
+    setResendMessage("");
     try {
       await authService.forgotPassword({ email });
-      success("Reset email sent again", "Email Sent!");
+      setResendMessage("Reset email sent again.");
     } catch (error: any) {
-      showError("Failed to resend email", "Error");
+      setError(error?.message || "Failed to resend email. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +82,11 @@ function ForgotPasswordPage() {
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-10 h-10 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          <h1
+            ref={confirmationHeadingRef}
+            tabIndex={-1}
+            className="text-2xl font-bold text-gray-800 mb-2 focus:outline-none"
+          >
             Check Your Email
           </h1>
           <p className="text-gray-600 mb-6">
@@ -91,12 +100,20 @@ function ForgotPasswordPage() {
               message="The link will expire in 1 hour for security reasons."
             />
 
+            {error && <AuthErrorSummary title="Unable to resend email" message={error} />}
+            {resendMessage && (
+              <p role="status" className="text-sm text-green-700">
+                {resendMessage}
+              </p>
+            )}
+
             <div className="pt-4">
               <p className="text-sm text-gray-600 mb-3">
                 Didn't receive the email?
               </p>
               <Button
-                variant="outline"
+                variant="primary"
+                size="lg"
                 onClick={handleResend}
                 isLoading={isLoading}
                 fullWidth
@@ -105,15 +122,7 @@ function ForgotPasswordPage() {
               </Button>
             </div>
 
-            <Link to={USER_ROUTES.LOGIN}>
-              <Button
-                variant="ghost"
-                fullWidth
-                leftIcon={<ArrowLeft className="w-4 h-4" />}
-              >
-                Back to Login
-              </Button>
-            </Link>
+            <AuthBackLink to={USER_ROUTES.LOGIN} />
           </div>
         </div>
       </Card>
@@ -140,21 +149,16 @@ function ForgotPasswordPage() {
         </div>
 
         {/* Error Alert */}
-        {error && (
-          <div className="mb-4">
-            <Alert
-              variant="error"
-              message={error}
-              onClose={() => setError("")}
-            />
-          </div>
-        )}
+        {error && <AuthErrorSummary message={error} className="mb-4" />}
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
+            id="forgot-email"
             label="Email Address"
             type="email"
+            autoComplete="email"
+            required
             placeholder="your@email.com"
             leftIcon={<Mail className="w-5 h-5" />}
             error={errors.email?.message}
@@ -176,13 +180,7 @@ function ForgotPasswordPage() {
 
         {/* Back to Login */}
         <div className="mt-6 text-center">
-          <Link
-            to={USER_ROUTES.LOGIN}
-            className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Login
-          </Link>
+          <AuthBackLink to={USER_ROUTES.LOGIN} />
         </div>
       </div>
 

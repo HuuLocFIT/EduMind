@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link, useLocation } from "react-router-dom";
@@ -10,6 +10,7 @@ import {
 import { authService } from '../../services/auth.service';
 import { useAuthStore } from '../../stores/auth.store';
 import { USER_ROUTES } from "@edumind/shared-utils";
+import { AuthErrorSummary } from "./components/AuthErrorSummary";
 import {
   Button,
   Input,
@@ -28,7 +29,9 @@ export const LoginPage = () => {
   const [needs2FA, setNeeds2FA] = useState(false);
   const [loginData, setLoginData] = useState<LoginRequest | null>(null);
   const [localError, setLocalError] = useState<string>("");
-  const { success: showSuccess, error: showError } = useToast();
+  const { success: showSuccess } = useToast();
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const twoFactorHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Success message from signup or email verification
   const successMessage = location.state?.message;
@@ -50,6 +53,18 @@ export const LoginPage = () => {
       code: "",
     },
   });
+
+  useEffect(() => {
+    if (needs2FA) {
+      twoFactorHeadingRef.current?.focus();
+    }
+  }, [needs2FA]);
+
+  useEffect(() => {
+    if (error || localError) {
+      errorSummaryRef.current?.focus();
+    }
+  }, [error, localError]);
 
   const onLoginSubmit = async (data: LoginRequest) => {
     clearError();
@@ -75,7 +90,6 @@ export const LoginPage = () => {
       } else {
         const errorMsg = err.message || "Invalid email or password";
         setLocalError(errorMsg);
-        showError("Login failed. Please check your credentials.");
       }
     }
   };
@@ -102,7 +116,6 @@ export const LoginPage = () => {
     } catch (err: any) {
       const errorMsg = err.message || "Invalid 2FA code";
       setLocalError(errorMsg);
-      showError("2FA verification failed");
     }
   };
 
@@ -125,7 +138,11 @@ export const LoginPage = () => {
     <div className="max-w-md w-full mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <h1
+          ref={needs2FA ? twoFactorHeadingRef : undefined}
+          tabIndex={needs2FA ? -1 : undefined}
+          className="text-4xl font-bold text-gray-900 mb-2 focus:outline-none"
+        >
           {needs2FA ? "Two-Factor Authentication" : "Sign In"}
         </h1>
         <p className="text-gray-600">
@@ -150,20 +167,18 @@ export const LoginPage = () => {
 
           {/* Error Alert */}
           {(error || localError) && (
-            <div data-testid="login-error">
-              <Alert
-                variant="error"
-                title="Error"
-                message={error || localError}
-                className="mb-6"
-              />
-            </div>
+            <AuthErrorSummary
+              ref={errorSummaryRef}
+              data-testid="login-error"
+              message={error || localError}
+              className="mb-6"
+            />
           )}
 
           {needs2FA ? (
             // ========== 2FA CODE FORM ==========
             <>
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-6" aria-hidden="true">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
                   <Shield className="w-8 h-8 text-blue-600" />
                 </div>
@@ -192,9 +207,16 @@ export const LoginPage = () => {
                       twoFAErrors.code ? "border-red-500" : "border-gray-300"
                     }`}
                     maxLength={6}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    aria-invalid={!!twoFAErrors.code}
+                    aria-describedby={`two-factor-code-hint${twoFAErrors.code ? " two-factor-code-error" : ""}`}
                   />
+                  <p id="two-factor-code-hint" className="mt-2 text-sm text-gray-500 text-center">
+                    Enter the 6-digit numeric code from your authenticator app.
+                  </p>
                   {twoFAErrors.code && (
-                    <p className="mt-2 text-sm text-red-600 text-center">
+                    <p id="two-factor-code-error" className="mt-2 text-sm text-red-600 text-center">
                       {twoFAErrors.code.message}
                     </p>
                   )}
@@ -297,12 +319,14 @@ export const LoginPage = () => {
               >
                 {/* Email */}
                 <Input
+                  id="login-username-or-email"
                   label="Username or Email"
                   type="text"
                   placeholder="e.g. lucas or lucas@email.com"
                   leftIcon={<User className="w-5 h-5" />}
                   error={loginErrors.usernameOrEmail?.message}
                   fullWidth
+                  autoComplete="username"
                   {...registerLogin("usernameOrEmail")}
                 />
 
@@ -324,6 +348,7 @@ export const LoginPage = () => {
                     placeholder="••••••••"
                     error={loginErrors.password?.message}
                     fullWidth
+                    autoComplete="current-password"
                     {...registerLogin("password")}
                   />
                 </div>
