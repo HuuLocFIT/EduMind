@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Card } from '@edumind/user-ui';
-import { useFocusTrap } from '../../../hooks/useFocusTrap';
+import { useFocusTrap } from '../../../../hooks/useFocusTrap';
 
 interface CourseAccessErrorDialogProps {
   title: string;

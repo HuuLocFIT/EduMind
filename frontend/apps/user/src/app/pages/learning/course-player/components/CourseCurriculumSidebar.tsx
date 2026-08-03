@@ -10,7 +10,7 @@ import {
   Video,
 } from 'lucide-react';
 import { ProgressBar } from '@edumind/user-ui';
-import { useFocusTrap } from '../../../hooks/useFocusTrap';
+import { useFocusTrap } from '../../../../hooks/useFocusTrap';
 
 interface CourseCurriculumSidebarProps {
   isOpen: boolean;

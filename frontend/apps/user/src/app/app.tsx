@@ -108,7 +108,7 @@ const ProfileSettingsPage = createLazyRoute(
 
 // Learning Pages
 const CoursePlayerPage = createLazyRoute(
-  () => import("./pages/learning/CoursePlayerPage")
+  () => import("./pages/learning/course-player/CoursePlayerPage")
 );
 const CertificatesPage = createLazyRoute(
   () => import("./pages/learning/CertificatesPage")

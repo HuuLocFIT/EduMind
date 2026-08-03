@@ -56,22 +56,22 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
-vi.mock('../../services/course.service', () => ({
+vi.mock('../../../services/course.service', () => ({
   courseService: { getCourseBySlug: vi.fn() },
 }));
-vi.mock('../../services/section.service', () => ({
+vi.mock('../../../services/section.service', () => ({
   sectionService: { getCourseSections: vi.fn() },
 }));
-vi.mock('../../services/lesson.service', () => ({
+vi.mock('../../../services/lesson.service', () => ({
   lessonService: { getCourseLessons: vi.fn() },
 }));
-vi.mock('../../services/enrollment.service', () => ({
+vi.mock('../../../services/enrollment.service', () => ({
   enrollmentService: {
     checkEnrollmentStatus: vi.fn(),
     getMyEnrollments: vi.fn(),
   },
 }));
-vi.mock('../../services/lesson-progress.service', () => ({
+vi.mock('../../../services/lesson-progress.service', () => ({
   lessonProgressService: {
     startLesson: vi.fn(),
     updateWatchProgress: vi.fn(),
@@ -79,17 +79,17 @@ vi.mock('../../services/lesson-progress.service', () => ({
     getEnrollmentProgress: vi.fn(),
   },
 }));
-vi.mock('../../services/ai.service', () => ({
+vi.mock('../../../services/ai.service', () => ({
   aiService: {
     getQuizForStudent: vi.fn(),
     getSummaryByLesson: vi.fn(),
     getMyAttempts: vi.fn(),
   },
 }));
-vi.mock('../../stores/aiChat.store', () => ({
+vi.mock('../../../stores/aiChat.store', () => ({
   useAiChatStore: () => ({ isOpen: false, closeChat: vi.fn(), toggleChat: vi.fn() }),
 }));
-vi.mock('../../components/learning/InlineQuizTaker', () => ({
+vi.mock('../../../components/learning/InlineQuizTaker', () => ({
   InlineQuizTaker: () => (
     <div>
       <fieldset>
@@ -102,19 +102,19 @@ vi.mock('../../components/learning/InlineQuizTaker', () => ({
     </div>
   ),
 }));
-vi.mock('../../components/learning/QuizTakerModal', () => ({
+vi.mock('../../../components/learning/QuizTakerModal', () => ({
   QuizTakerModal: () => null,
 }));
-vi.mock('../../components/learning/LessonSummaryPanel', () => ({
+vi.mock('../../../components/learning/LessonSummaryPanel', () => ({
   LessonSummaryPanel: () => null,
 }));
 
-import { courseService } from '../../services/course.service';
-import { sectionService } from '../../services/section.service';
-import { lessonService } from '../../services/lesson.service';
-import { enrollmentService } from '../../services/enrollment.service';
-import { lessonProgressService } from '../../services/lesson-progress.service';
-import { aiService } from '../../services/ai.service';
+import { courseService } from '../../../services/course.service';
+import { sectionService } from '../../../services/section.service';
+import { lessonService } from '../../../services/lesson.service';
+import { enrollmentService } from '../../../services/enrollment.service';
+import { lessonProgressService } from '../../../services/lesson-progress.service';
+import { aiService } from '../../../services/ai.service';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

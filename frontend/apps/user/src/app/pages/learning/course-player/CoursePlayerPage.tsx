@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArticleViewer } from '../../components/learning/ArticleViewer';
+import { ArticleViewer } from '../../../components/learning/ArticleViewer';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
@@ -8,13 +8,13 @@ import {
   ProgressBar,
   useModal,
 } from '@edumind/user-ui';
-import { CoursePlayerSkeleton } from '../../components/route-skeletons/CoursePlayerSkeleton';
-import { courseService } from '../../services/course.service';
-import { enrollmentService } from '../../services/enrollment.service';
-import { lessonProgressService } from '../../services/lesson-progress.service';
-import { lessonService } from '../../services/lesson.service';
-import { sectionService } from '../../services/section.service';
-import { aiService } from '../../services/ai.service';
+import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
+import { courseService } from '../../../services/course.service';
+import { enrollmentService } from '../../../services/enrollment.service';
+import { lessonProgressService } from '../../../services/lesson-progress.service';
+import { lessonService } from '../../../services/lesson.service';
+import { sectionService } from '../../../services/section.service';
+import { aiService } from '../../../services/ai.service';
 import type {
   CourseDetailResponse,
   LessonResponse,
@@ -37,18 +37,18 @@ import {
   Loader2,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
-import { queryKeys } from '../../lib/query-keys';
-import { VideoPlayer } from '../../components/learning/VideoPlayer';
-import { QuizTakerModal } from '../../components/learning/QuizTakerModal';
-import { LessonSummaryPanel } from '../../components/learning/LessonSummaryPanel';
-import { InlineQuizTaker } from '../../components/learning/InlineQuizTaker';
+import { queryKeys } from '../../../lib/query-keys';
+import { VideoPlayer } from '../../../components/learning/VideoPlayer';
+import { QuizTakerModal } from '../../../components/learning/QuizTakerModal';
+import { LessonSummaryPanel } from '../../../components/learning/LessonSummaryPanel';
+import { InlineQuizTaker } from '../../../components/learning/InlineQuizTaker';
 import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
 import { CourseAccessErrorDialog } from './components/CourseAccessErrorDialog';
 import { CourseCompletionDialog } from './components/CourseCompletionDialog';
 const AiChatPanel = React.lazy(() =>
-  import('../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
+  import('../../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
 );
-import { useAiChatStore } from '../../stores/aiChat.store';
+import { useAiChatStore } from '../../../stores/aiChat.store';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
