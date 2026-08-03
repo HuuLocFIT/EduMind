@@ -5,7 +5,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Card,
-  ProgressBar,
   useModal,
 } from '@edumind/user-ui';
 import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
@@ -26,14 +25,7 @@ import type {
 import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
 import {
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
   BookOpen,
-  FileText,
-  List,
-  X,
-  Sparkles,
-  Download,
   Loader2,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
@@ -45,10 +37,16 @@ import { InlineQuizTaker } from '../../../components/learning/InlineQuizTaker';
 import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
 import { CourseAccessErrorDialog } from './components/CourseAccessErrorDialog';
 import { CourseCompletionDialog } from './components/CourseCompletionDialog';
-const AiChatPanel = React.lazy(() =>
-  import('../../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
-);
-import { useAiChatStore } from '../../../stores/aiChat.store';
+import { CoursePlayerHeader } from './components/CoursePlayerHeader';
+import { LessonNavigation } from './components/LessonNavigation';
+import { ProgressSaveStatus } from './components/ProgressSaveStatus';
+import { CompletionReconcileStatus } from './components/CompletionReconcileStatus';
+import { AutoAdvanceBanner } from './components/AutoAdvanceBanner';
+import { LessonTranscriptCard } from './components/LessonTranscriptCard';
+import { LessonResources } from './components/LessonResources';
+import { QuizLauncher } from './components/QuizLauncher';
+import { AiTutorOverlay } from './components/AiTutorOverlay';
+import { CourseNotFound } from './components/CourseNotFound';
 import type {
   AccessError,
   AutoAdvanceState,
@@ -73,7 +71,6 @@ export const CoursePlayerPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const quizModal = useModal();
-  const { isOpen: isChatOpen, closeChat, toggleChat } = useAiChatStore();
   const queryClient = useQueryClient();
 
   const REDIRECT_DELAY_SECONDS = 10;
@@ -875,124 +872,45 @@ export const CoursePlayerPage: React.FC = () => {
   }
 
   if (!course || !currentLesson) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 text-lg mb-4">Course not found</p>
-          <Button variant="primary" onClick={() => navigate(USER_ROUTES.LEARNING)}>
-            Back to My Learning
-          </Button>
-        </div>
-      </div>
-    );
+    return <CourseNotFound onBackToLearning={() => navigate(USER_ROUTES.LEARNING)} />;
   }
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 sticky top-16 z-20">
-        <div className="px-3 sm:px-4 py-3 grid grid-cols-[3rem_1fr_3rem] xl:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 xl:gap-4">
-          <Button
-            variant="secondary"
-            onClick={() => navigate(USER_ROUTES.LEARNING)}
-            className="h-12 w-12 xl:h-auto xl:w-auto p-0 xl:px-4 xl:py-2 justify-center bg-gray-700 hover:bg-gray-600"
-            aria-label="Exit course player and return to My Learning"
-          >
-            <ChevronLeft aria-hidden="true" className="w-5 h-5" />
-            <span className="hidden xl:inline">Exit</span>
-          </Button>
-
-          <h1 className="text-white font-semibold text-center xl:text-left truncate px-1 xl:px-0">
-            {course.title}
-          </h1>
-
-          <button
-            ref={sidebarToggleRef}
-            type="button"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="h-12 w-12 p-0 inline-flex xl:hidden items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label={sidebarOpen ? 'Close course content' : 'Open course content'}
-            aria-expanded={sidebarOpen}
-            aria-controls="course-curriculum-drawer"
-          >
-            {sidebarOpen ? <X aria-hidden="true" className="w-5 h-5" /> : <List aria-hidden="true" className="w-5 h-5" />}
-          </button>
-
-          <div className="hidden xl:flex items-center gap-3">
-            <span className="text-gray-300 text-sm whitespace-nowrap">
-              Course Progress: {enrollment?.progressPercentage || 0}%
-            </span>
-            <div className="w-32" data-testid="progress-bar">
-              <ProgressBar
-                progress={enrollment?.progressPercentage || 0}
-                size="sm"
-                color="green"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
+      <CoursePlayerHeader
+        courseTitle={course.title}
+        progressPercentage={enrollment?.progressPercentage || 0}
+        sidebarOpen={sidebarOpen}
+        sidebarToggleRef={sidebarToggleRef}
+        onExit={() => navigate(USER_ROUTES.LEARNING)}
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+      />
 
       <div className="flex relative">
         {/* Main Content */}
         <div id="course-player-main" className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
           {(completionReconcileError || completionReconcileInFlight) && (
-            <section aria-label="Course progress refresh status" className="px-3 sm:px-6 bg-white">
-              <div className="max-w-4xl mx-auto py-4">
-                {completionReconcileInFlight && (
-                  <p role="status">Refreshing course progress…</p>
-                )}
-                {completionReconcileError && (
-                  <div
-                    role="alert"
-                    className="rounded-lg p-4 bg-red-50 border border-red-200 text-red-700 flex flex-col sm:flex-row items-start sm:items-center gap-3"
-                  >
-                    <p>{completionReconcileError.message}</p>
-                    <Button
-                      variant="secondary"
-                      onClick={completionReconcileError.retry}
-                      aria-label="Retry refreshing course progress"
-                      className="flex-shrink-0"
-                    >
-                      Retry refresh
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </section>
+            <CompletionReconcileStatus
+              inFlight={completionReconcileInFlight}
+              error={completionReconcileError}
+              onRetry={() => completionReconcileError?.retry()}
+            />
           )}
 
           {/* Auto-advance countdown — shown after a lesson completes */}
           {autoAdvance && (
-            <div
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              className="p-3 sm:p-6 bg-white"
-            >
-              <div className="max-w-4xl mx-auto">
-                <p className="text-gray-900">
-                  Lesson completed. Moving to {autoAdvance.nextLesson.title} in {autoAdvance.secondsRemaining} seconds.
-                </p>
-                <div className="flex flex-wrap gap-3 mt-4">
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      clearAutoAdvance();
-                      handleLessonClick(autoAdvance.nextLesson, {
-                        focusContent: true,
-                        closeMobileSidebar: !isDesktop,
-                      });
-                    }}
-                  >
-                    Go to next lesson now
-                  </Button>
-                  <Button variant="secondary" onClick={cancelAutoAdvance}>
-                    Cancel auto-advance
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <AutoAdvanceBanner
+              nextLessonTitle={autoAdvance.nextLesson.title}
+              secondsRemaining={autoAdvance.secondsRemaining}
+              onGoNow={() => {
+                clearAutoAdvance();
+                handleLessonClick(autoAdvance.nextLesson, {
+                  focusContent: true,
+                  closeMobileSidebar: !isDesktop,
+                });
+              }}
+              onCancel={cancelAutoAdvance}
+            />
           )}
 
           {/* QUIZ lesson — inline quiz taker, no video/article */}
@@ -1010,28 +928,13 @@ export const CoursePlayerPage: React.FC = () => {
                   lesson={currentLesson}
                   onQuizPass={handleQuizPass}
                 />
-                <div className="w-full grid grid-cols-2 gap-3 sm:gap-4 mt-8">
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleNavigate('previous')}
-                    disabled={!getPreviousLesson()}
-                    className="justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
-                  >
-                    <ChevronLeft className="w-5 h-5 mr-2" />
-                    <span className="sm:hidden">Previous</span>
-                    <span className="hidden sm:inline">Previous Lesson</span>
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => handleNavigate('next')}
-                    disabled={!getNextLesson()}
-                    className="justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
-                  >
-                    <span className="sm:hidden">Next</span>
-                    <span className="hidden sm:inline">Next Lesson</span>
-                    <ChevronRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </div>
+                <LessonNavigation
+                  hasPrevious={!!getPreviousLesson()}
+                  hasNext={!!getNextLesson()}
+                  onPrevious={() => handleNavigate('previous')}
+                  onNext={() => handleNavigate('next')}
+                  className="mt-8"
+                />
               </div>
             </div>
           )}
@@ -1058,31 +961,11 @@ export const CoursePlayerPage: React.FC = () => {
           )}
 
           {/* Progress autosave status — persistent error with retry, not a toast */}
-          <section aria-label="Video progress save status" className="px-3 sm:px-6">
-            <div className="max-w-4xl mx-auto">
-              {progressSaveState === 'saving' && (
-                <p role="status" className="text-sm text-gray-300 py-2">
-                  Saving video progress…
-                </p>
-              )}
-              {progressSaveError && (
-                <div
-                  role="alert"
-                  className="rounded-lg p-4 bg-red-50 border border-red-200 text-red-700 my-4 flex flex-col sm:flex-row items-start sm:items-center gap-3"
-                >
-                  <p>{progressSaveError.message}</p>
-                  <Button
-                    variant="secondary"
-                    onClick={progressSaveError.retry}
-                    aria-label="Retry saving video progress"
-                    className="flex-shrink-0"
-                  >
-                    Retry saving progress
-                  </Button>
-                </div>
-              )}
-            </div>
-          </section>
+          <ProgressSaveStatus
+            state={progressSaveState}
+            error={progressSaveError}
+            onRetry={() => progressSaveError?.retry()}
+          />
 
           {/* Lesson Content — not shown for QUIZ type (handled above) */}
           {currentLesson.contentType !== ContentType.QUIZ && (
@@ -1146,78 +1029,20 @@ export const CoursePlayerPage: React.FC = () => {
               )}
 
               {currentLesson.contentType === ContentType.VIDEO && (
-                <Card className="p-4 sm:p-5 mb-6">
-                  <section aria-labelledby="lesson-transcript-heading">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex items-center justify-center w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
-                          <FileText className="w-5 h-5" aria-hidden="true" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 id="lesson-transcript-heading" className="text-sm font-medium text-slate-800">
-                            Transcript
-                          </h3>
-                          <p className="text-xs text-slate-500 truncate">
-                            {currentLesson.articleContent
-                              ? 'Read the transcript or download it as text.'
-                              : currentLesson.videoCaptionUrl
-                                ? 'Captions may be available in the player.'
-                                : 'No transcript is attached to this video.'}
-                          </p>
-                        </div>
-                      </div>
-                      {currentLesson.articleContent && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={handleDownloadTranscript}
-                          className="flex items-center gap-2"
-                          aria-label={`Download transcript for ${currentLesson.title}`}
-                        >
-                          <Download aria-hidden="true" className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                    {currentLesson.articleContent ? (
-                      <div className="mt-4">
-                        <ArticleViewer html={currentLesson.articleContent} title="Transcript" />
-                      </div>
-                    ) : (
-                      <p role="note" className="text-sm text-slate-500 mt-3">
-                        A transcript is not available for this video.
-                        {currentLesson.videoCaptionUrl
-                          ? ' Captions may be available in the video player.'
-                          : ''}
-                      </p>
-                    )}
-                  </section>
-                </Card>
+                <LessonTranscriptCard
+                  articleContent={currentLesson.articleContent}
+                  hasCaptions={!!currentLesson.videoCaptionUrl}
+                  lessonTitle={currentLesson.title}
+                  onDownload={handleDownloadTranscript}
+                />
               )}
 
               {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}
               {(currentLesson.contentType === ContentType.ARTICLE ||
                 currentLesson.contentType === ContentType.VIDEO) && (
                 <>
-                  <div className="mb-6">
-                    <Button
-                      variant="primary"
-                      onClick={quizModal.open}
-                      disabled={lessonHasQuiz !== true}
-                      className="flex items-center gap-2"
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      Take Quiz
-                    </Button>
-                    {lessonHasQuiz === null && (
-                      <p className="text-xs text-gray-400 mt-1">Checking quiz availability…</p>
-                    )}
-                    {lessonHasQuiz === false && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        No quiz available for this lesson yet.
-                      </p>
-                    )}
-                  </div>
-                  
+                  <QuizLauncher hasQuiz={lessonHasQuiz} onOpen={quizModal.open} />
+
                   {/* AI Lesson Summary */}
                   <LessonSummaryPanel lessonId={currentLesson.id} />
 
@@ -1226,51 +1051,15 @@ export const CoursePlayerPage: React.FC = () => {
               )}
 
               {/* Resources */}
-              {currentLesson.resources && currentLesson.resources.length > 0 && (
-                <Card className="p-6 mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-4">Resources</h3>
-                  <ul className="space-y-2">
-                    {currentLesson.resources.map((resource, index: number) => (
-                      <li key={index}>
-                        <a
-                          href={resource.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
-                        >
-                          <FileText className="w-4 h-4" />
-                          {resource.title}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              )}
+              <LessonResources resources={currentLesson.resources} />
 
               {/* Navigation Buttons */}
-              <div className="w-full grid grid-cols-2 gap-3 sm:gap-4">
-                <Button
-                  variant="secondary"
-                  onClick={() => handleNavigate('previous')}
-                  disabled={!getPreviousLesson()}
-                  className="justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
-                >
-                  <ChevronLeft className="w-5 h-5 mr-2" />
-                  <span className="sm:hidden">Previous</span>
-                  <span className="hidden sm:inline">Previous Lesson</span>
-                </Button>
-
-                <Button
-                  variant="primary"
-                  onClick={() => handleNavigate('next')}
-                  disabled={!getNextLesson()}
-                  className="justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
-                >
-                  <span className="sm:hidden">Next</span>
-                  <span className="hidden sm:inline">Next Lesson</span>
-                  <ChevronRight className="w-5 h-5 ml-2" />
-                </Button>
-              </div>
+              <LessonNavigation
+                hasPrevious={!!getPreviousLesson()}
+                hasNext={!!getNextLesson()}
+                onPrevious={() => handleNavigate('previous')}
+                onNext={() => handleNavigate('next')}
+              />
             </div>
           </div>
           )}
@@ -1321,42 +1110,7 @@ export const CoursePlayerPage: React.FC = () => {
       )}
 
       {/* AI Course Tutor: floating pill + overlay panel */}
-      {resolvedCourseId !== null && (
-        <>
-          {/* Mobile backdrop */}
-          {isChatOpen && (
-            <div
-              className="fixed inset-0 z-40 xl:hidden"
-              onClick={closeChat}
-            />
-          )}
-
-          {/* Panel */}
-          {isChatOpen && (
-            <React.Suspense fallback={null}>
-              <AiChatPanel courseId={resolvedCourseId} onClose={closeChat} />
-            </React.Suspense>
-          )}
-
-          {/* Floating pill trigger */}
-          <button
-            onClick={toggleChat}
-            className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3
-                       bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
-                       rounded-full shadow-lg transition-all duration-200
-                       md:bottom-6 md:right-6"
-          >
-            {isChatOpen ? (
-              <X className="w-4 h-4" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            <span className="hidden sm:inline">
-              {isChatOpen ? 'Close' : 'AI Tutor'}
-            </span>
-          </button>
-        </>
-      )}
+      {resolvedCourseId !== null && <AiTutorOverlay courseId={resolvedCourseId} />}
 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {lessonAnnouncement}
