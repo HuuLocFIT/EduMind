@@ -1,30 +1,22 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useModal,
 } from '@edumind/user-ui';
 import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
-import { courseService } from '../../../services/course.service';
-import { enrollmentService } from '../../../services/enrollment.service';
 import { lessonProgressService } from '../../../services/lesson-progress.service';
-import { lessonService } from '../../../services/lesson.service';
-import { sectionService } from '../../../services/section.service';
 import { aiService } from '../../../services/ai.service';
 import type {
-  CourseDetailResponse,
+  EnrollmentResponse,
   LessonResponse,
   LessonProgressResponse,
-  EnrollmentResponse,
-  SectionResponse,
   UpdateProgressRequest,
 } from '@edumind/shared-types';
-import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
+import { ContentType } from '@edumind/shared-constants';
 import {
   BookOpen,
 } from 'lucide-react';
-import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
-import { queryKeys } from '../../../lib/query-keys';
+import { USER_ROUTES } from '@edumind/shared-utils';
 import { VideoPlayer } from '../../../components/learning/VideoPlayer';
 import { QuizTakerModal } from '../../../components/learning/QuizTakerModal';
 import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
@@ -38,7 +30,6 @@ import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
 import { CourseLessonContent } from './components/CourseLessonContent';
 import type {
-  AccessError,
   AutoAdvanceState,
   CompletionError,
   CompletionSource,
@@ -46,49 +37,49 @@ import type {
   ProgressSaveError,
 } from './course-player.types';
 import {
-  buildCourseAccessError,
   calculateOptimisticCourseProgress,
   findLessonProgress,
   getAdjacentLessons,
   htmlToPlainText,
-  isCourseCompleteFromEnrollment,
-  resolveInitialLesson,
-  sortCourseLessons,
 } from './course-player.utils';
+import { useAccessErrorRedirect, useCoursePlayerData } from './hooks';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const quizModal = useModal();
-  const queryClient = useQueryClient();
 
-  const REDIRECT_DELAY_SECONDS = 10;
   const AUTO_ADVANCE_SECONDS = 5;
 
   // State
-  const [resolvedCourseId, setResolvedCourseId] = useState<number | null>(null);
-  const [course, setCourse] = useState<CourseDetailResponse | null>(null);
-  const [lessons, setLessons] = useState<LessonResponse[]>([]);
   const [currentLesson, setCurrentLesson] = useState<LessonResponse | null>(null);
-  const [sections, setSections] = useState<SectionResponse[]>([]);
-  const [expandedSectionIds, setExpandedSectionIds] = useState<number[]>([]);
-  // All progress for this enrollment; derive per-lesson progress from here
-  const [allLessonProgress, setAllLessonProgress] = useState<LessonProgressResponse[]>([]);
-  const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   // null = still checking, true/false = resolved
   const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
-  const [accessError, setAccessError] = useState<AccessError | null>(null);
-  const [redirectCountdown, setRedirectCountdown] = useState(REDIRECT_DELAY_SECONDS);
   const [lessonAnnouncement, setLessonAnnouncement] = useState('');
-  // Server-confirmed course completion. Optimistic enrollment updates never set
-  // this, so the completion dialog only appears once the server confirms it.
-  const [confirmedCourseComplete, setConfirmedCourseComplete] = useState(false);
   const [completionModalOpen, setCompletionModalOpen] = useState(false);
+
+  const {
+    resolvedCourseId,
+    course,
+    sections,
+    lessons,
+    expandedSectionIds,
+    setExpandedSectionIds,
+    allLessonProgress,
+    setAllLessonProgress,
+    enrollment,
+    setEnrollment,
+    loading,
+    accessError,
+    confirmedCourseComplete,
+    reconcileEnrollmentProgress,
+  } = useCoursePlayerData({ courseSlug, searchParams, setSearchParams, setCurrentLesson });
+
+  const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
   // Progress autosave orchestration
   const [progressSaveState, setProgressSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -114,8 +105,6 @@ export const CoursePlayerPage: React.FC = () => {
   const activeLessonRef = useRef<HTMLButtonElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const skipSidebarScroll = useRef(false);
-  const reconcileVersionRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lessonHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -141,17 +130,11 @@ export const CoursePlayerPage: React.FC = () => {
     setCompletionModalOpen(false);
   }, [courseSlug]);
 
+  // Data loading (course/sections/lessons/enrollment/progress) lives in
+  // useCoursePlayerData; this page still owns the auto-advance/progress
+  // timers, so clear them whenever the course changes or the page unmounts.
   useEffect(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
-    if (courseSlug) {
-      fetchCourseData(signal);
-    }
-
     return () => {
-      abortControllerRef.current?.abort();
       if (autoAdvanceTimeoutRef.current) {
         clearTimeout(autoAdvanceTimeoutRef.current);
         autoAdvanceTimeoutRef.current = null;
@@ -256,145 +239,6 @@ export const CoursePlayerPage: React.FC = () => {
       setSidebarOpen(true);
     }
   }, [isDesktop]);
-
-  // Handle countdown and auto-redirect when accessError is shown
-  useEffect(() => {
-    if (!accessError) return;
-
-    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
-
-    const interval = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          navigate(accessError.redirectTo);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [accessError, navigate]);
-
-
-  const fetchCourseData = async (signal?: AbortSignal) => {
-    setLoading(true);
-    try {
-      if (signal?.aborted) return;
-
-      // Resolve course by slug
-      const courseData = await courseService.getCourseBySlug(courseSlug!);
-      const numericCourseId = courseData.id;
-      setResolvedCourseId(numericCourseId);
-
-      if (signal?.aborted) return;
-
-      // Fetch sections and lessons with resolved numeric ID
-      const [courseSections, courseLessons] = await Promise.all([
-        sectionService.getCourseSections(numericCourseId),
-        lessonService.getCourseLessons(numericCourseId),
-      ]);
-
-      if (signal?.aborted) return;
-      
-      setCourse(courseData);
-      setSections(courseSections);
-      setExpandedSectionIds(courseSections.map((s) => s.id));
-      
-      // Sort lessons by section order and lesson order
-      const sortedLessons = sortCourseLessons(courseSections, courseLessons);
-
-      if (signal?.aborted) return;
-
-      setLessons(sortedLessons);
-
-      // Restore last lesson or default to first if available
-      if (sortedLessons.length > 0) {
-        const lessonIdParam = searchParams.get('lesson') || searchParams.get('lessonId');
-        const lastLessonId = localStorage.getItem(`course_${courseSlug}_last_lesson`);
-
-        const targetLesson = resolveInitialLesson(sortedLessons, lessonIdParam, lastLessonId)!;
-
-        setCurrentLesson(targetLesson);
-        setSearchParams({ lesson: targetLesson.id.toString(), type: targetLesson.contentType }, { replace: true });
-        localStorage.setItem(`course_${courseSlug}_last_lesson`, targetLesson.id.toString());
-        localStorage.setItem(`course_${courseSlug}_last_lesson_type`, targetLesson.contentType);
-        localStorage.setItem(`lesson_${targetLesson.id}_type`, targetLesson.contentType);
-      }
-
-      if (signal?.aborted) return;
-
-      // Check enrollment after we have the resolved course ID
-      await checkEnrollment(numericCourseId, signal);
-    } catch (err) {
-      console.error('Error fetching course data:', err);
-      if (signal?.aborted) return;
-      setLessons([]);
-    } finally {
-      if (!signal?.aborted) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const checkEnrollment = async (courseId: number, signal?: AbortSignal) => {
-    try {
-      if (signal?.aborted) return;
-      const isEnrolled = await enrollmentService.checkEnrollmentStatus(courseId);
-      if (signal?.aborted) return;
-      if (!isEnrolled) {
-        setAccessError(buildCourseAccessError('NOT_ENROLLED', courseSlug!));
-        return;
-      }
-      
-      // Get enrollment details
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      if (signal?.aborted) return;
-      const foundEnrollment = response.data?.find(
-        (e) => e.courseId === courseId
-      );
-      if (foundEnrollment) {
-        // Business rules:
-        // - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
-        // - SUSPENDED: student still "owns" the course but access is forbidden.
-        if (foundEnrollment.status === EnrollmentStatus.DROPPED) {
-          setAccessError(buildCourseAccessError(EnrollmentStatus.DROPPED, courseSlug!));
-          return;
-        }
-
-        if (foundEnrollment.status === EnrollmentStatus.SUSPENDED) {
-          setAccessError(buildCourseAccessError(EnrollmentStatus.SUSPENDED, courseSlug!));
-          return;
-        }
-
-        setEnrollment(foundEnrollment);
-        const completeAtLoad = isCourseCompleteFromEnrollment(foundEnrollment);
-        setConfirmedCourseComplete(completeAtLoad);
-        // Load all lesson progress for this enrollment once
-        try {
-          const allProgress = await lessonProgressService.getEnrollmentProgress(
-            foundEnrollment.id
-          );
-          setAllLessonProgress(allProgress);
-        } catch (progressErr) {
-          console.error('Error loading lesson progress:', progressErr);
-          setAllLessonProgress([]);
-        }
-      }
-    } catch (err) {
-      if (signal?.aborted) return;
-      console.error('Error checking enrollment:', err);
-      setAccessError({
-        title: 'Unable to load course',
-        message:
-          'We were unable to verify your enrollment for this course. Please try again or go back to the course page.',
-        redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-          courseSlug: courseSlug!,
-        }),
-      });
-    }
-  };
 
   // Helper: get progress for a specific lesson
   const getLessonProgress = (lessonId: number): LessonProgressResponse | null => {
@@ -577,29 +421,6 @@ export const CoursePlayerPage: React.FC = () => {
     }
 
     return { prevProgress, prevEnrollment };
-  };
-
-  // Reconcile the optimistic local state with the server truth in the
-  // background, then refresh cross-page caches.
-  const reconcileEnrollmentProgress = async (enrollmentId: number) => {
-    const version = ++reconcileVersionRef.current;
-    try {
-      const [allProgress, response] = await Promise.all([
-        lessonProgressService.getEnrollmentProgress(enrollmentId),
-        enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
-      ]);
-      if (version !== reconcileVersionRef.current) return;
-      setAllLessonProgress(allProgress);
-      const found = response.data?.find((e) => resolvedCourseId !== null && e.courseId === resolvedCourseId);
-      if (!found) {
-        throw new Error('The updated enrollment could not be loaded.');
-      }
-      setEnrollment(found);
-      setConfirmedCourseComplete(isCourseCompleteFromEnrollment(found));
-    } finally {
-      // Invalidate enrollment cache so MyLearningPage shows fresh data on next visit.
-      queryClient.invalidateQueries({ queryKey: queryKeys.enrollments.all });
-    }
   };
 
   const retryCompletionReconciliation = async (enrollmentId: number) => {
