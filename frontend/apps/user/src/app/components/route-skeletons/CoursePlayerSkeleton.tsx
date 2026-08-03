@@ -54,7 +54,14 @@ export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
   const effectiveContentType = typeFromProp ?? typeFromParam ?? typeFromStorage;
 
   return (
-    <div className="min-h-screen bg-gray-900" aria-hidden="true">
+    <div
+      className="min-h-screen bg-gray-900"
+      aria-busy="true"
+    >
+      <p role="status" className="sr-only">
+        Loading course player
+      </p>
+      <div aria-hidden="true">
       {/* Header — matches sticky dark header (real: line 685) */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-16 z-20">
         {/* Mobile / tablet header (real: line 686, xl:hidden) */}
@@ -256,6 +263,7 @@ export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
             </div>
           </div>
         </aside>
+      </div>
       </div>
     </div>
   );

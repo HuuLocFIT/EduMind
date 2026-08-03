@@ -25,6 +25,9 @@ interface VideoPlayerProps {
   fallbackSrc?: string | null;
   /** Cloudinary URL of the WebVTT caption file produced by Whisper transcription */
   captionSrc?: string | null;
+  /** Backward-compatible metadata; defaults to English until the API exposes language. */
+  captionLanguage?: string;
+  captionLabel?: string;
   onTimeUpdate?: () => void;
   onLoadedMetadata?: () => void;
   onEnded?: () => void;
@@ -50,11 +53,15 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+const FORM_CONTROL_TAGS = new Set(['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA']);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
-  ({ src720p, src480p, fallbackSrc, captionSrc, onTimeUpdate, onLoadedMetadata, onEnded }, forwardedRef) => {
+  (
+    { src720p, src480p, fallbackSrc, captionSrc, captionLanguage = 'en', captionLabel = 'English captions', onTimeUpdate, onLoadedMetadata, onEnded },
+    forwardedRef,
+  ) => {
     // Refs
     const videoEl = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -87,6 +94,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const [playbackToastVisible, setPlaybackToastVisible] = useState(false);
     const [captionEnabled, setCaptionEnabled] = useState(false);
     const [captionBlobUrl, setCaptionBlobUrl] = useState<string | null>(null);
+    const [captionLoadFailed, setCaptionLoadFailed] = useState(false);
 
     // Derived
     const hasQualityOptions = Boolean(src720p && src480p);
@@ -115,6 +123,22 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       if (playing && !showSettings) setShowControls(false);
     }, [playing, showSettings]);
 
+    // Keep controls visible while keyboard focus is inside the player. Cancel the
+    // hide timer on focus-in, and only restart it once focus leaves the player.
+    const handleFocusCapture = useCallback(() => {
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+      setShowControls(true);
+    }, []);
+
+    const handleBlurCapture = useCallback(() => {
+      if (containerRef.current?.contains(document.activeElement)) return;
+      if (playing && !showSettings) {
+        controlsTimerRef.current = setTimeout(() => {
+          setShowControls(false);
+        }, CONTROLS_HIDE_DELAY);
+      }
+    }, [playing, showSettings]);
+
     // Keep controls visible when paused or settings open
     useEffect(() => {
       if (!playing || showSettings) {
@@ -138,19 +162,34 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     // ── Fetch VTT as blob URL (avoids crossOrigin on video breaking duration) ─
 
     useEffect(() => {
-      if (!captionSrc) {
-        setCaptionBlobUrl(null);
-        return;
-      }
+      // Reset the previous blob URL whenever the caption source changes so a
+      // stale track/toggle never lingers behind a new request.
+      setCaptionBlobUrl(null);
+      setCaptionLoadFailed(false);
+      if (!captionSrc) return;
+
+      let cancelled = false;
       let objectUrl: string | null = null;
       fetch(captionSrc)
-        .then((r) => r.blob())
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Caption request failed: ${response.status}`);
+          }
+          return response.blob();
+        })
         .then((blob) => {
+          if (cancelled) return;
           objectUrl = URL.createObjectURL(blob);
           setCaptionBlobUrl(objectUrl);
         })
-        .catch(() => setCaptionBlobUrl(null));
+        .catch(() => {
+          // Ignore responses that resolve after unmount or a captionSrc change.
+          if (cancelled) return;
+          setCaptionBlobUrl(null);
+          setCaptionLoadFailed(true);
+        });
       return () => {
+        cancelled = true;
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       };
     }, [captionSrc]);
@@ -358,10 +397,13 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     }, []);
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    // Shortcuts only apply when focus is not inside a form control, so native
+    // button/input behavior is never overridden.
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
-        if ((e.target as HTMLElement).tagName === 'INPUT') return;
+        const target = e.target as HTMLElement;
+        if (FORM_CONTROL_TAGS.has(target.tagName) || target.isContentEditable) return;
         switch (e.key) {
           case ' ':
           case 'k':
@@ -425,16 +467,21 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const controlsVisible = showControls || !playing;
     const effectiveVolume = muted ? 0 : volume;
     const volumePct = Math.round(effectiveVolume * 100);
+    const seekValuetext = `${formatTime(currentTime)} of ${formatTime(duration)}`;
 
     return (
       <div
         ref={containerRef}
+        role="group"
+        aria-label="Video player"
         className={`relative mx-auto w-full bg-black aspect-video max-h-[calc(100vh-180px)] xl:max-h-[calc(100vh-220px)] select-none outline-none group ${
           controlsVisible ? 'cursor-default' : 'cursor-none'
         }`}
         tabIndex={0}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleFocusCapture}
+        onBlurCapture={handleBlurCapture}
         onKeyDown={handleKeyDown}
       >
         {/* ── Video element ── */}
@@ -454,14 +501,26 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           preload="metadata"
         >
           {captionBlobUrl && (
-            <track kind="subtitles" src={captionBlobUrl} />
+            <track kind="captions" src={captionBlobUrl} srcLang={captionLanguage} label={captionLabel} />
           )}
         </video>
+
+        {/* ── Caption load failure status ── */}
+        {captionLoadFailed && (
+          <div
+            role="status"
+            className="absolute left-0 right-0 top-0 flex justify-center pointer-events-none z-20"
+          >
+            <p className="mt-3 px-3 py-1 rounded bg-black/80 text-white text-xs">
+              Captions could not be loaded for this video.
+            </p>
+          </div>
+        )}
 
         {/* ── Spinner ── */}
         {showSpinner && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <Loader2 className="w-12 h-12 text-white/80 animate-spin" />
+            <Loader2 className="w-12 h-12 text-white/80 animate-spin" aria-hidden="true" />
           </div>
         )}
 
@@ -472,6 +531,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               className={`h-16 w-16 rounded-full bg-black/60 text-white ring-1 ring-white/25 shadow-[0_10px_30px_rgba(0,0,0,0.45)] flex items-center justify-center transition-opacity duration-500 ease-out ${
                 playbackToastVisible ? 'opacity-100' : 'opacity-0'
               }`}
+              aria-hidden="true"
             >
               {playbackToast === 'play' ? (
                 <Play className="h-8 w-8 fill-white ml-0.5" />
@@ -570,6 +630,11 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 step={0.1}
                 value={currentTime}
                 onChange={handleSeekBar}
+                aria-label="Seek video"
+                aria-valuemin={0}
+                aria-valuemax={duration || 100}
+                aria-valuenow={Math.round(currentTime)}
+                aria-valuetext={seekValuetext}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
@@ -582,12 +647,16 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               <button
                 onClick={togglePlay}
                 className="text-white hover:text-white/80 transition-colors p-1"
-                aria-label={playing ? 'Pause' : 'Play'}
+                aria-label={playing ? 'Pause video' : 'Play video'}
               >
-                {playing ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}
+                {playing ? <Pause className="w-5 h-5 fill-white" aria-hidden="true" /> : <Play className="w-5 h-5 fill-white" aria-hidden="true" />}
               </button>
 
-              <span className="text-white text-xs tabular-nums whitespace-nowrap">
+              <span
+                role="timer"
+                aria-label={`Elapsed time ${seekValuetext}`}
+                className="text-white text-xs tabular-nums whitespace-nowrap"
+              >
                 {formatTime(currentTime)}{' '}
                 <span className="text-white/50">/</span>{' '}
                 {formatTime(duration)}
@@ -601,12 +670,12 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 <button
                   onClick={toggleMute}
                   className="h-8 w-8 inline-flex items-center justify-center rounded-md text-white hover:text-white/80 transition-colors"
-                  aria-label={muted ? 'Unmute' : 'Mute'}
+                  aria-label={muted ? 'Unmute video' : 'Mute video'}
                 >
                   {muted || volume === 0 ? (
-                    <VolumeX className="w-4 h-4" />
+                    <VolumeX className="w-4 h-4" aria-hidden="true" />
                   ) : (
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-4 h-4" aria-hidden="true" />
                   )}
                 </button>
                 <input
@@ -616,7 +685,11 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                   step={0.05}
                   value={effectiveVolume}
                   onChange={handleVolumeChange}
-                  aria-label="Volume"
+                  aria-label="Video volume"
+                  aria-valuemin={0}
+                  aria-valuemax={1}
+                  aria-valuenow={Math.round(effectiveVolume * 100) / 100}
+                  aria-valuetext={`${volumePct}% volume`}
                   className="w-12 sm:w-14
                     h-1 appearance-none cursor-pointer rounded-full
                     [&::-webkit-slider-thumb]:appearance-none
@@ -646,8 +719,8 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 {playbackSpeed === 1 ? '1×' : `${playbackSpeed}×`}
               </button>
 
-              {/* CC (captions) toggle — only shown when a VTT file is available */}
-              {captionSrc && (
+              {/* CC (captions) toggle — only shown when the VTT has loaded */}
+              {captionBlobUrl && (
                 <button
                   onClick={() => setCaptionEnabled((v) => !v)}
                   className={`h-8 min-w-[42px] inline-flex items-center justify-center rounded-md border px-2 text-[11px] font-bold leading-none transition-colors ${
@@ -655,7 +728,8 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                       ? 'border-white bg-white text-black'
                       : 'border-white/40 text-white/70 hover:text-white hover:border-white/70'
                   }`}
-                  aria-label={captionEnabled ? 'Disable captions' : 'Enable captions'}
+                  aria-label="Captions"
+                  aria-pressed={captionEnabled}
                 >
                   CC
                 </button>
@@ -668,7 +742,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 className={`h-8 w-8 inline-flex items-center justify-center rounded-md border border-transparent transition-colors ${showSettings ? 'text-white' : 'text-white/70 hover:text-white'}`}
                 aria-label="Settings"
               >
-                <Settings className={`w-4 h-4 transition-transform duration-300 ${showSettings ? 'rotate-45' : ''}`} />
+                <Settings className={`w-4 h-4 transition-transform duration-300 ${showSettings ? 'rotate-45' : ''}`} aria-hidden="true" />
               </button>
 
               {/* Fullscreen */}
@@ -677,7 +751,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-transparent text-white/70 hover:text-white transition-colors"
                 aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               >
-                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isFullscreen ? <Minimize className="w-4 h-4" aria-hidden="true" /> : <Maximize className="w-4 h-4" aria-hidden="true" />}
               </button>
             </div>
           </div>
