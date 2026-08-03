@@ -27,7 +27,6 @@ import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
 import { CourseLessonContent } from './components/CourseLessonContent';
 import type {
-  AutoAdvanceState,
   CompletionError,
   CompletionSource,
 } from './course-player.types';
@@ -38,6 +37,7 @@ import {
 } from './course-player.utils';
 import {
   useAccessErrorRedirect,
+  useAutoAdvance,
   useCoursePlayerData,
   useCoursePlayerLayout,
   useLessonNavigation,
@@ -92,34 +92,14 @@ export const CoursePlayerPage: React.FC = () => {
   );
   const [completionReconcileInFlight, setCompletionReconcileInFlight] = useState(false);
   const completionReconcileInFlightRef = useRef(false);
-  const [autoAdvance, setAutoAdvance] = useState<AutoAdvanceState | null>(null);
 
   // Refs
-  const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoAdvanceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionModalShownRef = useRef(false);
   const completionControlsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     completionModalShownRef.current = false;
     setCompletionModalOpen(false);
-  }, [courseSlug]);
-
-  // Data loading (course/sections/lessons/enrollment/progress) lives in
-  // useCoursePlayerData; this page still owns the auto-advance timers, so
-  // clear them whenever the course changes or the page unmounts. The video
-  // progress-autosave interval is cleaned up by useVideoProgress itself.
-  useEffect(() => {
-    return () => {
-      if (autoAdvanceTimeoutRef.current) {
-        clearTimeout(autoAdvanceTimeoutRef.current);
-        autoAdvanceTimeoutRef.current = null;
-      }
-      if (autoAdvanceIntervalRef.current) {
-        clearInterval(autoAdvanceIntervalRef.current);
-        autoAdvanceIntervalRef.current = null;
-      }
-    };
   }, [courseSlug]);
 
   useEffect(() => {
@@ -243,22 +223,22 @@ export const CoursePlayerPage: React.FC = () => {
 
   // ── Auto-advance countdown ──────────────────────────────────────────────────
 
-  const clearAutoAdvance = () => {
-    if (autoAdvanceTimeoutRef.current) {
-      clearTimeout(autoAdvanceTimeoutRef.current);
-      autoAdvanceTimeoutRef.current = null;
-    }
-    if (autoAdvanceIntervalRef.current) {
-      clearInterval(autoAdvanceIntervalRef.current);
-      autoAdvanceIntervalRef.current = null;
-    }
-    setAutoAdvance(null);
-  };
+  // `onAdvance`/`onCancelFocus` close over `navigation`/`layout`, which are
+  // declared below — safe because these callbacks only ever run later, in
+  // response to the timer firing or the user cancelling, by which point both
+  // are assigned.
+  const { autoAdvance, startAutoAdvance, clearAutoAdvance, cancelAutoAdvance } = useAutoAdvance({
+    delaySeconds: AUTO_ADVANCE_SECONDS,
+    onAdvance: (nextLesson, options) => navigation.selectLesson(nextLesson, options),
+    onCancelFocus: () => layout.focusLessonHeading(),
+    isDesktop: layout.isDesktop,
+    resetKey: courseSlug,
+  });
 
-  // Composed from the still-inline auto-advance logic and the video-progress
-  // hook's stopAutosave so useLessonNavigation never has to import those
-  // hooks directly — it only needs to know something must run before a
-  // lesson change happens.
+  // Composed from the auto-advance hook and the video-progress hook's
+  // stopAutosave so useLessonNavigation never has to import those hooks
+  // directly — it only needs to know something must run before a lesson
+  // change happens.
   const onBeforeLessonChange = () => {
     clearAutoAdvance();
     stopAutosave();
@@ -279,30 +259,6 @@ export const CoursePlayerPage: React.FC = () => {
     setLessonHasQuiz,
     onBeforeLessonChange,
   });
-
-  const startAutoAdvance = (nextLesson: LessonResponse) => {
-    clearAutoAdvance();
-    setAutoAdvance({ nextLesson, secondsRemaining: AUTO_ADVANCE_SECONDS });
-
-    autoAdvanceTimeoutRef.current = setTimeout(() => {
-      clearAutoAdvance();
-      navigation.selectLesson(nextLesson, { focusContent: true, closeMobileSidebar: !layout.isDesktop });
-    }, AUTO_ADVANCE_SECONDS * 1000);
-
-    autoAdvanceIntervalRef.current = setInterval(() => {
-      setAutoAdvance((prev) =>
-        prev && prev.secondsRemaining > 1
-          ? { ...prev, secondsRemaining: prev.secondsRemaining - 1 }
-          : prev
-      );
-    }, 1000);
-  };
-
-  const cancelAutoAdvance = () => {
-    clearAutoAdvance();
-    // Keep the user on the current lesson and restore focus to its content.
-    layout.focusLessonHeading();
-  };
 
   // Single completion path for manual, video-ended and quiz-pass so progress
   // updates, announcements, rollback and auto-advance stay consistent.
