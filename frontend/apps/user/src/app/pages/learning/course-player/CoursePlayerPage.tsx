@@ -5,7 +5,6 @@ import {
 } from '@edumind/user-ui';
 import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
 import { lessonProgressService } from '../../../services/lesson-progress.service';
-import { aiService } from '../../../services/ai.service';
 import type {
   EnrollmentResponse,
   LessonResponse,
@@ -45,6 +44,7 @@ import {
   useCoursePlayerData,
   useCoursePlayerLayout,
   useLessonNavigation,
+  useLessonQuizAvailability,
 } from './hooks';
 
 export const CoursePlayerPage: React.FC = () => {
@@ -63,8 +63,6 @@ export const CoursePlayerPage: React.FC = () => {
   // still own all of the *logic* built on top of it.
   const [currentLesson, setCurrentLesson] = useState<LessonResponse | null>(null);
   const [videoProgress, setVideoProgress] = useState(0);
-  // null = still checking, true/false = resolved
-  const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
   const [completionModalOpen, setCompletionModalOpen] = useState(false);
 
   const {
@@ -156,28 +154,10 @@ export const CoursePlayerPage: React.FC = () => {
     }
   }, [currentLesson, enrollment]);
 
-  // Check whether the current lesson has a generated quiz available for the student
-  useEffect(() => {
-    if (!currentLesson || currentLesson.contentType === ContentType.QUIZ) return;
-    let isSubscribed = true;
-
-    aiService
-      .getQuizForStudent(currentLesson.id)
-      .then((quiz) => {
-        if (isSubscribed) {
-          setLessonHasQuiz(quiz !== null);
-        }
-      })
-      .catch(() => {
-        if (isSubscribed) {
-          setLessonHasQuiz(false);
-        }
-      });
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [currentLesson?.id]);
+  const { hasQuiz: lessonHasQuiz, setHasQuiz: setLessonHasQuiz } = useLessonQuizAvailability(
+    currentLesson?.id,
+    currentLesson?.contentType
+  );
 
   // Helper: get progress for a specific lesson
   const getLessonProgress = (lessonId: number): LessonProgressResponse | null => {
