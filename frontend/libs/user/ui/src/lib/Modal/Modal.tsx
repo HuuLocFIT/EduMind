@@ -113,7 +113,9 @@ export const Modal: React.FC<ModalProps> = ({
                 )}
               </div>
             )}
-            <div className="overflow-y-auto flex-1">
+            {/* A shared content inset keeps the first control or illustration
+                from crowding the header divider across every modal. */}
+            <div className="overflow-y-auto flex-1 pt-4">
               {visibleContent.children}
             </div>
           </DialogPanel>

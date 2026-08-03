@@ -29,6 +29,7 @@ export const CartPage: React.FC = () => {
   const [pendingRemovalFocus, setPendingRemovalFocus] = React.useState<{ courseId: number; index: number } | null>(null);
   const [removalAnnouncement, setRemovalAnnouncement] = React.useState("");
   const removalAnnouncementTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const removalFocusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const itemListRef = React.useRef<HTMLUListElement>(null);
@@ -43,6 +44,9 @@ export const CartPage: React.FC = () => {
   useEffect(() => () => {
     if (removalAnnouncementTimerRef.current) {
       clearTimeout(removalAnnouncementTimerRef.current);
+    }
+    if (removalFocusTimerRef.current) {
+      clearTimeout(removalFocusTimerRef.current);
     }
   }, []);
 
@@ -134,11 +138,17 @@ export const CartPage: React.FC = () => {
   useEffect(() => {
     if (!pendingRemovalFocus || items.some((item) => item.courseId === pendingRemovalFocus.courseId)) return;
 
-    const remaining = itemListRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
-    const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
-    const target = remaining?.[targetIndex];
-    const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || cartHeadingRef.current;
-    focusTarget?.focus();
+    if (removalFocusTimerRef.current) clearTimeout(removalFocusTimerRef.current);
+    // Do not focus the page while the confirmation dialog still makes it
+    // inert. Otherwise VoiceOver/WebKit may move to an unrelated button.
+    removalFocusTimerRef.current = setTimeout(() => {
+      const remaining = itemListRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
+      const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
+      const target = remaining?.[targetIndex];
+      const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || cartHeadingRef.current;
+      focusTarget?.focus({ preventScroll: true });
+      removalFocusTimerRef.current = null;
+    }, 350);
     setPendingRemovalFocus(null);
   }, [items, pendingRemovalFocus]);
 

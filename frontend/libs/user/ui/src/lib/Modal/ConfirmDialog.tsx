@@ -63,7 +63,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm" showCloseButton={false}>
-      <div className="flex flex-col items-center text-center px-2 pt-2 pb-6">
+      <div className="flex flex-col items-center text-center px-2 pb-6">
         {/* Icon */}
         <div
           className={clsx(
@@ -83,6 +83,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <Button
           variant="outline"
           fullWidth
+          data-autofocus
           onClick={onClose}
           disabled={isLoading}
           className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus:ring-gray-300"

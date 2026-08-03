@@ -30,7 +30,7 @@ import { ResetPasswordPage } from './ResetPasswordPage';
 
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
@@ -62,6 +62,7 @@ vi.mock('@edumind/user-ui', () => ({
 
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
+  ArrowLeft: () => <span aria-hidden="true">←</span>,
   Lock: () => <span>🔒</span>,
   CheckCircle: () => <span>✓</span>,
   GraduationCap: () => <span>🎓</span>,
@@ -167,9 +168,8 @@ describe('ResetPasswordPage', () => {
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveFocus();
       });
-      expect(screen.getByRole('alert')).toHaveFocus();
     });
 
     it('should show error for empty password', async () => {

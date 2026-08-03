@@ -136,6 +136,7 @@ describe("shared UI accessibility contracts", () => {
     const trigger = screen.getByRole("button", { name: "Open settings" });
     await user.click(trigger);
     expect(screen.getByRole("dialog", { name: "Course settings" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" }).parentElement).toHaveClass("pt-4");
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
@@ -239,6 +240,8 @@ describe("shared UI accessibility contracts", () => {
       "This cannot be undone.",
     );
     const dangerAction = screen.getByRole("button", { name: "Delete" });
+    const cancelAction = screen.getByRole("button", { name: "Cancel" });
+    await waitFor(() => expect(cancelAction).toHaveFocus());
     expect(dangerAction).toHaveClass("bg-red-700", "hover:bg-red-800", "text-white");
     expect(dangerAction).not.toHaveClass("opacity-50");
     expect(screen.getByText("This cannot be undone.")).toHaveClass("text-gray-600");

@@ -24,6 +24,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const [coursePendingRemoval, setCoursePendingRemoval] = React.useState<number | null>(null);
   const drawerHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  const announcementTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync server data to local store
   useEffect(() => {
@@ -32,7 +34,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     }
   }, [cart, setCart]);
 
-  const drawerRef = useFocusTrap(isOpen && coursePendingRemoval === null, onClose);
+  // Suspend the parent trap while the nested dialog owns focus. Unlike
+  // deactivation, suspension does not restore focus to the navigation.
+  const drawerRef = useFocusTrap(isOpen, onClose, coursePendingRemoval !== null);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {
@@ -43,6 +47,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     }
     return () => {
       document.body.style.overflow = "";
+      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
     };
   }, [isOpen]);
 
@@ -62,7 +68,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     removeFromCart.mutate(courseId, {
       onSuccess: () => {
         setCoursePendingRemoval(null);
-        setAnnouncement(`${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`);
+        const message = `${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`;
+        setAnnouncement("");
+        if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+        // Headless UI keeps the dialog and the background inert during its
+        // 300 ms exit transition. Announce only once that transition is over.
+        announcementTimerRef.current = setTimeout(() => {
+          setAnnouncement(message);
+          announcementTimerRef.current = null;
+        }, 350);
         setPendingRemovalFocus({ courseId, index: removedIndex });
       },
       onError: (error: Error) => showError(error.message || `Failed to remove ${removedItem.courseTitle}`),
@@ -85,11 +99,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!pendingRemovalFocus || items.some((item) => item.courseId === pendingRemovalFocus.courseId)) return;
 
-    const remaining = drawerRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
-    const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
-    const target = remaining?.[targetIndex];
-    const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || drawerHeadingRef.current;
-    focusTarget?.focus();
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(() => {
+      const remaining = drawerRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
+      const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
+      const target = remaining?.[targetIndex];
+      const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || drawerHeadingRef.current;
+      focusTarget?.focus({ preventScroll: true });
+      focusTimerRef.current = null;
+    }, 350);
     setPendingRemovalFocus(null);
   }, [drawerRef, items, pendingRemovalFocus]);
 
@@ -222,8 +240,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         )}
+        {/* Keep the live region inside the aria-modal drawer so VoiceOver does
+            not treat it as background content. */}
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
       </div>
-      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
       <ConfirmDialog
         isOpen={coursePendingRemoval !== null}
         onClose={() => setCoursePendingRemoval(null)}
