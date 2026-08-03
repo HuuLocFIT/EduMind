@@ -6,10 +6,8 @@ import {
 import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
 import { lessonProgressService } from '../../../services/lesson-progress.service';
 import type {
-  EnrollmentResponse,
   LessonResponse,
   LessonProgressResponse,
-  UpdateProgressRequest,
 } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
 import {
@@ -32,7 +30,6 @@ import type {
   AutoAdvanceState,
   CompletionError,
   CompletionSource,
-  ProgressSaveError,
 } from './course-player.types';
 import {
   calculateOptimisticCourseProgress,
@@ -45,6 +42,7 @@ import {
   useCoursePlayerLayout,
   useLessonNavigation,
   useLessonQuizAvailability,
+  useVideoProgress,
 } from './hooks';
 
 export const CoursePlayerPage: React.FC = () => {
@@ -62,7 +60,6 @@ export const CoursePlayerPage: React.FC = () => {
   // this level avoids a circular dependency between the two hooks while both
   // still own all of the *logic* built on top of it.
   const [currentLesson, setCurrentLesson] = useState<LessonResponse | null>(null);
-  const [videoProgress, setVideoProgress] = useState(0);
   const [completionModalOpen, setCompletionModalOpen] = useState(false);
 
   const {
@@ -86,12 +83,6 @@ export const CoursePlayerPage: React.FC = () => {
 
   const layout = useCoursePlayerLayout(currentLesson);
 
-  // Progress autosave orchestration
-  const [progressSaveState, setProgressSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
-  const [progressSaveError, setProgressSaveError] = useState<ProgressSaveError | null>(null);
-  const latestProgressPayloadRef = useRef<UpdateProgressRequest | null>(null);
-  const progressSaveInFlightRef = useRef(false);
-
   // Completion orchestration
   const [completingLessonId, setCompletingLessonId] = useState<number | null>(null);
   const completingLessonRef = useRef<number | null>(null);
@@ -104,24 +95,10 @@ export const CoursePlayerPage: React.FC = () => {
   const [autoAdvance, setAutoAdvance] = useState<AutoAdvanceState | null>(null);
 
   // Refs
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const progressUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionModalShownRef = useRef(false);
   const completionControlsRef = useRef<HTMLDivElement>(null);
-
-  // Live values for the autosave interval so it never reads a stale closure.
-  const currentLessonRef = useRef<LessonResponse | null>(null);
-  const enrollmentRef = useRef<EnrollmentResponse | null>(null);
-
-  useEffect(() => {
-    currentLessonRef.current = currentLesson;
-  }, [currentLesson]);
-
-  useEffect(() => {
-    enrollmentRef.current = enrollment;
-  }, [enrollment]);
 
   useEffect(() => {
     completionModalShownRef.current = false;
@@ -129,8 +106,9 @@ export const CoursePlayerPage: React.FC = () => {
   }, [courseSlug]);
 
   // Data loading (course/sections/lessons/enrollment/progress) lives in
-  // useCoursePlayerData; this page still owns the auto-advance/progress
-  // timers, so clear them whenever the course changes or the page unmounts.
+  // useCoursePlayerData; this page still owns the auto-advance timers, so
+  // clear them whenever the course changes or the page unmounts. The video
+  // progress-autosave interval is cleaned up by useVideoProgress itself.
   useEffect(() => {
     return () => {
       if (autoAdvanceTimeoutRef.current) {
@@ -140,10 +118,6 @@ export const CoursePlayerPage: React.FC = () => {
       if (autoAdvanceIntervalRef.current) {
         clearInterval(autoAdvanceIntervalRef.current);
         autoAdvanceIntervalRef.current = null;
-      }
-      if (progressUpdateInterval.current) {
-        clearInterval(progressUpdateInterval.current);
-        progressUpdateInterval.current = null;
       }
     };
   }, [courseSlug]);
@@ -168,19 +142,34 @@ export const CoursePlayerPage: React.FC = () => {
   const currentLessonProgress: LessonProgressResponse | null =
     currentLesson ? getLessonProgress(currentLesson.id) : null;
 
-  // When current lesson or all progress changes, sync video progress percentage
-  useEffect(() => {
-    if (!currentLesson) return;
-    if (currentLessonProgress) {
-      setVideoProgress(currentLessonProgress.watchPercentage || 0);
-      } else {
-      setVideoProgress(0);
-    }
-  }, [currentLesson, currentLessonProgress]);
+  // Video progress autosave orchestration (periodic save, retry, resume seek).
+  const {
+    videoProgress,
+    setVideoProgress,
+    saveState: progressSaveState,
+    saveError: progressSaveError,
+    handleTimeUpdate: handleVideoTimeUpdate,
+    handleLoadedMetadata: handleVideoLoadedMetadata,
+    stopAutosave,
+    videoRef,
+  } = useVideoProgress({
+    currentLesson,
+    enrollment,
+    currentLessonProgress,
+    lessons,
+    onProgressSaved: (saved) => {
+      setAllLessonProgress((prev) => {
+        const existing = prev.find((p) => p.lessonId === saved.lessonId);
+        if (!existing) return [...prev, saved];
+        return prev.map((p) => (p.lessonId === saved.lessonId ? saved : p));
+      });
+    },
+    onProgressAnnouncement: (message) => navigation.setLessonAnnouncement(message),
+  });
 
   const updateLastAccessedLesson = async () => {
     if (!currentLesson || !enrollment) return;
-    
+
     try {
       // Start lesson if not started yet
       await lessonProgressService.startLesson(enrollment.id, currentLesson.id);
@@ -189,117 +178,6 @@ export const CoursePlayerPage: React.FC = () => {
       console.log('Lesson already started or error:', err);
     }
   };
-
-  const handleVideoTimeUpdate = () => {
-    if (!videoRef.current || !currentLesson || !enrollment) return;
-
-    const currentTime = videoRef.current.currentTime;
-    const duration = videoRef.current.duration;
-    if (!duration || Number.isNaN(duration)) return;
-
-    const progress = (currentTime / duration) * 100;
-
-    setVideoProgress(progress);
-
-    // Auto-save progress every 10 seconds. The interval reads live refs so it
-    // never persists a stale payload or a stale lesson/enrollment.
-    if (!progressUpdateInterval.current) {
-      progressUpdateInterval.current = setInterval(() => {
-        void performProgressSave();
-      }, 10000);
-    }
-  };
-
-  // Persist an exact progress payload and reconcile the lesson that the payload
-  // belongs to (not necessarily the current lesson). A failed payload is kept in
-  // latestProgressPayloadRef so Retry can resend the exact request, even if the
-  // user has since navigated to another lesson or moved the playhead.
-  const saveProgressPayload = async (payload: UpdateProgressRequest) => {
-    if (progressSaveInFlightRef.current) return;
-    // Never overwrite a payload whose failure is still shown to the user.
-    if (latestProgressPayloadRef.current && latestProgressPayloadRef.current !== payload) return;
-
-    latestProgressPayloadRef.current = payload;
-    progressSaveInFlightRef.current = true;
-    setProgressSaveState('saving');
-
-    try {
-      const saved = await lessonProgressService.updateWatchProgress(payload);
-      if (latestProgressPayloadRef.current === payload) {
-        latestProgressPayloadRef.current = null;
-      }
-      setAllLessonProgress((prev) => {
-        const existing = prev.find((p) => p.lessonId === payload.lessonId);
-        if (!existing) return [...prev, saved];
-        return prev.map((p) => (p.lessonId === payload.lessonId ? saved : p));
-      });
-      setProgressSaveState('idle');
-      setProgressSaveError(null);
-      navigation.setLessonAnnouncement('Progress saved');
-    } catch (err) {
-      console.error('Error saving progress:', err);
-      setProgressSaveState('error');
-      const failedLesson = lessons.find((l) => l.id === payload.lessonId);
-      setProgressSaveError({
-        message:
-          'Video progress could not be saved. Your latest position may not be available on another device.' +
-          (failedLesson ? ` Retrying progress for "${failedLesson.title}".` : ''),
-        retry: () => retryProgressSave(),
-      });
-    } finally {
-      progressSaveInFlightRef.current = false;
-    }
-  };
-
-  // Build the payload from the latest video position and persist it. Skipped
-  // while a failed payload awaits user action so the pending retry is never
-  // clobbered by a fresh autosave.
-  const performProgressSave = async () => {
-    if (progressSaveInFlightRef.current) return;
-    if (latestProgressPayloadRef.current) return;
-
-    const lesson = currentLessonRef.current;
-    const enrollmentId = enrollmentRef.current?.id;
-    const video = videoRef.current;
-    if (!lesson || !enrollmentId || !video) return;
-
-    const lastPosition = Math.floor(video.currentTime);
-    const payload: UpdateProgressRequest = {
-      enrollmentId,
-      lessonId: lesson.id,
-      lastPosition,
-      watchDuration: lastPosition,
-    };
-    await saveProgressPayload(payload);
-  };
-
-  // Resend the exact payload that failed, regardless of the current lesson or
-  // playhead position.
-  const retryProgressSave = async () => {
-    const payload = latestProgressPayloadRef.current;
-    if (!payload) return;
-    await saveProgressPayload(payload);
-  };
-
-  // Seek video to last watched position when metadata is loaded
-  const handleVideoLoadedMetadata = () => {
-    if (!videoRef.current || !currentLessonProgress) return;
-    if (currentLessonProgress.lastPosition && currentLessonProgress.lastPosition > 0) {
-      videoRef.current.currentTime = currentLessonProgress.lastPosition;
-    }
-  };
-
-  // Fallback: if progress arrives after video metadata, still seek to lastPosition
-  useEffect(() => {
-    if (!videoRef.current || !currentLessonProgress) return;
-    if (
-      currentLessonProgress.lastPosition &&
-      currentLessonProgress.lastPosition > 0 &&
-      Math.floor(videoRef.current.currentTime) === 0
-    ) {
-      videoRef.current.currentTime = currentLessonProgress.lastPosition;
-    }
-  }, [currentLessonProgress]);
 
   // Optimistically mark a lesson complete in local state so the UI updates
   // instantly (zero-latency). Returns a snapshot so callers can roll back if
@@ -377,20 +255,13 @@ export const CoursePlayerPage: React.FC = () => {
     setAutoAdvance(null);
   };
 
-  // Composed from the still-inline video/auto-advance/autosave logic above so
-  // useLessonNavigation never has to import those hooks directly — it only
-  // needs to know something must run before a lesson change happens.
+  // Composed from the still-inline auto-advance logic and the video-progress
+  // hook's stopAutosave so useLessonNavigation never has to import those
+  // hooks directly — it only needs to know something must run before a
+  // lesson change happens.
   const onBeforeLessonChange = () => {
     clearAutoAdvance();
-    if (videoRef.current) {
-      videoRef.current.pause();
-      // Reset position so new lesson does not inherit previous time
-      videoRef.current.currentTime = 0;
-    }
-    if (progressUpdateInterval.current) {
-      clearInterval(progressUpdateInterval.current);
-      progressUpdateInterval.current = null;
-    }
+    stopAutosave();
   };
 
   const navigation = useLessonNavigation({
@@ -446,11 +317,7 @@ export const CoursePlayerPage: React.FC = () => {
     if (completingLessonRef.current !== null) return;
 
     clearAutoAdvance();
-
-    if (progressUpdateInterval.current) {
-      clearInterval(progressUpdateInterval.current);
-      progressUpdateInterval.current = null;
-    }
+    stopAutosave();
 
     completingLessonRef.current = lessonId;
     setCompletingLessonId(lessonId);
