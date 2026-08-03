@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useModal,
@@ -33,16 +33,19 @@ import type {
   AutoAdvanceState,
   CompletionError,
   CompletionSource,
-  LessonClickOptions,
   ProgressSaveError,
 } from './course-player.types';
 import {
   calculateOptimisticCourseProgress,
   findLessonProgress,
-  getAdjacentLessons,
   htmlToPlainText,
 } from './course-player.utils';
-import { useAccessErrorRedirect, useCoursePlayerData } from './hooks';
+import {
+  useAccessErrorRedirect,
+  useCoursePlayerData,
+  useCoursePlayerLayout,
+  useLessonNavigation,
+} from './hooks';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
@@ -53,13 +56,15 @@ export const CoursePlayerPage: React.FC = () => {
   const AUTO_ADVANCE_SECONDS = 5;
 
   // State
+  // Owned here (rather than inside useLessonNavigation) because
+  // useCoursePlayerLayout also needs its value, and useLessonNavigation needs
+  // useCoursePlayerLayout's isDesktop/refs output — keeping currentLesson at
+  // this level avoids a circular dependency between the two hooks while both
+  // still own all of the *logic* built on top of it.
   const [currentLesson, setCurrentLesson] = useState<LessonResponse | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   // null = still checking, true/false = resolved
   const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
-  const [lessonAnnouncement, setLessonAnnouncement] = useState('');
   const [completionModalOpen, setCompletionModalOpen] = useState(false);
 
   const {
@@ -81,6 +86,8 @@ export const CoursePlayerPage: React.FC = () => {
 
   const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
+  const layout = useCoursePlayerLayout(currentLesson);
+
   // Progress autosave orchestration
   const [progressSaveState, setProgressSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
   const [progressSaveError, setProgressSaveError] = useState<ProgressSaveError | null>(null);
@@ -96,20 +103,13 @@ export const CoursePlayerPage: React.FC = () => {
   );
   const [completionReconcileInFlight, setCompletionReconcileInFlight] = useState(false);
   const completionReconcileInFlightRef = useRef(false);
-  const [completionAnnouncement, setCompletionAnnouncement] = useState('');
   const [autoAdvance, setAutoAdvance] = useState<AutoAdvanceState | null>(null);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activeLessonRef = useRef<HTMLButtonElement>(null);
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
-  const skipSidebarScroll = useRef(false);
   const autoAdvanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoAdvanceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lessonHeadingRef = useRef<HTMLHeadingElement>(null);
-  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
-  const pendingLessonFocusRef = useRef(false);
   const completionModalShownRef = useRef(false);
   const completionControlsRef = useRef<HTMLDivElement>(null);
 
@@ -156,43 +156,6 @@ export const CoursePlayerPage: React.FC = () => {
     }
   }, [currentLesson, enrollment]);
 
-  useEffect(() => {
-    if (!currentLesson) return;
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [currentLesson?.id]);
-
-  useEffect(() => {
-    if (!currentLesson || !pendingLessonFocusRef.current) return;
-
-    const frame = requestAnimationFrame(() => {
-      lessonHeadingRef.current?.focus();
-      pendingLessonFocusRef.current = false;
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [currentLesson?.id, sidebarOpen]);
-
-  // Scroll active lesson into view inside the sidebar scroll container
-  useLayoutEffect(() => {
-    if (!currentLesson || !sidebarOpen) return;
-    if (skipSidebarScroll.current) {
-      skipSidebarScroll.current = false;
-      return;
-    }
-    const container = sidebarScrollRef.current;
-    const item = activeLessonRef.current;
-    if (!container || !item) return;
-
-    const containerTop = container.scrollTop;
-    const containerBottom = containerTop + container.clientHeight;
-    const itemTop = item.offsetTop;
-    const itemBottom = itemTop + item.offsetHeight;
-
-    if (itemTop < containerTop || itemBottom > containerBottom) {
-      container.scrollTop = itemTop - container.clientHeight / 2 + item.offsetHeight / 2;
-    }
-  }, [currentLesson?.id, sidebarOpen]);
-
   // Check whether the current lesson has a generated quiz available for the student
   useEffect(() => {
     if (!currentLesson || currentLesson.contentType === ContentType.QUIZ) return;
@@ -215,30 +178,6 @@ export const CoursePlayerPage: React.FC = () => {
       isSubscribed = false;
     };
   }, [currentLesson?.id]);
-
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const mediaQuery = window.matchMedia('(min-width: 1280px)');
-    const handleChange = (event: MediaQueryListEvent) => {
-      setIsDesktop(event.matches);
-    };
-
-    setIsDesktop(mediaQuery.matches);
-    if (mediaQuery.matches) {
-      setSidebarOpen(true);
-    }
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  useEffect(() => {
-    if (isDesktop) {
-      setSidebarOpen(true);
-    }
-  }, [isDesktop]);
 
   // Helper: get progress for a specific lesson
   const getLessonProgress = (lessonId: number): LessonProgressResponse | null => {
@@ -316,7 +255,7 @@ export const CoursePlayerPage: React.FC = () => {
       });
       setProgressSaveState('idle');
       setProgressSaveError(null);
-      setLessonAnnouncement('Progress saved');
+      navigation.setLessonAnnouncement('Progress saved');
     } catch (err) {
       console.error('Error saving progress:', err);
       setProgressSaveState('error');
@@ -431,7 +370,7 @@ export const CoursePlayerPage: React.FC = () => {
     setCompletionReconcileError(null);
     try {
       await reconcileEnrollmentProgress(enrollmentId);
-      setCompletionAnnouncement('Course progress updated.');
+      navigation.setCompletionAnnouncement('Course progress updated.');
     } catch (err) {
       console.error('Error reconciling lesson progress:', err);
       setCompletionReconcileError({
@@ -458,13 +397,45 @@ export const CoursePlayerPage: React.FC = () => {
     setAutoAdvance(null);
   };
 
+  // Composed from the still-inline video/auto-advance/autosave logic above so
+  // useLessonNavigation never has to import those hooks directly — it only
+  // needs to know something must run before a lesson change happens.
+  const onBeforeLessonChange = () => {
+    clearAutoAdvance();
+    if (videoRef.current) {
+      videoRef.current.pause();
+      // Reset position so new lesson does not inherit previous time
+      videoRef.current.currentTime = 0;
+    }
+    if (progressUpdateInterval.current) {
+      clearInterval(progressUpdateInterval.current);
+      progressUpdateInterval.current = null;
+    }
+  };
+
+  const navigation = useLessonNavigation({
+    courseSlug,
+    currentLesson,
+    setCurrentLesson,
+    lessons,
+    allLessonProgress,
+    isDesktop: layout.isDesktop,
+    setSearchParams,
+    pendingLessonFocusRef: layout.pendingLessonFocusRef,
+    lessonHeadingRef: layout.lessonHeadingRef,
+    setSidebarOpen: layout.setSidebarOpen,
+    setVideoProgress,
+    setLessonHasQuiz,
+    onBeforeLessonChange,
+  });
+
   const startAutoAdvance = (nextLesson: LessonResponse) => {
     clearAutoAdvance();
     setAutoAdvance({ nextLesson, secondsRemaining: AUTO_ADVANCE_SECONDS });
 
     autoAdvanceTimeoutRef.current = setTimeout(() => {
       clearAutoAdvance();
-      handleLessonClick(nextLesson, { focusContent: true, closeMobileSidebar: !isDesktop });
+      navigation.selectLesson(nextLesson, { focusContent: true, closeMobileSidebar: !layout.isDesktop });
     }, AUTO_ADVANCE_SECONDS * 1000);
 
     autoAdvanceIntervalRef.current = setInterval(() => {
@@ -479,9 +450,7 @@ export const CoursePlayerPage: React.FC = () => {
   const cancelAutoAdvance = () => {
     clearAutoAdvance();
     // Keep the user on the current lesson and restore focus to its content.
-    requestAnimationFrame(() => {
-      lessonHeadingRef.current?.focus();
-    });
+    layout.focusLessonHeading();
   };
 
   // Single completion path for manual, video-ended and quiz-pass so progress
@@ -523,11 +492,11 @@ export const CoursePlayerPage: React.FC = () => {
         });
       }
 
-      const nextLesson = getNextLesson();
+      const nextLesson = navigation.nextLesson;
       const { progressPercentage } = calculateOptimisticCourseProgress(enrollment, lessons.length);
       const pct = progressPercentage ?? 0;
 
-      setCompletionAnnouncement(
+      navigation.setCompletionAnnouncement(
         `${currentLesson.title} completed. Course progress is ${pct}%.`,
       );
 
@@ -586,63 +555,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   const closeCompletionModal = () => {
     setCompletionModalOpen(false);
-    requestAnimationFrame(() => lessonHeadingRef.current?.focus());
-  };
-
-  const handleLessonClick = (
-    lesson: LessonResponse,
-    options: LessonClickOptions = {}
-  ) => {
-    const isCurrentLesson = currentLesson?.id === lesson.id;
-
-    // Any manual navigation cancels a pending auto-advance timer.
-    clearAutoAdvance();
-
-    // Stop current video
-    if (videoRef.current) {
-      videoRef.current.pause();
-      // Reset position so new lesson does not inherit previous time
-      videoRef.current.currentTime = 0;
-    }
-
-    // Clear progress interval
-    if (progressUpdateInterval.current) {
-      clearInterval(progressUpdateInterval.current);
-      progressUpdateInterval.current = null;
-    }
-
-    pendingLessonFocusRef.current = options.focusContent ?? true;
-    setCurrentLesson(lesson);
-    setSearchParams({ lesson: lesson.id.toString(), type: lesson.contentType }, { replace: true });
-    localStorage.setItem(`course_${courseSlug}_last_lesson`, lesson.id.toString());
-    localStorage.setItem(`course_${courseSlug}_last_lesson_type`, lesson.contentType);
-    localStorage.setItem(`lesson_${lesson.id}_type`, lesson.contentType);
-    const savedProgress = allLessonProgress.find((p) => p.lessonId === lesson.id);
-    setVideoProgress(savedProgress?.watchPercentage ?? 0);
-    setLessonHasQuiz(null);
-    setLessonAnnouncement(`Opened lesson: ${lesson.title}`);
-    setCompletionAnnouncement('');
-    if (options.closeMobileSidebar) {
-      setSidebarOpen(false);
-    } else if (isCurrentLesson && pendingLessonFocusRef.current) {
-      requestAnimationFrame(() => {
-        lessonHeadingRef.current?.focus();
-        pendingLessonFocusRef.current = false;
-      });
-    }
-  };
-
-  const getNextLesson = (): LessonResponse | null =>
-    getAdjacentLessons(lessons, currentLesson?.id).next;
-
-  const getPreviousLesson = (): LessonResponse | null =>
-    getAdjacentLessons(lessons, currentLesson?.id).previous;
-
-  const handleNavigate = (direction: 'next' | 'previous') => {
-    const lesson = direction === 'next' ? getNextLesson() : getPreviousLesson();
-    if (lesson) {
-      handleLessonClick(lesson, { focusContent: true, closeMobileSidebar: !isDesktop });
-    }
+    layout.focusLessonHeading();
   };
 
   const handleDownloadTranscript = () => {
@@ -691,15 +604,15 @@ export const CoursePlayerPage: React.FC = () => {
       <CoursePlayerHeader
         courseTitle={course.title}
         progressPercentage={enrollment?.progressPercentage || 0}
-        sidebarOpen={sidebarOpen}
-        sidebarToggleRef={sidebarToggleRef}
+        sidebarOpen={layout.sidebarOpen}
+        sidebarToggleRef={layout.sidebarToggleRef}
         onExit={() => navigate(USER_ROUTES.LEARNING)}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onToggleSidebar={() => layout.setSidebarOpen(!layout.sidebarOpen)}
       />
 
       <div className="flex relative">
         {/* Main Content */}
-        <div id="course-player-main" className={`flex-1 min-w-0 ${sidebarOpen ? 'xl:mr-80' : ''}`}>
+        <div id="course-player-main" className={`flex-1 min-w-0 ${layout.sidebarOpen ? 'xl:mr-80' : ''}`}>
           {(completionReconcileError || completionReconcileInFlight) && (
             <CompletionReconcileStatus
               inFlight={completionReconcileInFlight}
@@ -715,9 +628,9 @@ export const CoursePlayerPage: React.FC = () => {
               secondsRemaining={autoAdvance.secondsRemaining}
               onGoNow={() => {
                 clearAutoAdvance();
-                handleLessonClick(autoAdvance.nextLesson, {
+                navigation.selectLesson(autoAdvance.nextLesson, {
                   focusContent: true,
-                  closeMobileSidebar: !isDesktop,
+                  closeMobileSidebar: !layout.isDesktop,
                 });
               }}
               onCancel={cancelAutoAdvance}
@@ -733,16 +646,16 @@ export const CoursePlayerPage: React.FC = () => {
               completingLessonId={completingLessonId}
               completionError={completionError}
               lessonHasQuiz={lessonHasQuiz}
-              lessonHeadingRef={lessonHeadingRef}
+              lessonHeadingRef={layout.lessonHeadingRef}
               completionControlsRef={completionControlsRef}
               onMarkComplete={handleMarkComplete}
               onQuizPass={handleQuizPass}
               onOpenQuiz={quizModal.open}
               onDownloadTranscript={handleDownloadTranscript}
-              hasPrevious={!!getPreviousLesson()}
-              hasNext={!!getNextLesson()}
-              onPrevious={() => handleNavigate('previous')}
-              onNext={() => handleNavigate('next')}
+              hasPrevious={!!navigation.previousLesson}
+              hasNext={!!navigation.nextLesson}
+              onPrevious={navigation.navigatePrevious}
+              onNext={navigation.navigateNext}
             />
           )}
 
@@ -783,23 +696,23 @@ export const CoursePlayerPage: React.FC = () => {
               completingLessonId={completingLessonId}
               completionError={completionError}
               lessonHasQuiz={lessonHasQuiz}
-              lessonHeadingRef={lessonHeadingRef}
+              lessonHeadingRef={layout.lessonHeadingRef}
               completionControlsRef={completionControlsRef}
               onMarkComplete={handleMarkComplete}
               onQuizPass={handleQuizPass}
               onOpenQuiz={quizModal.open}
               onDownloadTranscript={handleDownloadTranscript}
-              hasPrevious={!!getPreviousLesson()}
-              hasNext={!!getNextLesson()}
-              onPrevious={() => handleNavigate('previous')}
-              onNext={() => handleNavigate('next')}
+              hasPrevious={!!navigation.previousLesson}
+              hasNext={!!navigation.nextLesson}
+              onPrevious={navigation.navigatePrevious}
+              onNext={navigation.navigateNext}
             />
           )}
         </div>
 
         <CourseCurriculumSidebar
-          isOpen={sidebarOpen}
-          isDesktop={isDesktop}
+          isOpen={layout.sidebarOpen}
+          isDesktop={layout.isDesktop}
           sections={sections}
           lessons={lessons}
           currentLessonId={currentLesson.id}
@@ -811,15 +724,15 @@ export const CoursePlayerPage: React.FC = () => {
           expandedSectionIds={expandedSectionIds}
           onToggleSection={toggleSection}
           onSelectLesson={(lesson) => {
-            skipSidebarScroll.current = true;
-            handleLessonClick(lesson, {
+            layout.skipSidebarScroll.current = true;
+            navigation.selectLesson(lesson, {
               focusContent: true,
-              closeMobileSidebar: !isDesktop,
+              closeMobileSidebar: !layout.isDesktop,
             });
           }}
-          onClose={() => setSidebarOpen(false)}
-          activeLessonRef={activeLessonRef}
-          sidebarScrollRef={sidebarScrollRef}
+          onClose={() => layout.setSidebarOpen(false)}
+          activeLessonRef={layout.activeLessonRef}
+          sidebarScrollRef={layout.sidebarScrollRef}
         />
       </div>
 
@@ -845,8 +758,8 @@ export const CoursePlayerPage: React.FC = () => {
       {resolvedCourseId !== null && <AiTutorOverlay courseId={resolvedCourseId} />}
 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {lessonAnnouncement}
-        {completionAnnouncement}
+        {navigation.lessonAnnouncement}
+        {navigation.completionAnnouncement}
       </div>
     </div>
   );
