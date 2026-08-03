@@ -26,6 +26,7 @@ import {
 
 interface UseCoursePlayerDataOptions {
   courseSlug: string | undefined;
+  currentLesson: LessonResponse | null;
   searchParams: URLSearchParams;
   setSearchParams: SetURLSearchParams;
   setCurrentLesson: (lesson: LessonResponse) => void;
@@ -35,11 +36,13 @@ interface UseCoursePlayerDataOptions {
  * Loads the course/sections/lessons/enrollment/progress for the player and
  * resolves which lesson to open initially (query param -> localStorage ->
  * first lesson). Also owns access-error detection (not enrolled / dropped /
- * suspended) and the post-completion enrollment reconciliation used by the
+ * suspended), section expand/collapse, marking the current lesson as
+ * started, and the post-completion enrollment reconciliation used by the
  * completion workflow.
  */
 export function useCoursePlayerData({
   courseSlug,
+  currentLesson,
   searchParams,
   setSearchParams,
   setCurrentLesson,
@@ -228,13 +231,29 @@ export function useCoursePlayerData({
     }
   };
 
+  const toggleSection = (sectionId: number) => {
+    setExpandedSectionIds((prev) =>
+      prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId]
+    );
+  };
+
+  // Marks the current lesson as started once both it and the enrollment are
+  // known. Safe to call repeatedly — the backend treats an already-started
+  // lesson as a no-op.
+  useEffect(() => {
+    if (!currentLesson || !enrollment) return;
+    lessonProgressService.startLesson(enrollment.id, currentLesson.id).catch((err) => {
+      console.log('Lesson already started or error:', err);
+    });
+  }, [currentLesson, enrollment]);
+
   return {
     resolvedCourseId,
     course,
     sections,
     lessons,
     expandedSectionIds,
-    setExpandedSectionIds,
+    toggleSection,
     allLessonProgress,
     setAllLessonProgress,
     enrollment,

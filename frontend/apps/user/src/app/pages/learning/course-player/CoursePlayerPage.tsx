@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  useModal,
-} from '@edumind/user-ui';
+import { useModal } from '@edumind/user-ui';
 import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
-import { lessonProgressService } from '../../../services/lesson-progress.service';
-import type {
-  LessonResponse,
-  LessonProgressResponse,
-} from '@edumind/shared-types';
+import type { LessonResponse, LessonProgressResponse } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
-import {
-  BookOpen,
-} from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { USER_ROUTES } from '@edumind/shared-utils';
 import { VideoPlayer } from '../../../components/learning/VideoPlayer';
 import { QuizTakerModal } from '../../../components/learning/QuizTakerModal';
@@ -27,6 +19,7 @@ import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
 import { CourseLessonContent } from './components/CourseLessonContent';
 import { findLessonProgress, htmlToPlainText } from './course-player.utils';
+import type { CompletionSource } from './course-player.types';
 import {
   useAccessErrorRedirect,
   useAutoAdvance,
@@ -46,7 +39,6 @@ export const CoursePlayerPage: React.FC = () => {
 
   const AUTO_ADVANCE_SECONDS = 5;
 
-  // State
   // Owned here (rather than inside useLessonNavigation) because
   // useCoursePlayerLayout also needs its value, and useLessonNavigation needs
   // useCoursePlayerLayout's isDesktop/refs output — keeping currentLesson at
@@ -61,7 +53,7 @@ export const CoursePlayerPage: React.FC = () => {
     sections,
     lessons,
     expandedSectionIds,
-    setExpandedSectionIds,
+    toggleSection,
     allLessonProgress,
     setAllLessonProgress,
     enrollment,
@@ -70,7 +62,7 @@ export const CoursePlayerPage: React.FC = () => {
     accessError,
     confirmedCourseComplete,
     reconcileEnrollmentProgress,
-  } = useCoursePlayerData({ courseSlug, searchParams, setSearchParams, setCurrentLesson });
+  } = useCoursePlayerData({ courseSlug, currentLesson, searchParams, setSearchParams, setCurrentLesson });
 
   const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
@@ -85,25 +77,15 @@ export const CoursePlayerPage: React.FC = () => {
     setCompletionModalOpen(false);
   }, [courseSlug]);
 
-  useEffect(() => {
-    if (currentLesson && enrollment) {
-      updateLastAccessedLesson();
-    }
-  }, [currentLesson, enrollment]);
-
   const { hasQuiz: lessonHasQuiz, setHasQuiz: setLessonHasQuiz } = useLessonQuizAvailability(
     currentLesson?.id,
     currentLesson?.contentType
   );
 
-  // Helper: get progress for a specific lesson
-  const getLessonProgress = (lessonId: number): LessonProgressResponse | null => {
-    return findLessonProgress(allLessonProgress, lessonId);
-  };
-
   // Derived progress for the current lesson
-  const currentLessonProgress: LessonProgressResponse | null =
-    currentLesson ? getLessonProgress(currentLesson.id) : null;
+  const currentLessonProgress: LessonProgressResponse | null = currentLesson
+    ? findLessonProgress(allLessonProgress, currentLesson.id)
+    : null;
 
   // Video progress autosave orchestration (periodic save, retry, resume seek).
   const {
@@ -129,18 +111,6 @@ export const CoursePlayerPage: React.FC = () => {
     },
     onProgressAnnouncement: (message) => navigation.setLessonAnnouncement(message),
   });
-
-  const updateLastAccessedLesson = async () => {
-    if (!currentLesson || !enrollment) return;
-
-    try {
-      // Start lesson if not started yet
-      await lessonProgressService.startLesson(enrollment.id, currentLesson.id);
-    } catch (err) {
-      // Lesson might already be started, that's okay
-      console.log('Lesson already started or error:', err);
-    }
-  };
 
   // ── Auto-advance countdown ──────────────────────────────────────────────────
 
@@ -216,20 +186,14 @@ export const CoursePlayerPage: React.FC = () => {
     restoreCompletionFocus,
   });
 
-  const handleVideoEnded = () => {
+  const handleComplete = (source: CompletionSource) => {
     if (!currentLesson || !enrollment) return;
-    void completeLesson('video');
+    void completeLesson(source);
   };
 
-  const handleMarkComplete = () => {
-    if (!currentLesson || !enrollment) return;
-    void completeLesson('manual');
-  };
-
-  const handleQuizPass = () => {
-    if (!currentLesson || !enrollment) return;
-    void completeLesson('quiz');
-  };
+  const handleVideoEnded = () => handleComplete('video');
+  const handleMarkComplete = () => handleComplete('manual');
+  const handleQuizPass = () => handleComplete('quiz');
 
   // Open the completion experience once per course-player session. Subsequent
   // reconciliation or lesson navigation must not reopen a dialog the user has
@@ -258,14 +222,6 @@ export const CoursePlayerPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const toggleSection = (sectionId: number) => {
-    setExpandedSectionIds((prev) =>
-      prev.includes(sectionId)
-        ? prev.filter((id) => id !== sectionId)
-        : [...prev, sectionId]
-    );
-  };
-
   if (loading) {
     return <CoursePlayerSkeleton />;
   }
@@ -286,6 +242,28 @@ export const CoursePlayerPage: React.FC = () => {
   if (!course || !currentLesson) {
     return <CourseNotFound onBackToLearning={() => navigate(USER_ROUTES.LEARNING)} />;
   }
+
+  // Shared between the mutually-exclusive QUIZ/non-QUIZ render positions below.
+  const lessonContent = (
+    <CourseLessonContent
+      lesson={currentLesson}
+      enrollment={enrollment}
+      currentLessonProgress={currentLessonProgress}
+      completingLessonId={completingLessonId}
+      completionError={completionError}
+      lessonHasQuiz={lessonHasQuiz}
+      lessonHeadingRef={layout.lessonHeadingRef}
+      completionControlsRef={completionControlsRef}
+      onMarkComplete={handleMarkComplete}
+      onQuizPass={handleQuizPass}
+      onOpenQuiz={quizModal.open}
+      onDownloadTranscript={handleDownloadTranscript}
+      hasPrevious={!!navigation.previousLesson}
+      hasNext={!!navigation.nextLesson}
+      onPrevious={navigation.navigatePrevious}
+      onNext={navigation.navigateNext}
+    />
+  );
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -325,27 +303,10 @@ export const CoursePlayerPage: React.FC = () => {
             />
           )}
 
-          {/* QUIZ lesson — inline quiz taker, no video/article */}
-          {currentLesson.contentType === ContentType.QUIZ && (
-            <CourseLessonContent
-              lesson={currentLesson}
-              enrollment={enrollment}
-              currentLessonProgress={currentLessonProgress}
-              completingLessonId={completingLessonId}
-              completionError={completionError}
-              lessonHasQuiz={lessonHasQuiz}
-              lessonHeadingRef={layout.lessonHeadingRef}
-              completionControlsRef={completionControlsRef}
-              onMarkComplete={handleMarkComplete}
-              onQuizPass={handleQuizPass}
-              onOpenQuiz={quizModal.open}
-              onDownloadTranscript={handleDownloadTranscript}
-              hasPrevious={!!navigation.previousLesson}
-              hasNext={!!navigation.nextLesson}
-              onPrevious={navigation.navigatePrevious}
-              onNext={navigation.navigateNext}
-            />
-          )}
+          {/* QUIZ lesson — inline quiz taker, no video/article. Rendered from
+              the same `lessonContent` element below the video block so the
+              QUIZ and non-QUIZ branches never duplicate props. */}
+          {currentLesson.contentType === ContentType.QUIZ && lessonContent}
 
           {/* Video Player - only for VIDEO type */}
           {currentLesson.contentType === ContentType.VIDEO && (
@@ -376,26 +337,7 @@ export const CoursePlayerPage: React.FC = () => {
           />
 
           {/* Lesson Content — not shown for QUIZ type (handled above) */}
-          {currentLesson.contentType !== ContentType.QUIZ && (
-            <CourseLessonContent
-              lesson={currentLesson}
-              enrollment={enrollment}
-              currentLessonProgress={currentLessonProgress}
-              completingLessonId={completingLessonId}
-              completionError={completionError}
-              lessonHasQuiz={lessonHasQuiz}
-              lessonHeadingRef={layout.lessonHeadingRef}
-              completionControlsRef={completionControlsRef}
-              onMarkComplete={handleMarkComplete}
-              onQuizPass={handleQuizPass}
-              onOpenQuiz={quizModal.open}
-              onDownloadTranscript={handleDownloadTranscript}
-              hasPrevious={!!navigation.previousLesson}
-              hasNext={!!navigation.nextLesson}
-              onPrevious={navigation.navigatePrevious}
-              onNext={navigation.navigateNext}
-            />
-          )}
+          {currentLesson.contentType !== ContentType.QUIZ && lessonContent}
         </div>
 
         <CourseCurriculumSidebar
