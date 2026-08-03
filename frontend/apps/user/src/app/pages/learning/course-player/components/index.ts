@@ -11,3 +11,6 @@ export { LessonResources } from './LessonResources';
 export { QuizLauncher } from './QuizLauncher';
 export { AiTutorOverlay } from './AiTutorOverlay';
 export { CourseNotFound } from './CourseNotFound';
+export { QuizLessonContent } from './QuizLessonContent';
+export { StandardLessonContent } from './StandardLessonContent';
+export { CourseLessonContent } from './CourseLessonContent';

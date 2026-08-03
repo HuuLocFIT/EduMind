@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArticleViewer } from '../../../components/learning/ArticleViewer';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Button,
-  Card,
   useModal,
 } from '@edumind/user-ui';
 import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
@@ -24,29 +21,22 @@ import type {
 } from '@edumind/shared-types';
 import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
 import {
-  CheckCircle,
   BookOpen,
-  Loader2,
 } from 'lucide-react';
 import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import { queryKeys } from '../../../lib/query-keys';
 import { VideoPlayer } from '../../../components/learning/VideoPlayer';
 import { QuizTakerModal } from '../../../components/learning/QuizTakerModal';
-import { LessonSummaryPanel } from '../../../components/learning/LessonSummaryPanel';
-import { InlineQuizTaker } from '../../../components/learning/InlineQuizTaker';
 import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
 import { CourseAccessErrorDialog } from './components/CourseAccessErrorDialog';
 import { CourseCompletionDialog } from './components/CourseCompletionDialog';
 import { CoursePlayerHeader } from './components/CoursePlayerHeader';
-import { LessonNavigation } from './components/LessonNavigation';
 import { ProgressSaveStatus } from './components/ProgressSaveStatus';
 import { CompletionReconcileStatus } from './components/CompletionReconcileStatus';
 import { AutoAdvanceBanner } from './components/AutoAdvanceBanner';
-import { LessonTranscriptCard } from './components/LessonTranscriptCard';
-import { LessonResources } from './components/LessonResources';
-import { QuizLauncher } from './components/QuizLauncher';
 import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
+import { CourseLessonContent } from './components/CourseLessonContent';
 import type {
   AccessError,
   AutoAdvanceState,
@@ -914,29 +904,25 @@ export const CoursePlayerPage: React.FC = () => {
           )}
 
           {/* QUIZ lesson — inline quiz taker, no video/article */}
-          {currentLesson.contentType === ContentType.QUIZ && enrollment && (
-            <div className="p-3 sm:p-6 bg-white" data-testid="lesson-content">
-              <div className="max-w-4xl mx-auto">
-                <div className="mb-6">
-                  <h2 ref={lessonHeadingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900 mb-1">{currentLesson.title}</h2>
-                  {currentLesson.description && (
-                    <p className="text-gray-600">{currentLesson.description}</p>
-                  )}
-                </div>
-                <InlineQuizTaker
-                  key={currentLesson.id}
-                  lesson={currentLesson}
-                  onQuizPass={handleQuizPass}
-                />
-                <LessonNavigation
-                  hasPrevious={!!getPreviousLesson()}
-                  hasNext={!!getNextLesson()}
-                  onPrevious={() => handleNavigate('previous')}
-                  onNext={() => handleNavigate('next')}
-                  className="mt-8"
-                />
-              </div>
-            </div>
+          {currentLesson.contentType === ContentType.QUIZ && (
+            <CourseLessonContent
+              lesson={currentLesson}
+              enrollment={enrollment}
+              currentLessonProgress={currentLessonProgress}
+              completingLessonId={completingLessonId}
+              completionError={completionError}
+              lessonHasQuiz={lessonHasQuiz}
+              lessonHeadingRef={lessonHeadingRef}
+              completionControlsRef={completionControlsRef}
+              onMarkComplete={handleMarkComplete}
+              onQuizPass={handleQuizPass}
+              onOpenQuiz={quizModal.open}
+              onDownloadTranscript={handleDownloadTranscript}
+              hasPrevious={!!getPreviousLesson()}
+              hasNext={!!getNextLesson()}
+              onPrevious={() => handleNavigate('previous')}
+              onNext={() => handleNavigate('next')}
+            />
           )}
 
           {/* Video Player - only for VIDEO type */}
@@ -969,99 +955,24 @@ export const CoursePlayerPage: React.FC = () => {
 
           {/* Lesson Content — not shown for QUIZ type (handled above) */}
           {currentLesson.contentType !== ContentType.QUIZ && (
-          <div className="p-3 sm:p-6 bg-white" data-testid="lesson-content">
-            <div className="max-w-4xl mx-auto">
-              {/* Lesson Header */}
-              <div
-                ref={completionControlsRef}
-                className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6"
-              >
-                <div>
-                  <h2 ref={lessonHeadingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900 mb-2">
-                    {currentLesson.title}
-                  </h2>
-                  {currentLesson.description && (
-                    <p className="text-gray-600">{currentLesson.description}</p>
-                  )}
-                </div>
-                
-                {( !currentLessonProgress?.isCompleted || completingLessonId === currentLesson.id ) && (
-                  <Button
-                    variant="primary"
-                    onClick={handleMarkComplete}
-                    disabled={completingLessonId === currentLesson.id}
-                    aria-busy={completingLessonId === currentLesson.id}
-                    aria-label="Mark complete"
-                    className="flex-shrink-0"
-                  >
-                    {completingLessonId === currentLesson.id ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <CheckCircle className="w-4 h-4 mr-2" aria-hidden="true" />
-                    )}
-                    Mark Complete
-                  </Button>
-                )}
-
-                {completionError && (
-                  <div role="alert" className="rounded-lg p-4 bg-red-50 border border-red-200 text-red-700 flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-shrink-0">
-                    <p>{completionError.message}</p>
-                    <Button
-                      variant="secondary"
-                      onClick={completionError.retry}
-                      aria-label="Retry marking lesson complete"
-                      className="flex-shrink-0"
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Lesson Content/Resources */}
-              {currentLesson.articleContent && currentLesson.contentType === ContentType.ARTICLE && (
-                <Card className="p-4 sm:p-8 mb-6">
-                  <ArticleViewer
-                    html={currentLesson.articleContent}
-                    title="Lesson Content"
-                  />
-                </Card>
-              )}
-
-              {currentLesson.contentType === ContentType.VIDEO && (
-                <LessonTranscriptCard
-                  articleContent={currentLesson.articleContent}
-                  hasCaptions={!!currentLesson.videoCaptionUrl}
-                  lessonTitle={currentLesson.title}
-                  onDownload={handleDownloadTranscript}
-                />
-              )}
-
-              {/* Take Quiz Button (for ARTICLE and VIDEO lessons) */}
-              {(currentLesson.contentType === ContentType.ARTICLE ||
-                currentLesson.contentType === ContentType.VIDEO) && (
-                <>
-                  <QuizLauncher hasQuiz={lessonHasQuiz} onOpen={quizModal.open} />
-
-                  {/* AI Lesson Summary */}
-                  <LessonSummaryPanel lessonId={currentLesson.id} />
-
-                  {/* AI Course Tutor is now accessed via floating button & overlay */}
-                </>
-              )}
-
-              {/* Resources */}
-              <LessonResources resources={currentLesson.resources} />
-
-              {/* Navigation Buttons */}
-              <LessonNavigation
-                hasPrevious={!!getPreviousLesson()}
-                hasNext={!!getNextLesson()}
-                onPrevious={() => handleNavigate('previous')}
-                onNext={() => handleNavigate('next')}
-              />
-            </div>
-          </div>
+            <CourseLessonContent
+              lesson={currentLesson}
+              enrollment={enrollment}
+              currentLessonProgress={currentLessonProgress}
+              completingLessonId={completingLessonId}
+              completionError={completionError}
+              lessonHasQuiz={lessonHasQuiz}
+              lessonHeadingRef={lessonHeadingRef}
+              completionControlsRef={completionControlsRef}
+              onMarkComplete={handleMarkComplete}
+              onQuizPass={handleQuizPass}
+              onOpenQuiz={quizModal.open}
+              onDownloadTranscript={handleDownloadTranscript}
+              hasPrevious={!!getPreviousLesson()}
+              hasNext={!!getNextLesson()}
+              onPrevious={() => handleNavigate('previous')}
+              onNext={() => handleNavigate('next')}
+            />
           )}
         </div>
 
