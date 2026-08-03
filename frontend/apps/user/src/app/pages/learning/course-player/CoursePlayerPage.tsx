@@ -49,6 +49,24 @@ const AiChatPanel = React.lazy(() =>
   import('../../../components/learning/AiChatPanel').then((m) => ({ default: m.AiChatPanel }))
 );
 import { useAiChatStore } from '../../../stores/aiChat.store';
+import type {
+  AccessError,
+  AutoAdvanceState,
+  CompletionError,
+  CompletionSource,
+  LessonClickOptions,
+  ProgressSaveError,
+} from './course-player.types';
+import {
+  buildCourseAccessError,
+  calculateOptimisticCourseProgress,
+  findLessonProgress,
+  getAdjacentLessons,
+  htmlToPlainText,
+  isCourseCompleteFromEnrollment,
+  resolveInitialLesson,
+  sortCourseLessons,
+} from './course-player.utils';
 
 export const CoursePlayerPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
@@ -77,11 +95,7 @@ export const CoursePlayerPage: React.FC = () => {
   const [videoProgress, setVideoProgress] = useState(0);
   // null = still checking, true/false = resolved
   const [lessonHasQuiz, setLessonHasQuiz] = useState<boolean | null>(null);
-  const [accessError, setAccessError] = useState<{
-    title: string;
-    message: string;
-    redirectTo: string;
-  } | null>(null);
+  const [accessError, setAccessError] = useState<AccessError | null>(null);
   const [redirectCountdown, setRedirectCountdown] = useState(REDIRECT_DELAY_SECONDS);
   const [lessonAnnouncement, setLessonAnnouncement] = useState('');
   // Server-confirmed course completion. Optimistic enrollment updates never set
@@ -91,31 +105,21 @@ export const CoursePlayerPage: React.FC = () => {
 
   // Progress autosave orchestration
   const [progressSaveState, setProgressSaveState] = useState<'idle' | 'saving' | 'error'>('idle');
-  const [progressSaveError, setProgressSaveError] = useState<{
-    message: string;
-    retry: () => Promise<void>;
-  } | null>(null);
+  const [progressSaveError, setProgressSaveError] = useState<ProgressSaveError | null>(null);
   const latestProgressPayloadRef = useRef<UpdateProgressRequest | null>(null);
   const progressSaveInFlightRef = useRef(false);
 
   // Completion orchestration
   const [completingLessonId, setCompletingLessonId] = useState<number | null>(null);
   const completingLessonRef = useRef<number | null>(null);
-  const [completionError, setCompletionError] = useState<{
-    message: string;
-    retry: () => Promise<void>;
-  } | null>(null);
-  const [completionReconcileError, setCompletionReconcileError] = useState<{
-    message: string;
-    retry: () => Promise<void>;
-  } | null>(null);
+  const [completionError, setCompletionError] = useState<CompletionError | null>(null);
+  const [completionReconcileError, setCompletionReconcileError] = useState<CompletionError | null>(
+    null
+  );
   const [completionReconcileInFlight, setCompletionReconcileInFlight] = useState(false);
   const completionReconcileInFlightRef = useRef(false);
   const [completionAnnouncement, setCompletionAnnouncement] = useState('');
-  const [autoAdvance, setAutoAdvance] = useState<{
-    nextLesson: LessonResponse;
-    secondsRemaining: number;
-  } | null>(null);
+  const [autoAdvance, setAutoAdvance] = useState<AutoAdvanceState | null>(null);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -312,38 +316,18 @@ export const CoursePlayerPage: React.FC = () => {
       setExpandedSectionIds(courseSections.map((s) => s.id));
       
       // Sort lessons by section order and lesson order
-      const sortedLessons = courseLessons.sort((a, b) => {
-        const sectionA = courseSections.find((s) => s.id === a.sectionId);
-        const sectionB = courseSections.find((s) => s.id === b.sectionId);
-
-        if (sectionA && sectionB) {
-          const sectionOrderDiff = sectionA.orderIndex - sectionB.orderIndex;
-          if (sectionOrderDiff !== 0) return sectionOrderDiff;
-        }
-
-        // If one of them doesn't belong to any known section, keep original orderIndex grouping
-        if (!sectionA && sectionB) return 1;
-        if (sectionA && !sectionB) return -1;
-
-        // Then sort by lesson order within section
-        return a.orderIndex - b.orderIndex;
-      });
+      const sortedLessons = sortCourseLessons(courseSections, courseLessons);
 
       if (signal?.aborted) return;
-      
+
       setLessons(sortedLessons);
-      
+
       // Restore last lesson or default to first if available
       if (sortedLessons.length > 0) {
         const lessonIdParam = searchParams.get('lesson') || searchParams.get('lessonId');
         const lastLessonId = localStorage.getItem(`course_${courseSlug}_last_lesson`);
-        
-        let targetLesson = sortedLessons[0];
-        if (lessonIdParam) {
-          targetLesson = sortedLessons.find(l => l.id === Number(lessonIdParam)) || sortedLessons[0];
-        } else if (lastLessonId) {
-          targetLesson = sortedLessons.find(l => l.id === Number(lastLessonId)) || sortedLessons[0];
-        }
+
+        const targetLesson = resolveInitialLesson(sortedLessons, lessonIdParam, lastLessonId)!;
 
         setCurrentLesson(targetLesson);
         setSearchParams({ lesson: targetLesson.id.toString(), type: targetLesson.contentType }, { replace: true });
@@ -373,14 +357,7 @@ export const CoursePlayerPage: React.FC = () => {
       const isEnrolled = await enrollmentService.checkEnrollmentStatus(courseId);
       if (signal?.aborted) return;
       if (!isEnrolled) {
-        setAccessError({
-          title: 'Enrollment required',
-          message:
-            'You must enroll in this course before accessing the content. Please go back to the course page to enroll.',
-          redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-            courseSlug: courseSlug!,
-          }),
-        });
+        setAccessError(buildCourseAccessError('NOT_ENROLLED', courseSlug!));
         return;
       }
       
@@ -395,24 +372,12 @@ export const CoursePlayerPage: React.FC = () => {
         // - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
         // - SUSPENDED: student still "owns" the course but access is forbidden.
         if (foundEnrollment.status === EnrollmentStatus.DROPPED) {
-          setAccessError({
-            title: 'Enrollment cancelled',
-            message:
-              'Your enrollment for this course has been cancelled. Please purchase/enroll again to access the content.',
-            redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-              courseSlug: courseSlug!,
-            }),
-          });
+          setAccessError(buildCourseAccessError(EnrollmentStatus.DROPPED, courseSlug!));
           return;
         }
 
         if (foundEnrollment.status === EnrollmentStatus.SUSPENDED) {
-          setAccessError({
-            title: 'Access suspended',
-            message:
-              'Your access to this course has been suspended. Please contact your instructor or support if you believe this is a mistake.',
-            redirectTo: USER_ROUTES.LEARNING,
-          });
+          setAccessError(buildCourseAccessError(EnrollmentStatus.SUSPENDED, courseSlug!));
           return;
         }
 
@@ -446,20 +411,12 @@ export const CoursePlayerPage: React.FC = () => {
 
   // Helper: get progress for a specific lesson
   const getLessonProgress = (lessonId: number): LessonProgressResponse | null => {
-    return allLessonProgress.find((p) => p.lessonId === lessonId) || null;
+    return findLessonProgress(allLessonProgress, lessonId);
   };
 
   // Derived progress for the current lesson
   const currentLessonProgress: LessonProgressResponse | null =
     currentLesson ? getLessonProgress(currentLesson.id) : null;
-
-  // Server-confirmed completion check. This is only applied to enrollments that
-  // came back from the server (initial load / reconciliation), never to the
-  // optimistically bumped enrollment, so the completion UI stays honest.
-  const isCourseCompleteFromEnrollment = (enr: EnrollmentResponse | null): boolean =>
-    enr !== null &&
-    ((enr.progressPercentage ?? 0) >= 100 ||
-      ((enr.completedLessons ?? 0) >= (enr.totalLessons ?? 0) && (enr.totalLessons ?? 0) > 0));
 
   // When current lesson or all progress changes, sync video progress percentage
   useEffect(() => {
@@ -623,15 +580,12 @@ export const CoursePlayerPage: React.FC = () => {
 
     // Bump the course progress bar optimistically (only when newly completed)
     if (!alreadyCompleted && enrollment) {
-      const totalLessons = lessons.length;
-      const newCompleted = (enrollment.completedLessons || 0) + 1;
+      const { completedLessons: newCompleted, progressPercentage } =
+        calculateOptimisticCourseProgress(enrollment, lessons.length);
       setEnrollment({
         ...enrollment,
         completedLessons: newCompleted,
-        progressPercentage:
-          totalLessons > 0
-            ? Math.min(100, Math.round((newCompleted / totalLessons) * 100))
-            : enrollment.progressPercentage,
+        progressPercentage,
       });
     }
 
@@ -724,7 +678,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   // Single completion path for manual, video-ended and quiz-pass so progress
   // updates, announcements, rollback and auto-advance stay consistent.
-  const completeCurrentLesson = async (source: 'manual' | 'video' | 'quiz') => {
+  const completeCurrentLesson = async (source: CompletionSource) => {
     if (!currentLesson || !enrollment) return;
 
     const lessonId = currentLesson.id;
@@ -762,11 +716,8 @@ export const CoursePlayerPage: React.FC = () => {
       }
 
       const nextLesson = getNextLesson();
-      const completedCount = (enrollment.completedLessons || 0) + 1;
-      const pct =
-        lessons.length > 0
-          ? Math.min(100, Math.round((completedCount / lessons.length) * 100))
-          : enrollment.progressPercentage ?? 0;
+      const { progressPercentage } = calculateOptimisticCourseProgress(enrollment, lessons.length);
+      const pct = progressPercentage ?? 0;
 
       setCompletionAnnouncement(
         `${currentLesson.title} completed. Course progress is ${pct}%.`,
@@ -832,7 +783,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   const handleLessonClick = (
     lesson: LessonResponse,
-    options: { focusContent?: boolean; closeMobileSidebar?: boolean } = {}
+    options: LessonClickOptions = {}
   ) => {
     const isCurrentLesson = currentLesson?.id === lesson.id;
 
@@ -873,17 +824,11 @@ export const CoursePlayerPage: React.FC = () => {
     }
   };
 
-  const getNextLesson = (): LessonResponse | null => {
-    if (!currentLesson) return null;
-    const currentIndex = lessons.findIndex(l => l.id === currentLesson.id);
-    return currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
-  };
+  const getNextLesson = (): LessonResponse | null =>
+    getAdjacentLessons(lessons, currentLesson?.id).next;
 
-  const getPreviousLesson = (): LessonResponse | null => {
-    if (!currentLesson) return null;
-    const currentIndex = lessons.findIndex(l => l.id === currentLesson.id);
-    return currentIndex > 0 ? lessons[currentIndex - 1] : null;
-  };
+  const getPreviousLesson = (): LessonResponse | null =>
+    getAdjacentLessons(lessons, currentLesson?.id).previous;
 
   const handleNavigate = (direction: 'next' | 'previous') => {
     const lesson = direction === 'next' ? getNextLesson() : getPreviousLesson();
@@ -894,9 +839,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   const handleDownloadTranscript = () => {
     const html = currentLesson?.articleContent ?? '';
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const plain = div.textContent || div.innerText || html;
+    const plain = htmlToPlainText(html);
     const blob = new Blob([plain], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
