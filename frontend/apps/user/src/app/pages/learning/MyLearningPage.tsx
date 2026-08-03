@@ -38,7 +38,7 @@ export const MyLearningPage: React.FC = () => {
   }, [filterStatus]);
 
   // Fetch enrollment statistics (accurate counts from backend - single query)
-  const { data: stats, isLoading: statsLoading } =
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } =
     useQuery<EnrollmentStatsResponse>({
       queryKey: queryKeys.enrollments.stats(userId),
       queryFn: () => enrollmentService.getMyEnrollmentStats(),
@@ -47,7 +47,7 @@ export const MyLearningPage: React.FC = () => {
     });
 
   // Fetch all enrollments (for 'all' filter only, with proper pagination)
-  const { data: allEnrollmentsResponse, isLoading: allLoading } = useQuery({
+  const { data: allEnrollmentsResponse, isLoading: allLoading, isError: allError, refetch: refetchAll } = useQuery({
     queryKey: queryKeys.enrollments.me(userId, page, pageSize),
     queryFn: async () => {
       return enrollmentService.getMyEnrollments({ page, size: pageSize });
@@ -58,7 +58,7 @@ export const MyLearningPage: React.FC = () => {
   });
 
   // Fetch active courses (for 'active' filter)
-  const { data: activeEnrollmentsResponse, isLoading: activeLoading } =
+  const { data: activeEnrollmentsResponse, isLoading: activeLoading, isError: activeError, refetch: refetchActive } =
     useQuery({
       queryKey: queryKeys.enrollments.meByStatus(
         userId,
@@ -78,7 +78,7 @@ export const MyLearningPage: React.FC = () => {
     });
 
   // Fetch completed courses (for 'completed' filter)
-  const { data: completedEnrollmentsResponse, isLoading: completedLoading } =
+  const { data: completedEnrollmentsResponse, isLoading: completedLoading, isError: completedError, refetch: refetchCompleted } =
     useQuery({
       queryKey: queryKeys.enrollments.meByStatus(
         userId,
@@ -147,6 +147,17 @@ export const MyLearningPage: React.FC = () => {
     (filterStatus === "active" && activeLoading) ||
     (filterStatus === "completed" && completedLoading);
 
+  const tabError =
+    (filterStatus === "all" && allError) ||
+    (filterStatus === "active" && activeError) ||
+    (filterStatus === "completed" && completedError);
+
+  const retryCurrentQuery = () => {
+    if (filterStatus === "active") return refetchActive();
+    if (filterStatus === "completed") return refetchCompleted();
+    return refetchAll();
+  };
+
   // Find most recent course for "Continue Learning"
   const mostRecentCourse = useMemo(() => {
     const allData = allEnrollmentsResponse?.data || [];
@@ -187,7 +198,26 @@ export const MyLearningPage: React.FC = () => {
   };
 
   if (statsLoading) {
-    return <MyLearningSkeleton />;
+    return (
+      <>
+        <p className="sr-only" role="status">Loading My Learning</p>
+        <MyLearningSkeleton />
+      </>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-16">
+        <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-white p-8 text-center" role="alert">
+          <h1 className="text-2xl font-bold text-slate-900">We couldn't load My Learning</h1>
+          <p className="mt-2 text-slate-600">Check your connection and try again.</p>
+          <button type="button" onClick={() => void refetchStats()} className="mt-6 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -216,10 +246,14 @@ export const MyLearningPage: React.FC = () => {
               activeFilter={filterStatus}
               onFilterChange={setFilterStatus}
               stats={stats}
-            />
-
-            {/* Course List */}
-            <CourseList
+            >
+            {tabError ? (
+              <div className="rounded-2xl border border-red-200 bg-white p-8 text-center" role="alert">
+                <h3 className="text-lg font-semibold text-slate-900">We couldn't load these courses</h3>
+                <p className="mt-2 text-slate-600">Try again to refresh this course list.</p>
+                <button type="button" onClick={() => void retryCurrentQuery()} className="mt-4 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">Retry</button>
+              </div>
+            ) : <CourseList
               enrollments={visibleEnrollments}
               pagination={pagination}
               currentPage={page}
@@ -231,7 +265,8 @@ export const MyLearningPage: React.FC = () => {
               onContinue={handleContinueLearning}
               onViewDetails={handleViewCourse}
               onBrowseCourses={handleBrowseCourses}
-            />
+            />}
+            </CourseFilters>
           </div>
 
           {/* Sidebar */}

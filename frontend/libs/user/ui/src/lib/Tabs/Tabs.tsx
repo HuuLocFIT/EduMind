@@ -57,7 +57,7 @@ export const Tabs: React.FC<TabsProps> = ({
 
   const setActiveValue = useCallback(
     (v: string) => {
-      if (!value) setInternal(v);
+      if (value === undefined) setInternal(v);
       onValueChange?.(v);
     },
     [value, onValueChange],
@@ -102,9 +102,16 @@ export const Tabs: React.FC<TabsProps> = ({
 export interface TabsListProps {
   className?: string;
   children: React.ReactNode;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
 }
 
-export const TabsList: React.FC<TabsListProps> = ({ className, children }) => {
+export const TabsList: React.FC<TabsListProps> = ({
+  className,
+  children,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+}) => {
   const { activeValue, setActiveValue, getTabValues, focusTab } = useTabsContext();
 
   const handleKeyDown = useCallback(
@@ -150,6 +157,8 @@ export const TabsList: React.FC<TabsListProps> = ({ className, children }) => {
     <div
       role="tablist"
       tabIndex={-1}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
       onKeyDown={handleKeyDown}
       className={clsx(
         "inline-flex items-center gap-1 border-b border-gray-200",
@@ -166,12 +175,16 @@ export interface TabsTriggerProps {
   value: string;
   className?: string;
   children: React.ReactNode;
+  disabled?: boolean;
+  "aria-label"?: string;
 }
 
 export const TabsTrigger: React.FC<TabsTriggerProps> = ({
   value,
   className,
   children,
+  disabled = false,
+  "aria-label": ariaLabel,
 }) => {
   const {
     activeValue,
@@ -201,14 +214,18 @@ export const TabsTrigger: React.FC<TabsTriggerProps> = ({
     <button
       ref={setButtonRef}
       role="tab"
+      aria-label={ariaLabel}
       type="button"
       id={tabId}
       aria-selected={isActive}
       aria-controls={`${baseId}-panel-${value}`}
+      disabled={disabled}
       tabIndex={isActive ? 0 : -1}
       onClick={() => {
-        setActiveValue(value);
-        focusTab(value);
+        if (!disabled) {
+          setActiveValue(value);
+          focusTab(value);
+        }
       }}
       className={clsx(
         "px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",

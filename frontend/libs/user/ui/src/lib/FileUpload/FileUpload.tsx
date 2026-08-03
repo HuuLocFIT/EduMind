@@ -110,7 +110,7 @@ export const FileUpload = ({
         onDragOver={handleDrag}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-lg p-6
+          relative block w-full border-2 border-dashed rounded-lg p-6
           transition-colors cursor-pointer
           ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
         `}

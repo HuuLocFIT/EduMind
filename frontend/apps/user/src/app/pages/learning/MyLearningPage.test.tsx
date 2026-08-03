@@ -41,11 +41,12 @@ vi.mock('@edumind/shared-utils', () => ({
 
 vi.mock('./components', () => ({
   HeroSection: () => <div>Hero</div>,
-  CourseFilters: ({ onFilterChange }: { onFilterChange: (filter: 'all' | 'active' | 'completed') => void }) => (
+  CourseFilters: ({ onFilterChange, children }: { onFilterChange: (filter: 'all' | 'active' | 'completed') => void; children: React.ReactNode }) => (
     <div>
       <button onClick={() => onFilterChange('all')}>All</button>
       <button onClick={() => onFilterChange('active')}>Active</button>
       <button onClick={() => onFilterChange('completed')}>Completed</button>
+      {children}
     </div>
   ),
   CourseList: () => <div>Course list</div>,
@@ -92,5 +93,17 @@ describe('MyLearningPage', () => {
       size: 12,
     });
     expect(enrollmentService.getMyInProgressCourses).not.toHaveBeenCalled();
+  });
+
+  it('shows an alert with retry when enrollment loading fails', () => {
+    vi.mocked(useQuery).mockImplementation((options: any) => {
+      const isAllQuery = Array.isArray(options.queryKey) && options.queryKey[1] === 'me' && options.queryKey.length === 5;
+      return { data: undefined, isLoading: false, isError: isAllQuery, refetch: vi.fn() } as any;
+    });
+
+    render(<MyLearningPage />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load these courses");
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });
