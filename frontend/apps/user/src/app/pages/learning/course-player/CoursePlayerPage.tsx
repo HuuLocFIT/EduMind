@@ -26,20 +26,13 @@ import { AutoAdvanceBanner } from './components/AutoAdvanceBanner';
 import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
 import { CourseLessonContent } from './components/CourseLessonContent';
-import type {
-  CompletionError,
-  CompletionSource,
-} from './course-player.types';
-import {
-  calculateOptimisticCourseProgress,
-  findLessonProgress,
-  htmlToPlainText,
-} from './course-player.utils';
+import { findLessonProgress, htmlToPlainText } from './course-player.utils';
 import {
   useAccessErrorRedirect,
   useAutoAdvance,
   useCoursePlayerData,
   useCoursePlayerLayout,
+  useLessonCompletion,
   useLessonNavigation,
   useLessonQuizAvailability,
   useVideoProgress,
@@ -82,16 +75,6 @@ export const CoursePlayerPage: React.FC = () => {
   const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
   const layout = useCoursePlayerLayout(currentLesson);
-
-  // Completion orchestration
-  const [completingLessonId, setCompletingLessonId] = useState<number | null>(null);
-  const completingLessonRef = useRef<number | null>(null);
-  const [completionError, setCompletionError] = useState<CompletionError | null>(null);
-  const [completionReconcileError, setCompletionReconcileError] = useState<CompletionError | null>(
-    null
-  );
-  const [completionReconcileInFlight, setCompletionReconcileInFlight] = useState(false);
-  const completionReconcileInFlightRef = useRef(false);
 
   // Refs
   const completionModalShownRef = useRef(false);
@@ -159,68 +142,6 @@ export const CoursePlayerPage: React.FC = () => {
     }
   };
 
-  // Optimistically mark a lesson complete in local state so the UI updates
-  // instantly (zero-latency). Returns a snapshot so callers can roll back if
-  // the server call ultimately fails.
-  const markLessonCompletedLocally = (lessonId: number) => {
-    const prevProgress = allLessonProgress;
-    const prevEnrollment = enrollment;
-    const alreadyCompleted = allLessonProgress.find(
-      (p) => p.lessonId === lessonId
-    )?.isCompleted;
-
-    setAllLessonProgress((prev) => {
-      const existing = prev.find((p) => p.lessonId === lessonId);
-      if (!existing) {
-        return [
-          ...prev,
-          {
-            lessonId,
-            isCompleted: true,
-            watchPercentage: 100,
-          } as LessonProgressResponse,
-        ];
-      }
-      return prev.map((p) =>
-        p.lessonId === lessonId ? { ...p, isCompleted: true } : p
-      );
-    });
-
-    // Bump the course progress bar optimistically (only when newly completed)
-    if (!alreadyCompleted && enrollment) {
-      const { completedLessons: newCompleted, progressPercentage } =
-        calculateOptimisticCourseProgress(enrollment, lessons.length);
-      setEnrollment({
-        ...enrollment,
-        completedLessons: newCompleted,
-        progressPercentage,
-      });
-    }
-
-    return { prevProgress, prevEnrollment };
-  };
-
-  const retryCompletionReconciliation = async (enrollmentId: number) => {
-    if (completionReconcileInFlightRef.current) return;
-
-    completionReconcileInFlightRef.current = true;
-    setCompletionReconcileInFlight(true);
-    setCompletionReconcileError(null);
-    try {
-      await reconcileEnrollmentProgress(enrollmentId);
-      navigation.setCompletionAnnouncement('Course progress updated.');
-    } catch (err) {
-      console.error('Error reconciling lesson progress:', err);
-      setCompletionReconcileError({
-        message: 'The lesson was completed, but course progress could not be refreshed.',
-        retry: () => retryCompletionReconciliation(enrollmentId),
-      });
-    } finally {
-      completionReconcileInFlightRef.current = false;
-      setCompletionReconcileInFlight(false);
-    }
-  };
-
   // ── Auto-advance countdown ──────────────────────────────────────────────────
 
   // `onAdvance`/`onCancelFocus` close over `navigation`/`layout`, which are
@@ -260,90 +181,54 @@ export const CoursePlayerPage: React.FC = () => {
     onBeforeLessonChange,
   });
 
+  // Restores keyboard focus to the Mark Complete control after an optimistic
+  // rollback, instead of letting focus fall back to the page body.
+  const restoreCompletionFocus = () => {
+    requestAnimationFrame(() => {
+      completionControlsRef.current
+        ?.querySelector<HTMLButtonElement>('[aria-label="Mark complete"]')
+        ?.focus();
+    });
+  };
+
   // Single completion path for manual, video-ended and quiz-pass so progress
   // updates, announcements, rollback and auto-advance stay consistent.
-  const completeCurrentLesson = async (source: CompletionSource) => {
-    if (!currentLesson || !enrollment) return;
-
-    const lessonId = currentLesson.id;
-    const enrollmentId = enrollment.id;
-
-    if (getLessonProgress(lessonId)?.isCompleted) return;
-    // Synchronous guard prevents a double-submit on rapid double activation.
-    if (completingLessonRef.current !== null) return;
-
-    clearAutoAdvance();
-    stopAutosave();
-
-    completingLessonRef.current = lessonId;
-    setCompletingLessonId(lessonId);
-    setCompletionError(null);
-    setCompletionReconcileError(null);
-
-    const snapshot = markLessonCompletedLocally(lessonId);
-
-    try {
-      await lessonProgressService.completeLesson(enrollmentId, lessonId);
-
-      try {
-        await reconcileEnrollmentProgress(enrollmentId);
-      } catch (err) {
-        console.error('Error reconciling lesson progress:', err);
-        setCompletionReconcileError({
-          message: 'The lesson was completed, but course progress could not be refreshed.',
-          retry: () => retryCompletionReconciliation(enrollmentId),
-        });
-      }
-
-      const nextLesson = navigation.nextLesson;
-      const { progressPercentage } = calculateOptimisticCourseProgress(enrollment, lessons.length);
-      const pct = progressPercentage ?? 0;
-
-      navigation.setCompletionAnnouncement(
-        `${currentLesson.title} completed. Course progress is ${pct}%.`,
-      );
-
-      if (!nextLesson) {
-        // Course completed: no auto-advance. The completion heading is focused
-        // once confirmedCourseComplete flips to true after reconciliation.
-      } else {
-        startAutoAdvance(nextLesson);
-      }
-    } catch (err: any) {
-      console.error('Error completing lesson:', err);
-      // Roll back optimistic completion and keep the current lesson.
-      setAllLessonProgress(snapshot.prevProgress);
-      if (snapshot.prevEnrollment) setEnrollment(snapshot.prevEnrollment);
-      setCompletionError({
-        message: err?.message || 'Failed to mark lesson as complete',
-        retry: () => completeCurrentLesson(source),
-      });
-      // Keep keyboard focus on Mark complete (when it still exists) instead of
-      // letting it fall back to the page body after the optimistic rollback.
-      requestAnimationFrame(() => {
-        completionControlsRef.current
-          ?.querySelector<HTMLButtonElement>('[aria-label="Mark complete"]')
-          ?.focus();
-      });
-    } finally {
-      completingLessonRef.current = null;
-      setCompletingLessonId(null);
-    }
-  };
+  const {
+    completingLessonId,
+    completionError,
+    completionReconcileError,
+    completionReconcileInFlight,
+    completionAnnouncement,
+    completeLesson,
+  } = useLessonCompletion({
+    currentLesson,
+    enrollment,
+    lessons,
+    allLessonProgress,
+    resolvedCourseId,
+    getNextLesson: () => navigation.nextLesson,
+    onProgressChange: setAllLessonProgress,
+    onEnrollmentChange: setEnrollment,
+    reconcileEnrollmentProgress,
+    startAutoAdvance,
+    clearAutoAdvance,
+    stopAutosave,
+    restoreCompletionFocus,
+  });
 
   const handleVideoEnded = () => {
     if (!currentLesson || !enrollment) return;
-    void completeCurrentLesson('video');
+    void completeLesson('video');
   };
 
   const handleMarkComplete = () => {
     if (!currentLesson || !enrollment) return;
-    void completeCurrentLesson('manual');
+    void completeLesson('manual');
   };
 
   const handleQuizPass = () => {
     if (!currentLesson || !enrollment) return;
-    void completeCurrentLesson('quiz');
+    void completeLesson('quiz');
   };
 
   // Open the completion experience once per course-player session. Subsequent
@@ -562,7 +447,7 @@ export const CoursePlayerPage: React.FC = () => {
 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {navigation.lessonAnnouncement}
-        {navigation.completionAnnouncement}
+        {completionAnnouncement}
       </div>
     </div>
   );

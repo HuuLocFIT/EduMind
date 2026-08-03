@@ -50,7 +50,6 @@ export function useLessonNavigation({
   onBeforeLessonChange,
 }: UseLessonNavigationOptions) {
   const [lessonAnnouncement, setLessonAnnouncement] = useState('');
-  const [completionAnnouncement, setCompletionAnnouncement] = useState('');
 
   const { previous: previousLesson, next: nextLesson } = getAdjacentLessons(
     lessons,
@@ -75,7 +74,6 @@ export function useLessonNavigation({
     setVideoProgress(savedProgress?.watchPercentage ?? 0);
     setLessonHasQuiz(null);
     setLessonAnnouncement(`Opened lesson: ${lesson.title}`);
-    setCompletionAnnouncement('');
     if (options.closeMobileSidebar) {
       setSidebarOpen(false);
     } else if (isCurrentLesson && pendingLessonFocusRef.current) {
@@ -101,8 +99,6 @@ export function useLessonNavigation({
   return {
     lessonAnnouncement,
     setLessonAnnouncement,
-    completionAnnouncement,
-    setCompletionAnnouncement,
     nextLesson,
     previousLesson,
     selectLesson,
