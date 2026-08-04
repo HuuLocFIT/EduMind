@@ -59,7 +59,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
      * Find completed enrollments for student (with course fetched)
      */
     @EntityGraph("Enrollment.withCourse")
-    @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId AND e.status = 'COMPLETED'")
+    @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId AND e.status = 'COMPLETED' " +
+            "ORDER BY e.completedAt DESC NULLS LAST, e.enrolledAt DESC")
     List<Enrollment> findCompletedEnrollmentsByStudent(Long studentId);
 
     /**
