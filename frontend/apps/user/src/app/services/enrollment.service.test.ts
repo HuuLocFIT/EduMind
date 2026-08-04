@@ -21,6 +21,7 @@ vi.mock('@edumind/shared-utils', () => ({
     MY_STATS: '/api/enrollments/my-stats',
     CHECK: (courseId: string | number) => `/api/enrollments/check/${courseId}`,
     MY_FOR_COURSE: (courseId: string | number) => `/api/enrollments/course/${courseId}`,
+    ENROLLED_IN: '/api/enrollments/enrolled',
   },
 }));
 
@@ -99,6 +100,28 @@ describe('enrollmentService', () => {
       vi.mocked(apiClient.get).mockRejectedValue({ status: 500 });
 
       await expect(enrollmentService.getMyEnrollmentForCourse(10)).rejects.toEqual({ status: 500 });
+    });
+  });
+
+  describe('getEnrolledCourseIds', () => {
+    it('passes comma-joined courseIds and parses the returned ids', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({ data: [10, 42] });
+
+      const result = await enrollmentService.getEnrolledCourseIds([10, 42]);
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/api/enrollments/enrolled',
+        { params: { courseIds: '10,42' } }
+      );
+      expect(result).toEqual([10, 42]);
+    });
+
+    it('returns empty array for empty response', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({ data: [] });
+
+      const result = await enrollmentService.getEnrolledCourseIds([]);
+
+      expect(result).toEqual([]);
     });
   });
 });

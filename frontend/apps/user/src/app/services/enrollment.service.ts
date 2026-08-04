@@ -106,6 +106,14 @@ export const enrollmentService = {
     }
   },
 
+  async getEnrolledCourseIds(courseIds: number[]): Promise<number[]> {
+    const response = await apiClient.get<number[]>(
+      ENROLLMENT_ENDPOINTS.ENROLLED_IN,
+      { params: { courseIds: courseIds.join(",") } }
+    );
+    return z.array(z.number()).parse(response.data);
+  },
+
   async getMyEnrollmentStats(): Promise<EnrollmentStatsResponse> {
     const response = await apiClient.get<EnrollmentStatsResponse>(
       ENROLLMENT_ENDPOINTS.MY_STATS

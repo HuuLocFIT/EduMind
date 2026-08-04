@@ -78,6 +78,11 @@ public interface EnrollmentService {
     List<Enrollment> getRecentlyAccessedCourses(Long studentId, int limit);
 
     /**
+     * Get the subset of the given course IDs the student is enrolled in (excluding DROPPED).
+     */
+    List<Long> findEnrolledCourseIds(Long studentId, List<Long> courseIds);
+
+    /**
      * Get enrollment statistics for student
      */
     EnrollmentStatsResponse getEnrollmentStats(Long studentId);

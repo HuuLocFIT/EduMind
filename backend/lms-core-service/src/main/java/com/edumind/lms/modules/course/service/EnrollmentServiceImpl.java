@@ -307,6 +307,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     }
 
     @Override
+    public List<Long> findEnrolledCourseIds(Long studentId, List<Long> courseIds) {
+        return enrollmentRepository.findEnrolledCourseIds(studentId, courseIds);
+    }
+
+    @Override
     public EnrollmentStatsResponse getEnrollmentStats(Long studentId) {
         log.debug("Getting enrollment statistics for student: {}", studentId);
 

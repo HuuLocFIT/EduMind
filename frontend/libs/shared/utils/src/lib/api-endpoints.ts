@@ -205,6 +205,7 @@ export const ENROLLMENT_ENDPOINTS = {
   MY_STATS: `${API_BASE_PATH}/enrollments/my-stats`,
   CHECK: (courseId: string | number) => `${API_BASE_PATH}/enrollments/check/${courseId}`,
   MY_FOR_COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/course/${courseId}`,
+  ENROLLED_IN: `${API_BASE_PATH}/enrollments/enrolled`,
   STUDENT: (studentId: string | number) => `${API_BASE_PATH}/enrollments/student/${studentId}`,
   COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
   SUSPEND: (enrollmentId: string | number) => `${API_BASE_PATH}/enrollments/${enrollmentId}/suspend`,

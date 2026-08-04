@@ -23,6 +23,8 @@ export const enrollmentsKeys = {
     ['enrollments', 'in-progress', userId, minProgress] as const,
   course: (courseId: number, userId?: number) => 
     ['enrollments', 'courses', courseId, userId] as const,
+  enrolled: (userId: number, courseIds: number[]) =>
+    ['enrollments', 'enrolled', userId, courseIds] as const,
   status: (courseId: number | string, userId?: number) =>
     ['enrollments', 'status', courseId, userId] as const,
   stats: (userId?: number) => ['enrollments', 'stats', userId] as const,

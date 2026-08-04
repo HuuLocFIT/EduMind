@@ -18,8 +18,9 @@ import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.course.util.EnrollmentMapper;
 import com.edumind.lms.shared.exception.UnauthorizedException;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,13 +32,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/enrollments")
 @RequiredArgsConstructor
 public class EnrollmentController {
@@ -223,6 +227,23 @@ public class EnrollmentController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/enrolled")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<List<Long>>> getEnrolledCourseIds(
+            @RequestParam(required = false) @Size(max = 100) List<Long> courseIds,
+            Authentication authentication) {
+
+        Long studentId = Long.valueOf(authentication.getPrincipal().toString());
+        log.info("Getting enrolled course ids for student: {} among course ids: {}", studentId, courseIds);
+
+        if (courseIds == null || courseIds.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        List<Long> enrolled = enrollmentService.findEnrolledCourseIds(studentId, courseIds);
+        return ResponseEntity.ok(ApiResponse.success(enrolled));
     }
 
     @GetMapping("/check/{courseId}")

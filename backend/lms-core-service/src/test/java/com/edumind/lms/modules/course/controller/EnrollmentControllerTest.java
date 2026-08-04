@@ -25,8 +25,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -141,5 +143,33 @@ class EnrollmentControllerTest {
 
         verify(enrollmentService).getEnrollmentByCourseAndStudent(100L, userId);
         verify(enrollmentMapper).toResponse(enrollment);
+    }
+
+    @Test
+    @DisplayName("GET /enrollments/enrolled?courseIds=1,2,3 - returns enrolled course ids")
+    void getEnrolledCourseIds_ReturnsEnrolledCourseIds() throws Exception {
+        when(enrollmentService.findEnrolledCourseIds(eq(userId), anyList())).thenReturn(List.of(1L, 3L));
+
+        mockMvc.perform(get("/enrollments/enrolled")
+                .param("courseIds", "1,2,3")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0]").value(1))
+                .andExpect(jsonPath("$.data[1]").value(3));
+
+        verify(enrollmentService).findEnrolledCourseIds(userId, List.of(1L, 2L, 3L));
+    }
+
+    @Test
+    @DisplayName("GET /enrollments/enrolled - empty courseIds returns empty list without querying")
+    void getEnrolledCourseIds_EmptyCourseIds_ReturnsEmptyList() throws Exception {
+        mockMvc.perform(get("/enrollments/enrolled")
+                .principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        verify(enrollmentService, never()).findEnrolledCourseIds(any(), any());
     }
 }
