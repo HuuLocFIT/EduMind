@@ -110,7 +110,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
             "COALESCE(SUM(CASE WHEN e.status = 'ACTIVE' THEN 1 ELSE 0 END), 0) as active, " +
             "COALESCE(SUM(CASE WHEN e.status = 'COMPLETED' THEN 1 ELSE 0 END), 0) as completed, " +
             "COALESCE(SUM(CASE WHEN e.progressPercentage > 0 THEN 1 ELSE 0 END), 0) as started " +
-            "FROM Enrollment e WHERE e.studentId = :studentId")
+            "FROM Enrollment e WHERE e.studentId = :studentId AND e.status <> 'DROPPED'")
     EnrollmentStatisticsProjection getStudentStatistics(Long studentId);
 
     /**
@@ -118,7 +118,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
      */
     @EntityGraph("Enrollment.withCourse")
     @Query("SELECT e FROM Enrollment e WHERE e.studentId = :studentId " +
-            "AND e.status = 'ACTIVE' ORDER BY e.lastAccessedAt DESC")
+            "AND e.status = 'ACTIVE' ORDER BY COALESCE(e.lastAccessedAt, e.enrolledAt) DESC")
     List<Enrollment> findRecentlyAccessedCourses(Long studentId, Pageable pageable);
 
     /**

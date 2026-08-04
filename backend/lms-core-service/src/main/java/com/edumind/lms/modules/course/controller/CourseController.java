@@ -17,6 +17,7 @@ import com.edumind.lms.modules.course.util.CourseMapper;
 import com.edumind.lms.modules.course.service.InstructorNameResolver;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,13 +30,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/courses")
 @RequiredArgsConstructor
 public class CourseController {
@@ -149,7 +153,7 @@ public class CourseController {
         public ResponseEntity<PagedResponse<CourseResponse>> searchCourses(
                         @RequestParam(required = false) String keyword,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(defaultValue = "10") @Max(100) int size,
                         @RequestParam(defaultValue = "createdAt") String sortBy,
                         @RequestParam(defaultValue = "DESC") String sortDir) {
 
@@ -178,7 +182,7 @@ public class CourseController {
                         @RequestParam(required = false) String keyword,
                         @RequestParam(required = false) Double minRating,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(defaultValue = "10") @Max(100) int size,
                         @RequestParam(defaultValue = "createdAt") String sortBy,
                         @RequestParam(defaultValue = "DESC") String sortDir) {
 
@@ -226,7 +230,7 @@ public class CourseController {
         public ResponseEntity<PagedResponse<CourseResponse>> getCoursesByCategory(
                         @PathVariable Long categoryId,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") @Max(100) int size) {
 
                 log.info("Getting courses for category: {}", categoryId);
 
@@ -247,7 +251,7 @@ public class CourseController {
         public ResponseEntity<PagedResponse<CourseResponse>> getCoursesByInstructor(
                         @PathVariable Long instructorId,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(defaultValue = "10") @Max(100) int size,
                         Authentication authentication) {
 
                 log.info("Getting courses for instructor: {}", instructorId);
@@ -273,10 +277,32 @@ public class CourseController {
                                 responsePage.getTotalPages()));
         }
 
+        @GetMapping("/instructor/{instructorId}/picker")
+        @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
+        public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getInstructorCoursePicker(
+                        @PathVariable Long instructorId,
+                        Authentication authentication) {
+
+                log.info("Getting course picker for instructor: {}", instructorId);
+
+                Long currentUserId = Long.valueOf(authentication.getPrincipal().toString());
+                boolean isAdmin = authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .anyMatch(role -> "ROLE_ADMIN".equals(role));
+
+                if (!isAdmin && !instructorId.equals(currentUserId)) {
+                        throw new UnauthorizedException("You are not allowed to view courses for this instructor");
+                }
+
+                List<Map<String, Object>> courses = courseService.getInstructorCoursePicker(instructorId);
+
+                return ResponseEntity.ok(ApiResponse.success(courses));
+        }
+
         @GetMapping("/top-rated")
         public ResponseEntity<PagedResponse<CourseResponse>> getTopRatedCourses(
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") @Max(100) int size) {
 
                 log.info("Getting top-rated courses");
 
@@ -295,7 +321,7 @@ public class CourseController {
         @GetMapping("/most-popular")
         public ResponseEntity<PagedResponse<CourseResponse>> getMostPopularCourses(
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") @Max(100) int size) {
 
                 log.info("Getting most popular courses");
 
@@ -314,7 +340,7 @@ public class CourseController {
         @GetMapping("/newest")
         public ResponseEntity<PagedResponse<CourseResponse>> getNewestCourses(
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") @Max(100) int size) {
 
                 log.info("Getting newest courses");
 
@@ -333,7 +359,7 @@ public class CourseController {
         @GetMapping("/free")
         public ResponseEntity<PagedResponse<CourseResponse>> getFreeCourses(
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") @Max(100) int size) {
 
                 log.info("Getting free courses");
 

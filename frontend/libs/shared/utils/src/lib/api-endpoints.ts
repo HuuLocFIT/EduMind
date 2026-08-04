@@ -131,6 +131,10 @@ export const TEACHER_PORTAL_ENDPOINTS = {
   MY_COURSES: (instructorId: string | number) =>
     `${API_BASE_PATH}/courses/instructor/${instructorId}`,
   
+  // Lightweight course picker options (id + title) for filter dropdowns
+  COURSE_PICKER: (instructorId: string | number) =>
+    `${API_BASE_PATH}/courses/instructor/${instructorId}/picker`,
+  
   // Course CRUD
   COURSE_CREATE: `${API_BASE_PATH}/courses`,
   COURSE_UPDATE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,

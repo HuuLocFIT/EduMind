@@ -211,4 +211,12 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
      */
     @Query("SELECT cat.name, COUNT(c) FROM Course c JOIN c.category cat GROUP BY cat.name ORDER BY COUNT(c) DESC")
     List<Object[]> countCoursesByCategory();
+
+    /**
+     * Get course picker options (id, title) for an instructor, ordered by title ASC
+     */
+    @Query("SELECT c.id, c.title FROM Course c " +
+            "WHERE c.instructorId = :instructorId " +
+            "ORDER BY c.title ASC")
+    List<Object[]> findInstructorCoursePicker(@Param("instructorId") Long instructorId);
 }
