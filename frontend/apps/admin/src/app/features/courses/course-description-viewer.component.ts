@@ -9,7 +9,7 @@ import { Component, computed, input } from '@angular/core';
     @if (renderedDescription()) {
       <div class="article-viewer__content min-w-0" [innerHTML]="renderedDescription()"></div>
     } @else {
-      <p class="text-sm text-gray-600">No description</p>
+      <p class="text-sm text-neutral-600">No description</p>
     }
   `,
 })

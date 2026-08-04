@@ -69,7 +69,7 @@ export class TextareaComponent implements ControlValueAccessor {
     return [
       'w-full px-4 py-2.5 border rounded-lg transition-all duration-200 resize-none',
       'bg-white text-gray-900 placeholder-gray-400',
-      'focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400',
+      'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-400',
       this.error ? 'border-red-500 focus:ring-red-500' : 'border-gray-200',
       this.disabled ? 'opacity-60 cursor-not-allowed' : '',
     ]

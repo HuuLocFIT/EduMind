@@ -29,7 +29,8 @@ import { CategoryService } from '../../core/services/category.service';
 import { CourseResponse } from '@edumind/shared-types';
 import { CourseLevel } from '@edumind/shared-constants';
 import { StatusVariantPipe } from './status-variant.pipe';
-import { injectAsyncState, injectMediaQuery, injectModal, injectPagination } from '../../core/utils';
+import { EnumLabelPipe } from '../../shared/pipes/enum-label.pipe';
+import { injectAsyncState, injectMediaQuery, injectModal, injectPagination, formatEnumLabel } from '../../core/utils';
 
 type CourseRow = CourseResponse;
 
@@ -48,6 +49,7 @@ type CourseRow = CourseResponse;
     MultiSelectComponent,
     ConfirmDialogComponent,
     StatusVariantPipe,
+    EnumLabelPipe,
   ],
   templateUrl: './courses.component.html',
 })
@@ -83,7 +85,7 @@ export class CoursesComponent implements OnInit {
   categoriesOptions = signal<SelectOption[]>([]);
   levelOptions: SelectOption[] = Object.values(CourseLevel).map((level) => ({
     value: level,
-    label: level.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+    label: formatEnumLabel(level),
   }));
 
   // ── Data ─────────────────────────────────────────────────────────────────

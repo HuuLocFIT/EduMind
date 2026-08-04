@@ -31,3 +31,8 @@ export function getInitials(name: string): string {
   }
   return name.substring(0, 2).toUpperCase();
 }
+
+/** Formats a SNAKE_CASE enum value (e.g. "ALL_LEVELS") as "All Levels". */
+export function formatEnumLabel(value: string): string {
+  return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}

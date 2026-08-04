@@ -1,9 +1,9 @@
-<div class="space-y-5 md:space-y-6 text-gray-900">
+<div class="space-y-5 md:space-y-6 text-neutral-900">
   <!-- Page Header -->
   <div class="flex items-start justify-between gap-4 flex-wrap">
     <div class="space-y-1">
-      <h1 class="text-2xl font-bold text-gray-900">Courses</h1>
-      <p class="text-gray-600 text-sm">Manage courses, search and filter by category and level.</p>
+      <h1 class="text-2xl font-bold text-neutral-900">Courses</h1>
+      <p class="text-neutral-600 text-sm">Manage courses, search and filter by category and level.</p>
     </div>
   </div>
 
@@ -16,10 +16,10 @@
   }
 
   <!-- Filters -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
+  <app-card [padding]="'sm'" [variant]="'bordered'" [customClass]="'text-neutral-900 my-4'">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
       <div class="flex flex-col gap-1.5">
-        <span class="text-sm font-medium text-gray-700">Search</span>
+        <span class="text-sm font-medium text-neutral-700">Search</span>
         <app-search-bar
           size="sm"
           placeholder="Search by title, instructor..."
@@ -46,7 +46,7 @@
   </app-card>
 
   <!-- Table -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900'">
+  <app-card [padding]="'sm'" [variant]="'bordered'" [customClass]="'text-neutral-900'">
     <app-data-table
       [columns]="columns"
       [data]="courses()"
@@ -78,24 +78,24 @@
 
   <!-- Templates -->
   <ng-template #idTpl let-row>
-    <span class="text-sm font-semibold text-gray-800">{{ row.id }}</span>
+    <span class="text-sm font-semibold text-neutral-800">{{ row.id }}</span>
   </ng-template>
 
   <ng-template #titleTpl let-row>
     <div class="space-y-1">
-      <span class="font-semibold text-gray-900 text-sm md:text-base line-clamp-2 max-w-[240px]">
+      <span class="font-semibold text-neutral-900 text-sm md:text-base line-clamp-2 max-w-[240px]">
         {{ row.title }}
       </span>
     </div>
   </ng-template>
 
   <ng-template #priceTpl let-row>
-    <div class="text-sm text-gray-900">
-      <div class="font-semibold text-gray-900">
+    <div class="text-sm text-neutral-900">
+      <div class="font-semibold text-neutral-900">
         {{ row.currency }} {{ (row.effectivePrice ?? row.price) | number:'1.0-0' }}
       </div>
       @if (row.discountPrice) {
-        <div class="text-xs text-gray-500">
+        <div class="text-xs text-neutral-500">
           Discount: {{ row.currency }} {{ row.discountPrice | number:'1.0-0' }}
         </div>
       }
@@ -110,12 +110,12 @@
 
   <ng-template #levelTpl let-row>
     <app-badge variant="secondary" size="sm">
-      {{ row.level }}
+      {{ row.level === 'ALL_LEVELS' ? 'All' : (row.level | enumLabel) }}
     </app-badge>
   </ng-template>
 
   <ng-template #createdTpl let-row>
-    <div class="text-sm text-gray-700">
+    <div class="text-sm text-neutral-700">
       {{ row.createdAt | date: 'mediumDate' }}
     </div>
   </ng-template>

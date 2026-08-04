@@ -1,6 +1,19 @@
 const { createGlobPatternsForDependencies } = require('@nx/angular/tailwind');
 const { join } = require('path');
 
+const colorScale = (name) => ({
+  50: `var(--color-${name}-50)`,
+  100: `var(--color-${name}-100)`,
+  200: `var(--color-${name}-200)`,
+  300: `var(--color-${name}-300)`,
+  400: `var(--color-${name}-400)`,
+  500: `var(--color-${name}-500)`,
+  600: `var(--color-${name}-600)`,
+  700: `var(--color-${name}-700)`,
+  800: `var(--color-${name}-800)`,
+  900: `var(--color-${name}-900)`,
+});
+
 module.exports = {
   content: [
     join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'),
@@ -10,20 +23,21 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        display: ['var(--font-display)'],
       },
       colors: {
-        primary: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-        },
+        brand: colorScale('brand'),
+        accent: colorScale('accent'),
+        neutral: colorScale('neutral'),
+        success: colorScale('success'),
+        warning: colorScale('warning'),
+        danger: colorScale('danger'),
+        info: colorScale('info'),
+      },
+      boxShadow: {
+        rest: 'var(--shadow-rest)',
+        hover: 'var(--shadow-hover)',
+        active: 'var(--shadow-active)',
       },
     },
   },

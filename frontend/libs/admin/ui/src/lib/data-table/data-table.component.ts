@@ -43,7 +43,7 @@ export interface PageEvent {
                     [checked]="isAllSelected()"
                     [indeterminate]="isIndeterminate()"
                     (change)="toggleSelectAll()"
-                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/20"
+                    class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500/20"
                   />
                 </th>
               }
@@ -63,11 +63,11 @@ export interface PageEvent {
                       <span class="text-gray-400">
                         @if (sortColumn === column.key) {
                           @if (sortDirection === 'asc') {
-                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
                             </svg>
                           } @else {
-                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
                           }
@@ -132,7 +132,7 @@ export interface PageEvent {
               @for (row of data; track trackByFn ? trackByFn($index, row) : $index; let i = $index) {
                 <tr 
                   class="hover:bg-gray-50 transition-colors"
-                  [class.bg-indigo-50]="isSelected(row)"
+                  [class.bg-brand-50]="isSelected(row)"
                   (click)="onRowClick(row)"
                 >
                   @if (selectable) {
@@ -141,7 +141,7 @@ export interface PageEvent {
                         type="checkbox"
                         [checked]="isSelected(row)"
                         (change)="toggleSelect(row)"
-                        class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/20"
+                        class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500/20"
                       />
                     </td>
                   }
@@ -208,8 +208,8 @@ export interface PageEvent {
               } @else {
                 <button
                   (click)="onPageChange(+page)"
-                  [class]="page === currentPage 
-                    ? 'px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg border border-indigo-600' 
+                  [class]="page === currentPage
+                    ? 'px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg border border-brand-600'
                     : 'px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors'"
                 >
                   {{ page }}
@@ -299,7 +299,7 @@ export class DataTableComponent<T = unknown> {
   }
 
   getActionsCellClasses(): string {
-    const sticky = this.actionsSticky ? 'sticky bg-white z-10' : '';
+    const sticky = this.actionsSticky ? 'sticky bg-white z-10 focus-within:z-40' : '';
     const shadow = this.actionsSticky === 'left'
       ? 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]'
       : this.actionsSticky === 'right'

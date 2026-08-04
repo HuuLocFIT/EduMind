@@ -6,14 +6,18 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import {
   AlertComponent,
   BadgeComponent,
-  ButtonComponent,
-  CardComponent,
   ConfirmDialogComponent,
   DataTableComponent,
   type TableColumn,
   SearchBarComponent,
   ModalComponent,
+  SelectComponent,
+  type SelectOption,
+  ButtonComponent,
+  DropdownMenuComponent,
+  type DropdownMenuItem,
   type BadgeVariant,
+  StatCardComponent,
 } from '@edumind/admin-ui';
 import { AdminUserService } from '../../core/services/admin-user.service';
 import { UserListItem, AdminUserListResponse } from '@edumind/shared-types';
@@ -36,14 +40,16 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
   imports: [
     CommonModule,
     FormsModule,
-    CardComponent,
-    ButtonComponent,
     BadgeComponent,
     AlertComponent,
     DataTableComponent,
     SearchBarComponent,
     ConfirmDialogComponent,
     ModalComponent,
+    SelectComponent,
+    ButtonComponent,
+    DropdownMenuComponent,
+    StatCardComponent,
   ],
   templateUrl: './students.component.html',
 })
@@ -79,6 +85,12 @@ export class StudentsComponent implements OnInit {
   searchQuery  = signal('');
   statusFilter = signal<StatusFilter>('ALL');
 
+  readonly statusOptions: SelectOption[] = [
+    { value: 'ALL', label: 'All' },
+    { value: 'ACTIVE', label: 'Active' },
+    { value: 'INACTIVE', label: 'Inactive' },
+  ];
+
   statsTotal    = signal(0);
   statsActive   = signal(0);
   statsInactive = signal(0);
@@ -87,10 +99,10 @@ export class StudentsComponent implements OnInit {
   columns: TableColumn<StudentRow>[] = [];
   actionsSticky = signal<'left' | 'right' | undefined>('right');
 
-  @ViewChild('fullNameTpl', { static: true }) fullNameTpl!: TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
-  @ViewChild('statusTpl',   { static: true }) statusTpl!:   TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
-  @ViewChild('phoneTpl',    { static: true }) phoneTpl!:    TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
-  @ViewChild('createdTpl',  { static: true }) createdTpl!:  TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
+  @ViewChild('studentTpl', { static: true }) studentTpl!: TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
+  @ViewChild('statusTpl',  { static: true }) statusTpl!:  TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
+  @ViewChild('phoneTpl',   { static: true }) phoneTpl!:   TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
+  @ViewChild('createdTpl', { static: true }) createdTpl!: TemplateRef<{ $implicit: StudentRow; row: StudentRow; index: number }>;
 
   ngOnInit(): void {
     this.buildColumns();
@@ -111,12 +123,11 @@ export class StudentsComponent implements OnInit {
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
 
     this.columns = [
-      { key: 'fullName',    header: 'Full Name', template: this.fullNameTpl, sortable: true, width: '200px' },
-      { key: 'username',    header: 'Username',  sortable: true },
-      { key: 'email',       header: 'Email',     sortable: true },
-      { key: 'phoneNumber', header: 'Phone',     template: this.phoneTpl },
-      { key: 'isActive',    header: 'Status',    template: this.statusTpl },
-      { key: 'createdAt',   header: 'Joined',    sortable: true, template: this.createdTpl },
+      { key: 'fullName',    header: 'Student', template: this.studentTpl, sortable: true, width: '240px' },
+      { key: 'email',       header: 'Email',   sortable: true },
+      { key: 'phoneNumber', header: 'Phone',   template: this.phoneTpl },
+      { key: 'isActive',    header: 'Status',  sortable: true, template: this.statusTpl },
+      { key: 'createdAt',   header: 'Joined',  sortable: true, template: this.createdTpl },
     ];
 
     this.actionsSticky.set(stickyRight);
@@ -155,8 +166,8 @@ export class StudentsComponent implements OnInit {
     this.searchSubject.next(query);
   }
 
-  onStatusFilterChange(filter: StatusFilter): void {
-    this.statusFilter.set(filter);
+  onStatusFilterChange(filter: string | number): void {
+    this.statusFilter.set(filter as StatusFilter);
     this.pagination.resetPage();
     this.loadStudents();
   }
@@ -176,6 +187,29 @@ export class StudentsComponent implements OnInit {
 
   getStatusVariant(isActive: boolean): BadgeVariant {
     return getActiveBadgeVariant(isActive);
+  }
+
+  getRowActions(student: StudentRow): DropdownMenuItem[] {
+    return [
+      {
+        id: 'toggle-status',
+        label: student.isActive ? 'Deactivate' : 'Activate',
+      },
+      { id: 'divider', label: '', divider: true },
+      {
+        id: 'delete',
+        label: 'Delete',
+        danger: true,
+      },
+    ];
+  }
+
+  onRowAction(item: DropdownMenuItem, student: StudentRow): void {
+    if (item.id === 'toggle-status') {
+      this.openToggleModal(student);
+    } else if (item.id === 'delete') {
+      this.openDeleteModal(student);
+    }
   }
 
   viewStudent(student: StudentRow): void {

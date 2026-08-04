@@ -48,12 +48,12 @@ nav::-webkit-scrollbar-track {
 }
 
 nav::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+  background: var(--color-neutral-200);
   border-radius: 2px;
 }
 
 nav::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+  background: var(--color-neutral-300);
 }
 
 /* Material Icons sizing */

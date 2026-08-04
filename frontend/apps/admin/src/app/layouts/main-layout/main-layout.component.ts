@@ -4,6 +4,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } fro
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
+import { SearchBarComponent } from '@edumind/admin-ui';
 
 interface NavItem {
   label: string;
@@ -16,7 +17,7 @@ interface NavItem {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, SearchBarComponent],
   templateUrl: './main-layout.component.html',
   styleUrls: ['./main-layout.component.css'],
 })

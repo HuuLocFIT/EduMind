@@ -117,13 +117,13 @@ export class SelectComponent implements ControlValueAccessor {
 
     const sizes = {
       sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2.5 text-md',
+      md: 'px-4 py-2.5 text-sm',
       lg: 'px-4 py-3 text-base',
     };
 
     const states = this.error
       ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
-      : 'border-gray-300 focus:ring-indigo-500/20 focus:border-indigo-500 hover:border-gray-400';
+      : 'border-gray-300 focus:ring-brand-500/20 focus:border-brand-500 hover:border-gray-400';
 
     const width = this.fullWidth ? 'w-full' : '';
     const disabledClass = this.disabled ? 'opacity-50 cursor-not-allowed' : '';

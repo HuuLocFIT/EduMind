@@ -1,9 +1,9 @@
-<div class="space-y-5 md:space-y-6 text-gray-900">
+<div class="space-y-5 md:space-y-6 text-neutral-900">
   <!-- Page Header -->
   <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
     <div class="space-y-1">
-      <h1 class="text-2xl font-bold text-gray-900">All Payouts</h1>
-      <p class="text-gray-600 text-sm">View and manage all payout transactions.</p>
+      <h1 class="text-2xl font-bold text-neutral-900">All Payouts</h1>
+      <p class="text-neutral-600 text-sm">View and manage all payout transactions.</p>
     </div>
   </div>
 
@@ -15,27 +15,21 @@
     <app-alert variant="error" [message]="errorMessage()" [dismissible]="true" (onClose)="errorMessage.set('')" />
   }
 
-  <!-- Status Filter Tabs -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm my-4'">
-    <div class="flex flex-wrap gap-2">
-      @for (tab of statusTabs; track tab.key) {
-        <button
-          (click)="onStatusFilterChange(tab.key)"
-          [class.bg-indigo-50]="statusFilter() === tab.key"
-          [class.text-indigo-700]="statusFilter() === tab.key"
-          [class.border-indigo-300]="statusFilter() === tab.key"
-          class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
-          [class.border-gray-200]="statusFilter() !== tab.key"
-          [class.text-gray-600]="statusFilter() !== tab.key"
-        >
-          {{ tab.label }}
-        </button>
-      }
+  <!-- Status Filter -->
+  <app-card [padding]="'sm'" [variant]="'bordered'" [customClass]="'my-4'">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <app-select
+        label="Status"
+        [options]="statusOptions"
+        size="sm"
+        [ngModel]="statusFilter()"
+        (ngModelChange)="onStatusFilterChange($event)"
+      />
     </div>
   </app-card>
 
   <!-- Table -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900'">
+  <app-card [padding]="'sm'" [variant]="'bordered'" [customClass]="'text-neutral-900'">
     <app-data-table
       [columns]="columns"
       [data]="payouts()"
@@ -75,15 +69,15 @@
 
   <!-- Templates -->
   <ng-template #payoutNumberTpl let-row>
-    <span class="text-sm font-mono font-semibold text-gray-900">{{ row.payoutNumber }}</span>
+    <span class="text-sm font-mono font-semibold text-neutral-900">{{ row.payoutNumber }}</span>
   </ng-template>
 
   <ng-template #instructorIdTpl let-row>
-    <span class="text-sm font-medium text-gray-900">{{ row.instructorId }}</span>
+    <span class="text-sm font-medium text-neutral-900">{{ row.instructorId }}</span>
   </ng-template>
 
   <ng-template #amountTpl let-row>
-    <span class="text-sm font-semibold text-gray-900">{{ formatCurrency(row.totalAmount, row.currency) }}</span>
+    <span class="text-sm font-semibold text-neutral-900">{{ formatCurrency(row.totalAmount, row.currency) }}</span>
   </ng-template>
 
   <ng-template #methodTpl let-row>
@@ -99,7 +93,7 @@
   </ng-template>
 
   <ng-template #processedAtTpl let-row>
-    <span class="text-sm text-gray-700">
+    <span class="text-sm text-neutral-700">
       {{ row.processedAt ? formatDate(row.processedAt) : '—' }}
     </span>
   </ng-template>
@@ -111,16 +105,16 @@
     size="sm"
     (close)="showProcessModal.set(false)"
   >
-    <div class="space-y-4 text-gray-800">
-      <p class="text-gray-600">
-        Process payout <strong class="text-gray-900">{{ selectedPayout()?.payoutNumber }}</strong>?
+    <div class="space-y-4 text-neutral-800">
+      <p class="text-neutral-600">
+        Process payout <strong class="text-neutral-900">{{ selectedPayout()?.payoutNumber }}</strong>?
       </p>
-      <p class="text-sm text-gray-500">
+      <p class="text-sm text-neutral-500">
         This will initiate the payout transaction. The payout status will change to PROCESSING.
       </p>
     </div>
 
-    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="showProcessModal.set(false)">Cancel</app-button>
       <app-button variant="primary" (click)="processPayout()">
         Confirm Process
@@ -135,12 +129,12 @@
     size="sm"
     (close)="showEditRecipientModal.set(false)"
   >
-    <div class="space-y-4 text-gray-800">
+    <div class="space-y-4 text-neutral-800">
       <div>
-        <label for="paymentMethod" class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+        <label for="paymentMethod" class="block text-sm font-medium text-neutral-700 mb-2">Payment Method</label>
         <select
           [(ngModel)]="paymentMethod"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          class="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
         >
           <option [value]="PayoutMethod.BANK_TRANSFER">Bank Transfer</option>
           <option [value]="PayoutMethod.PAYPAL">PayPal</option>
@@ -208,7 +202,7 @@
       }
     </div>
 
-    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="showEditRecipientModal.set(false)">Cancel</app-button>
       <app-button variant="primary" (click)="updateRecipient()">
         Save Changes
@@ -223,31 +217,31 @@
     size="sm"
     (close)="showConfirmManualModal.set(false)"
   >
-    <div class="space-y-4 text-gray-800">
-      <p class="text-gray-600">
-        Confirm that you have completed the manual bank transfer for payout <strong class="text-gray-900">{{ selectedPayout()?.payoutNumber }}</strong>.
+    <div class="space-y-4 text-neutral-800">
+      <p class="text-neutral-600">
+        Confirm that you have completed the manual bank transfer for payout <strong class="text-neutral-900">{{ selectedPayout()?.payoutNumber }}</strong>.
       </p>
-      <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
-        <p class="text-sm text-blue-900">
+      <div class="p-4 bg-info-50 rounded-xl border border-info-200">
+        <p class="text-sm text-info-900">
           <strong>Amount:</strong> {{ formatCurrency(selectedPayout()?.totalAmount || 0, selectedPayout()?.currency || 'USD') }}
         </p>
       </div>
-      <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
-        <p class="text-sm font-medium text-gray-700">Transfer To:</p>
+      <div class="p-4 bg-neutral-50 rounded-xl border border-neutral-200 space-y-2">
+        <p class="text-sm font-medium text-neutral-700">Transfer To:</p>
         @if (selectedPayout()?.bankName) {
-          <p class="text-sm text-gray-800"><strong>Bank:</strong> {{ selectedPayout()?.bankName }}</p>
+          <p class="text-sm text-neutral-800"><strong>Bank:</strong> {{ selectedPayout()?.bankName }}</p>
         }
         @if (selectedPayout()?.accountHolderName) {
-          <p class="text-sm text-gray-800"><strong>Account Holder:</strong> {{ selectedPayout()?.accountHolderName }}</p>
+          <p class="text-sm text-neutral-800"><strong>Account Holder:</strong> {{ selectedPayout()?.accountHolderName }}</p>
         }
-        <p class="text-sm text-gray-800">
+        <p class="text-sm text-neutral-800">
           <strong>Account Number:</strong> {{ selectedPayout()?.bankAccount || 'Not provided' }}
         </p>
         @if (selectedPayout()?.swiftCode) {
-          <p class="text-sm text-gray-800"><strong>SWIFT Code:</strong> {{ selectedPayout()?.swiftCode }}</p>
+          <p class="text-sm text-neutral-800"><strong>SWIFT Code:</strong> {{ selectedPayout()?.swiftCode }}</p>
         }
         @if (selectedPayout()?.bankAddress) {
-          <p class="text-sm text-gray-800"><strong>Bank Address:</strong> {{ selectedPayout()?.bankAddress }}</p>
+          <p class="text-sm text-neutral-800"><strong>Bank Address:</strong> {{ selectedPayout()?.bankAddress }}</p>
         }
       </div>
       <div class="mt-3">
@@ -258,13 +252,13 @@
           [rows]="2"
           [required]="true"
         />
-        <p class="text-xs text-gray-500">
+        <p class="text-xs text-neutral-500">
           This reference will be stored with the payout record for tracking purposes.
         </p>
       </div>
     </div>
 
-    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="showConfirmManualModal.set(false)">Cancel</app-button>
       <app-button variant="primary" (click)="confirmManualPayout()" [disabled]="!bankTransferReference.trim()">
         Confirm Transfer

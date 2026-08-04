@@ -90,7 +90,7 @@ export class DropdownMenuComponent {
   }
 
   getTriggerClasses(): string {
-    return 'p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
+    return 'p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20';
   }
 
   getMenuClasses(): string {

@@ -93,7 +93,7 @@ export class InputComponent implements ControlValueAccessor {
 
     const stateClasses = this.error
       ? ['border-red-400 focus:ring-red-500 focus:border-red-400']
-      : ['border-gray-200 hover:border-gray-300 focus:ring-indigo-500 focus:border-indigo-400'];
+      : ['border-gray-200 hover:border-gray-300 focus:ring-brand-500 focus:border-brand-400'];
 
     return [...baseClasses, ...stateClasses].filter(Boolean).join(' ');
   }

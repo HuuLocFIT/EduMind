@@ -11,6 +11,8 @@ import {
   TextareaComponent,
   DataTableComponent,
   type TableColumn,
+  SelectComponent,
+  type SelectOption,
 } from '@edumind/admin-ui';
 import { PayoutResponse } from '@edumind/shared-types';
 import { PayoutMethod, PayoutStatus } from '@edumind/shared-constants';
@@ -37,6 +39,7 @@ type PayoutRow = PayoutResponse;
     InputComponent,
     TextareaComponent,
     DataTableComponent,
+    SelectComponent,
   ],
   templateUrl: './all-payouts.component.html',
 })
@@ -94,13 +97,13 @@ export class AllPayoutsComponent implements OnInit {
   readonly PayoutMethod = PayoutMethod;
   readonly PayoutStatus = PayoutStatus;
 
-  readonly statusTabs: Array<{ key: StatusFilter; label: string }> = [
-    { key: 'ALL', label: 'All' },
-    { key: PayoutStatus.PENDING, label: 'Pending' },
-    { key: PayoutStatus.PROCESSING, label: 'Processing' },
-    { key: PayoutStatus.AWAITING_MANUAL_PAYOUT, label: 'Awaiting Manual' },
-    { key: PayoutStatus.COMPLETED, label: 'Completed' },
-    { key: PayoutStatus.FAILED, label: 'Failed' },
+  readonly statusOptions: SelectOption[] = [
+    { value: 'ALL', label: 'All' },
+    { value: PayoutStatus.PENDING, label: 'Pending' },
+    { value: PayoutStatus.PROCESSING, label: 'Processing' },
+    { value: PayoutStatus.AWAITING_MANUAL_PAYOUT, label: 'Awaiting Manual' },
+    { value: PayoutStatus.COMPLETED, label: 'Completed' },
+    { value: PayoutStatus.FAILED, label: 'Failed' },
   ];
 
   ngOnInit(): void {
@@ -141,8 +144,8 @@ export class AllPayoutsComponent implements OnInit {
     });
   }
 
-  onStatusFilterChange(status: StatusFilter): void {
-    this.statusFilter.set(status);
+  onStatusFilterChange(status: string | number): void {
+    this.statusFilter.set(status as StatusFilter);
     this.pagination.resetPage();
     this.loadPayouts();
   }

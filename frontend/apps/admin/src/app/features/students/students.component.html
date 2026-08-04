@@ -1,9 +1,9 @@
-<div class="space-y-5 md:space-y-6 text-gray-900">
+<div class="space-y-5 md:space-y-6 text-neutral-900">
   <!-- Page Header -->
   <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
     <div class="space-y-1">
-      <h1 class="text-2xl font-bold text-gray-900">Students</h1>
-      <p class="text-gray-600 text-sm">Manage students, search and filter by status.</p>
+      <h1 class="text-2xl font-bold text-neutral-900">Students</h1>
+      <p class="text-neutral-600 text-sm">Manage students, search and filter by status.</p>
     </div>
   </div>
 
@@ -16,114 +16,66 @@
   }
 
   <!-- Stats Row -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-      <div data-testid="stat-card" class="rounded-xl p-4 border border-gray-200 bg-white">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Total Students</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ statsTotal() }}</p>
-            <p class="text-xs text-gray-500 mt-1">All registered students</p>
-          </div>
-          <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <app-stat-card
+      testId="stat-card"
+      label="Total Students"
+      [value]="statsTotal()"
+      subtitle="All registered students"
+      tone="info"
+    >
+      <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    </app-stat-card>
 
-      <div class="rounded-xl p-4 border border-gray-200 bg-white">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Active</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ statsActive() }}</p>
-            <p class="text-xs text-gray-500 mt-1">Currently active</p>
-          </div>
-          <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+    <app-stat-card
+      label="Active"
+      [value]="statsActive()"
+      subtitle="Currently active"
+      tone="success"
+    >
+      <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </app-stat-card>
 
-      <div class="rounded-xl p-4 border border-gray-200 bg-white">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <p class="text-xs uppercase tracking-wide text-gray-500 font-medium">Inactive</p>
-            <p class="text-2xl font-bold text-red-600 mt-1">{{ statsInactive() }}</p>
-            <p class="text-xs text-gray-500 mt-1">Deactivated accounts</p>
-          </div>
-          <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
-            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-  </app-card>
+    <app-stat-card
+      label="Inactive"
+      [value]="statsInactive()"
+      subtitle="Deactivated accounts"
+      tone="danger"
+    >
+      <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </app-stat-card>
+  </div>
 
   <!-- Filters -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900 my-4'">
-    <div class="flex flex-col gap-3.5 md:gap-4">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 md:gap-3">
-        <div class="flex flex-wrap items-center gap-1.5 md:gap-2 text-sm text-gray-600">
-          <span class="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-800">
-            Status: {{ statusFilter() }}
-          </span>
-          <span class="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-800">
-            {{ totalItems() }} students
-          </span>
-          @if (searchQuery()) {
-            <span class="px-2 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">
-              Search: "{{ searchQuery() }}"
-            </span>
-          }
-        </div>
-        <div class="flex flex-wrap gap-1.5 md:gap-2">
-          <app-button
-            size="sm"
-            variant="outline"
-            [ngClass]="{
-              'border-blue-300 bg-blue-50 text-blue-800': statusFilter() === 'ALL'
-            }"
-            (click)="onStatusFilterChange('ALL')"
-          >
-            All
-          </app-button>
-          <app-button
-            size="sm"
-            variant="outline"
-            [ngClass]="{
-              'border-green-300 bg-green-50 text-green-800': statusFilter() === 'ACTIVE'
-            }"
-            (click)="onStatusFilterChange('ACTIVE')"
-          >
-            Active
-          </app-button>
-          <app-button
-            size="sm"
-            variant="outline"
-            [ngClass]="{
-              'border-red-300 bg-red-50 text-red-800': statusFilter() === 'INACTIVE'
-            }"
-            (click)="onStatusFilterChange('INACTIVE')"
-          >
-            Inactive
-          </app-button>
-        </div>
+  <div class="bg-white rounded-xl border border-neutral-200 shadow-rest p-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
+      <div class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-neutral-700">Search</span>
+        <app-search-bar
+          size="sm"
+          placeholder="Search by name, email, or username..."
+          (search)="onSearch($event)"
+        />
       </div>
-      <app-search-bar
-        placeholder="Search by username, email, name..."
-        (search)="onSearch($event)"
+
+      <app-select
+        label="Status"
+        [options]="statusOptions"
+        size="sm"
+        [ngModel]="statusFilter()"
+        (ngModelChange)="onStatusFilterChange($event)"
       />
     </div>
-  </app-card>
+  </div>
 
   <!-- Table -->
-  <app-card [padding]="'sm'" [customClass]="'bg-white border border-gray-200 shadow-sm text-gray-900'">
+  <div>
     <app-data-table
       [columns]="columns"
       [data]="students()"
@@ -139,45 +91,35 @@
       (pageChange)="onPageChange($event.page)"
     >
       <ng-template #actions let-row>
-        <div class="flex items-center justify-center gap-2">
+        <div class="flex items-center justify-center gap-1">
           <app-button variant="outline" size="sm" (click)="viewStudent(row)">
             View
           </app-button>
-          <app-button
-            variant="outline"
-            size="sm"
-            [ngClass]="{
-              'text-green-700 border-green-300 hover:bg-green-50': !row.isActive,
-              'text-orange-700 border-orange-300 hover:bg-orange-50': row.isActive
-            }"
-            (click)="openToggleModal(row)"
-          >
-            {{ row.isActive ? 'Deactivate' : 'Activate' }}
-          </app-button>
-          <app-button variant="danger" size="sm" (click)="openDeleteModal(row)">
-            Delete
-          </app-button>
+          <app-dropdown-menu [items]="getRowActions(row)" (itemClick)="onRowAction($event, row)" />
         </div>
       </ng-template>
     </app-data-table>
-  </app-card>
+  </div>
 
   <!-- Templates -->
-  <ng-template #fullNameTpl let-row>
+  <ng-template #studentTpl let-row>
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center text-purple-700 text-sm font-semibold flex-shrink-0 shadow-sm ring-2 ring-white">
+      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent-100 to-brand-100 flex items-center justify-center text-accent-700 text-sm font-semibold flex-shrink-0 shadow-sm ring-2 ring-white">
         {{ getInitials(row) }}
       </div>
       <div class="min-w-0">
-        <span class="font-semibold text-gray-900 text-sm block truncate">
+        <span class="font-semibold text-neutral-900 text-sm block truncate">
           {{ getFullName(row) }}
+        </span>
+        <span class="text-neutral-500 text-xs block truncate">
+          {{ row.username }}
         </span>
       </div>
     </div>
   </ng-template>
 
   <ng-template #phoneTpl let-row>
-    <div class="text-sm text-gray-700">
+    <div class="text-sm text-neutral-700">
       {{ row.phoneNumber || '—' }}
     </div>
   </ng-template>
@@ -189,7 +131,7 @@
   </ng-template>
 
   <ng-template #createdTpl let-row>
-    <div class="text-sm text-gray-700">
+    <div class="text-sm text-neutral-700">
       {{ row.createdAt | date: 'mediumDate' }}
     </div>
   </ng-template>
@@ -202,29 +144,29 @@
     (close)="showDetailModal.set(false)"
   >
     @if (selectedStudent(); as student) {
-      <div class="space-y-6 text-gray-800">
+      <div class="space-y-6 text-neutral-800">
         <!-- Personal Info -->
         <div>
-          <h4 class="text-sm font-semibold text-gray-600 mb-3">Personal Information</h4>
+          <h4 class="text-sm font-semibold text-neutral-600 mb-3">Personal Information</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <span class="text-gray-500">Full Name:</span>
-              <p class="text-gray-900 font-medium mt-1">{{ getFullName(student) }}</p>
+              <span class="text-neutral-500">Full Name:</span>
+              <p class="text-neutral-900 font-medium mt-1">{{ getFullName(student) }}</p>
             </div>
             <div>
-              <span class="text-gray-500">Username:</span>
-              <p class="text-gray-900 font-medium mt-1 break-all">{{ student.username }}</p>
+              <span class="text-neutral-500">Username:</span>
+              <p class="text-neutral-900 font-medium mt-1 break-all">{{ student.username }}</p>
             </div>
             <div>
-              <span class="text-gray-500">Email:</span>
-              <p class="text-gray-900 font-medium mt-1 break-all">{{ student.email }}</p>
+              <span class="text-neutral-500">Email:</span>
+              <p class="text-neutral-900 font-medium mt-1 break-all">{{ student.email }}</p>
             </div>
             <div>
-              <span class="text-gray-500">Phone:</span>
-              <p class="text-gray-900 font-medium mt-1">{{ student.phoneNumber || '—' }}</p>
+              <span class="text-neutral-500">Phone:</span>
+              <p class="text-neutral-900 font-medium mt-1">{{ student.phoneNumber || '—' }}</p>
             </div>
             <div>
-              <span class="text-gray-500">Status:</span>
+              <span class="text-neutral-500">Status:</span>
               <div class="mt-1">
                 <app-badge [variant]="getStatusVariant(student.isActive)" size="sm">
                   {{ student.isActive ? 'Active' : 'Inactive' }}
@@ -232,7 +174,7 @@
               </div>
             </div>
             <div>
-              <span class="text-gray-500">Roles:</span>
+              <span class="text-neutral-500">Roles:</span>
               <div class="flex flex-wrap gap-1 mt-1">
                 @for (role of student.roles; track role) {
                   <app-badge variant="secondary" size="sm">{{ role }}</app-badge>
@@ -240,12 +182,12 @@
               </div>
             </div>
             <div>
-              <span class="text-gray-500">Joined:</span>
-              <p class="text-gray-900 font-medium mt-1">{{ student.createdAt | date: 'medium' }}</p>
+              <span class="text-neutral-500">Joined:</span>
+              <p class="text-neutral-900 font-medium mt-1">{{ student.createdAt | date: 'medium' }}</p>
             </div>
             <div>
-              <span class="text-gray-500">Last Updated:</span>
-              <p class="text-gray-900 font-medium mt-1">{{ student.updatedAt | date: 'medium' }}</p>
+              <span class="text-neutral-500">Last Updated:</span>
+              <p class="text-neutral-900 font-medium mt-1">{{ student.updatedAt | date: 'medium' }}</p>
             </div>
           </div>
         </div>
