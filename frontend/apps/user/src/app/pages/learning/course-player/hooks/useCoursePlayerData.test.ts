@@ -5,7 +5,6 @@ import type {
   EnrollmentResponse,
   LessonProgressResponse,
   LessonResponse,
-  PagedResponse,
   SectionResponse,
 } from '@edumind/shared-types';
 import { ContentType, EnrollmentStatus } from '@edumind/shared-constants';
@@ -26,8 +25,7 @@ vi.mock('../../../../services/lesson.service', () => ({
 }));
 vi.mock('../../../../services/enrollment.service', () => ({
   enrollmentService: {
-    checkEnrollmentStatus: vi.fn(),
-    getMyEnrollments: vi.fn(),
+    getMyEnrollmentForCourse: vi.fn(),
   },
 }));
 vi.mock('../../../../services/lesson-progress.service', () => ({
@@ -123,12 +121,6 @@ const progressB = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 } as LessonProgressResponse;
 
-const pagedEnrollments = (data: EnrollmentResponse[]): PagedResponse<EnrollmentResponse> => ({
-  data,
-  status: 200,
-  success: true,
-});
-
 beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
@@ -152,8 +144,7 @@ describe('useCoursePlayerData', () => {
     vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseA);
     vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
     vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonA1]);
-    vi.mocked(enrollmentService.checkEnrollmentStatus).mockResolvedValue(true);
-    vi.mocked(enrollmentService.getMyEnrollments).mockResolvedValue(pagedEnrollments([]));
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue(null);
     vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
 
     const { result } = renderDataHook();
@@ -162,10 +153,50 @@ describe('useCoursePlayerData', () => {
       expect(result.current.accessError).not.toBeNull();
     });
 
-    expect(result.current.accessError?.title).toBe('Unable to load course');
+    expect(result.current.accessError?.title).toBe('Enrollment required');
+    expect(result.current.accessError?.message).toBe(
+      'You must enroll in this course before accessing the content. Please go back to the course page to enroll.'
+    );
+    expect(result.current.enrollment).toBeNull();
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('shows a lookup failure access error when the enrollment lookup rejects', async () => {
+    vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseA);
+    vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
+    vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonA1]);
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockRejectedValue(
+      new Error('lookup failed')
+    );
+    vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
+
+    const { result } = renderDataHook();
+
+    await waitFor(() => {
+      expect(result.current.accessError?.title).toBe('Unable to load course');
+    });
     expect(result.current.accessError?.message).toBe(
       'We were unable to verify your enrollment for this course. Please try again or go back to the course page.'
     );
+    expect(result.current.enrollment).toBeNull();
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('shows an access error when the enrollment is dropped', async () => {
+    vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseA);
+    vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
+    vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonA1]);
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue({
+      ...enrollmentA,
+      status: EnrollmentStatus.DROPPED,
+    });
+    vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
+
+    const { result } = renderDataHook();
+
+    await waitFor(() => {
+      expect(result.current.accessError?.title).toBe('Enrollment cancelled');
+    });
     expect(result.current.enrollment).toBeNull();
     expect(result.current.loading).toBe(false);
   });
@@ -179,8 +210,7 @@ describe('useCoursePlayerData', () => {
     vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseA);
     vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
     vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonA1]);
-    vi.mocked(enrollmentService.checkEnrollmentStatus).mockResolvedValue(true);
-    vi.mocked(enrollmentService.getMyEnrollments).mockResolvedValue(pagedEnrollments([enrollmentA]));
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue(enrollmentA);
     vi.mocked(lessonProgressService.getEnrollmentProgress)
       .mockReturnValueOnce(deferredA)
       .mockResolvedValueOnce([progressB]);
@@ -202,7 +232,7 @@ describe('useCoursePlayerData', () => {
     // Switch to course B while course A's progress request is still in flight.
     vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseB);
     vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonB1]);
-    vi.mocked(enrollmentService.getMyEnrollments).mockResolvedValue(pagedEnrollments([enrollmentB]));
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue(enrollmentB);
     props.courseSlug = 'course-b';
     await act(async () => {
       rerender();
@@ -235,10 +265,10 @@ describe('useCoursePlayerData', () => {
     vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseA);
     vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
     vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonA1]);
-    vi.mocked(enrollmentService.checkEnrollmentStatus).mockResolvedValue(true);
-    vi.mocked(enrollmentService.getMyEnrollments).mockResolvedValue(
-      pagedEnrollments([{ ...enrollmentA, status: EnrollmentStatus.SUSPENDED }])
-    );
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue({
+      ...enrollmentA,
+      status: EnrollmentStatus.SUSPENDED,
+    });
     vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
 
     const { result, rerender } = renderHook(() => useCoursePlayerData(props));
@@ -251,7 +281,7 @@ describe('useCoursePlayerData', () => {
     // Switch to a valid course B.
     vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseB);
     vi.mocked(lessonService.getCourseLessons).mockResolvedValue([lessonB1]);
-    vi.mocked(enrollmentService.getMyEnrollments).mockResolvedValue(pagedEnrollments([enrollmentB]));
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue(enrollmentB);
     props.courseSlug = 'course-b';
     await act(async () => {
       rerender();

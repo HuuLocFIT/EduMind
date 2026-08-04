@@ -90,52 +90,39 @@ export function useCoursePlayerData({
   const checkEnrollment = async (courseId: number, version: number) => {
     try {
       if (!fetchVersion.isCurrent(version)) return;
-      const isEnrolled = await enrollmentService.checkEnrollmentStatus(courseId);
+      const foundEnrollment = await enrollmentService.getMyEnrollmentForCourse(courseId);
       if (!fetchVersion.isCurrent(version)) return;
-      if (!isEnrolled) {
+
+      if (!foundEnrollment) {
         setAccessError(buildCourseAccessError('NOT_ENROLLED', courseSlug!));
         return;
       }
 
-      // Get enrollment details
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      if (!fetchVersion.isCurrent(version)) return;
-      const foundEnrollment = response.data?.find((e) => e.courseId === courseId);
-      if (foundEnrollment) {
-        // Business rules:
-        // - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
-        // - SUSPENDED: student still "owns" the course but access is forbidden.
-        if (foundEnrollment.status === EnrollmentStatus.DROPPED) {
-          setAccessError(buildCourseAccessError(EnrollmentStatus.DROPPED, courseSlug!));
-          return;
-        }
-
-        if (foundEnrollment.status === EnrollmentStatus.SUSPENDED) {
-          setAccessError(buildCourseAccessError(EnrollmentStatus.SUSPENDED, courseSlug!));
-          return;
-        }
-
-        setEnrollment(foundEnrollment);
-        const completeAtLoad = isCourseCompleteFromEnrollment(foundEnrollment);
-        setConfirmedCourseComplete(completeAtLoad);
-        // Load all lesson progress for this enrollment once
-        try {
-          const allProgress = await lessonProgressService.getEnrollmentProgress(
-            foundEnrollment.id
-          );
-          if (!fetchVersion.isCurrent(version)) return;
-          setAllLessonProgress(allProgress);
-        } catch (progressErr) {
-          console.error('Error loading lesson progress:', progressErr);
-          if (!fetchVersion.isCurrent(version)) return;
-          setAllLessonProgress([]);
-        }
-      } else {
-        // checkEnrollmentStatus reported enrolled but the enrollment record is
-        // missing -> fail closed with an access error instead of rendering a
-        // player with no enrollment.
-        setAccessError(buildCourseAccessError('LOOKUP_FAILED', courseSlug!));
+      // Business rules:
+      // - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
+      // - SUSPENDED: student still "owns" the course but access is forbidden.
+      if (foundEnrollment.status === EnrollmentStatus.DROPPED) {
+        setAccessError(buildCourseAccessError(EnrollmentStatus.DROPPED, courseSlug!));
         return;
+      }
+
+      if (foundEnrollment.status === EnrollmentStatus.SUSPENDED) {
+        setAccessError(buildCourseAccessError(EnrollmentStatus.SUSPENDED, courseSlug!));
+        return;
+      }
+
+      setEnrollment(foundEnrollment);
+      const completeAtLoad = isCourseCompleteFromEnrollment(foundEnrollment);
+      setConfirmedCourseComplete(completeAtLoad);
+      // Load all lesson progress for this enrollment once
+      try {
+        const allProgress = await lessonProgressService.getEnrollmentProgress(foundEnrollment.id);
+        if (!fetchVersion.isCurrent(version)) return;
+        setAllLessonProgress(allProgress);
+      } catch (progressErr) {
+        console.error('Error loading lesson progress:', progressErr);
+        if (!fetchVersion.isCurrent(version)) return;
+        setAllLessonProgress([]);
       }
     } catch (err) {
       if (!fetchVersion.isCurrent(version)) return;
@@ -267,14 +254,13 @@ export function useCoursePlayerData({
       if (!belongsToCurrentCourse()) return;
 
       const version = reconcileVersion.bump();
-      const [allProgress, response] = await Promise.all([
+      const [allProgress, found] = await Promise.all([
         lessonProgressService.getEnrollmentProgress(enrollmentId),
-        enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
+        enrollmentService.getMyEnrollmentForCourse(ownerCourseId!),
       ]);
       if (!reconcileVersion.isCurrent(version)) return;
       if (!belongsToCurrentCourse()) return;
 
-      const found = response.data?.find((e) => e.courseId === ownerCourseId);
       if (!found) {
         // Throw before any state write so a failed reconciliation leaves the
         // local state untouched rather than half-applied.

@@ -13,26 +13,30 @@ export function useAccessErrorRedirect(
   onRedirect: (redirectTo: string) => void
 ) {
   const [redirectCountdown, setRedirectCountdown] = useState(REDIRECT_DELAY_SECONDS);
+  const [trackedError, setTrackedError] = useState(accessError);
+
+  // Reset during render so the countdown is already back at 10 before the
+  // redirect effect below observes it for a brand new access error.
+  if (accessError !== trackedError) {
+    setTrackedError(accessError);
+    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
+  }
 
   useEffect(() => {
     if (!accessError) return;
 
-    setRedirectCountdown(REDIRECT_DELAY_SECONDS);
-
     const interval = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          onRedirect(accessError.redirectTo);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setRedirectCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(interval);
+  }, [accessError]);
+
+  useEffect(() => {
+    if (!accessError || redirectCountdown > 0) return;
+    onRedirect(accessError.redirectTo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessError, onRedirect]);
+  }, [accessError, redirectCountdown]);
 
   return redirectCountdown;
 }

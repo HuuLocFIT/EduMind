@@ -255,7 +255,7 @@ spring:
                   requestedTokens: 1
             - RewritePath=/api/lessons(?<segment>/?.*), /lessons${segment}
 
-        # Enrollment Routes (10 endpoints)
+        # Enrollment Routes (11 endpoints)
         # STUDENT: enroll, view my enrollments, check status
         # TEACHER/ADMIN: view course enrollments
         # External: /api/enrollments/** → Internal: /enrollments/**

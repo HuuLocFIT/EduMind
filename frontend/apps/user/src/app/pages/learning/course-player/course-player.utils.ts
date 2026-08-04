@@ -135,8 +135,8 @@ export type CourseAccessErrorStatus =
  * checkEnrollment logic.
  *
  * - NOT_ENROLLED: treat as never enrolled -> redirect to course detail.
- * - LOOKUP_FAILED: enrollment status reported enrolled but the enrollment
- *   record could not be found -> redirect to course detail.
+ * - LOOKUP_FAILED: real lookup error (not found is represented as
+ *   NOT_ENROLLED via null) -> redirect to course detail.
  * - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
  * - SUSPENDED: student still "owns" the course but access is forbidden.
  */

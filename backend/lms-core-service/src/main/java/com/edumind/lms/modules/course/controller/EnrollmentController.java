@@ -237,6 +237,25 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.success(isEnrolled));
     }
 
+    // NOTE: singular "/course/{courseId}" = the STUDENT's OWN enrollment for a course, returned
+    // regardless of status (including DROPPED/SUSPENDED). Do NOT confuse this with the plural
+    // "/courses/{courseId}" endpoint above, which is a TEACHER/ADMIN listing of all enrollments
+    // for a course.
+    @GetMapping("/course/{courseId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<EnrollmentResponse>> getMyEnrollmentForCourse(
+            @PathVariable Long courseId,
+            Authentication authentication) {
+
+        Long studentId = Long.valueOf(authentication.getPrincipal().toString());
+        log.info("Getting enrollment for student {} in course {}", studentId, courseId);
+
+        Enrollment enrollment = enrollmentService.getEnrollmentByCourseAndStudent(courseId, studentId);
+        EnrollmentResponse response = enrollmentMapper.toResponse(enrollment);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @GetMapping("/my-stats")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<EnrollmentStatsResponse>> getMyEnrollmentStats(

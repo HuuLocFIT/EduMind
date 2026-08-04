@@ -20,6 +20,7 @@ vi.mock('@edumind/shared-utils', () => ({
     MY_RECENT: '/api/enrollments/my-recent',
     MY_STATS: '/api/enrollments/my-stats',
     CHECK: (courseId: string | number) => `/api/enrollments/check/${courseId}`,
+    MY_FOR_COURSE: (courseId: string | number) => `/api/enrollments/course/${courseId}`,
   },
 }));
 
@@ -71,6 +72,33 @@ describe('enrollmentService', () => {
         '/api/enrollments/my-in-progress',
         { params: { minProgress: 0 } }
       );
+    });
+  });
+
+  describe('getMyEnrollmentForCourse', () => {
+    it('returns the parsed enrollment when the lookup succeeds', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({ data: enrollmentFixture });
+
+      const result = await enrollmentService.getMyEnrollmentForCourse(10);
+
+      expect(apiClient.get).toHaveBeenCalledWith('/api/enrollments/course/10');
+      expect(result).toMatchObject({
+        id: 1,
+        courseId: 10,
+        status: 'ACTIVE',
+      });
+    });
+
+    it('returns null when the lookup responds with 404', async () => {
+      vi.mocked(apiClient.get).mockRejectedValue({ status: 404 });
+
+      await expect(enrollmentService.getMyEnrollmentForCourse(10)).resolves.toBeNull();
+    });
+
+    it('rethrows non-404 errors', async () => {
+      vi.mocked(apiClient.get).mockRejectedValue({ status: 500 });
+
+      await expect(enrollmentService.getMyEnrollmentForCourse(10)).rejects.toEqual({ status: 500 });
     });
   });
 });

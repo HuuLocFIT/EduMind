@@ -67,8 +67,7 @@ vi.mock('../../../services/lesson.service', () => ({
 }));
 vi.mock('../../../services/enrollment.service', () => ({
   enrollmentService: {
-    checkEnrollmentStatus: vi.fn(),
-    getMyEnrollments: vi.fn(),
+    getMyEnrollmentForCourse: vi.fn(),
   },
 }));
 vi.mock('../../../services/lesson-progress.service', () => ({
@@ -262,9 +261,8 @@ beforeEach(() => {
   vi.mocked(courseService.getCourseBySlug).mockResolvedValue(course);
   vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
   vi.mocked(lessonService.getCourseLessons).mockImplementation(() => Promise.resolve(currentLessons));
-  vi.mocked(enrollmentService.checkEnrollmentStatus).mockResolvedValue(true);
-  vi.mocked(enrollmentService.getMyEnrollments).mockImplementation(() =>
-    Promise.resolve({ data: [currentEnrollment], status: 200, success: true } as any),
+  vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockImplementation(() =>
+    Promise.resolve(currentEnrollment),
   );
   vi.mocked(lessonProgressService.startLesson).mockResolvedValue({} as any);
   vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
