@@ -8,13 +8,19 @@ import type {
 import { lessonProgressService } from '../../../../services/lesson-progress.service';
 import type { CompletionError, CompletionSource } from '../course-player.types';
 import { calculateOptimisticCourseProgress, findLessonProgress } from '../course-player.utils';
+import { useVersionGuard } from './useVersionGuard';
 
 interface UseLessonCompletionOptions {
   currentLesson: LessonResponse | null;
   enrollment: EnrollmentResponse | null;
   lessons: LessonResponse[];
   allLessonProgress: LessonProgressResponse[];
-  /** Not read directly (the completion call only needs enrollmentId/lessonId) — kept for parity with the hook's documented input shape. */
+  /**
+   * Not sent to the server (the completion call only needs
+   * enrollmentId/lessonId) — read only to detect that the user left this
+   * course while a completion was in flight, so a stale completion can never
+   * surface its reconcile error on a different course.
+   */
   resolvedCourseId: number | null;
   /** Read at call time (not a snapshot) so a just-completed lesson's next-lesson lookup is never stale. */
   getNextLesson: () => LessonResponse | null;
@@ -47,6 +53,7 @@ export function useLessonCompletion({
   enrollment,
   lessons,
   allLessonProgress,
+  resolvedCourseId,
   getNextLesson,
   onProgressChange,
   onEnrollmentChange,
@@ -68,19 +75,45 @@ export function useLessonCompletion({
 
   const [completionAnnouncement, setCompletionAnnouncement] = useState('');
 
-  // Clear the completion announcement whenever the lesson changes, mirroring
-  // the previous inline reset that ran as part of lesson selection.
+  // Bumped whenever the lesson changes so a completeLesson() call still in
+  // flight for the previous lesson can never show its failure error (or move
+  // focus, announce, or auto-advance) on the lesson the user has since
+  // navigated to. A course switch resets currentLesson to null, so this also
+  // covers "the user left the course entirely".
+  const lessonVersion = useVersionGuard();
+
+  // Live mirror of the current course, used to gate completionReconcileError:
+  // that error is deliberately kept across a lesson change (auto-advance moves
+  // the lesson right after a successful completion), so it cannot be gated by
+  // lessonVersion — but it must still be dropped when the operation belongs to
+  // a course the user has already left.
+  const resolvedCourseIdRef = useRef(resolvedCourseId);
   useEffect(() => {
+    resolvedCourseIdRef.current = resolvedCourseId;
+  }, [resolvedCourseId]);
+
+  // Clear the completion announcement and any per-lesson completion error
+  // whenever the lesson changes, mirroring the previous inline reset that ran
+  // as part of lesson selection. completionReconcileError is intentionally not
+  // cleared here — auto-advance changes the lesson right after a successful
+  // completion, so clearing it would hide the "progress could not be
+  // refreshed" message almost immediately.
+  useEffect(() => {
+    lessonVersion.bump();
     setCompletionAnnouncement('');
+    setCompletionError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLesson?.id]);
 
   // Optimistically mark a lesson complete in local state so the UI updates
-  // instantly (zero-latency). Returns a snapshot so callers can roll back if
-  // the server call ultimately fails.
+  // instantly (zero-latency). Returns a per-field snapshot so callers can roll
+  // back exactly what was bumped if the server call ultimately fails, without
+  // clobbering progress/enrollment changes that happened since.
   const markLessonCompletedLocally = (lessonId: number) => {
-    const prevProgress = allLessonProgress;
-    const prevEnrollment = enrollment;
-    const alreadyCompleted = findLessonProgress(allLessonProgress, lessonId)?.isCompleted;
+    const prevLessonProgress = findLessonProgress(allLessonProgress, lessonId);
+    const alreadyCompleted = prevLessonProgress?.isCompleted;
+    const prevCompletedLessons = enrollment?.completedLessons ?? 0;
+    const prevProgressPercentage = enrollment?.progressPercentage;
 
     onProgressChange((prev) => {
       const existing = prev.find((p) => p.lessonId === lessonId);
@@ -108,7 +141,7 @@ export function useLessonCompletion({
       });
     }
 
-    return { prevProgress, prevEnrollment };
+    return { prevLessonProgress, alreadyCompleted, prevCompletedLessons, prevProgressPercentage };
   };
 
   const retryCompletionReconciliation = async (enrollmentId: number) => {
@@ -150,20 +183,37 @@ export function useLessonCompletion({
     setCompletionError(null);
     setCompletionReconcileError(null);
 
+    const version = lessonVersion.current();
+    const ownerCourseId = resolvedCourseId;
+    const belongsToCurrentCourse = () => ownerCourseId === resolvedCourseIdRef.current;
     const snapshot = markLessonCompletedLocally(lessonId);
 
     try {
       await lessonProgressService.completeLesson(enrollmentId, lessonId);
 
+      // Always attempt reconciliation, even if the user has left this lesson or
+      // course: it self-guards its own state writes and is what refreshes the
+      // cross-page enrollment caches after a completion that did succeed.
       try {
         await reconcileEnrollmentProgress(enrollmentId);
       } catch (err) {
         console.error('Error reconciling lesson progress:', err);
-        setCompletionReconcileError({
-          message: 'The lesson was completed, but course progress could not be refreshed.',
-          retry: () => retryCompletionReconciliation(enrollmentId),
-        });
+        // Survives a lesson change within the course (auto-advance), but not a
+        // course switch — the message would be about a course the user left.
+        if (belongsToCurrentCourse()) {
+          setCompletionReconcileError({
+            message: 'The lesson was completed, but course progress could not be refreshed.',
+            retry: () => retryCompletionReconciliation(enrollmentId),
+          });
+        }
       }
+
+      // The user moved to another lesson (or left the course) while this
+      // completion was in flight. Announcing "<lesson A> completed" and
+      // starting a countdown to lesson A's successor would both be wrong for
+      // where the user actually is now, so stop here — the completion itself is
+      // already persisted and reconciled.
+      if (!lessonVersion.isCurrent(version)) return;
 
       const nextLesson = getNextLesson();
       const { progressPercentage } = calculateOptimisticCourseProgress(enrollment, lessons.length);
@@ -178,16 +228,55 @@ export function useLessonCompletion({
       // focused once confirmedCourseComplete flips to true after reconciliation.
     } catch (err: any) {
       console.error('Error completing lesson:', err);
-      // Roll back optimistic completion and keep the current lesson.
-      onProgressChange(snapshot.prevProgress);
-      if (snapshot.prevEnrollment) onEnrollmentChange(snapshot.prevEnrollment);
-      setCompletionError({
-        message: err?.message || 'Failed to mark lesson as complete',
-        retry: () => completeLesson(source),
-      });
-      // Keep keyboard focus on Mark complete (when it still exists) instead of
-      // letting it fall back to the page body after the optimistic rollback.
-      restoreCompletionFocus();
+      // Roll back the optimistic bump — but only into the course it was applied
+      // to. After a course switch that state was already discarded by
+      // resetCourseState, and rolling back here would instead overwrite the new
+      // course's enrollment counters with the old course's snapshot values.
+      // Within the same course the rollback always runs, keyed on the original
+      // lessonId, even if the user has moved to another lesson since.
+      if (belongsToCurrentCourse()) {
+        // Two distinct cases:
+        //  - The record is still the synthetic one invented by
+        //    markLessonCompletedLocally (no server `id`): drop it entirely, or
+        //    its fabricated watchPercentage: 100 would survive the rollback.
+        //  - A real record exists (pre-existing, or upserted by a video
+        //    autosave that landed while completion was pending): keep every
+        //    field and revert only `isCompleted`, the one field that was bumped.
+        onProgressChange((prev) => {
+          const existing = prev.find((p) => p.lessonId === lessonId);
+          if (!existing) return prev;
+          if (existing.id === undefined) {
+            return prev.filter((p) => p.lessonId !== lessonId);
+          }
+          return prev.map((p) =>
+            p.lessonId === lessonId ? { ...p, isCompleted: Boolean(snapshot.alreadyCompleted) } : p
+          );
+        });
+        if (!snapshot.alreadyCompleted) {
+          onEnrollmentChange((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  completedLessons: snapshot.prevCompletedLessons,
+                  progressPercentage: snapshot.prevProgressPercentage,
+                }
+              : prev
+          );
+        }
+      }
+      // Only surface the error/retry (and move focus) if the user is still on
+      // this lesson — otherwise a completion that failed after the user
+      // already navigated away would show lesson A's error on lesson B and
+      // retry lesson A instead of B.
+      if (lessonVersion.isCurrent(version)) {
+        setCompletionError({
+          message: err?.message || 'Failed to mark lesson as complete',
+          retry: () => completeLesson(source),
+        });
+        // Keep keyboard focus on Mark complete (when it still exists) instead
+        // of letting it fall back to the page body after the optimistic rollback.
+        restoreCompletionFocus();
+      }
     } finally {
       completingLessonRef.current = null;
       setCompletingLessonId(null);

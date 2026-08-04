@@ -7,12 +7,15 @@ import type {
 } from '@edumind/shared-types';
 import { lessonProgressService } from '../../../../services/lesson-progress.service';
 import type { ProgressSaveError } from '../course-player.types';
+import { useVersionGuard } from './useVersionGuard';
 
 interface UseVideoProgressOptions {
   currentLesson: LessonResponse | null;
   enrollment: EnrollmentResponse | null;
   currentLessonProgress: LessonProgressResponse | null;
   lessons: LessonResponse[];
+  /** Course slug, used to reset autosave state when switching courses. */
+  courseSlug: string | undefined;
   /** Called after a successful save so the caller can upsert its progress list. */
   onProgressSaved: (saved: LessonProgressResponse) => void;
   /** Called after a successful save to announce it to screen readers. */
@@ -32,6 +35,7 @@ export function useVideoProgress({
   enrollment,
   currentLessonProgress,
   lessons,
+  courseSlug,
   onProgressSaved,
   onProgressAnnouncement,
 }: UseVideoProgressOptions) {
@@ -43,6 +47,9 @@ export function useVideoProgress({
   const progressUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const latestProgressPayloadRef = useRef<UpdateProgressRequest | null>(null);
   const progressSaveInFlightRef = useRef(false);
+  // Bumped whenever courseSlug changes so a save started for the previous
+  // course can never write its result (or a stale error) onto the next one.
+  const courseVersion = useVersionGuard();
 
   // Live values for the autosave interval so it never reads a stale closure.
   const currentLessonRef = useRef<LessonResponse | null>(null);
@@ -66,9 +73,9 @@ export function useVideoProgress({
     }
   }, [currentLesson, currentLessonProgress]);
 
-  // Safety net: clear any running autosave interval when the lesson changes
-  // (covers a course/slug switch too, since that also swaps the lesson) or on
-  // unmount. Manual navigation already clears it via stopAutosave().
+  // Safety net: clear any running autosave interval when the lesson changes or
+  // on unmount. Manual navigation already clears it via stopAutosave(). A
+  // course/slug switch clears the interval via the [courseSlug] effect below.
   useEffect(() => {
     return () => {
       if (progressUpdateInterval.current) {
@@ -107,12 +114,17 @@ export function useVideoProgress({
     // Never overwrite a payload whose failure is still shown to the user.
     if (latestProgressPayloadRef.current && latestProgressPayloadRef.current !== payload) return;
 
+    const version = courseVersion.current();
     latestProgressPayloadRef.current = payload;
     progressSaveInFlightRef.current = true;
     setSaveState('saving');
 
     try {
       const saved = await lessonProgressService.updateWatchProgress(payload);
+      // The course changed while this request was in flight — the [courseSlug]
+      // effect already reset payload/error/state for the new course, so drop
+      // this result instead of upserting the previous course's progress into it.
+      if (!courseVersion.isCurrent(version)) return;
       if (latestProgressPayloadRef.current === payload) {
         latestProgressPayloadRef.current = null;
       }
@@ -121,6 +133,7 @@ export function useVideoProgress({
       setSaveError(null);
       onProgressAnnouncement('Progress saved');
     } catch (err) {
+      if (!courseVersion.isCurrent(version)) return;
       console.error('Error saving progress:', err);
       setSaveState('error');
       const failedLesson = lessons.find((l) => l.id === payload.lessonId);
@@ -131,7 +144,12 @@ export function useVideoProgress({
         retry: () => retrySave(),
       });
     } finally {
-      progressSaveInFlightRef.current = false;
+      // If the course changed mid-request, the [courseSlug] effect already
+      // reset this flag for the new course — don't clobber the new course's
+      // in-flight state by unconditionally resetting it here.
+      if (courseVersion.isCurrent(version)) {
+        progressSaveInFlightRef.current = false;
+      }
     }
   };
 
@@ -199,6 +217,23 @@ export function useVideoProgress({
       progressUpdateInterval.current = null;
     }
   };
+
+  // Reset autosave state when the course/slug changes. The lesson-keyed
+  // cleanup above cannot cover a switch into a course with no lesson (the id
+  // never changes), so this effect explicitly stops the interval and drops any
+  // pending failed payload/save state that belongs to the previous course.
+  // Also bumps courseVersion so a save request already in flight for the
+  // previous course drops its result/error instead of applying it here.
+  // Cross-lesson retry behavior is intentionally preserved.
+  useEffect(() => {
+    courseVersion.bump();
+    stopAutosave();
+    latestProgressPayloadRef.current = null;
+    progressSaveInFlightRef.current = false;
+    setSaveError(null);
+    setSaveState('idle');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseSlug]);
 
   return {
     videoProgress,

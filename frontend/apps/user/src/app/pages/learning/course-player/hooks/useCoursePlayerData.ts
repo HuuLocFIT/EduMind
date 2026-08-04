@@ -9,7 +9,6 @@ import type {
   SectionResponse,
 } from '@edumind/shared-types';
 import { EnrollmentStatus } from '@edumind/shared-constants';
-import { buildRouteWithParams, USER_ROUTES } from '@edumind/shared-utils';
 import { courseService } from '../../../../services/course.service';
 import { enrollmentService } from '../../../../services/enrollment.service';
 import { lessonProgressService } from '../../../../services/lesson-progress.service';
@@ -23,13 +22,14 @@ import {
   resolveInitialLesson,
   sortCourseLessons,
 } from '../course-player.utils';
+import { useVersionGuard } from './useVersionGuard';
 
 interface UseCoursePlayerDataOptions {
   courseSlug: string | undefined;
   currentLesson: LessonResponse | null;
   searchParams: URLSearchParams;
   setSearchParams: SetURLSearchParams;
-  setCurrentLesson: (lesson: LessonResponse) => void;
+  setCurrentLesson: (lesson: LessonResponse | null) => void;
 }
 
 /**
@@ -60,8 +60,24 @@ export function useCoursePlayerData({
   const [accessError, setAccessError] = useState<AccessError | null>(null);
   const [confirmedCourseComplete, setConfirmedCourseComplete] = useState(false);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const reconcileVersionRef = useRef(0);
+  // Monotonic versions that invalidate stale in-flight work when the course
+  // slug changes or the component unmounts. The service calls do not accept an
+  // AbortSignal, so every await boundary re-checks its version and simply
+  // stops touching state once it no longer matches. Reconciliation gets its own
+  // guard (bumped alongside the fetch guard on every course switch and on
+  // unmount); because a reconciliation can also be *started* late by a stale
+  // completion closure, it additionally checks course identity — see
+  // reconcileEnrollmentProgress.
+  const fetchVersion = useVersionGuard();
+  const reconcileVersion = useVersionGuard();
+
+  // Live mirror of resolvedCourseId, so async work started for a previous
+  // course can compare the course it belongs to (captured from its closure)
+  // against the course that is current *now*.
+  const resolvedCourseIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    resolvedCourseIdRef.current = resolvedCourseId;
+  }, [resolvedCourseId]);
 
   // Read via ref so the fetch effect only re-runs on courseSlug change, not on
   // every search-param update (setSearchParams is itself called from inside
@@ -71,11 +87,11 @@ export function useCoursePlayerData({
     searchParamsRef.current = searchParams;
   }, [searchParams]);
 
-  const checkEnrollment = async (courseId: number, signal?: AbortSignal) => {
+  const checkEnrollment = async (courseId: number, version: number) => {
     try {
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
       const isEnrolled = await enrollmentService.checkEnrollmentStatus(courseId);
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
       if (!isEnrolled) {
         setAccessError(buildCourseAccessError('NOT_ENROLLED', courseSlug!));
         return;
@@ -83,7 +99,7 @@ export function useCoursePlayerData({
 
       // Get enrollment details
       const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
       const foundEnrollment = response.data?.find((e) => e.courseId === courseId);
       if (foundEnrollment) {
         // Business rules:
@@ -107,37 +123,39 @@ export function useCoursePlayerData({
           const allProgress = await lessonProgressService.getEnrollmentProgress(
             foundEnrollment.id
           );
+          if (!fetchVersion.isCurrent(version)) return;
           setAllLessonProgress(allProgress);
         } catch (progressErr) {
           console.error('Error loading lesson progress:', progressErr);
+          if (!fetchVersion.isCurrent(version)) return;
           setAllLessonProgress([]);
         }
+      } else {
+        // checkEnrollmentStatus reported enrolled but the enrollment record is
+        // missing -> fail closed with an access error instead of rendering a
+        // player with no enrollment.
+        setAccessError(buildCourseAccessError('LOOKUP_FAILED', courseSlug!));
+        return;
       }
     } catch (err) {
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
       console.error('Error checking enrollment:', err);
-      setAccessError({
-        title: 'Unable to load course',
-        message:
-          'We were unable to verify your enrollment for this course. Please try again or go back to the course page.',
-        redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, {
-          courseSlug: courseSlug!,
-        }),
-      });
+      setAccessError(buildCourseAccessError('LOOKUP_FAILED', courseSlug!));
     }
   };
 
-  const fetchCourseData = async (signal?: AbortSignal) => {
+  const fetchCourseData = async (version: number) => {
     setLoading(true);
     try {
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
 
       // Resolve course by slug
       const courseData = await courseService.getCourseBySlug(courseSlug!);
       const numericCourseId = courseData.id;
-      setResolvedCourseId(numericCourseId);
 
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
+
+      setResolvedCourseId(numericCourseId);
 
       // Fetch sections and lessons with resolved numeric ID
       const [courseSections, courseLessons] = await Promise.all([
@@ -145,7 +163,7 @@ export function useCoursePlayerData({
         lessonService.getCourseLessons(numericCourseId),
       ]);
 
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
 
       setCourse(courseData);
       setSections(courseSections);
@@ -154,7 +172,7 @@ export function useCoursePlayerData({
       // Sort lessons by section order and lesson order
       const sortedLessons = sortCourseLessons(courseSections, courseLessons);
 
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
 
       setLessons(sortedLessons);
 
@@ -176,53 +194,93 @@ export function useCoursePlayerData({
         localStorage.setItem(`lesson_${targetLesson.id}_type`, targetLesson.contentType);
       }
 
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
 
       // Check enrollment after we have the resolved course ID
-      await checkEnrollment(numericCourseId, signal);
+      await checkEnrollment(numericCourseId, version);
     } catch (err) {
       console.error('Error fetching course data:', err);
-      if (signal?.aborted) return;
+      if (!fetchVersion.isCurrent(version)) return;
       setLessons([]);
     } finally {
-      if (!signal?.aborted) {
+      if (fetchVersion.isCurrent(version)) {
         setLoading(false);
       }
     }
   };
 
+  // Clear every course-scoped piece of state so a slug switch can never leak
+  // the previous course's lesson/enrollment/access-error into the new one.
+  const resetCourseState = () => {
+    setResolvedCourseId(null);
+    setCourse(null);
+    setSections([]);
+    setExpandedSectionIds([]);
+    setLessons([]);
+    setAllLessonProgress([]);
+    setEnrollment(null);
+    setAccessError(null);
+    setConfirmedCourseComplete(false);
+    setCurrentLesson(null);
+  };
+
   useEffect(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    const version = fetchVersion.bump();
+    // Also invalidate any completion reconciliation still in flight for the
+    // previous course — otherwise it can resolve after the switch and write
+    // the old course's enrollment/progress/completion state onto the new one.
+    reconcileVersion.bump();
+    resetCourseState();
 
     if (courseSlug) {
-      fetchCourseData(signal);
+      void fetchCourseData(version);
     }
 
     return () => {
-      abortControllerRef.current?.abort();
+      // Invalidate any in-flight fetch or reconciliation belonging to this
+      // effect run (including on unmount) by advancing past its version, so
+      // nothing calls a state setter on an unmounted/replaced course.
+      fetchVersion.bump();
+      reconcileVersion.bump();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseSlug]);
 
   // Reconcile the optimistic local state with the server truth in the
   // background, then refresh cross-page caches.
+  //
+  // Version alone cannot make this safe: a reconciliation can be *started* by a
+  // stale completion closure after the course already switched, and its own
+  // bump() would make it the current version. So the course this call belongs
+  // to is captured from the closure (`resolvedCourseId` as of the render that
+  // produced it) and compared against the live course before every state write.
   const reconcileEnrollmentProgress = async (enrollmentId: number) => {
-    const version = ++reconcileVersionRef.current;
+    const ownerCourseId = resolvedCourseId;
+    const belongsToCurrentCourse = () =>
+      ownerCourseId !== null && ownerCourseId === resolvedCourseIdRef.current;
     try {
+      // Started after a course switch — the caller's course is gone, so there
+      // is nothing to reconcile into. Not an error: the completion itself
+      // succeeded, and the finally block still refreshes cross-page caches.
+      // Checked before bumping, so a stale call cannot invalidate a legitimate
+      // reconciliation that is already in flight for the current course.
+      if (!belongsToCurrentCourse()) return;
+
+      const version = reconcileVersion.bump();
       const [allProgress, response] = await Promise.all([
         lessonProgressService.getEnrollmentProgress(enrollmentId),
         enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
       ]);
-      if (version !== reconcileVersionRef.current) return;
-      setAllLessonProgress(allProgress);
-      const found = response.data?.find(
-        (e) => resolvedCourseId !== null && e.courseId === resolvedCourseId
-      );
+      if (!reconcileVersion.isCurrent(version)) return;
+      if (!belongsToCurrentCourse()) return;
+
+      const found = response.data?.find((e) => e.courseId === ownerCourseId);
       if (!found) {
+        // Throw before any state write so a failed reconciliation leaves the
+        // local state untouched rather than half-applied.
         throw new Error('The updated enrollment could not be loaded.');
       }
+      setAllLessonProgress(allProgress);
       setEnrollment(found);
       setConfirmedCourseComplete(isCourseCompleteFromEnrollment(found));
     } finally {
@@ -239,13 +297,16 @@ export function useCoursePlayerData({
 
   // Marks the current lesson as started once both it and the enrollment are
   // known. Safe to call repeatedly — the backend treats an already-started
-  // lesson as a no-op.
+  // lesson as a no-op. The courseId match guards against the brief render
+  // where the lesson of the new course is paired with the previous course's
+  // enrollment.
   useEffect(() => {
     if (!currentLesson || !enrollment) return;
+    if (resolvedCourseId === null || enrollment.courseId !== resolvedCourseId) return;
     lessonProgressService.startLesson(enrollment.id, currentLesson.id).catch((err) => {
       console.log('Lesson already started or error:', err);
     });
-  }, [currentLesson, enrollment]);
+  }, [currentLesson, enrollment, resolvedCourseId]);
 
   return {
     resolvedCourseId,

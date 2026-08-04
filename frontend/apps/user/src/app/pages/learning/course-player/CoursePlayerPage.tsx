@@ -102,6 +102,7 @@ export const CoursePlayerPage: React.FC = () => {
     enrollment,
     currentLessonProgress,
     lessons,
+    courseSlug,
     onProgressSaved: (saved) => {
       setAllLessonProgress((prev) => {
         const existing = prev.find((p) => p.lessonId === saved.lessonId);

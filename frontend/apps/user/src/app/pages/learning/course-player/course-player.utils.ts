@@ -124,15 +124,19 @@ export function htmlToPlainText(html: string): string {
 /** Status values that can produce a course access error. */
 export type CourseAccessErrorStatus =
   | 'NOT_ENROLLED'
+  | 'LOOKUP_FAILED'
   | typeof EnrollmentStatus.DROPPED
   | typeof EnrollmentStatus.SUSPENDED;
 
 /**
  * Build the access-error shown when the student is not enrolled, was
- * dropped, or is suspended. Messages/redirects are kept byte-identical to
- * the copy that used to live inline in the page's checkEnrollment logic.
+ * dropped, is suspended, or the enrollment lookup failed. Messages/redirects
+ * are kept byte-identical to the copy that used to live inline in the page's
+ * checkEnrollment logic.
  *
  * - NOT_ENROLLED: treat as never enrolled -> redirect to course detail.
+ * - LOOKUP_FAILED: enrollment status reported enrolled but the enrollment
+ *   record could not be found -> redirect to course detail.
  * - DROPPED: treat as not enrolled -> redirect to course detail / purchase.
  * - SUSPENDED: student still "owns" the course but access is forbidden.
  */
@@ -145,6 +149,15 @@ export function buildCourseAccessError(
       title: 'Enrollment required',
       message:
         'You must enroll in this course before accessing the content. Please go back to the course page to enroll.',
+      redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug }),
+    };
+  }
+
+  if (status === 'LOOKUP_FAILED') {
+    return {
+      title: 'Unable to load course',
+      message:
+        'We were unable to verify your enrollment for this course. Please try again or go back to the course page.',
       redirectTo: buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug }),
     };
   }
