@@ -19,7 +19,7 @@
   <app-card [padding]="'sm'" [variant]="'bordered'" [customClass]="'text-neutral-900 my-4'">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
       <div class="flex flex-col gap-1.5">
-        <span class="text-sm font-medium text-neutral-700">Search</span>
+        <span class="text-sm font-bold text-neutral-700">Search</span>
         <app-search-bar
           size="sm"
           placeholder="Search by title, instructor..."
@@ -54,6 +54,7 @@
       [showActions]="true"
       [actionsSticky]="actionsSticky()"
       [actionsStickyOffset]="actionsSticky() ? '0px' : undefined"
+      [actionsWidth]="'200px'"
       [showPagination]="true"
       [totalItems]="totalItems()"
       [pageSize]="pageSize"
@@ -71,6 +72,13 @@
           <app-button variant="danger" size="sm" (click)="openDeleteModal(row)">
             Delete
           </app-button>
+        </div>
+      </ng-template>
+
+      <ng-template #actionsSkeleton>
+        <div class="flex items-center justify-center gap-2">
+          <div class="h-7 w-12 bg-gray-200 rounded-lg"></div>
+          <div class="h-7 w-16 bg-gray-200 rounded-lg"></div>
         </div>
       </ng-template>
     </app-data-table>

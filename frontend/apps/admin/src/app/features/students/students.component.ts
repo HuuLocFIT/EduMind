@@ -21,6 +21,7 @@ import {
 } from '@edumind/admin-ui';
 import { AdminUserService } from '../../core/services/admin-user.service';
 import { UserListItem, AdminUserListResponse } from '@edumind/shared-types';
+import { RoleLabelPipe } from '../../shared/pipes/role-label.pipe';
 import {
   injectAsyncState,
   injectMediaQuery,
@@ -50,6 +51,7 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
     ButtonComponent,
     DropdownMenuComponent,
     StatCardComponent,
+    RoleLabelPipe,
   ],
   templateUrl: './students.component.html',
 })
@@ -123,11 +125,11 @@ export class StudentsComponent implements OnInit {
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
 
     this.columns = [
-      { key: 'fullName',    header: 'Student', template: this.studentTpl, sortable: true, width: '240px' },
-      { key: 'email',       header: 'Email',   sortable: true },
+      { key: 'fullName',    header: 'Student', template: this.studentTpl, sortable: false, width: '240px' },
+      { key: 'email',       header: 'Email',   sortable: false },
       { key: 'phoneNumber', header: 'Phone',   template: this.phoneTpl },
-      { key: 'isActive',    header: 'Status',  sortable: true, template: this.statusTpl },
-      { key: 'createdAt',   header: 'Joined',  sortable: true, template: this.createdTpl },
+      { key: 'isActive',    header: 'Status',  sortable: false, template: this.statusTpl },
+      { key: 'createdAt',   header: 'Joined',  sortable: false, template: this.createdTpl },
     ];
 
     this.actionsSticky.set(stickyRight);

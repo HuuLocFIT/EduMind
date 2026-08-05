@@ -107,11 +107,11 @@ export class EnrollmentReportsComponent implements OnInit {
     const stickyLeft: 'left' | undefined = this.isMobile() ? undefined : 'left';
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
     this.columns = [
-      { key: 'studentId', header: 'Student', template: this.studentTpl, sortable: true, width: '180px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
-      { key: 'courseTitle', header: 'Course', template: this.courseTpl, sortable: true, width: '280px' },
+      { key: 'studentId', header: 'Student', template: this.studentTpl, sortable: false, width: '180px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'courseTitle', header: 'Course', template: this.courseTpl, sortable: false, width: '280px' },
       { key: 'reason', header: 'Reason', template: this.reasonTpl, width: '220px' },
-      { key: 'status', header: 'Status', template: this.statusTpl, sortable: true, width: '120px' },
-      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: true, width: '170px' },
+      { key: 'status', header: 'Status', template: this.statusTpl, sortable: false, width: '120px' },
+      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: false, width: '170px' },
     ];
     this.actionsSticky.set(stickyRight);
   }

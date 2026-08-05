@@ -16,6 +16,7 @@ import {
   type TableColumn,
   DropdownMenuComponent,
   type DropdownMenuItem,
+  ImageUploadComponent,
 } from '@edumind/admin-ui';
 import {
   CategoryResponse,
@@ -23,6 +24,7 @@ import {
   UpdateCategoryRequest,
 } from '@edumind/shared-types';
 import { CategoryService } from '../../core/services/category.service';
+import { FileUploadService } from '../../core/services/file-upload.service';
 import { injectAsyncState, injectMediaQuery, injectModal, getActiveBadgeVariant } from '../../core/utils';
 import { CloudinaryUrlPipe } from '../../shared/pipes/cloudinary-url.pipe';
 
@@ -44,11 +46,13 @@ import { CloudinaryUrlPipe } from '../../shared/pipes/cloudinary-url.pipe';
     DataTableComponent,
     DropdownMenuComponent,
     CloudinaryUrlPipe,
+    ImageUploadComponent,
   ],
   templateUrl: './categories.component.html',
 })
 export class CategoriesComponent implements OnInit {
   private categoryService = inject(CategoryService);
+  private fileUploadService = inject(FileUploadService);
 
   // ── Utilities ────────────────────────────────────────────────────────────
   private async = injectAsyncState();
@@ -95,6 +99,8 @@ export class CategoriesComponent implements OnInit {
   formDescription: string | null = null;
   formIconUrl: string | null = null;
   formErrors = signal<Partial<Record<keyof CreateCategoryRequest, string>>>({});
+  isUploadingIcon = signal(false);
+  iconUploadError = signal('');
 
   ngOnInit(): void {
     this.buildColumns();
@@ -105,11 +111,11 @@ export class CategoriesComponent implements OnInit {
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
 
     this.columns = [
-      { key: 'name', header: 'Category', template: this.categoryTpl, sortable: true, width: '280px' },
+      { key: 'name', header: 'Category', template: this.categoryTpl, sortable: false, width: '280px' },
       { key: 'slug', header: 'Slug' },
       { key: 'courseCount', header: 'Courses' },
-      { key: 'isActive', header: 'Status', sortable: true, template: this.statusTpl },
-      { key: 'createdAt', header: 'Created', sortable: true, template: this.createdTpl },
+      { key: 'isActive', header: 'Status', sortable: false, template: this.statusTpl },
+      { key: 'createdAt', header: 'Created', sortable: false, template: this.createdTpl },
     ];
 
     this.actionsSticky.set(stickyRight);
@@ -159,6 +165,7 @@ export class CategoriesComponent implements OnInit {
     this.formDescription = null;
     this.formIconUrl = null;
     this.formErrors.set({});
+    this.iconUploadError.set('');
     this.showCreateModal.set(true);
   }
 
@@ -169,7 +176,24 @@ export class CategoriesComponent implements OnInit {
     this.formDescription = category.description ?? null;
     this.formIconUrl = category.iconUrl ?? null;
     this.formErrors.set({});
+    this.iconUploadError.set('');
     this.editModal.open(category);
+  }
+
+  onIconFileSelected(file: File): void {
+    this.isUploadingIcon.set(true);
+    this.iconUploadError.set('');
+
+    this.fileUploadService.uploadImage(file, 'images/categories', 200, 200).subscribe({
+      next: (result) => {
+        this.formIconUrl = result.url;
+        this.isUploadingIcon.set(false);
+      },
+      error: () => {
+        this.iconUploadError.set('Failed to upload image');
+        this.isUploadingIcon.set(false);
+      },
+    });
   }
 
   openDeleteModal(category: CategoryResponse): void {

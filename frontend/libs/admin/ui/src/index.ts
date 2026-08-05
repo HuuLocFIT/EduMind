@@ -18,3 +18,4 @@ export * from './lib/multi-select/index';
 export * from './lib/badge/index';
 export * from './lib/modal-footer/modal-footer.component';
 export * from './lib/confirm-dialog/confirm-dialog.component';
+export * from './lib/image-upload/image-upload.component';

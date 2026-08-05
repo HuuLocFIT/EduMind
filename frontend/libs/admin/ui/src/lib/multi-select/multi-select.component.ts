@@ -18,7 +18,7 @@ import { SelectOption } from '../select/select.component';
   template: `
     <div class="relative">
       @if (label) {
-        <span class="block text-sm font-medium text-gray-700 mb-1.5">{{ label }}</span>
+        <span class="block text-sm font-bold text-gray-700 mb-1.5">{{ label }}</span>
       }
 
       <button

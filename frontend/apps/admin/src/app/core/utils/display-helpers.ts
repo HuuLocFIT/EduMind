@@ -36,3 +36,19 @@ export function getInitials(name: string): string {
 export function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Formats a role code (e.g. "ROLE_STUDENT") as "Student" for display. */
+export function formatRoleLabel(value: string): string {
+  return formatEnumLabel(value.replace(/^ROLE_/, ''));
+}
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  CERTIFICATE: 'Certificate',
+  DEGREE: 'Degree',
+  ID_CARD: 'ID Card',
+};
+
+/** Formats a document type code (e.g. "ID_CARD") for display. */
+export function formatDocumentTypeLabel(value: string): string {
+  return DOCUMENT_TYPE_LABELS[value] ?? formatEnumLabel(value);
+}

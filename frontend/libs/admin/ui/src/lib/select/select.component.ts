@@ -22,7 +22,7 @@ export interface SelectOption {
   template: `
     <div class="relative">
       @if (label) {
-        <label [for]="id" class="block text-sm font-medium text-gray-700 mb-1.5">
+        <label [for]="id" class="block text-sm font-bold text-gray-700 mb-1.5">
           {{ label }}
           @if (required) {
             <span class="text-red-500">*</span>

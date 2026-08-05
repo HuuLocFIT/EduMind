@@ -32,7 +32,7 @@ export interface PageEvent {
     <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <!-- Table -->
       <div class="overflow-x-auto">
-        <table class="w-full relative min-w-full">
+        <table class="relative min-w-full table-fixed">
           <!-- Header -->
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -50,17 +50,17 @@ export interface PageEvent {
               @for (column of columns; track column.key) {
                 <th 
                   [class]="getHeaderClasses(column)"
-                  [style.width]="column.width"
-                  [style.minWidth]="column.width"
-                  [style.maxWidth]="column.width"
+                  [style.width]="getColumnWidth(column)"
+                  [style.minWidth]="getColumnWidth(column)"
+                  [style.maxWidth]="getColumnWidth(column)"
                   [style.left]="column.sticky === 'left' ? (column.stickyOffset || '0px') : null"
                   [style.right]="column.sticky === 'right' ? (column.stickyOffset || '0px') : null"
                   (click)="column.sortable ? onSort(column.key) : null"
                 >
-                  <div class="flex items-center gap-2 text-gray-600">
-                    <span class="font-semibold">{{ column.header }}</span>
+                  <div class="flex items-center gap-2 text-gray-600 min-w-0">
+                    <span class="font-semibold truncate" [title]="column.header">{{ column.header }}</span>
                     @if (column.sortable) {
-                      <span class="text-gray-400">
+                      <span class="text-gray-400 shrink-0">
                         @if (sortColumn === column.key) {
                           @if (sortDirection === 'asc') {
                             <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,11 +83,11 @@ export interface PageEvent {
               }
               @if (showActions) {
                 <th
-                  class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider overflow-hidden whitespace-nowrap"
                   [class]="getActionsHeaderClasses()"
-                  [style.width]="actionsWidth"
-                  [style.minWidth]="actionsWidth"
-                  [style.maxWidth]="actionsWidth"
+                  [style.width]="getActionsColumnWidth()"
+                  [style.minWidth]="getActionsColumnWidth()"
+                  [style.maxWidth]="getActionsColumnWidth()"
                   [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
                   [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
                 >
@@ -100,35 +100,47 @@ export interface PageEvent {
           <!-- Body -->
           <tbody class="divide-y divide-gray-200 bg-white">
             @if (isLoading) {
-              @for (i of [1, 2, 3, 4, 5]; track i) {
+              @for (i of getSkeletonRows(); track i) {
                 <tr class="animate-pulse">
                   @if (selectable) {
                     <td class="px-4 py-4"><div class="h-4 w-4 bg-gray-200 rounded"></div></td>
                   }
                   @for (column of columns; track column.key) {
-                    <td class="px-4 py-4"><div class="h-4 bg-gray-200 rounded w-3/4"></div></td>
+                    <td
+                      [class]="getCellClasses(column)"
+                      [style.width]="getColumnWidth(column)"
+                      [style.minWidth]="getColumnWidth(column)"
+                      [style.maxWidth]="getColumnWidth(column)"
+                      [style.left]="column.sticky === 'left' ? (column.stickyOffset || '0px') : null"
+                      [style.right]="column.sticky === 'right' ? (column.stickyOffset || '0px') : null"
+                    >
+                      <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                    </td>
                   }
                   @if (showActions) {
-                    <td class="px-4 py-4"><div class="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
+                    <td
+                      class="px-4 py-4 text-center"
+                      [class]="getActionsCellClasses()"
+                      [style.width]="getActionsColumnWidth()"
+                      [style.minWidth]="getActionsColumnWidth()"
+                      [style.maxWidth]="getActionsColumnWidth()"
+                      [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
+                      [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
+                    >
+                      @if (actionsSkeletonTemplate) {
+                        <ng-container *ngTemplateOutlet="actionsSkeletonTemplate" />
+                      } @else {
+                        <div class="flex items-center justify-center gap-2">
+                          @for (b of getActionsSkeletonBars(); track b) {
+                            <div class="h-7 w-14 bg-gray-200 rounded-lg"></div>
+                          }
+                        </div>
+                      }
+                    </td>
                   }
                 </tr>
               }
-            } @else if (data.length === 0) {
-              <tr>
-                <td 
-                  [attr.colspan]="getTotalColumns()"
-                  class="px-4 py-12 text-center text-gray-500 bg-white"
-                >
-                  <div class="flex flex-col items-center gap-2">
-                    <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
-                    <span class="text-sm">{{ emptyMessage }}</span>
-                  </div>
-                </td>
-              </tr>
-            } @else {
+            } @else if (data.length > 0) {
               @for (row of data; track trackByFn ? trackByFn($index, row) : $index; let i = $index) {
                 <tr 
                   class="hover:bg-gray-50 transition-colors"
@@ -146,11 +158,11 @@ export interface PageEvent {
                     </td>
                   }
                   @for (column of columns; track column.key) {
-                    <td 
+                    <td
                       [class]="getCellClasses(column)"
-                      [style.width]="column.width"
-                      [style.minWidth]="column.width"
-                      [style.maxWidth]="column.width"
+                      [style.width]="getColumnWidth(column)"
+                      [style.minWidth]="getColumnWidth(column)"
+                      [style.maxWidth]="getColumnWidth(column)"
                       [style.left]="column.sticky === 'left' ? (column.stickyOffset || '0px') : null"
                       [style.right]="column.sticky === 'right' ? (column.stickyOffset || '0px') : null"
                     >
@@ -167,9 +179,9 @@ export interface PageEvent {
                     <td 
                       class="px-4 py-4 text-center"
                       [class]="getActionsCellClasses()"
-                      [style.width]="actionsWidth"
-                      [style.minWidth]="actionsWidth"
-                      [style.maxWidth]="actionsWidth"
+                      [style.width]="getActionsColumnWidth()"
+                      [style.minWidth]="getActionsColumnWidth()"
+                      [style.maxWidth]="getActionsColumnWidth()"
                       [style.left]="actionsSticky === 'left' ? (actionsStickyOffset || '0px') : null"
                       [style.right]="actionsSticky === 'right' ? (actionsStickyOffset || '0px') : null"
                       (click)="$event.stopPropagation()"
@@ -186,6 +198,16 @@ export interface PageEvent {
           </tbody>
         </table>
       </div>
+
+      @if (!isLoading && data.length === 0) {
+        <div class="flex flex-col items-center gap-2 px-4 py-12 text-center text-gray-500 bg-white">
+          <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <span class="text-sm">{{ emptyMessage }}</span>
+        </div>
+      }
 
       <!-- Footer with Pagination -->
       @if (showPagination && totalItems > 0) {
@@ -234,6 +256,7 @@ export class DataTableComponent<T = unknown> {
   @Input() columns: TableColumn<T>[] = [];
   @Input() data: T[] = [];
   @Input() isLoading = false;
+  @Input() skeletonRows = 5;
   @Input() emptyMessage = 'No data available';
   @Input() selectable = false;
   @Input() showActions = false;
@@ -246,6 +269,8 @@ export class DataTableComponent<T = unknown> {
   @Input() actionsStickyOffset?: string;
   /** Width of actions column */
   @Input() actionsWidth?: string;
+  /** Number of skeleton bars to render in the actions column while loading */
+  @Input() actionsSkeletonCount = 1;
   @Input() trackByFn?: (index: number, item: T) => unknown;
 
   @Output() sort = new EventEmitter<SortEvent>();
@@ -254,17 +279,30 @@ export class DataTableComponent<T = unknown> {
   @Output() rowClick = new EventEmitter<T>();
 
   @ContentChild('actions') actionsTemplate!: TemplateRef<{ $implicit: T; row: T; index: number }>;
+  /** Optional custom skeleton markup for the actions column while loading (overrides actionsSkeletonCount) */
+  @ContentChild('actionsSkeleton') actionsSkeletonTemplate?: TemplateRef<unknown>;
 
   sortColumn: string | null = null;
   sortDirection: 'asc' | 'desc' | null = null;
   selectedItems: Set<T> = new Set();
 
+  private readonly defaultColumnWidth = '150px';
+  private readonly defaultActionsWidth = '160px';
+
   get totalPages(): number {
     return Math.ceil(this.totalItems / this.pageSize);
   }
 
+  getColumnWidth(column: TableColumn<T>): string {
+    return column.width || this.defaultColumnWidth;
+  }
+
+  getActionsColumnWidth(): string {
+    return this.actionsWidth || this.defaultActionsWidth;
+  }
+
   getHeaderClasses(column: TableColumn<T>): string {
-    const base = 'px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-600';
+    const base = 'px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-600 overflow-hidden';
     const align = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
     const sortable = column.sortable ? 'cursor-pointer hover:text-gray-800 select-none' : '';
     const sticky = column.sticky ? 'sticky bg-white z-30' : '';
@@ -277,7 +315,7 @@ export class DataTableComponent<T = unknown> {
   }
 
   getCellClasses(column: TableColumn<T>): string {
-    const base = 'px-4 py-4 text-sm text-gray-800';
+    const base = 'px-4 py-4 text-sm text-gray-800 overflow-hidden';
     const align = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
     const sticky = column.sticky ? 'sticky bg-white z-20' : '';
     const shadow = column.sticky === 'left'
@@ -308,11 +346,12 @@ export class DataTableComponent<T = unknown> {
     return `${sticky} ${shadow}`;
   }
 
-  getTotalColumns(): number {
-    let count = this.columns.length;
-    if (this.selectable) count++;
-    if (this.showActions) count++;
-    return count;
+  getSkeletonRows(): number[] {
+    return Array.from({ length: this.skeletonRows }, (_, i) => i);
+  }
+
+  getActionsSkeletonBars(): number[] {
+    return Array.from({ length: this.actionsSkeletonCount }, (_, i) => i);
   }
 
   getNestedValue(obj: T, path: string): unknown {

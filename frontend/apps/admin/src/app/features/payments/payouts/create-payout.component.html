@@ -25,10 +25,8 @@
           formControlName="instructorId"
           placeholder="Enter instructor ID"
           [required]="true"
+          [error]="getFieldError('instructorId')"
         />
-        @if (getFieldError('instructorId')) {
-          <p class="mt-1 text-sm text-danger-600">{{ getFieldError('instructorId') }}</p>
-        }
       </div>
 
       <!-- Payment Method -->
@@ -39,6 +37,7 @@
           formControlName="paymentMethod"
           [required]="true"
           [size]="'md'"
+          [error]="getFieldError('paymentMethod')"
         />
       </div>
 
@@ -52,10 +51,8 @@
               formControlName="bankName"
               placeholder="Enter bank name"
               [required]="true"
+              [error]="getFieldError('bankName')"
             />
-            @if (getFieldError('bankName')) {
-              <p class="mt-1 text-sm text-danger-600">{{ getFieldError('bankName') }}</p>
-            }
           </div>
 
           <div class="md:col-span-2">
@@ -65,10 +62,8 @@
               formControlName="accountHolderName"
               placeholder="Enter account holder name"
               [required]="true"
+              [error]="getFieldError('accountHolderName')"
             />
-            @if (getFieldError('accountHolderName')) {
-              <p class="mt-1 text-sm text-danger-600">{{ getFieldError('accountHolderName') }}</p>
-            }
           </div>
 
           <div class="md:col-span-2">
@@ -78,10 +73,8 @@
               formControlName="bankAccount"
               placeholder="Enter bank account number"
               [required]="true"
+              [error]="getFieldError('bankAccount')"
             />
-            @if (getFieldError('bankAccount')) {
-              <p class="mt-1 text-sm text-danger-600">{{ getFieldError('bankAccount') }}</p>
-            }
           </div>
 
           <div>
@@ -112,10 +105,8 @@
             formControlName="paypalEmail"
             placeholder="Enter PayPal email address"
             [required]="true"
+            [error]="getFieldError('paypalEmail')"
           />
-          @if (getFieldError('paypalEmail')) {
-            <p class="mt-1 text-sm text-danger-600">{{ getFieldError('paypalEmail') }}</p>
-          }
         </div>
       }
 
@@ -125,7 +116,7 @@
           Cancel
         </app-button>
         <app-button variant="primary" type="submit" [disabled]="payoutForm.invalid">
-          Create Payout
+          Create
         </app-button>
       </div>
     </form>

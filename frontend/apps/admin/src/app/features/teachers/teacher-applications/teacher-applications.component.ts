@@ -27,6 +27,7 @@ import {
   type ApplicationQueryParams,
 } from '../../../core/services/teacher-application.service';
 import { injectAsyncState, injectModal, injectPagination, getStatusVariant } from '../../../core/utils';
+import { DocumentTypeLabelPipe } from '../../../shared/pipes/document-type-label.pipe';
 
 type ApplicationStats = {
   totalPending: number;
@@ -57,6 +58,7 @@ type TeacherApplicationView = TeacherApplicationResponse & {
     EmptyStateComponent,
     SelectComponent,
     StatCardComponent,
+    DocumentTypeLabelPipe,
   ],
   templateUrl: './teacher-applications.component.html',
 })

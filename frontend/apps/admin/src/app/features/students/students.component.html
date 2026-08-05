@@ -23,6 +23,7 @@
       [value]="statsTotal()"
       subtitle="All registered students"
       tone="info"
+      [loading]="isLoading()"
     >
       <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -34,6 +35,7 @@
       [value]="statsActive()"
       subtitle="Currently active"
       tone="success"
+      [loading]="isLoading()"
     >
       <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -45,6 +47,7 @@
       [value]="statsInactive()"
       subtitle="Deactivated accounts"
       tone="danger"
+      [loading]="isLoading()"
     >
       <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -56,7 +59,7 @@
   <div class="bg-white rounded-xl border border-neutral-200 shadow-rest p-4">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
       <div class="flex flex-col gap-1.5">
-        <span class="text-sm font-medium text-neutral-700">Search</span>
+        <span class="text-sm font-bold text-neutral-700">Search</span>
         <app-search-bar
           size="sm"
           placeholder="Search by name, email, or username..."
@@ -80,6 +83,7 @@
       [columns]="columns"
       [data]="students()"
       [isLoading]="isLoading()"
+      [skeletonRows]="pageSize"
       [showActions]="true"
       [actionsSticky]="actionsSticky()"
       [actionsStickyOffset]="actionsSticky() ? '0px' : undefined"
@@ -96,6 +100,13 @@
             View
           </app-button>
           <app-dropdown-menu [items]="getRowActions(row)" (itemClick)="onRowAction($event, row)" />
+        </div>
+      </ng-template>
+
+      <ng-template #actionsSkeleton>
+        <div class="flex items-center justify-center gap-1">
+          <div class="h-7 w-14 bg-gray-200 rounded-lg"></div>
+          <div class="h-9 w-9 bg-gray-200 rounded-lg"></div>
         </div>
       </ng-template>
     </app-data-table>
@@ -139,56 +150,51 @@
   <!-- Student Detail Modal -->
   <app-modal
     [isOpen]="showDetailModal()"
-    [title]="selectedStudent() ? getFullName(selectedStudent()!) + ' - Details' : 'Student Details'"
+    title="Student Details"
     size="md"
     (close)="showDetailModal.set(false)"
   >
     @if (selectedStudent(); as student) {
-      <div class="space-y-6 text-neutral-800">
+      <div class="space-y-5 text-neutral-800">
+        <!-- Profile Header -->
+        <div class="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-accent-50 to-brand-50 border border-neutral-200">
+          <div class="w-14 h-14 rounded-full bg-gradient-to-br from-accent-100 to-brand-100 flex items-center justify-center text-accent-700 text-lg font-semibold flex-shrink-0 shadow-sm ring-2 ring-white">
+            {{ getInitials(student) }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-neutral-900 font-semibold text-base truncate">{{ getFullName(student) }}</p>
+            <p class="text-neutral-500 text-sm truncate">{{ student.email }}</p>
+          </div>
+          <app-badge [variant]="getStatusVariant(student.isActive)" size="sm">
+            {{ student.isActive ? 'Active' : 'Inactive' }}
+          </app-badge>
+        </div>
+
         <!-- Personal Info -->
-        <div>
-          <h4 class="text-sm font-semibold text-neutral-600 mb-3">Personal Information</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span class="text-neutral-500">Full Name:</span>
-              <p class="text-neutral-900 font-medium mt-1">{{ getFullName(student) }}</p>
+        <div class="rounded-xl border border-neutral-200 divide-y divide-neutral-100">
+          <div class="px-4 py-2.5 flex items-center justify-between gap-4">
+            <span class="text-sm text-neutral-500">Username</span>
+            <span class="text-sm text-neutral-900 font-medium text-right break-all">{{ student.username }}</span>
+          </div>
+          <div class="px-4 py-2.5 flex items-center justify-between gap-4">
+            <span class="text-sm text-neutral-500">Phone</span>
+            <span class="text-sm text-neutral-900 font-medium text-right">{{ student.phoneNumber || '—' }}</span>
+          </div>
+          <div class="px-4 py-2.5 flex items-center justify-between gap-4">
+            <span class="text-sm text-neutral-500">Roles</span>
+            <div class="flex flex-wrap justify-end gap-1">
+              @for (role of student.roles; track role) {
+                <app-badge variant="secondary" size="sm">{{ role | roleLabel }}</app-badge>
+              }
             </div>
-            <div>
-              <span class="text-neutral-500">Username:</span>
-              <p class="text-neutral-900 font-medium mt-1 break-all">{{ student.username }}</p>
-            </div>
-            <div>
-              <span class="text-neutral-500">Email:</span>
-              <p class="text-neutral-900 font-medium mt-1 break-all">{{ student.email }}</p>
-            </div>
-            <div>
-              <span class="text-neutral-500">Phone:</span>
-              <p class="text-neutral-900 font-medium mt-1">{{ student.phoneNumber || '—' }}</p>
-            </div>
-            <div>
-              <span class="text-neutral-500">Status:</span>
-              <div class="mt-1">
-                <app-badge [variant]="getStatusVariant(student.isActive)" size="sm">
-                  {{ student.isActive ? 'Active' : 'Inactive' }}
-                </app-badge>
-              </div>
-            </div>
-            <div>
-              <span class="text-neutral-500">Roles:</span>
-              <div class="flex flex-wrap gap-1 mt-1">
-                @for (role of student.roles; track role) {
-                  <app-badge variant="secondary" size="sm">{{ role }}</app-badge>
-                }
-              </div>
-            </div>
-            <div>
-              <span class="text-neutral-500">Joined:</span>
-              <p class="text-neutral-900 font-medium mt-1">{{ student.createdAt | date: 'medium' }}</p>
-            </div>
-            <div>
-              <span class="text-neutral-500">Last Updated:</span>
-              <p class="text-neutral-900 font-medium mt-1">{{ student.updatedAt | date: 'medium' }}</p>
-            </div>
+          </div>
+          <div class="px-4 py-2.5 flex items-center justify-between gap-4">
+            <span class="text-sm text-neutral-500">Joined</span>
+            <span class="text-sm text-neutral-900 font-medium text-right">{{ student.createdAt | date: 'medium' }}</span>
+          </div>
+          <div class="px-4 py-2.5 flex items-center justify-between gap-4">
+            <span class="text-sm text-neutral-500">Last Updated</span>
+            <span class="text-sm text-neutral-900 font-medium text-right">{{ student.updatedAt | date: 'medium' }}</span>
           </div>
         </div>
       </div>

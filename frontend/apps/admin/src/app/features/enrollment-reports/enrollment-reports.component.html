@@ -24,6 +24,7 @@
         subtitle="Awaiting review"
         tone="warning"
         [tintValue]="true"
+        [loading]="isLoading()"
       >
         <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -36,6 +37,7 @@
         subtitle="Processed"
         tone="success"
         [tintValue]="true"
+        [loading]="isLoading()"
       >
         <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -48,6 +50,7 @@
         subtitle="Declined"
         tone="danger"
         [tintValue]="true"
+        [loading]="isLoading()"
       >
         <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -94,6 +97,13 @@
           @if (row.status === 'PENDING') {
             <app-dropdown-menu [items]="getRowActions(row)" (itemClick)="onRowAction($event, row)" />
           }
+        </div>
+      </ng-template>
+
+      <ng-template #actionsSkeleton>
+        <div class="flex items-center justify-center gap-1">
+          <div class="h-7 w-14 bg-gray-200 rounded-lg"></div>
+          <div class="h-9 w-9 bg-gray-200 rounded-lg"></div>
         </div>
       </ng-template>
     </app-data-table>

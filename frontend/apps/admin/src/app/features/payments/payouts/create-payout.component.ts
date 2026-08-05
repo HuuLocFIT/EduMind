@@ -137,12 +137,24 @@ export class CreatePayoutComponent implements OnInit {
     this.router.navigate([ADMIN_ROUTES.PAYOUTS_ALL]);
   }
 
+  private readonly fieldLabels: Record<string, string> = {
+    instructorId: 'Instructor ID',
+    paymentMethod: 'Payment Method',
+    bankAccount: 'Bank Account / Account Number',
+    bankName: 'Bank Name',
+    accountHolderName: 'Account Holder Name',
+    swiftCode: 'SWIFT Code',
+    bankAddress: 'Bank Address',
+    paypalEmail: 'PayPal Email',
+  };
+
   getFieldError(fieldName: string): string {
     const control = this.payoutForm.get(fieldName);
     if (!control || !control.touched || !control.errors) return '';
-    if (control.errors['required']) return `${fieldName} is required`;
-    if (control.errors['email']) return 'Invalid email address';
-    if (control.errors['min']) return 'Instructor ID must be greater than 0';
+    const label = this.fieldLabels[fieldName] ?? fieldName;
+    if (control.errors['required']) return `${label} is required`;
+    if (control.errors['email']) return `${label} is not a valid email address`;
+    if (control.errors['min']) return `${label} must be greater than 0`;
     return '';
   }
 

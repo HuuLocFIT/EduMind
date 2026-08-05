@@ -133,6 +133,7 @@ export class CoursesComponent implements OnInit {
         this.isLoading.set(false);
       });
 
+    this.isLoading.set(true);
     this.filter$.next();
   }
 
@@ -143,16 +144,16 @@ export class CoursesComponent implements OnInit {
     const titleWidth = '260px';
 
     this.columns = [
-      { key: 'id', header: 'ID', template: this.idTpl, sortable: true, width: idWidth, align: 'left', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
-      { key: 'title', header: 'Title', template: this.titleTpl, sortable: true, width: titleWidth, sticky: stickyLeft, stickyOffset: stickyLeft ? idWidth : undefined },
-      { key: 'categoryName', header: 'Category', sortable: true },
-      { key: 'instructorName', header: 'Instructor', sortable: true },
-      { key: 'price', header: 'Pricing', template: this.priceTpl, sortable: true },
+      { key: 'id', header: 'ID', template: this.idTpl, sortable: false, width: idWidth, align: 'left', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'title', header: 'Title', template: this.titleTpl, sortable: false, width: titleWidth, sticky: stickyLeft, stickyOffset: stickyLeft ? idWidth : undefined },
+      { key: 'categoryName', header: 'Category', sortable: false },
+      { key: 'instructorName', header: 'Instructor', sortable: false },
+      { key: 'price', header: 'Pricing', template: this.priceTpl, sortable: false },
       { key: 'level', header: 'Level', template: this.levelTpl },
       { key: 'status', header: 'Status', template: this.statusTpl },
-      { key: 'totalStudents', header: 'Students', sortable: true },
-      { key: 'averageRating', header: 'Rating', sortable: true },
-      { key: 'createdAt', header: 'Created', sortable: true, template: this.createdTpl },
+      { key: 'totalStudents', header: 'Students', sortable: false },
+      { key: 'averageRating', header: 'Rating', sortable: false },
+      { key: 'createdAt', header: 'Created', sortable: false, template: this.createdTpl },
     ];
 
     this.actionsSticky.set(stickyRight);

@@ -97,13 +97,13 @@ export class PendingPayoutsComponent implements OnInit {
     const stickyLeft: 'left' | undefined = this.isMobile() ? undefined : 'left';
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
     this.columns = [
-      { key: 'payoutNumber', header: 'Payout #', template: this.payoutNumberTpl, sortable: true, width: '170px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
-      { key: 'instructorId', header: 'Instructor ID', template: this.instructorIdTpl, sortable: true, width: '90px', align: 'left' },
-      { key: 'totalAmount', header: 'Amount', template: this.amountTpl, sortable: true, width: '110px' },
-      { key: 'earningsCount', header: 'Earnings', template: this.earningsCountTpl, sortable: true, width: '100px' },
-      { key: 'paymentMethod', header: 'Payment Method', template: this.methodTpl, sortable: true, width: '150px' },
-      { key: 'status', header: 'Status', template: this.statusTpl, sortable: true, width: '200px' },
-      { key: 'createdAt', header: 'Created At', template: this.createdAtTpl, sortable: true, width: '130px' },
+      { key: 'payoutNumber', header: 'Payout #', template: this.payoutNumberTpl, sortable: false, width: '170px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'instructorId', header: 'Instructor ID', template: this.instructorIdTpl, sortable: false, width: '90px', align: 'left' },
+      { key: 'totalAmount', header: 'Amount', template: this.amountTpl, sortable: false, width: '110px' },
+      { key: 'earningsCount', header: 'Earnings', template: this.earningsCountTpl, sortable: false, width: '100px' },
+      { key: 'paymentMethod', header: 'Payment Method', template: this.methodTpl, sortable: false, width: '150px' },
+      { key: 'status', header: 'Status', template: this.statusTpl, sortable: false, width: '200px' },
+      { key: 'createdAt', header: 'Created At', template: this.createdAtTpl, sortable: false, width: '130px' },
     ];
     this.actionsSticky.set(stickyRight);
   }

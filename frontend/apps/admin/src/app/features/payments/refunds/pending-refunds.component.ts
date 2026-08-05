@@ -85,12 +85,12 @@ export class PendingRefundsComponent implements OnInit {
     const stickyLeft: 'left' | undefined = this.isMobile() ? undefined : 'left';
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
     this.columns = [
-      { key: 'orderNumber', header: 'Order#', template: this.orderNumberTpl, sortable: true, width: '170px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
-      { key: 'userId', header: 'User ID', template: this.userIdTpl, sortable: true, width: '90px', align: 'left' },
-      { key: 'status', header: 'Status', template: this.statusTpl, sortable: true, width: '220px' },
-      { key: 'requestedAmount', header: 'Amount', template: this.amountTpl, sortable: true, width: '110px', align: 'left' },
+      { key: 'orderNumber', header: 'Order#', template: this.orderNumberTpl, sortable: false, width: '170px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'userId', header: 'User ID', template: this.userIdTpl, sortable: false, width: '90px', align: 'left' },
+      { key: 'status', header: 'Status', template: this.statusTpl, sortable: false, width: '220px' },
+      { key: 'requestedAmount', header: 'Amount', template: this.amountTpl, sortable: false, width: '110px', align: 'left' },
       { key: 'reason', header: 'Reason', template: this.reasonTpl, width: '350px' },
-      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: true, width: '130px' },
+      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: false, width: '130px' },
     ];
     this.actionsSticky.set(stickyRight);
   }

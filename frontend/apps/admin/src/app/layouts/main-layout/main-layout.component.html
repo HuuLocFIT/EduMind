@@ -27,10 +27,12 @@
             <button
               (click)="toggleExpanded(item.label)"
               [class.bg-brand-100]="isChildActive(item)"
-              [class.text-brand-800]="isChildActive(item)"
+              [class.text-brand-700]="isChildActive(item)"
+              [class.text-neutral-700]="!isChildActive(item)"
               [class.border-brand-700]="isChildActive(item)"
+              [class.border-transparent]="!isChildActive(item)"
               [class.font-semibold]="isChildActive(item)"
-              class="flex items-center justify-between w-full px-4 py-3 mb-1 text-neutral-700 rounded-lg hover:bg-neutral-100 border-l-4 border-transparent transition-colors focus:outline-none focus:ring-0 active:outline-none"
+              class="flex items-center justify-between w-full px-4 py-3 mb-1 rounded-lg hover:bg-neutral-100 border-l-4 transition-colors focus:outline-none focus:ring-0 active:outline-none"
             >
               <div class="flex items-center">
                 <span class="material-icons text-xl">{{ item.icon }}</span>
@@ -64,14 +66,16 @@
                 @for (child of item.children; track child.path) {
                   <a
                     [routerLink]="child.path"
-                    routerLinkActive="bg-brand-100 text-brand-800 border-brand-700"
+                    routerLinkActive="bg-brand-100 text-brand-700 border-brand-700"
                     #rla="routerLinkActive"
                     [routerLinkActiveOptions]="
                       child.path === ADMIN_ROUTES.PAYOUTS_ALL
                         ? { exact: true }
                         : { exact: false }
                     "
-                    class="flex items-center px-4 py-2.5 mb-1 text-sm text-neutral-600 rounded-lg hover:bg-neutral-100 border-l-4 border-transparent transition-colors focus:outline-none focus:ring-0 active:outline-none"
+                    [class.border-transparent]="!rla.isActive"
+                    [class.text-neutral-600]="!rla.isActive"
+                    class="flex items-center px-4 py-2.5 mb-1 text-sm rounded-lg hover:bg-neutral-100 border-l-4 transition-colors focus:outline-none focus:ring-0 active:outline-none"
                   >
                     <span class="material-icons text-lg mr-3">{{
                       child.icon
@@ -90,10 +94,12 @@
           <!-- Regular Item without Children -->
           <a
             [routerLink]="item.path!"
-            routerLinkActive="bg-brand-100 text-brand-800 border-brand-700"
+            routerLinkActive="bg-brand-100 text-brand-700 border-brand-700"
             #rla="routerLinkActive"
             [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
-            class="flex items-center justify-between px-4 py-3 mb-1 text-neutral-700 rounded-lg hover:bg-neutral-100 border-l-4 border-transparent transition-colors focus:outline-none focus:ring-0 active:outline-none"
+            [class.border-transparent]="!rla.isActive"
+            [class.text-neutral-700]="!rla.isActive"
+            class="flex items-center justify-between px-4 py-3 mb-1 rounded-lg hover:bg-neutral-100 border-l-4 transition-colors focus:outline-none focus:ring-0 active:outline-none"
           >
             <div class="flex items-center">
               <span class="material-icons text-xl">{{ item.icon }}</span>
