@@ -184,7 +184,7 @@ export class CategoriesComponent implements OnInit {
     this.isUploadingIcon.set(true);
     this.iconUploadError.set('');
 
-    this.fileUploadService.uploadImage(file, 'images/categories', 200, 200).subscribe({
+    this.fileUploadService.uploadIcon(file, 'images/categories').subscribe({
       next: (result) => {
         this.formIconUrl = result.url;
         this.isUploadingIcon.set(false);
@@ -198,6 +198,7 @@ export class CategoriesComponent implements OnInit {
 
   openDeleteModal(category: CategoryResponse): void {
     this.selectedCategory.set(category);
+    this.errorMessage.set('');
     this.deleteModal.open(category);
   }
 

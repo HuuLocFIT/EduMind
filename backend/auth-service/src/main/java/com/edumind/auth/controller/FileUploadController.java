@@ -71,6 +71,30 @@ public class FileUploadController {
     }
 
     /**
+     * Upload icon (category icons, SVG or raster)
+     * POST /upload/icon
+     */
+    @PostMapping("/icon")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<FileUploadResponse>> uploadIcon(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "folder", defaultValue = "images/icons") String folder) {
+
+        logger.info("📥 POST /upload/icon - Uploading icon: {}", file.getOriginalFilename());
+
+        FileUploadResponse uploadResult = cloudinaryService.uploadIcon(file, folder);
+
+        ApiResponse<FileUploadResponse> response = ApiResponse.<FileUploadResponse>builder()
+                .status(HttpStatus.OK.value())
+                .success(true)
+                .message("Icon uploaded successfully")
+                .data(uploadResult)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Delete file
      * DELETE /upload?url=....
      */

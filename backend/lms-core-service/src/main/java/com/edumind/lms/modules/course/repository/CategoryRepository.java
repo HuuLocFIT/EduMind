@@ -26,15 +26,20 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     boolean existsByName(String name);
 
     /**
-     * Find all active categories
+     * Find all active, non-deleted categories (PUBLIC listing)
      */
-    List<Category> findByIsActiveTrue();
+    List<Category> findByIsActiveTrueAndDeletedAtIsNull();
+
+    /**
+     * Find all non-deleted categories (ADMIN listing)
+     */
+    List<Category> findByDeletedAtIsNull();
 
     /**
      * Find categories with published courses
      */
     @Query("SELECT DISTINCT c FROM Category c " +
-            "JOIN c.courses co WHERE co.status = 'PUBLISHED'")
+            "JOIN c.courses co WHERE co.status = 'PUBLISHED' AND c.deletedAt IS NULL")
     List<Category> findCategoriesWithPublishedCourses();
 
     /**

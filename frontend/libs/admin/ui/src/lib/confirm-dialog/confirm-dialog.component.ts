@@ -1,5 +1,4 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ModalComponent } from '../modal/modal.component';
 
 export type ConfirmDialogVariant = 'danger' | 'warning' | 'info' | 'success';
@@ -14,7 +13,7 @@ interface VariantConfig {
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
-  imports: [CommonModule, ModalComponent],
+  imports: [ModalComponent],
   templateUrl: './confirm-dialog.component.html',
 })
 export class ConfirmDialogComponent {
@@ -25,6 +24,7 @@ export class ConfirmDialogComponent {
   @Input() cancelText = 'Cancel';
   @Input() variant: ConfirmDialogVariant = 'danger';
   @Input() isLoading = false;
+  @Input() errorMessage = '';
 
   @Output() confirm = new EventEmitter<void>();
   // eslint-disable-next-line @angular-eslint/no-output-native

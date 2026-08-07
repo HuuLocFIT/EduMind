@@ -30,4 +30,14 @@ export class FileUploadService {
       .post<FileUploadResponse>(`${this.API_URL}${UPLOAD_ENDPOINTS.IMAGE}`, formData)
       .pipe(map((response) => FileUploadResponseSchema.parse(response)));
   }
+
+  uploadIcon(file: File, folder = 'images/icons'): Observable<FileUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    return this.http
+      .post<FileUploadResponse>(`${this.API_URL}${UPLOAD_ENDPOINTS.ICON}`, formData)
+      .pipe(map((response) => FileUploadResponseSchema.parse(response)));
+  }
 }

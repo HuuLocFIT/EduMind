@@ -16,6 +16,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -102,7 +103,7 @@ public class CategoryServiceImpl implements CategoryService {
             throw new BadRequestException("Cannot delete category with existing courses");
         }
 
-        category.setIsActive(false);
+        category.setDeletedAt(LocalDateTime.now());
         categoryRepository.save(category);
 
         eventPublisher.publishEvent(new CategoryDeletedEvent(this, categoryId, category.getName()));
@@ -112,26 +113,34 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public Category getCategoryById(Long categoryId) {
-        return categoryRepository.findById(categoryId)
+        Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+        if (category.getDeletedAt() != null) {
+            throw new CategoryNotFoundException(categoryId);
+        }
+        return category;
     }
 
     @Override
     public Category getCategoryBySlug(String slug) {
-        return categoryRepository.findBySlug(slug)
+        Category category = categoryRepository.findBySlug(slug)
                 .orElseThrow(() -> new CategoryNotFoundException(slug));
+        if (category.getDeletedAt() != null) {
+            throw new CategoryNotFoundException(slug);
+        }
+        return category;
     }
 
     @Override
     public List<Category> getAllActiveCategories() {
         log.debug("Getting all active categories");
-        return categoryRepository.findByIsActiveTrue();
+        return categoryRepository.findByIsActiveTrueAndDeletedAtIsNull();
     }
 
     @Override
     public List<Category> getAllCategories() {
         log.debug("Getting all categories");
-        return categoryRepository.findAll();
+        return categoryRepository.findByDeletedAtIsNull();
     }
 
     @Override

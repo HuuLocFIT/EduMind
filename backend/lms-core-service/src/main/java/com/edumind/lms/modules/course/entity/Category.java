@@ -4,6 +4,7 @@ import com.edumind.lms.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +29,8 @@ public class Category extends BaseEntity {
 
     @Column(nullable = false)
     private Boolean isActive = true;
+
+    private LocalDateTime deletedAt;
 
     @OneToMany(mappedBy = "category")
     @Builder.Default
