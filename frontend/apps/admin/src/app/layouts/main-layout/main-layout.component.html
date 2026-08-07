@@ -168,11 +168,6 @@
           <span class="material-icons block text-[24px]">menu</span>
         </button>
 
-        <!-- Search Bar (Desktop) -->
-        <div class="hidden md:flex flex-1 max-w-lg ml-4">
-          <app-search-bar placeholder="Search..." [fullWidth]="true"></app-search-bar>
-        </div>
-
         <div class="flex-1"></div>
 
         <!-- Header Actions -->
@@ -241,7 +236,7 @@
   }
 
   <!-- Dropdown Close Handler -->
-  @if (isUserMenuOpen() || isNotificationOpen()) {
+  @if (isUserMenuOpen()) {
     <div
       (click)="closeMenus()"
       (keyup.enter)="closeMenus()"

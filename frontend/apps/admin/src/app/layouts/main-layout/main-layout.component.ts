@@ -4,7 +4,6 @@ import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } fro
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
-import { SearchBarComponent } from '@edumind/admin-ui';
 
 interface NavItem {
   label: string;
@@ -17,7 +16,7 @@ interface NavItem {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, SearchBarComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './main-layout.component.html',
   styleUrls: ['./main-layout.component.css'],
 })
@@ -27,7 +26,6 @@ export class MainLayoutComponent {
 
   isSidebarOpen = signal(true);
   isUserMenuOpen = signal(false);
-  isNotificationOpen = signal(false);
   expandedItems = signal<Set<string>>(new Set());
 
   readonly ADMIN_ROUTES = ADMIN_ROUTES;
@@ -98,21 +96,10 @@ export class MainLayoutComponent {
 
   toggleUserMenu(): void {
     this.isUserMenuOpen.update((value) => !value);
-    if (this.isUserMenuOpen()) {
-      this.isNotificationOpen.set(false);
-    }
-  }
-
-  toggleNotifications(): void {
-    this.isNotificationOpen.update((value) => !value);
-    if (this.isNotificationOpen()) {
-      this.isUserMenuOpen.set(false);
-    }
   }
 
   closeMenus(): void {
     this.isUserMenuOpen.set(false);
-    this.isNotificationOpen.set(false);
   }
 
   toggleExpanded(itemLabel: string): void {
