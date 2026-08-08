@@ -2,12 +2,23 @@ import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axe from 'axe-core';
 import type { GeneratedQuizResponse, LessonResponse, QuizAttemptResponse } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
 import { ArticleViewer } from './ArticleViewer';
 import { InlineQuizTaker } from './InlineQuizTaker';
 import { QuizTakerModal } from './QuizTakerModal';
+
+// Quiz components now read/write quiz data through TanStack Query (see
+// useQuiz.ts) for caching, so tests need a real QueryClientProvider. A fresh
+// client per render keeps each test's cache isolated.
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0 } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
 
 const assertNoSeriousViolations = async (container: HTMLElement) => {
   const result = await axe.run(container, { resultTypes: ['violations'] });
@@ -82,7 +93,7 @@ const flows: Flow[] = [
     name: 'InlineQuizTaker',
     render: async () => {
       const user = userEvent.setup();
-      const result = render(<InlineQuizTaker lesson={lesson} />);
+      const result = renderWithQueryClient(<InlineQuizTaker lesson={lesson} />);
       await screen.findAllByRole('radio');
       return { container: result.container, user };
     },
@@ -91,7 +102,7 @@ const flows: Flow[] = [
     name: 'QuizTakerModal',
     render: async () => {
       const user = userEvent.setup();
-      const result = render(<QuizTakerModal isOpen onClose={vi.fn()} lesson={lesson} />);
+      const result = renderWithQueryClient(<QuizTakerModal isOpen onClose={vi.fn()} lesson={lesson} />);
       await screen.findAllByRole('radio');
       return { container: result.container, user };
     },

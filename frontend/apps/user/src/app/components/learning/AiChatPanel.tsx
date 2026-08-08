@@ -14,6 +14,7 @@ import type {
   SourceLessonDto,
 } from '@edumind/shared-types';
 import { useAiChatStore, type AiChatMessage } from '../../stores/aiChat.store';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -215,6 +216,7 @@ interface AiChatPanelProps {
 }
 
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) => {
+  const panelRef = useFocusTrap(true, onClose);
   const storedMessages = useAiChatStore(
     (state) => state.chatsByCourse[courseId.toString()]
   );
@@ -232,6 +234,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
   const prevMessagesLengthRef = useRef(messages.length);
   const prevIsLoadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Typewriter: targetTextRef accumulates raw SSE text; setInterval drips it into
   // streamingDisplayText so large backend chunks feel smooth.
@@ -259,6 +262,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
   // On open: scroll so the last user question is at the top
   useEffect(() => {
+    inputRef.current?.focus();
     const timer = setTimeout(scrollToLastQuestion, 0);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -479,21 +483,27 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
   return (
     <div
+      id="ai-course-tutor-dialog"
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ai-course-tutor-title"
+      aria-describedby="ai-course-tutor-description"
       className="fixed bottom-20 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)]
-                 bg-white rounded-2xl shadow-2xl border flex flex-col md:bottom-6 md:right-[336px]"
+                 bg-white rounded-2xl shadow-2xl border flex flex-col md:bottom-24 md:right-[336px]"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-full bg-indigo-50">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
+            <Sparkles aria-hidden="true" className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <h3 id="ai-course-tutor-title" className="font-semibold text-gray-900 flex items-center gap-2">
               AI Course Tutor
-              <MessageCircle className="w-4 h-4 text-gray-500" />
+              <MessageCircle aria-hidden="true" className="w-4 h-4 text-gray-500" />
             </h3>
-            <p className="text-xs text-gray-500">
+            <p id="ai-course-tutor-description" className="text-xs text-gray-500">
               Ask questions about this course. Answers are based on the course lessons.
             </p>
           </div>
@@ -501,9 +511,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
         <button
           type="button"
           onClick={handleCloseClick}
+          aria-label="Close AI Course Tutor"
           className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
         >
-          <X className="w-4 h-4 text-gray-500" />
+          <X aria-hidden="true" className="w-4 h-4 text-gray-500" />
         </button>
       </div>
 
@@ -561,6 +572,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       {/* Input */}
       <div className="flex items-end gap-2 px-4 py-3 border-t bg-white flex-shrink-0">
         <textarea
+          ref={inputRef}
+          aria-label="Ask the AI Course Tutor a question"
           rows={2}
           className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none overflow-y-auto min-h-[56px]"
           placeholder="Type your question... (Enter to send, Shift+Enter for new line)"

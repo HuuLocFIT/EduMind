@@ -9,6 +9,12 @@ export interface CoursePlayerHeaderProps {
   sidebarToggleRef: React.RefObject<HTMLButtonElement | null>;
   onExit: () => void;
   onToggleSidebar: () => void;
+  /**
+   * True while course data is still loading. Keeps the exact same grid
+   * structure and swaps only the title/progress content for skeleton bars,
+   * so the header never reflows when the real data arrives.
+   */
+  loading?: boolean;
   className?: string;
 }
 
@@ -19,10 +25,15 @@ export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
   sidebarToggleRef,
   onExit,
   onToggleSidebar,
+  loading = false,
   className,
 }) => {
   return (
-    <header className={`bg-gray-800 border-b border-gray-700 sticky top-16 z-20 ${className ?? ''}`}>
+    <header
+      className={`bg-gray-800 border-b border-gray-700 sticky top-16 z-20 ${
+        sidebarOpen ? 'xl:mr-80' : ''
+      } ${className ?? ''}`}
+    >
       <div className="px-3 sm:px-4 py-3 grid grid-cols-[3rem_1fr_3rem] xl:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 xl:gap-4">
         <Button
           variant="secondary"
@@ -35,7 +46,14 @@ export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
         </Button>
 
         <h1 className="text-white font-semibold text-center xl:text-left truncate px-1 xl:px-0">
-          {courseTitle}
+          {loading ? (
+            <span
+              className="inline-block h-5 xl:h-6 w-40 xl:w-64 max-w-full bg-gray-700 rounded animate-pulse align-middle"
+              aria-hidden="true"
+            />
+          ) : (
+            courseTitle
+          )}
         </h1>
 
         <button
@@ -51,16 +69,27 @@ export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
         </button>
 
         <div className="hidden xl:flex items-center gap-3">
-          <span className="text-gray-300 text-sm whitespace-nowrap">
-            Course Progress: {progressPercentage || 0}%
-          </span>
-          <div className="w-32" data-testid="progress-bar">
-            <ProgressBar
-              progress={progressPercentage || 0}
-              size="sm"
-              color="green"
-            />
-          </div>
+          {loading ? (
+            <>
+              <div className="h-4 w-40 bg-gray-700 rounded animate-pulse" aria-hidden="true" />
+              <div className="w-32">
+                <div className="h-1.5 w-full bg-gray-700 rounded-full animate-pulse" aria-hidden="true" />
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-gray-300 text-sm whitespace-nowrap">
+                Course Progress: {progressPercentage || 0}%
+              </span>
+              <div className="w-32" data-testid="progress-bar">
+                <ProgressBar
+                  progress={progressPercentage || 0}
+                  size="sm"
+                  color="green"
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

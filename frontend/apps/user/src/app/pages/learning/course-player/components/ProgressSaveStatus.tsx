@@ -14,11 +14,13 @@ export const ProgressSaveStatus: React.FC<ProgressSaveStatusProps> = ({
   onRetry,
   className,
 }) => {
+  if (state === 'idle' && !error) return null;
+
   return (
     <section aria-label="Video progress save status" className={`px-3 sm:px-6 ${className ?? ''}`}>
       <div className="max-w-4xl mx-auto">
         {state === 'saving' && (
-          <p role="status" className="text-sm text-gray-300 py-2">
+          <p role="status" className="sr-only">
             Saving video progress…
           </p>
         )}

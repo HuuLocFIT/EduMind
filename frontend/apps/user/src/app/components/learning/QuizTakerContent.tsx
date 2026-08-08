@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback, useId, useRef } from "react";
-import type { LessonResponse, GeneratedQuizResponse, QuizAttemptResponse, QuizQuestionDto } from "@edumind/shared-types";
-import { Button, Loading } from "@edumind/user-ui";
+import type {
+  LessonResponse,
+  GeneratedQuizResponse,
+  QuizAttemptResponse,
+  QuizQuestionDto,
+} from "@edumind/shared-types";
+import { Button } from "@edumind/user-ui";
 import { BookOpen, CheckCircle, XCircle, ChevronDown, ChevronRight, Trophy } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { aiService } from "../../services/ai.service";
+import { queryKeys } from "../../lib/query-keys";
+import { useQuizForLesson, useQuizAttempts } from "../../hooks/useQuiz";
 import { QuizQuestionFieldset } from "./QuizQuestionFieldset";
+import { AutoHeightTransition } from "../ui/AutoHeightTransition";
 
 const PASS_THRESHOLD = 70;
 
@@ -16,6 +25,11 @@ interface QuizTakerContentProps {
 }
 
 export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQuizPass, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: quizData, isLoading: quizLoading } = useQuizForLesson(lesson.id);
+  const { data: fetchedAttempts, isLoading: attemptsLoading } = useQuizAttempts(lesson.id);
+  const isLoading = quizLoading || attemptsLoading;
+
   const [phase, setPhase] = useState<Phase>("loading");
   const [quiz, setQuiz] = useState<GeneratedQuizResponse | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -33,60 +47,53 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
   const focusResultRef = useRef(false);
 
-  const loadPastAttempts = useCallback(async () => {
-    try {
-      const attempts = await aiService.getMyAttempts(lesson.id);
-      setPastAttempts(attempts);
-      return attempts;
-    } catch {
-      return [];
-    }
-  }, [lesson.id]);
+  // Derives local UI state from the cached quiz/attempts query results
+  // synchronously during render (not in an effect), per
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-based-on-a-prop-change.
+  // `syncedKey` tracks the last (lessonId, loading-state) pair we've already
+  // derived from, so a cache hit (isLoading=false on first render) renders
+  // its real phase in the very same commit instead of an effect flipping it
+  // one paint later — that one-paint gap was the quiz-body flash on lesson
+  // revisits. It only re-runs on a genuine lesson change or an initial-fetch
+  // loading transition — NOT on every cache write — so patching the attempts
+  // cache after a fresh submission (see handleSubmit) never resets `phase`
+  // or clobbers focusResultRef out from under the focus effect below.
+  const syncKey = `${lesson.id}:${isLoading ? "loading" : "loaded"}`;
+  const [syncedKey, setSyncedKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const init = async () => {
+  if (syncKey !== syncedKey) {
+    setSyncedKey(syncKey);
+
+    if (isLoading) {
       setPhase("loading");
-      setQuiz(null);
-      setAnswers([]);
-      setAttempt(null);
+    } else {
+      const attempts = fetchedAttempts ?? [];
+      setPastAttempts(attempts);
       setExpandedExplanations(new Set());
       setShowPastAttempts(false);
       setValidationMessage("");
       setSubmitError("");
       focusResultRef.current = false;
 
-      try {
-        const [quizData, attempts] = await Promise.all([
-          aiService.getQuizForStudent(lesson.id),
-          aiService.getMyAttempts(lesson.id),
-        ]);
-        if (cancelled) return;
-
-        setPastAttempts(attempts);
-
-        if (!quizData) {
-          setPhase("no-quiz");
-          return;
-        }
-
+      if (!quizData) {
+        setQuiz(null);
+        setAttempt(null);
+        setAnswers([]);
+        setPhase("no-quiz");
+      } else {
         setQuiz(quizData);
-
         if (attempts.length > 0) {
           setAttempt(attempts[0]);
+          setAnswers([]);
           setPhase("result");
         } else {
+          setAttempt(null);
           setAnswers(new Array(quizData.questions.length).fill(-1));
           setPhase("taking");
         }
-      } catch {
-        if (!cancelled) setPhase("no-quiz");
       }
-    };
-
-    init();
-    return () => { cancelled = true; };
-  }, [lesson.id]);
+    }
+  }
 
   // Focus the result heading only when a fresh submission produced the result,
   // not on the initial load when past attempts already exist.
@@ -119,9 +126,15 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
     try {
       const result = await aiService.submitAttempt({ lessonId: lesson.id, quizId: quiz.id, answers });
       setAttempt(result);
+      setPastAttempts((prev) => [result, ...prev]);
       setPhase("result");
       focusResultRef.current = true;
-      await loadPastAttempts();
+      // Patch the cache directly (not invalidate+refetch) so a lesson
+      // revisit sees this attempt immediately, without a network round trip.
+      queryClient.setQueryData<QuizAttemptResponse[]>(
+        queryKeys.ai.attempts(lesson.id),
+        (prev) => [result, ...(prev ?? [])]
+      );
       if (result.percentage >= PASS_THRESHOLD) {
         onQuizPass?.();
       }
@@ -130,7 +143,7 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
     } finally {
       setSubmitting(false);
     }
-  }, [quiz, answers, lesson.id, loadPastAttempts, onQuizPass, submitting]);
+  }, [quiz, answers, lesson.id, onQuizPass, submitting, queryClient]);
 
   const handleTryAgain = () => {
     if (!quiz) return;
@@ -158,27 +171,41 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
     ? pastAttempts.reduce((best, cur) => cur.percentage > best.percentage ? cur : best).id
     : null;
 
+  let content: React.ReactNode = null;
+
   if (phase === "loading") {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <Loading size="lg" />
-        <p className="mt-4 text-gray-600">Loading quiz...</p>
+    // Mirrors the shape of the "taking" phase below (subtitle + question
+    // fieldsets + submit bar) instead of generic bars, so swapping in the
+    // real quiz doesn't collapse/expand the page height as sharply.
+    content = (
+      <div className="space-y-6 animate-pulse" aria-hidden="true">
+        <div className="h-4 bg-gray-200 rounded w-1/2" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="border rounded-lg p-4 space-y-3">
+            <div className="h-4 bg-gray-200 rounded w-3/4" />
+            <div className="space-y-2">
+              <div className="h-11 bg-gray-100 rounded-md" />
+              <div className="h-11 bg-gray-100 rounded-md" />
+              <div className="h-11 bg-gray-100 rounded-md" />
+              <div className="h-11 bg-gray-100 rounded-md" />
+            </div>
+          </div>
+        ))}
+        <div className="flex justify-end pt-4 border-t">
+          <div className="h-10 w-32 bg-gray-200 rounded-md" />
+        </div>
       </div>
     );
-  }
-
-  if (phase === "no-quiz") {
-    return (
+  } else if (phase === "no-quiz") {
+    content = (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
         <p className="text-gray-600 font-medium">No quiz available yet</p>
         <p className="text-sm text-gray-500 mt-1">Your instructor hasn't generated a quiz for this lesson.</p>
       </div>
     );
-  }
-
-  if (phase === "taking" && quiz) {
-    return (
+  } else if (phase === "taking" && quiz) {
+    content = (
       <div className="space-y-6">
         <p className="text-sm text-gray-500">Answer all {quiz.questions.length} questions below.</p>
 
@@ -228,10 +255,8 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
         </div>
       </div>
     );
-  }
-
-  if (phase === "result" && attempt) {
-    return (
+  } else if (phase === "result" && attempt) {
+    content = (
       <div className="space-y-6">
         <section
           role="status"
@@ -365,5 +390,9 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
     );
   }
 
-  return null;
+  return (
+    <AutoHeightTransition transitionKey={phase}>
+      {content}
+    </AutoHeightTransition>
+  );
 };

@@ -254,6 +254,8 @@ export const certificateKeys = {
 // ============================================
 export const aiKeys = {
   summary: (lessonId: number) => ['ai', 'summary', lessonId] as const,
+  quiz: (lessonId: number) => ['ai', 'quiz', lessonId] as const,
+  attempts: (lessonId: number) => ['ai', 'attempts', lessonId] as const,
 } as const;
 
 // ============================================

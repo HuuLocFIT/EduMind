@@ -6,7 +6,6 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { ArticleViewer } from '../../../../components/learning/ArticleViewer';
 import { LessonSummaryPanel } from '../../../../components/learning/LessonSummaryPanel';
 import type { CompletionError } from '../course-player.types';
-import { LessonNavigation } from './LessonNavigation';
 import { LessonTranscriptCard } from './LessonTranscriptCard';
 import { LessonResources } from './LessonResources';
 import { QuizLauncher } from './QuizLauncher';
@@ -22,10 +21,6 @@ export interface StandardLessonContentProps {
   onMarkComplete: () => void;
   onOpenQuiz: () => void;
   onDownloadTranscript: () => void;
-  hasPrevious: boolean;
-  hasNext: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
   className?: string;
 }
 
@@ -40,14 +35,10 @@ export const StandardLessonContent: React.FC<StandardLessonContentProps> = ({
   onMarkComplete,
   onOpenQuiz,
   onDownloadTranscript,
-  hasPrevious,
-  hasNext,
-  onPrevious,
-  onNext,
   className,
 }) => {
   return (
-    <div className={`p-3 sm:p-6 bg-white ${className ?? ''}`} data-testid="lesson-content">
+    <div className={`p-3 sm:p-6 pb-28 bg-white ${className ?? ''}`} data-testid="lesson-content">
       <div className="max-w-4xl mx-auto">
         {/* Lesson Header */}
         <div
@@ -130,14 +121,6 @@ export const StandardLessonContent: React.FC<StandardLessonContentProps> = ({
 
         {/* Resources */}
         <LessonResources resources={lesson.resources} />
-
-        {/* Navigation Buttons */}
-        <LessonNavigation
-          hasPrevious={hasPrevious}
-          hasNext={hasNext}
-          onPrevious={onPrevious}
-          onNext={onNext}
-        />
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useModal } from '@edumind/user-ui';
-import { CoursePlayerSkeleton } from '../../../components/route-skeletons/CoursePlayerSkeleton';
+import { LessonContentSkeleton } from '../../../components/route-skeletons/LessonContentSkeleton';
+import { useLessonTypeHint } from '../../../hooks/useLessonTypeHint';
 import type { LessonResponse, LessonProgressResponse } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
 import { BookOpen } from 'lucide-react';
@@ -12,6 +13,7 @@ import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
 import { CourseAccessErrorDialog } from './components/CourseAccessErrorDialog';
 import { CourseCompletionDialog } from './components/CourseCompletionDialog';
 import { CoursePlayerHeader } from './components/CoursePlayerHeader';
+import { LessonNavigation } from './components/LessonNavigation';
 import { ProgressSaveStatus } from './components/ProgressSaveStatus';
 import { CompletionReconcileStatus } from './components/CompletionReconcileStatus';
 import { AutoAdvanceBanner } from './components/AutoAdvanceBanner';
@@ -67,6 +69,11 @@ export const CoursePlayerPage: React.FC = () => {
   const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
   const layout = useCoursePlayerLayout(currentLesson);
+
+  // Best-effort guess at the current lesson's content type before real data
+  // has loaded (query param / localStorage hint), so the loading skeleton
+  // shows the right shape instead of a generic shell.
+  const contentTypeHint = useLessonTypeHint();
 
   // Refs
   const completionModalShownRef = useRef(false);
@@ -223,10 +230,6 @@ export const CoursePlayerPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) {
-    return <CoursePlayerSkeleton />;
-  }
-
   // Access error modal – shown when user is DROPPED/SUSPENDED or not properly enrolled
   if (accessError) {
     return (
@@ -240,46 +243,46 @@ export const CoursePlayerPage: React.FC = () => {
     );
   }
 
-  if (!course || !currentLesson) {
+  if (!loading && (!course || !currentLesson)) {
     return <CourseNotFound onBackToLearning={() => navigate(USER_ROUTES.LEARNING)} />;
   }
 
-  // Shared between the mutually-exclusive QUIZ/non-QUIZ render positions below.
-  const lessonContent = (
-    <CourseLessonContent
-      lesson={currentLesson}
-      enrollment={enrollment}
-      currentLessonProgress={currentLessonProgress}
-      completingLessonId={completingLessonId}
-      completionError={completionError}
-      lessonHasQuiz={lessonHasQuiz}
-      lessonHeadingRef={layout.lessonHeadingRef}
-      completionControlsRef={completionControlsRef}
-      onMarkComplete={handleMarkComplete}
-      onQuizPass={handleQuizPass}
-      onOpenQuiz={quizModal.open}
-      onDownloadTranscript={handleDownloadTranscript}
-      hasPrevious={!!navigation.previousLesson}
-      hasNext={!!navigation.nextLesson}
-      onPrevious={navigation.navigatePrevious}
-      onNext={navigation.navigateNext}
-    />
-  );
+  // While `loading`, `course`/`currentLesson` are legitimately still null —
+  // the header/sidebar below render their own internal skeletons for that
+  // case instead of this page unmounting into a separate full-page skeleton,
+  // so the header and sidebar never flicker/remount once data arrives. Only
+  // the lesson-content column swaps from skeleton to real content (see the
+  // comment at that swap for why it isn't height-animated).
+  const rootContentType = currentLesson?.contentType ?? (loading ? contentTypeHint : undefined);
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div
+      className={`min-h-screen flex flex-col ${
+        rootContentType === ContentType.VIDEO ? 'bg-gray-900' : 'bg-white'
+      }`}
+    >
+      {loading && (
+        <p role="status" className="sr-only">
+          Loading course player
+        </p>
+      )}
+
       <CoursePlayerHeader
-        courseTitle={course.title}
+        courseTitle={course?.title ?? ''}
         progressPercentage={enrollment?.progressPercentage || 0}
         sidebarOpen={layout.sidebarOpen}
         sidebarToggleRef={layout.sidebarToggleRef}
         onExit={() => navigate(USER_ROUTES.LEARNING)}
         onToggleSidebar={() => layout.setSidebarOpen(!layout.sidebarOpen)}
+        loading={loading}
       />
 
-      <div className="flex relative">
+      <div className="flex relative flex-1">
         {/* Main Content */}
-        <div id="course-player-main" className={`flex-1 min-w-0 ${layout.sidebarOpen ? 'xl:mr-80' : ''}`}>
+        <div
+          id="course-player-main"
+          className={`flex-1 min-w-0 flex flex-col ${layout.sidebarOpen ? 'xl:mr-80' : ''}`}
+        >
           {(completionReconcileError || completionReconcileInFlight) && (
             <CompletionReconcileStatus
               inFlight={completionReconcileInFlight}
@@ -304,41 +307,74 @@ export const CoursePlayerPage: React.FC = () => {
             />
           )}
 
-          {/* QUIZ lesson — inline quiz taker, no video/article. Rendered from
-              the same `lessonContent` element below the video block so the
-              QUIZ and non-QUIZ branches never duplicate props. */}
-          {currentLesson.contentType === ContentType.QUIZ && lessonContent}
+          {loading || !currentLesson ? (
+            <LessonContentSkeleton contentType={contentTypeHint} />
+          ) : (
+            <>
+              {/* Video Player - only for VIDEO type */}
+              {currentLesson.contentType === ContentType.VIDEO && (
+                (currentLesson.videoStreamUrl || currentLesson.video480pUrl || currentLesson.videoUrl) ? (
+                  <VideoPlayer
+                    ref={videoRef}
+                    src720p={currentLesson.videoStreamUrl}
+                    src480p={currentLesson.video480pUrl}
+                    fallbackSrc={currentLesson.videoUrl}
+                    captionSrc={currentLesson.videoCaptionUrl}
+                    onLoadedMetadata={handleVideoLoadedMetadata}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                    onEnded={handleVideoEnded}
+                  />
+                ) : (
+                  <div className="bg-black aspect-video flex items-center justify-center">
+                    <BookOpen className="w-20 h-20 text-gray-400" aria-hidden="true" />
+                  </div>
+                )
+              )}
 
-          {/* Video Player - only for VIDEO type */}
-          {currentLesson.contentType === ContentType.VIDEO && (
-            (currentLesson.videoStreamUrl || currentLesson.video480pUrl || currentLesson.videoUrl) ? (
-              <VideoPlayer
-                key={currentLesson.id}
-                ref={videoRef}
-                src720p={currentLesson.videoStreamUrl}
-                src480p={currentLesson.video480pUrl}
-                fallbackSrc={currentLesson.videoUrl}
-                captionSrc={currentLesson.videoCaptionUrl}
-                onLoadedMetadata={handleVideoLoadedMetadata}
-                onTimeUpdate={handleVideoTimeUpdate}
-                onEnded={handleVideoEnded}
+              {/* Keep a failed video save actionable after lesson navigation:
+                  the retry owns the original lesson's exact payload. Saving
+                  announcements remain exclusive to video lessons. */}
+              {(currentLesson.contentType === ContentType.VIDEO || progressSaveError) && (
+                <ProgressSaveStatus
+                  state={
+                    currentLesson.contentType === ContentType.VIDEO
+                      ? progressSaveState
+                      : 'error'
+                  }
+                  error={progressSaveError}
+                  onRetry={() => progressSaveError?.retry()}
+                />
+              )}
+
+              <CourseLessonContent
+                lesson={currentLesson}
+                enrollment={enrollment}
+                currentLessonProgress={currentLessonProgress}
+                completingLessonId={completingLessonId}
+                completionError={completionError}
+                lessonHasQuiz={lessonHasQuiz}
+                lessonHeadingRef={layout.lessonHeadingRef}
+                completionControlsRef={completionControlsRef}
+                onMarkComplete={handleMarkComplete}
+                onQuizPass={handleQuizPass}
+                onOpenQuiz={quizModal.open}
+                onDownloadTranscript={handleDownloadTranscript}
               />
-            ) : (
-              <div className="bg-black aspect-video flex items-center justify-center">
-                <BookOpen className="w-20 h-20 text-gray-400" aria-hidden="true" />
-              </div>
-            )
+            </>
           )}
 
-          {/* Progress autosave status — persistent error with retry, not a toast */}
-          <ProgressSaveStatus
-            state={progressSaveState}
-            error={progressSaveError}
-            onRetry={() => progressSaveError?.retry()}
-          />
+          {/* Flex-1 spacer, not the content above, absorbs any leftover
+              space so LessonNavigation sits at the viewport bottom even
+              when content is shorter than the viewport — see the comment
+              on #course-player-main above. */}
+          <div className="flex-1" aria-hidden="true" />
 
-          {/* Lesson Content — not shown for QUIZ type (handled above) */}
-          {currentLesson.contentType !== ContentType.QUIZ && lessonContent}
+          <LessonNavigation
+            hasPrevious={!loading && !!navigation.previousLesson}
+            hasNext={!loading && !!navigation.nextLesson}
+            onPrevious={navigation.navigatePrevious}
+            onNext={navigation.navigateNext}
+          />
         </div>
 
         <CourseCurriculumSidebar
@@ -346,7 +382,7 @@ export const CoursePlayerPage: React.FC = () => {
           isDesktop={layout.isDesktop}
           sections={sections}
           lessons={lessons}
-          currentLessonId={currentLesson.id}
+          currentLessonId={currentLesson?.id ?? -1}
           completedLessonIds={new Set(
             allLessonProgress.filter((progress) => progress.isCompleted).map((progress) => progress.lessonId)
           )}
@@ -364,10 +400,11 @@ export const CoursePlayerPage: React.FC = () => {
           onClose={() => layout.setSidebarOpen(false)}
           activeLessonRef={layout.activeLessonRef}
           sidebarScrollRef={layout.sidebarScrollRef}
+          loading={loading}
         />
       </div>
 
-      {completionModalOpen && (
+      {completionModalOpen && course && (
         <CourseCompletionDialog
           courseTitle={course.title}
           onBackToLearning={() => navigate(USER_ROUTES.LEARNING)}

@@ -7,7 +7,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./query-keys";
 import { courseService } from "../services/course.service";
-import { STALE_TIME_COURSE_DETAIL } from "./query-config";
+import { aiService } from "../services/ai.service";
+import { STALE_TIME_COURSE_DETAIL, STALE_TIME_QUIZ, STALE_TIME_LESSON_SUMMARY } from "./query-config";
 
 /**
  * Prefetch a course detail into the cache.
@@ -30,5 +31,42 @@ export const prefetchCourseDetail = (
         ? courseService.getCourseBySlug(slugOrId)
         : courseService.getCourseById(slugOrId),
     staleTime: STALE_TIME_COURSE_DETAIL,
+  });
+};
+
+/**
+ * Prefetch a quiz lesson's quiz + the student's past attempts into the
+ * cache. Called as soon as the user navigates to a QUIZ-type lesson (before
+ * QuizTakerContent mounts) so the fetch is already in flight — a cache hit
+ * on a revisit renders instantly with no loading flash.
+ */
+export const prefetchLessonQuiz = (queryClient: QueryClient, lessonId: number) => {
+  if (!lessonId) return;
+
+  queryClient.prefetchQuery({
+    queryKey: queryKeys.ai.quiz(lessonId),
+    queryFn: () => aiService.getQuizForStudent(lessonId),
+    staleTime: STALE_TIME_QUIZ,
+  });
+  queryClient.prefetchQuery({
+    queryKey: queryKeys.ai.attempts(lessonId),
+    queryFn: () => aiService.getMyAttempts(lessonId),
+    staleTime: STALE_TIME_QUIZ,
+  });
+};
+
+/**
+ * Prefetch a lesson's AI summary into the cache. Called as soon as the user
+ * navigates to an ARTICLE/VIDEO-type lesson (before LessonSummaryPanel
+ * mounts) so a revisit within this session renders instantly with no
+ * loading flash.
+ */
+export const prefetchLessonSummary = (queryClient: QueryClient, lessonId: number) => {
+  if (!lessonId) return;
+
+  queryClient.prefetchQuery({
+    queryKey: queryKeys.ai.summary(lessonId),
+    queryFn: () => aiService.getSummaryByLesson(lessonId),
+    staleTime: STALE_TIME_LESSON_SUMMARY,
   });
 };

@@ -18,10 +18,6 @@ export interface CourseLessonContentProps {
   onQuizPass: () => void;
   onOpenQuiz: () => void;
   onDownloadTranscript: () => void;
-  hasPrevious: boolean;
-  hasNext: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
   className?: string;
 }
 
@@ -44,10 +40,6 @@ export const CourseLessonContent: React.FC<CourseLessonContentProps> = ({
   onQuizPass,
   onOpenQuiz,
   onDownloadTranscript,
-  hasPrevious,
-  hasNext,
-  onPrevious,
-  onNext,
   className,
 }) => {
   if (lesson.contentType === ContentType.QUIZ) {
@@ -57,10 +49,6 @@ export const CourseLessonContent: React.FC<CourseLessonContentProps> = ({
         lesson={lesson}
         lessonHeadingRef={lessonHeadingRef}
         onQuizPass={onQuizPass}
-        hasPrevious={hasPrevious}
-        hasNext={hasNext}
-        onPrevious={onPrevious}
-        onNext={onNext}
         className={className}
       />
     );
@@ -78,10 +66,6 @@ export const CourseLessonContent: React.FC<CourseLessonContentProps> = ({
       onMarkComplete={onMarkComplete}
       onOpenQuiz={onOpenQuiz}
       onDownloadTranscript={onDownloadTranscript}
-      hasPrevious={hasPrevious}
-      hasNext={hasNext}
-      onPrevious={onPrevious}
-      onNext={onNext}
       className={className}
     />
   );

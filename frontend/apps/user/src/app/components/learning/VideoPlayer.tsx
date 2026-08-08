@@ -149,6 +149,23 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       }
     }, [playing, showSettings, resetControlsTimer]);
 
+    // ── Reset transient playback state when the lesson's video source changes
+    // (no `key` remount at the call site anymore, so the same DOM <video>
+    // element persists across lessons and only needs its own state reset) ──
+
+    useEffect(() => {
+      setPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setBufferedEnd(0);
+      setIsBuffering(false);
+      setIsQualitySwitching(false);
+      setShowSettings(false);
+      setPlaybackToast(null);
+      setPlaybackToastVisible(false);
+      pendingSeekRef.current = null;
+    }, [src720p, src480p, fallbackSrc]);
+
     // ── Fullscreen sync ───────────────────────────────────────────────────────
 
     useEffect(() => {
