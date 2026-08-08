@@ -91,11 +91,12 @@ test.describe('User — Course Browse', () => {
     await firstCard.click();
     await page.waitForURL(/\/courses\//);
 
-    // Curriculum / What you'll learn section
-    const curriculum = page
-      .getByRole('heading', { name: /curriculum|what you.ll learn|course content/i })
-      .or(page.locator('[data-testid="curriculum"]'));
-    await expect(curriculum).toBeVisible({ timeout: 8_000 });
+    const curriculumTab = page.getByRole('tab', { name: 'Curriculum', exact: true });
+    await expect(curriculumTab).toBeVisible({ timeout: 8_000 });
+    await curriculumTab.click();
+    await expect(
+      page.getByRole('heading', { name: 'Course Curriculum', exact: true }),
+    ).toBeVisible({ timeout: 8_000 });
   });
 
   // ─── Pagination ───────────────────────────────────────────────────────────

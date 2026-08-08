@@ -21,8 +21,21 @@ async function installAuthFixtures(
   page: Page,
   outcomes: Partial<Record<'login' | 'signup' | 'forgot' | 'reset', AuthOutcome>> = {},
 ) {
-  await page.route('**/api/auth/**', async (route) => {
+  await page.route('**/api/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname;
+
+    if (!pathname.includes('/auth/')) {
+      // Non-auth API calls (e.g. dashboard/learning data fetched by protected
+      // pages) must never reach the real backend with the fixture's fake
+      // token: a real 401 there triggers the app's refresh-then-logout flow
+      // and bounces the page back to /login, racing with test assertions.
+      if (route.request().method() !== 'GET') {
+        await json(route, apiError(405, 'Auth fixture blocks state-changing requests', pathname), 405);
+        return;
+      }
+      await json(route, { status: 200, success: true, data: [] });
+      return;
+    }
 
     if (pathname.endsWith('/auth/login')) {
       const outcome = outcomes.login ?? 'error';

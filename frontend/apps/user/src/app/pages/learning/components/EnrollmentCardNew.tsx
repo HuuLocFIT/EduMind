@@ -97,12 +97,12 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
             <span
               className={`text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 ${
                 isSuspended
-                  ? 'bg-amber-500 text-white'
+                  ? 'bg-amber-700 text-white'
                   : isCompleted
-                  ? 'bg-emerald-500 text-white'
+                  ? 'bg-emerald-700 text-white'
                   : progressPercentage > 0
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-amber-500 text-white'
+                  ? 'bg-blue-700 text-white'
+                  : 'bg-amber-700 text-white'
               }`}
             >
               {isSuspended ? (
@@ -131,7 +131,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
           {/* Free Badge */}
           {!enrollment.courseIsPaid && (
             <div className="absolute top-3 right-3" aria-hidden="true">
-              <span className="bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full">FREE</span>
+              <span className="bg-emerald-700 text-white text-xs font-semibold px-2.5 py-1 rounded-full">FREE</span>
             </div>
           )}
         </div>

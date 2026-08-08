@@ -96,6 +96,18 @@ export function ScrollToTop() {
     };
 
     const focusPageHeading = () => {
+      // An open modal owns initial focus and focus restoration. Do not let
+      // route-level heading focus pull keyboard users out of its focus trap.
+      const activeModal = document.querySelector(
+        '[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]',
+      );
+      if (activeModal) {
+        announceRouteNotification();
+        observer?.disconnect();
+        if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+        return true;
+      }
+
       const main = document.getElementById("main-content");
       const heading = main?.querySelector<HTMLElement>(
         "h1:not([aria-hidden='true'])",

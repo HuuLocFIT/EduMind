@@ -18,7 +18,7 @@
       "orientationAngle": 0,
       "orientationType": "landscape-primary"
     },
-    "timestamp": "2026-07-31T04:02:59.475Z",
+    "timestamp": "2026-08-08T14:54:55.407Z",
     "url": "http://localhost:3000/courses",
     "toolOptions": {
       "runOnly": {
@@ -94,23 +94,6 @@
         "nodes": []
       },
       {
-        "id": "aria-deprecated-role",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-7.1.1"
-        ],
-        "description": "Ensure elements do not use deprecated roles",
-        "help": "Deprecated ARIA roles must not be used",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-deprecated-role?application=playwright",
-        "nodes": []
-      },
-      {
         "id": "aria-input-field-name",
         "impact": null,
         "tags": [
@@ -165,23 +148,6 @@
         "nodes": []
       },
       {
-        "id": "aria-required-attr",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-7.1.1"
-        ],
-        "description": "Ensure elements with ARIA roles have all required ARIA attributes",
-        "help": "Required ARIA attributes must be provided",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-attr?application=playwright",
-        "nodes": []
-      },
-      {
         "id": "aria-required-children",
         "impact": null,
         "tags": [
@@ -213,23 +179,6 @@
         "description": "Ensure elements with an ARIA role that require parent roles are contained by them",
         "help": "Certain ARIA roles must be contained by particular parents",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-parent?application=playwright",
-        "nodes": []
-      },
-      {
-        "id": "aria-roles",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-7.1.1"
-        ],
-        "description": "Ensure all elements with a role attribute use a valid value",
-        "help": "ARIA roles used must conform to valid values",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-roles?application=playwright",
         "nodes": []
       },
       {
@@ -899,7 +848,7 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -932,7 +881,7 @@
               }
             ],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -1000,7 +949,40 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1166,7 +1148,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -1184,7 +1166,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -1222,7 +1204,25 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1295,6 +1295,42 @@
             "html": "<section aria-labelledby=\"footer-legal\">",
             "target": [
               "section[aria-labelledby=\"footer-legal\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-deprecated-role",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-7.1.1"
+        ],
+        "description": "Ensure elements do not use deprecated roles",
+        "help": "Deprecated ARIA roles must not be used",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-deprecated-role?application=playwright",
+        "nodes": [
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "deprecatedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "minor",
+                "message": "ARIA role is not deprecated"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
             ]
           }
         ]
@@ -1450,7 +1486,7 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -1468,7 +1504,7 @@
               }
             ],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -1506,7 +1542,25 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1584,6 +1638,92 @@
         ]
       },
       {
+        "id": "aria-required-attr",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-7.1.1"
+        ],
+        "description": "Ensure elements with ARIA roles have all required ARIA attributes",
+        "help": "Required ARIA attributes must be provided",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-attr?application=playwright",
+        "nodes": [
+          {
+            "any": [
+              {
+                "id": "aria-required-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "All required ARIA attributes are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-roles",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-7.1.1"
+        ],
+        "description": "Ensure all elements with a role attribute use a valid value",
+        "help": "ARIA roles used must conform to valid values",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-roles?application=playwright",
+        "nodes": [
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "invalidrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is valid"
+              },
+              {
+                "id": "abstractrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Abstract roles are not used"
+              },
+              {
+                "id": "unsupportedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
+            ]
+          }
+        ]
+      },
+      {
         "id": "aria-valid-attr-value",
         "impact": null,
         "tags": [
@@ -1626,7 +1766,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -1658,7 +1798,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -1724,7 +1864,39 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1886,7 +2058,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -1904,7 +2076,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -1942,7 +2114,25 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -2186,7 +2376,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
             ]
           }
         ]
@@ -2213,13 +2403,6 @@
         "nodes": [
           {
             "any": [
-              {
-                "id": "internal-link-present",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Valid skip link found"
-              },
               {
                 "id": "header-present",
                 "data": null,
@@ -2251,15 +2434,9 @@
                 "data": null,
                 "relatedNodes": [
                   {
-                    "html": "<main id=\"main-content\" tabindex=\"-1\" class=\"flex-1 flex flex-col\">",
+                    "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
                     "target": [
                       "#main-content"
-                    ]
-                  },
-                  {
-                    "html": "<main class=\"flex-1\">",
-                    "target": [
-                      ".lg\\:flex-row > main"
                     ]
                   }
                 ],
@@ -2343,7 +2520,7 @@
             "impact": null,
             "html": "<a class=\"transition-colors text-blue-600 font-medium\" href=\"/courses\">Browse Courses</a>",
             "target": [
-              ".font-medium"
+              ".md\\:flex > .font-medium"
             ]
           },
           {
@@ -2393,7 +2570,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
             ]
           },
           {
@@ -2418,7 +2595,7 @@
             "impact": null,
             "html": "<span class=\"font-bold text-gray-900\">EduMind</span>",
             "target": [
-              ".sm\\:mb-4.gap-2.items-center > span"
+              ".sm\\:mb-4.gap-2.items-center > .font-bold.text-gray-900"
             ]
           },
           {
@@ -2591,9 +2768,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
+            "html": "<span>Help Center</span>",
             "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
+              "li:nth-child(1) > span"
             ]
           },
           {
@@ -2616,9 +2793,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
+            "html": "<span>Contact Us</span>",
             "target": [
-              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
+              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > span"
             ]
           },
           {
@@ -2641,9 +2818,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
+            "html": "<span>FAQ</span>",
             "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
+              "li:nth-child(3) > span"
             ]
           },
           {
@@ -2716,9 +2893,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
+            "html": "<span>Privacy Policy</span>",
             "target": [
-              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
+              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > span"
             ]
           },
           {
@@ -2942,9 +3119,9 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
+            "html": "<a href=\"/courses#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
             "target": [
-              ".sr-only"
+              ".min-h-screen.bg-gray-50.flex-col > .sr-only"
             ]
           },
           {
@@ -2970,7 +3147,7 @@
             "impact": null,
             "html": "<a class=\"flex items-center gap-2\" href=\"/\">",
             "target": [
-              ".gap-2.items-center[href=\"/\"]"
+              ".gap-2[href=\"/\"]"
             ]
           },
           {
@@ -2996,7 +3173,7 @@
             "impact": null,
             "html": "<a class=\"transition-colors text-blue-600 font-medium\" href=\"/courses\">Browse Courses</a>",
             "target": [
-              ".font-medium"
+              ".md\\:flex > .font-medium"
             ]
           },
           {
@@ -3098,113 +3275,9 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
-            "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
-            "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
             "html": "<a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a>",
             "target": [
               "a[href$=\"terms\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
             ]
           }
         ]
@@ -3256,7 +3329,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a href=\"#\" class=\"hover:text-blue-600\">Help Center</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">FAQ</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><span>Help Center</span></li><li><span>Contact Us</span></li><li><span>FAQ</span></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul"
             ]
@@ -3274,7 +3347,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a></li><li><span>Privacy Policy</span></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-legal\"] > ul"
             ]
@@ -3364,7 +3437,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Help Center</a></li>",
+            "html": "<li><span>Help Center</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(1)"
             ]
@@ -3382,7 +3455,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a></li>",
+            "html": "<li><span>Contact Us</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2)"
             ]
@@ -3400,7 +3473,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">FAQ</a></li>",
+            "html": "<li><span>FAQ</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(3)"
             ]
@@ -3436,7 +3509,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a></li>",
+            "html": "<li><span>Privacy Policy</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2)"
             ]
@@ -3531,7 +3604,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
             ]
           }
         ]
@@ -3564,9 +3637,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
+            "html": "<a href=\"/courses#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
             "target": [
-              ".sr-only"
+              ".min-h-screen.bg-gray-50.flex-col > .sr-only"
             ]
           },
           {
@@ -3598,7 +3671,7 @@
             "impact": null,
             "html": "<a class=\"flex items-center gap-2\" href=\"/\">",
             "target": [
-              ".gap-2.items-center[href=\"/\"]"
+              ".gap-2[href=\"/\"]"
             ]
           },
           {
@@ -3630,7 +3703,7 @@
             "impact": null,
             "html": "<a class=\"transition-colors text-blue-600 font-medium\" href=\"/courses\">Browse Courses</a>",
             "target": [
-              ".font-medium"
+              ".md\\:flex > .font-medium"
             ]
           },
           {
@@ -3694,7 +3767,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".bg-blue-600"
+              ".gap-4 > .bg-blue-600"
             ]
           },
           {
@@ -3776,93 +3849,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
-            "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
-            "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
             "html": "<a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a>",
             "target": [
               "a[href$=\"terms\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
             ]
           }
         ]
@@ -3921,9 +3910,12 @@
         "name": "Skip to main content",
         "hidden": false,
         "disabled": false,
-        "focusVisible": true
+        "focusVisible": true,
+        "focusIndicatorChanged": true
       }
     ],
-    "issues": []
+    "issues": [
+      "No focus-induced indicator (decorative shadows ignored): a[tabindex=\"0\"]:nth-of-type(1)"
+    ]
   }
 }

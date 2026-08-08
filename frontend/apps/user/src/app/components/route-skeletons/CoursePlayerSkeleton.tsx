@@ -1,6 +1,7 @@
 import React from "react";
 import { useLessonTypeHint } from "../../hooks/useLessonTypeHint";
 import { LessonContentSkeleton } from "./LessonContentSkeleton";
+import { SeoMetaTags } from "../Seo/SeoMetaTags";
 
 export interface CoursePlayerSkeletonProps {
   contentType?: "VIDEO" | "ARTICLE" | "QUIZ";
@@ -18,6 +19,11 @@ export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
       }`}
       aria-busy="true"
     >
+      {/* This skeleton is the Suspense fallback for the lazy-loaded
+          CoursePlayerPage chunk, so it can be the only thing on screen
+          while that chunk is still fetching — it needs its own title so
+          the document is never briefly without one. */}
+      <SeoMetaTags title="Course Player" description="Continue your course on EduMind." noIndex />
       <p role="status" className="sr-only">
         Loading course player
       </p>

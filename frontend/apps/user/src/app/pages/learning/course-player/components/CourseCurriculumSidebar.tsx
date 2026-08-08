@@ -175,7 +175,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                             <span className="text-xs font-semibold text-gray-800 uppercase tracking-wide">
                               {section.title}
                             </span>
-                            <span className="text-[11px] text-gray-500">
+                            <span className="text-[11px] text-gray-600">
                               {sectionLessons.length} lessons
                               {section.totalDurationMinutes ? ` • ${section.totalDurationMinutes} min` : ''}
                             </span>
@@ -207,6 +207,9 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                                   type="button"
                                   onClick={() => onSelectLesson(lesson)}
                                   aria-current={isCurrent ? 'step' : undefined}
+                                  aria-label={`${lesson.title}. ${contentTypeLabel(lesson)}${
+                                    isCompleted ? '. Completed' : ''
+                                  }`}
                                   data-testid="lesson-item"
                                   data-lesson-id={lesson.id}
                                   className={`w-full text-left p-3 rounded-lg mb-1 transition-colors border-2 ${
@@ -230,7 +233,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                                       <span className={`block font-medium text-sm line-clamp-2 ${isCurrent ? 'text-blue-600' : 'text-gray-900'}`}>
                                         {lesson.title}
                                       </span>
-                                      <span className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                      <span className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                                         {lesson.contentType === ContentType.VIDEO && <Video aria-hidden="true" className="w-3 h-3" />}
                                         {lesson.contentType === ContentType.ARTICLE && <FileText aria-hidden="true" className="w-3 h-3" />}
                                         {lesson.contentType === ContentType.QUIZ && <HelpCircle aria-hidden="true" className="w-3 h-3 text-purple-500" />}

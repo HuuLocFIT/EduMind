@@ -28,7 +28,7 @@ const routes = [
   { name: 'login', path: '/login', ready: 'form' },
   { name: 'signup', path: '/signup', ready: 'form' },
   { name: 'forgot-password', path: '/forgot-password', ready: 'form' },
-  { name: 'reset-password-missing-token', path: '/reset-password', ready: 'h2' },
+  { name: 'reset-password-missing-token', path: '/reset-password', ready: 'h1' },
   {
     name: 'checkout-success',
     path: '/checkout/success?order=PA11Y-ORDER-001',
@@ -199,7 +199,8 @@ async function keyboardSnapshot(page: Page, maxTabs = 80) {
 test('collect Axe and keyboard baseline for Phase 0 task 2.4', async ({
   browser,
   baseURL,
-}) => {
+}, testInfo) => {
+  testInfo.setTimeout(300_000);
   await mkdir(reportDirectory, { recursive: true });
   const summary = [];
 
@@ -254,7 +255,7 @@ test('collect Axe and keyboard baseline for Phase 0 task 2.4', async ({
         scanError: error instanceof Error ? error.stack || error.message : String(error),
       });
     } finally {
-      await context.close();
+      await context.close().catch(() => undefined);
     }
   }
 

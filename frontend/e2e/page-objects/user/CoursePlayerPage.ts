@@ -28,7 +28,9 @@ export class CoursePlayerPage {
     this.contentArea = page.locator('[data-testid="lesson-content"]').or(
       page.locator('main').first()
     );
-    this.sidebarToggle = page.getByRole('button', { name: /open|close course content/i });
+    this.sidebarToggle = page.getByRole('button', {
+      name: /^(?:open|close) course content$/i,
+    });
     this.lessonHeading = page.locator('#course-player-main').getByRole('heading', { level: 2 }).first();
     this.exitButton = page.getByRole('button', {
       name: 'Exit course player and return to My Learning',

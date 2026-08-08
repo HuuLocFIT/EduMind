@@ -48,7 +48,9 @@ export const LessonNavigation: React.FC<LessonNavigationProps> = ({
           variant="primary"
           onClick={onNext}
           disabled={!hasNext}
-          className="justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
+          className={`justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center ${
+            !hasNext ? '!opacity-100 !bg-gray-600 !text-white' : ''
+          }`}
         >
           <span className="sm:hidden">Next</span>
           <span className="hidden sm:inline">Next Lesson</span>

@@ -2,7 +2,7 @@
   "name": "signup",
   "route": "/signup",
   "pageUrl": "http://localhost:3000/signup",
-  "title": "Account | EduMind",
+  "title": "Create Account | EduMind",
   "axe": {
     "testEngine": {
       "name": "axe-core",
@@ -18,7 +18,7 @@
       "orientationAngle": 0,
       "orientationType": "landscape-primary"
     },
-    "timestamp": "2026-07-31T04:03:03.409Z",
+    "timestamp": "2026-08-08T14:55:00.745Z",
     "url": "http://localhost:3000/signup",
     "toolOptions": {
       "runOnly": {
@@ -94,23 +94,6 @@
         "nodes": []
       },
       {
-        "id": "aria-deprecated-role",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-7.1.1"
-        ],
-        "description": "Ensure elements do not use deprecated roles",
-        "help": "Deprecated ARIA roles must not be used",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-deprecated-role?application=playwright",
-        "nodes": []
-      },
-      {
         "id": "aria-input-field-name",
         "impact": null,
         "tags": [
@@ -165,23 +148,6 @@
         "nodes": []
       },
       {
-        "id": "aria-required-attr",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-7.1.1"
-        ],
-        "description": "Ensure elements with ARIA roles have all required ARIA attributes",
-        "help": "Required ARIA attributes must be provided",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-attr?application=playwright",
-        "nodes": []
-      },
-      {
         "id": "aria-required-children",
         "impact": null,
         "tags": [
@@ -213,23 +179,6 @@
         "description": "Ensure elements with an ARIA role that require parent roles are contained by them",
         "help": "Certain ARIA roles must be contained by particular parents",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-parent?application=playwright",
-        "nodes": []
-      },
-      {
-        "id": "aria-roles",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-7.1.1"
-        ],
-        "description": "Ensure all elements with a role attribute use a valid value",
-        "help": "ARIA roles used must conform to valid values",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-roles?application=playwright",
         "nodes": []
       },
       {
@@ -288,21 +237,19 @@
         "nodes": []
       },
       {
-        "id": "autocomplete-valid",
+        "id": "avoid-inline-spacing",
         "impact": null,
         "tags": [
-          "cat.forms",
+          "cat.structure",
           "wcag21aa",
-          "wcag135",
+          "wcag1412",
           "EN-301-549",
-          "EN-9.1.3.5",
-          "ACT",
-          "RGAAv4",
-          "RGAA-11.13.1"
+          "EN-9.1.4.12",
+          "ACT"
         ],
-        "description": "Ensure the autocomplete attribute is correct and suitable for the form field",
-        "help": "autocomplete attribute must be used correctly",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/autocomplete-valid?application=playwright",
+        "description": "Ensure that text spacing set through style attributes can be adjusted with custom stylesheets",
+        "help": "Inline text spacing must be adjustable with custom stylesheets",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/avoid-inline-spacing?application=playwright",
         "nodes": []
       },
       {
@@ -358,23 +305,6 @@
         "description": "Ensure <dt> and <dd> elements are contained by a <dl>",
         "help": "<dt> and <dd> elements must be contained by a <dl>",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/dlitem?application=playwright",
-        "nodes": []
-      },
-      {
-        "id": "duplicate-id-aria",
-        "impact": null,
-        "tags": [
-          "cat.parsing",
-          "wcag2a",
-          "wcag412",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "RGAAv4",
-          "RGAA-8.2.1"
-        ],
-        "description": "Ensure every id attribute value used in ARIA and in labels is unique",
-        "help": "IDs used in ARIA and labels must be unique",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/duplicate-id-aria?application=playwright",
         "nodes": []
       },
       {
@@ -890,9 +820,75 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -956,9 +952,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -989,9 +985,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -1022,9 +1018,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ]
           },
           {
@@ -1055,75 +1051,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-allowed-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attributes are used correctly for the defined role"
-              },
-              {
-                "id": "aria-allowed-attr-elm",
-                "data": null,
-                "relatedNodes": [],
-                "message": "ARIA attributes are allowed for this element",
-                "impact": "critical"
-              }
-            ],
-            "none": [
-              {
-                "id": "aria-unsupported-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute is supported"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-allowed-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attributes are used correctly for the defined role"
-              },
-              {
-                "id": "aria-allowed-attr-elm",
-                "data": null,
-                "relatedNodes": [],
-                "message": "ARIA attributes are allowed for this element",
-                "impact": "critical"
-              }
-            ],
-            "none": [
-              {
-                "id": "aria-unsupported-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute is supported"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              ".h-6"
             ]
           },
           {
@@ -1190,9 +1120,45 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1226,9 +1192,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -1244,9 +1210,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -1262,9 +1228,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ]
           },
           {
@@ -1280,45 +1246,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-conditional-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "ARIA attribute is allowed"
-              }
-            ],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-conditional-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "ARIA attribute is allowed"
-              }
-            ],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              ".h-6"
             ]
           },
           {
@@ -1337,6 +1267,42 @@
             "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\" type=\"submit\">",
             "target": [
               ".bg-blue-600"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-deprecated-role",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-7.1.1"
+        ],
+        "description": "Ensure elements do not use deprecated roles",
+        "help": "Deprecated ARIA roles must not be used",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-deprecated-role?application=playwright",
+        "nodes": [
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "deprecatedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "minor",
+                "message": "ARIA role is not deprecated"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
             ]
           }
         ]
@@ -1424,9 +1390,201 @@
             ],
             "none": [],
             "impact": null,
+            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-graduation-cap h-9 w-9 text-blue-600\" aria-hidden=\"true\">",
+            "target": [
+              ".lucide-graduation-cap"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<div aria-hidden=\"true\" class=\"absolute inset-0 overflow-hidden pointer-events-none\">",
+            "target": [
+              ".overflow-hidden.pointer-events-none.inset-0"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
             "html": "<span class=\"inline-flex\" aria-hidden=\"true\">",
             "target": [
-              "span[aria-hidden=\"true\"]"
+              ".border-2 > .inline-flex"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+            "target": [
+              "label[for=\"signup-username\"] > .text-red-500.ml-1"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+            "target": [
+              "label[for=\"signup-email\"] > .text-red-500.ml-1"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+            "target": [
+              "label[for=\"signup-password\"] > .text-red-500.ml-1"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-eye w-5 h-5\" aria-hidden=\"true\">",
+            "target": [
+              ".lucide-eye"
             ]
           }
         ]
@@ -1460,9 +1618,45 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1496,9 +1690,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -1514,9 +1708,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -1532,9 +1726,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ]
           },
           {
@@ -1550,45 +1744,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "aria-prohibited-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "ARIA attribute is allowed"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "aria-prohibited-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "ARIA attribute is allowed"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              ".h-6"
             ]
           },
           {
@@ -1607,6 +1765,92 @@
             "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\" type=\"submit\">",
             "target": [
               ".bg-blue-600"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-required-attr",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-7.1.1"
+        ],
+        "description": "Ensure elements with ARIA roles have all required ARIA attributes",
+        "help": "Required ARIA attributes must be provided",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-attr?application=playwright",
+        "nodes": [
+          {
+            "any": [
+              {
+                "id": "aria-required-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "All required ARIA attributes are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-roles",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-7.1.1"
+        ],
+        "description": "Ensure all elements with a role attribute use a valid value",
+        "help": "ARIA roles used must conform to valid values",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-roles?application=playwright",
+        "nodes": [
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "invalidrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is valid"
+              },
+              {
+                "id": "abstractrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Abstract roles are not used"
+              },
+              {
+                "id": "unsupportedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
             ]
           }
         ]
@@ -1654,9 +1898,73 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1718,9 +2026,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -1750,9 +2058,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -1782,9 +2090,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ]
           },
           {
@@ -1814,73 +2122,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-valid-attr-value",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute values are valid"
-              },
-              {
-                "id": "aria-errormessage",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
-              },
-              {
-                "id": "aria-level",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-level values are valid"
-              }
-            ],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-valid-attr-value",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute values are valid"
-              },
-              {
-                "id": "aria-errormessage",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
-              },
-              {
-                "id": "aria-level",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-level values are valid"
-              }
-            ],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              ".h-6"
             ]
           },
           {
@@ -1946,9 +2190,45 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
             ]
           },
           {
@@ -1982,9 +2262,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -2000,9 +2280,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -2018,9 +2298,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ]
           },
           {
@@ -2036,45 +2316,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "aria-valid-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute name is valid"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "aria-valid-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute name is valid"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              ".h-6"
             ]
           },
           {
@@ -2098,57 +2342,81 @@
         ]
       },
       {
-        "id": "avoid-inline-spacing",
+        "id": "autocomplete-valid",
         "impact": null,
         "tags": [
-          "cat.structure",
+          "cat.forms",
           "wcag21aa",
-          "wcag1412",
+          "wcag135",
           "EN-301-549",
-          "EN-9.1.4.12",
-          "ACT"
+          "EN-9.1.3.5",
+          "ACT",
+          "RGAAv4",
+          "RGAA-11.13.1"
         ],
-        "description": "Ensure that text spacing set through style attributes can be adjusted with custom stylesheets",
-        "help": "Inline text spacing must be adjustable with custom stylesheets",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/avoid-inline-spacing?application=playwright",
+        "description": "Ensure the autocomplete attribute is correct and suitable for the form field",
+        "help": "autocomplete attribute must be used correctly",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/autocomplete-valid?application=playwright",
         "nodes": [
           {
             "any": [],
             "all": [
               {
-                "id": "important-letter-spacing",
+                "id": "autocomplete-valid",
                 "data": null,
                 "relatedNodes": [],
                 "impact": "serious",
-                "message": "Letter-spacing in the style attribute is not set to !important, or meets the minimum"
-              },
-              {
-                "id": "important-word-spacing",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "word-spacing in the style attribute is not set to !important, or meets the minimum"
-              },
-              {
-                "id": "important-line-height",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "line-height in the style attribute is not set to !important, or meets the minimum"
+                "message": "the autocomplete attribute is correctly formatted"
               }
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"absolute inset-0 opa...\" style=\"background-image: ur...\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              ".opacity-5"
+              "#signup-username"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "autocomplete-valid",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "the autocomplete attribute is correctly formatted"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
+            "target": [
+              "#signup-email"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "autocomplete-valid",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "the autocomplete attribute is correctly formatted"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
+            "target": [
+              "#signup-password"
             ]
           }
         ]
       },
       {
         "id": "button-name",
-        "impact": "critical",
+        "impact": null,
         "tags": [
           "cat.name-role-value",
           "wcag2a",
@@ -2183,6 +2451,24 @@
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 px-4 py-2 text-base w-full\" aria-busy=\"false\">",
             "target": [
               ".border-2"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-label",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-label attribute exists and is not empty"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
+            "target": [
+              ".h-6"
             ]
           },
           {
@@ -2232,7 +2518,7 @@
                 "data": null,
                 "relatedNodes": [
                   {
-                    "html": "<h1 class=\"text-4xl font-bold text-gray-900 mb-2\">Create Account</h1>",
+                    "html": "<h1 class=\"text-4xl font-bold text-gray-900 mb-2\" tabindex=\"-1\">Create Account</h1>",
                     "target": [
                       "h1"
                     ]
@@ -2240,6 +2526,20 @@
                 ],
                 "impact": "serious",
                 "message": "Page has a heading"
+              },
+              {
+                "id": "landmark",
+                "data": null,
+                "relatedNodes": [
+                  {
+                    "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"relative min-h-screen flex items-center justify-center px-4 py-12 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+                    "target": [
+                      "#main-content"
+                    ]
+                  }
+                ],
+                "impact": "serious",
+                "message": "Page has a landmark region"
               }
             ],
             "all": [],
@@ -2292,6 +2592,96 @@
         ]
       },
       {
+        "id": "duplicate-id-aria",
+        "impact": null,
+        "tags": [
+          "cat.parsing",
+          "wcag2a",
+          "wcag412",
+          "EN-301-549",
+          "EN-9.4.1.2",
+          "RGAAv4",
+          "RGAA-8.2.1"
+        ],
+        "description": "Ensure every id attribute value used in ARIA and in labels is unique",
+        "help": "IDs used in ARIA and labels must be unique",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/duplicate-id-aria?application=playwright",
+        "nodes": [
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
+                "data": "signup-username",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
+            "target": [
+              "#signup-username"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
+                "data": "signup-email",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
+            "target": [
+              "#signup-email"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
+                "data": "signup-password",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
+            "target": [
+              "#signup-password"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
+                "data": "signup-password-description",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<p id=\"signup-password-description\" class=\"text-sm text-gray-500\">Use at least 8 characters with uppercase, lowercase, number, and special character.</p>",
+            "target": [
+              "#signup-password-description"
+            ]
+          }
+        ]
+      },
+      {
         "id": "form-field-multiple-labels",
         "impact": null,
         "tags": [
@@ -2316,15 +2706,22 @@
               {
                 "id": "multiple-label",
                 "data": null,
-                "relatedNodes": [],
+                "relatedNodes": [
+                  {
+                    "html": "<label for=\"signup-username\" class=\"block text-sm font-medium text-gray-700\">Username<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
+                    "target": [
+                      "label[for=\"signup-username\"]"
+                    ]
+                  }
+                ],
                 "impact": "moderate",
                 "message": "Form field does not have multiple label elements"
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -2334,15 +2731,22 @@
               {
                 "id": "multiple-label",
                 "data": null,
-                "relatedNodes": [],
+                "relatedNodes": [
+                  {
+                    "html": "<label for=\"signup-email\" class=\"block text-sm font-medium text-gray-700\">Email<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
+                    "target": [
+                      "label[for=\"signup-email\"]"
+                    ]
+                  }
+                ],
                 "impact": "moderate",
                 "message": "Form field does not have multiple label elements"
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -2352,69 +2756,22 @@
               {
                 "id": "multiple-label",
                 "data": null,
-                "relatedNodes": [],
+                "relatedNodes": [
+                  {
+                    "html": "<label for=\"signup-password\" class=\"block text-sm font-medium text-gray-700\">Password<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
+                    "target": [
+                      "label[for=\"signup-password\"]"
+                    ]
+                  }
+                ],
                 "impact": "moderate",
                 "message": "Form field does not have multiple label elements"
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
-            ]
-          },
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "multiple-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "moderate",
-                "message": "Form field does not have multiple label elements"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
-            "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "multiple-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "moderate",
-                "message": "Form field does not have multiple label elements"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "multiple-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "moderate",
-                "message": "Form field does not have multiple label elements"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              "#signup-password"
             ]
           }
         ]
@@ -2521,6 +2878,22 @@
           {
             "any": [
               {
+                "id": "explicit-label",
+                "data": {
+                  "explicitLabel": "Username"
+                },
+                "relatedNodes": [
+                  {
+                    "html": "<label for=\"signup-username\" class=\"block text-sm font-medium text-gray-700\">Username<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
+                    "target": [
+                      "label[for=\"signup-username\"]"
+                    ]
+                  }
+                ],
+                "impact": "critical",
+                "message": "Element has an explicit <label>"
+              },
+              {
                 "id": "non-empty-placeholder",
                 "data": null,
                 "relatedNodes": [],
@@ -2539,14 +2912,30 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
             "any": [
               {
+                "id": "explicit-label",
+                "data": {
+                  "explicitLabel": "Email"
+                },
+                "relatedNodes": [
+                  {
+                    "html": "<label for=\"signup-email\" class=\"block text-sm font-medium text-gray-700\">Email<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
+                    "target": [
+                      "label[for=\"signup-email\"]"
+                    ]
+                  }
+                ],
+                "impact": "critical",
+                "message": "Element has an explicit <label>"
+              },
+              {
                 "id": "non-empty-placeholder",
                 "data": null,
                 "relatedNodes": [],
@@ -2565,39 +2954,29 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
             "any": [
               {
-                "id": "non-empty-placeholder",
-                "data": null,
-                "relatedNodes": [],
+                "id": "explicit-label",
+                "data": {
+                  "explicitLabel": "Password"
+                },
+                "relatedNodes": [
+                  {
+                    "html": "<label for=\"signup-password\" class=\"block text-sm font-medium text-gray-700\">Password<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
+                    "target": [
+                      "label[for=\"signup-password\"]"
+                    ]
+                  }
+                ],
                 "impact": "critical",
-                "message": "Element has a placeholder attribute"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "hidden-explicit-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Form element has a visible explicit <label>"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
-            "target": [
-              ".pr-10"
-            ]
-          },
-          {
-            "any": [
+                "message": "Element has an explicit <label>"
+              },
               {
                 "id": "non-empty-placeholder",
                 "data": null,
@@ -2617,61 +2996,9 @@
               }
             ],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "non-empty-placeholder",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has a placeholder attribute"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "hidden-explicit-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Form element has a visible explicit <label>"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "non-empty-placeholder",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has a placeholder attribute"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "hidden-explicit-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Form element has a visible explicit <label>"
-              }
-            ],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              "#signup-password"
             ]
           }
         ]
@@ -2716,7 +3043,7 @@
             "impact": null,
             "html": "<a class=\"text-blue-600 hover:text-blue-700 font-medium\" href=\"/login\">Sign in</a>",
             "target": [
-              "a"
+              ".hover\\:text-blue-700"
             ]
           }
         ]
@@ -2765,9 +3092,68 @@
               }
             ],
             "impact": null,
+            "html": "<a href=\"/signup#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md\">Skip to main content</a>",
+            "target": [
+              ".sr-only"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              },
+              {
+                "id": "aria-label",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "aria-label attribute exists and is not empty"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
             "html": "<a class=\"text-blue-600 hover:text-blue-700 font-medium\" href=\"/login\">Sign in</a>",
             "target": [
-              "a"
+              ".hover\\:text-blue-700"
             ]
           }
         ]
@@ -2858,9 +3244,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button type=\"button\" class=\"text-gray-400 hover:text-gray-600 transition-colors\" tabindex=\"-1\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              ".hover\\:text-gray-600"
+              ".h-6"
             ]
           },
           {
@@ -2885,7 +3271,7 @@
       },
       {
         "id": "target-size",
-        "impact": "serious",
+        "impact": null,
         "tags": [
           "cat.sensory-and-visual-cues",
           "wcag22aa",
@@ -2895,6 +3281,59 @@
         "help": "All touch targets must be 24px large, or leave sufficient space",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/target-size?application=playwright",
         "nodes": [
+          {
+            "any": [
+              {
+                "id": "target-offset",
+                "data": {
+                  "closestOffset": 24,
+                  "minOffset": 24
+                },
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<a href=\"/signup#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md\">Skip to main content</a>",
+            "target": [
+              ".sr-only"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "target-size",
+                "data": {
+                  "minSize": 24,
+                  "width": 142.5,
+                  "height": 36
+                },
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Control has sufficient size (142.5px by 36px, should be at least 24px by 24px)"
+              },
+              {
+                "id": "target-offset",
+                "data": {
+                  "closestOffset": 24,
+                  "minOffset": 24
+                },
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<a aria-label=\"EduMind home\" class=\"absolute top-6 left-1/2 z-10 -translate-x-1/2 inline-flex items-center gap-2 rounded-md text-gray-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600\" href=\"/\">",
+            "target": [
+              ".top-6"
+            ]
+          },
           {
             "any": [
               {
@@ -2954,9 +3393,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ]
           },
           {
@@ -2986,9 +3425,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ]
           },
           {
@@ -2997,27 +3436,27 @@
                 "id": "target-size",
                 "data": {
                   "minSize": 24,
-                  "width": 366,
+                  "width": 362,
                   "height": 42
                 },
                 "relatedNodes": [
                   {
-                    "html": "<button type=\"button\" class=\"text-gray-400 hover:text-gray-600 transition-colors\" tabindex=\"-1\">",
+                    "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
                     "target": [
-                      ".hover\\:text-gray-600"
+                      ".h-6"
                     ]
                   }
                 ],
                 "impact": "serious",
-                "message": "Control has sufficient size (366px by 42px, should be at least 24px by 24px)"
+                "message": "Control has sufficient size (362px by 42px, should be at least 24px by 24px)"
               }
             ],
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ]
           },
           {
@@ -3026,12 +3465,12 @@
                 "id": "target-size",
                 "data": {
                   "minSize": 24,
-                  "width": 191,
-                  "height": 42
+                  "width": 24,
+                  "height": 24
                 },
                 "relatedNodes": [],
                 "impact": "serious",
-                "message": "Control has sufficient size (191px by 42px, should be at least 24px by 24px)"
+                "message": "Control has sufficient size (24px by 24px, should be at least 24px by 24px)"
               },
               {
                 "id": "target-offset",
@@ -3047,73 +3486,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+            "html": "<button type=\"button\" class=\"inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors\" aria-label=\"Show password\" aria-pressed=\"false\">",
             "target": [
-              "input[placeholder=\"Lucas\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-size",
-                "data": {
-                  "minSize": 24,
-                  "width": 191,
-                  "height": 42
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Control has sufficient size (191px by 42px, should be at least 24px by 24px)"
-              },
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-size",
-                "data": {
-                  "minSize": 24,
-                  "width": 398,
-                  "height": 42
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Control has sufficient size (398px by 42px, should be at least 24px by 24px)"
-              },
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              ".h-6"
             ]
           },
           {
@@ -3177,6 +3552,38 @@
                 "id": "color-contrast",
                 "data": {
                   "contrastRatio": 0,
+                  "fontSize": "18.0pt (24px)",
+                  "fontWeight": "bold",
+                  "messageKey": "bgImage",
+                  "expectedContrastRatio": "3:1"
+                },
+                "relatedNodes": [
+                  {
+                    "html": "<div class=\"absolute inset-0 opa...\" style=\"background-image: ur...\">",
+                    "target": [
+                      ".opacity-5"
+                    ]
+                  }
+                ],
+                "impact": "serious",
+                "message": "Element's background color could not be determined due to a background image"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": "serious",
+            "html": "<span class=\"text-2xl font-bold\">EduMind</span>",
+            "target": [
+              ".text-2xl"
+            ],
+            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background image"
+          },
+          {
+            "any": [
+              {
+                "id": "color-contrast",
+                "data": {
+                  "contrastRatio": 0,
                   "fontSize": "27.0pt (36px)",
                   "fontWeight": "bold",
                   "messageKey": "bgOverlap",
@@ -3190,7 +3597,7 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<h1 class=\"text-4xl font-bold text-gray-900 mb-2\">Create Account</h1>",
+            "html": "<h1 class=\"text-4xl font-bold text-gray-900 mb-2\" tabindex=\"-1\">Create Account</h1>",
             "target": [
               "h1"
             ],
@@ -3217,7 +3624,7 @@
             "impact": "serious",
             "html": "<p class=\"text-gray-600\">Join EduMind to start learning</p>",
             "target": [
-              ".mb-8 > p"
+              ".mb-8 > .text-gray-600"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3267,7 +3674,7 @@
             "impact": "serious",
             "html": "<span class=\"px-4 bg-white text-gray-500\">Or sign up with email</span>",
             "target": [
-              ".text-gray-500"
+              ".bg-white.text-gray-500"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3290,9 +3697,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<label class=\"block text-sm font-medium text-gray-700\">Username<span class=\"text-red-500 ml-1\">*</span></label>",
+            "html": "<label for=\"signup-username\" class=\"block text-sm font-medium text-gray-700\">Username<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
             "target": [
-              "form > .gap-1.flex-col.flex:nth-child(1) > label"
+              "label[for=\"signup-username\"]"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3315,9 +3722,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" name=\"username\">",
+            "html": "<input id=\"signup-username\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" required=\"\" autocomplete=\"username\" name=\"username\">",
             "target": [
-              "input[placeholder=\"e.g. lucas\"]"
+              "#signup-username"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3340,9 +3747,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<label class=\"block text-sm font-medium text-gray-700\">Email<span class=\"text-red-500 ml-1\">*</span></label>",
+            "html": "<label for=\"signup-email\" class=\"block text-sm font-medium text-gray-700\">Email<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
             "target": [
-              "form > .gap-1.flex-col.flex:nth-child(2) > label"
+              "label[for=\"signup-email\"]"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3365,9 +3772,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@example.com\" required=\"\" type=\"email\" name=\"email\">",
+            "html": "<input id=\"signup-email\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"your.email@example.c...\" required=\"\" autocomplete=\"email\" type=\"email\" name=\"email\">",
             "target": [
-              "input[placeholder=\"your.email@example.com\"]"
+              "#signup-email"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3390,9 +3797,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<label class=\"block text-sm font-medium text-gray-700\">Password<span class=\"text-red-500 ml-1\">*</span></label>",
+            "html": "<label for=\"signup-password\" class=\"block text-sm font-medium text-gray-700\">Password<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span></label>",
             "target": [
-              "div:nth-child(3) > .gap-1.flex-col.flex > label"
+              "label[for=\"signup-password\"]"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3415,9 +3822,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
+            "html": "<input id=\"signup-password\" class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" aria-describedby=\"signup-password-desc...\" placeholder=\"Create a strong pass...\" required=\"\" autocomplete=\"new-password\" type=\"password\" name=\"password\">",
             "target": [
-              ".pr-10"
+              "#signup-password"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3440,134 +3847,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<label class=\"block text-sm font-medium text-gray-700\">First Name</label>",
+            "html": "<p id=\"signup-password-description\" class=\"text-sm text-gray-500\">Use at least 8 characters with uppercase, lowercase, number, and special character.</p>",
             "target": [
-              ".grid > .gap-1.flex-col.flex:nth-child(1) > label"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-          },
-          {
-            "any": [
-              {
-                "id": "color-contrast",
-                "data": {
-                  "contrastRatio": 0,
-                  "fontSize": "12.0pt (16px)",
-                  "fontWeight": "normal",
-                  "messageKey": "bgOverlap",
-                  "expectedContrastRatio": "4.5:1"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element's background color could not be determined because it is overlapped by another element"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "serious",
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
-            "target": [
-              "input[placeholder=\"Lucas\"]"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-          },
-          {
-            "any": [
-              {
-                "id": "color-contrast",
-                "data": {
-                  "contrastRatio": 0,
-                  "fontSize": "10.5pt (14px)",
-                  "fontWeight": "normal",
-                  "messageKey": "bgOverlap",
-                  "expectedContrastRatio": "4.5:1"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element's background color could not be determined because it is overlapped by another element"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "serious",
-            "html": "<label class=\"block text-sm font-medium text-gray-700\">Last Name</label>",
-            "target": [
-              ".grid > .gap-1.flex-col.flex:nth-child(2) > label"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-          },
-          {
-            "any": [
-              {
-                "id": "color-contrast",
-                "data": {
-                  "contrastRatio": 0,
-                  "fontSize": "12.0pt (16px)",
-                  "fontWeight": "normal",
-                  "messageKey": "bgOverlap",
-                  "expectedContrastRatio": "4.5:1"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element's background color could not be determined because it is overlapped by another element"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "serious",
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
-            "target": [
-              "input[placeholder=\"Nguyen\"]"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-          },
-          {
-            "any": [
-              {
-                "id": "color-contrast",
-                "data": {
-                  "contrastRatio": 0,
-                  "fontSize": "10.5pt (14px)",
-                  "fontWeight": "normal",
-                  "messageKey": "bgOverlap",
-                  "expectedContrastRatio": "4.5:1"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element's background color could not be determined because it is overlapped by another element"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "serious",
-            "html": "<label class=\"block text-sm font-medium text-gray-700\">Phone Number</label>",
-            "target": [
-              ".gap-1.flex-col.flex:nth-child(5) > label"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-          },
-          {
-            "any": [
-              {
-                "id": "color-contrast",
-                "data": {
-                  "contrastRatio": 0,
-                  "fontSize": "12.0pt (16px)",
-                  "fontWeight": "normal",
-                  "messageKey": "bgOverlap",
-                  "expectedContrastRatio": "4.5:1"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element's background color could not be determined because it is overlapped by another element"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "serious",
-            "html": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" type=\"tel\" name=\"phoneNumber\">",
-            "target": [
-              "input[placeholder=\"0912 345 678\"]"
+              "#signup-password-description"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -3642,155 +3924,14 @@
             "impact": "serious",
             "html": "<a class=\"text-blue-600 hover:text-blue-700 font-medium\" href=\"/login\">Sign in</a>",
             "target": [
-              "a"
+              ".hover\\:text-blue-700"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           }
         ]
-      },
-      {
-        "id": "target-size",
-        "impact": "serious",
-        "tags": [
-          "cat.sensory-and-visual-cues",
-          "wcag22aa",
-          "wcag258"
-        ],
-        "description": "Ensure touch targets have sufficient size and space",
-        "help": "All touch targets must be 24px large, or leave sufficient space",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/target-size?application=playwright",
-        "nodes": [
-          {
-            "any": [
-              {
-                "id": "target-size",
-                "data": {
-                  "minSize": 24,
-                  "width": 20,
-                  "height": 20
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element with negative tabindex has insufficient size (20px by 20px, should be at least 24px by 24px). Is this a target?"
-              },
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 20,
-                  "minOffset": 24
-                },
-                "relatedNodes": [
-                  {
-                    "html": "<input class=\"w-full px-4 py-2 bor...\" aria-invalid=\"false\" placeholder=\"Create a strong pass...\" required=\"\" type=\"password\" name=\"password\">",
-                    "target": [
-                      ".pr-10"
-                    ]
-                  }
-                ],
-                "impact": "serious",
-                "message": "Element with negative tabindex has insufficient space to its closest neighbors. Safe clickable space has a diameter of 20px instead of at least 24px. Is this a target?"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "serious",
-            "html": "<button type=\"button\" class=\"text-gray-400 hover:text-gray-600 transition-colors\" tabindex=\"-1\">",
-            "target": [
-              ".hover\\:text-gray-600"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element with negative tabindex has insufficient size (20px by 20px, should be at least 24px by 24px). Is this a target?\n  Element with negative tabindex has insufficient space to its closest neighbors. Safe clickable space has a diameter of 20px instead of at least 24px. Is this a target?"
-          }
-        ]
       }
     ],
-    "violations": [
-      {
-        "id": "button-name",
-        "impact": "critical",
-        "tags": [
-          "cat.name-role-value",
-          "wcag2a",
-          "wcag412",
-          "section508",
-          "section508.22.a",
-          "TTv5",
-          "TT6.a",
-          "EN-301-549",
-          "EN-9.4.1.2",
-          "ACT",
-          "RGAAv4",
-          "RGAA-11.9.1"
-        ],
-        "description": "Ensure buttons have discernible text",
-        "help": "Buttons must have discernible text",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/button-name?application=playwright",
-        "nodes": [
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element does not have inner text that is visible to screen readers"
-              },
-              {
-                "id": "aria-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-label attribute does not exist or is empty"
-              },
-              {
-                "id": "aria-labelledby",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty"
-              },
-              {
-                "id": "non-empty-title",
-                "data": {
-                  "messageKey": "noAttr"
-                },
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has no title attribute"
-              },
-              {
-                "id": "implicit-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element does not have an implicit (wrapped) <label>"
-              },
-              {
-                "id": "explicit-label",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element does not have an explicit <label>"
-              },
-              {
-                "id": "presentational-role",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": "critical",
-            "html": "<button type=\"button\" class=\"text-gray-400 hover:text-gray-600 transition-colors\" tabindex=\"-1\">",
-            "target": [
-              ".hover\\:text-gray-600"
-            ],
-            "failureSummary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
-          }
-        ]
-      }
-    ]
+    "violations": []
   },
   "keyboard": {
     "sequence": [
@@ -3801,18 +3942,42 @@
         "name": "Continue with Google",
         "hidden": false,
         "disabled": false,
-        "focusVisible": true
+        "focusVisible": true,
+        "focusIndicatorChanged": true
       },
       {
         "index": 1,
-        "selector": "input[tabindex=\"0\"]:nth-of-type(2)",
+        "selector": "#signup-username",
         "tagName": "input",
         "name": "",
         "hidden": false,
         "disabled": false,
-        "focusVisible": true
+        "focusVisible": true,
+        "focusIndicatorChanged": true
+      },
+      {
+        "index": 2,
+        "selector": "#signup-email",
+        "tagName": "input",
+        "name": "",
+        "hidden": false,
+        "disabled": false,
+        "focusVisible": true,
+        "focusIndicatorChanged": true
+      },
+      {
+        "index": 3,
+        "selector": "#signup-password",
+        "tagName": "input",
+        "name": "",
+        "hidden": false,
+        "disabled": false,
+        "focusVisible": true,
+        "focusIndicatorChanged": true
       }
     ],
-    "issues": []
+    "issues": [
+      "No focus-induced indicator (decorative shadows ignored): button[tabindex=\"0\"]:nth-of-type(1)"
+    ]
   }
 }

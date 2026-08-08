@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useModal } from '@edumind/user-ui';
 import { LessonContentSkeleton } from '../../../components/route-skeletons/LessonContentSkeleton';
+import { SeoMetaTags } from '../../../components/Seo/SeoMetaTags';
 import { useLessonTypeHint } from '../../../hooks/useLessonTypeHint';
 import type { LessonResponse, LessonProgressResponse } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
@@ -230,21 +231,41 @@ export const CoursePlayerPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const pageMetadata = (
+    <SeoMetaTags
+      title={currentLesson?.title ?? course?.title ?? 'Course Player'}
+      description={
+        course?.title
+          ? `Continue learning ${course.title} on EduMind.`
+          : 'Continue your course on EduMind.'
+      }
+      noIndex
+    />
+  );
+
   // Access error modal – shown when user is DROPPED/SUSPENDED or not properly enrolled
   if (accessError) {
     return (
-      <CourseAccessErrorDialog
-        title={accessError.title}
-        message={accessError.message}
-        redirectCountdown={redirectCountdown}
-        onGoBack={() => navigate(-1)}
-        onGoNow={() => navigate(accessError.redirectTo)}
-      />
+      <>
+        {pageMetadata}
+        <CourseAccessErrorDialog
+          title={accessError.title}
+          message={accessError.message}
+          redirectCountdown={redirectCountdown}
+          onGoBack={() => navigate(-1)}
+          onGoNow={() => navigate(accessError.redirectTo)}
+        />
+      </>
     );
   }
 
   if (!loading && (!course || !currentLesson)) {
-    return <CourseNotFound onBackToLearning={() => navigate(USER_ROUTES.LEARNING)} />;
+    return (
+      <>
+        {pageMetadata}
+        <CourseNotFound onBackToLearning={() => navigate(USER_ROUTES.LEARNING)} />
+      </>
+    );
   }
 
   // While `loading`, `course`/`currentLesson` are legitimately still null —
@@ -261,6 +282,7 @@ export const CoursePlayerPage: React.FC = () => {
         rootContentType === ContentType.VIDEO ? 'bg-gray-900' : 'bg-white'
       }`}
     >
+      {pageMetadata}
       {loading && (
         <p role="status" className="sr-only">
           Loading course player

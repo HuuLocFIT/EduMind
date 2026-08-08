@@ -124,7 +124,7 @@ describe('My Learning component accessibility', () => {
     };
     const { container } = render(<Wrapper />);
 
-    for (const name of ['All, 3 courses', 'Active, 2 courses', 'Completed, 1 course']) {
+    for (const name of ['All, 3 courses', 'In Progress, 2 courses', 'Completed, 1 course']) {
       await user.click(screen.getByRole('tab', { name }));
       await assertNoSeriousViolations(container);
     }
