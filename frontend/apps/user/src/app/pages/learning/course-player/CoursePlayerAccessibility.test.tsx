@@ -53,25 +53,24 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn(), prefetchQuery: vi.fn() }),
 }));
 
-vi.mock('../../services/course.service', () => ({
+vi.mock('../../../services/course.service', () => ({
   courseService: { getCourseBySlug: vi.fn() },
 }));
-vi.mock('../../services/section.service', () => ({
+vi.mock('../../../services/section.service', () => ({
   sectionService: { getCourseSections: vi.fn() },
 }));
-vi.mock('../../services/lesson.service', () => ({
+vi.mock('../../../services/lesson.service', () => ({
   lessonService: { getCourseLessons: vi.fn() },
 }));
-vi.mock('../../services/enrollment.service', () => ({
+vi.mock('../../../services/enrollment.service', () => ({
   enrollmentService: {
-    checkEnrollmentStatus: vi.fn(),
-    getMyEnrollments: vi.fn(),
+    getMyEnrollmentForCourse: vi.fn(),
   },
 }));
-vi.mock('../../services/lesson-progress.service', () => ({
+vi.mock('../../../services/lesson-progress.service', () => ({
   lessonProgressService: {
     startLesson: vi.fn(),
     updateWatchProgress: vi.fn(),
@@ -79,17 +78,17 @@ vi.mock('../../services/lesson-progress.service', () => ({
     getEnrollmentProgress: vi.fn(),
   },
 }));
-vi.mock('../../services/ai.service', () => ({
+vi.mock('../../../services/ai.service', () => ({
   aiService: {
     getQuizForStudent: vi.fn(),
     getSummaryByLesson: vi.fn(),
     getMyAttempts: vi.fn(),
   },
 }));
-vi.mock('../../stores/aiChat.store', () => ({
+vi.mock('../../../stores/aiChat.store', () => ({
   useAiChatStore: () => ({ isOpen: false, closeChat: vi.fn(), toggleChat: vi.fn() }),
 }));
-vi.mock('../../components/learning/InlineQuizTaker', () => ({
+vi.mock('../../../components/learning/InlineQuizTaker', () => ({
   InlineQuizTaker: () => (
     <div>
       <fieldset>
@@ -102,19 +101,19 @@ vi.mock('../../components/learning/InlineQuizTaker', () => ({
     </div>
   ),
 }));
-vi.mock('../../components/learning/QuizTakerModal', () => ({
+vi.mock('../../../components/learning/QuizTakerModal', () => ({
   QuizTakerModal: () => null,
 }));
-vi.mock('../../components/learning/LessonSummaryPanel', () => ({
+vi.mock('../../../components/learning/LessonSummaryPanel', () => ({
   LessonSummaryPanel: () => null,
 }));
 
-import { courseService } from '../../services/course.service';
-import { sectionService } from '../../services/section.service';
-import { lessonService } from '../../services/lesson.service';
-import { enrollmentService } from '../../services/enrollment.service';
-import { lessonProgressService } from '../../services/lesson-progress.service';
-import { aiService } from '../../services/ai.service';
+import { courseService } from '../../../services/course.service';
+import { sectionService } from '../../../services/section.service';
+import { lessonService } from '../../../services/lesson.service';
+import { enrollmentService } from '../../../services/enrollment.service';
+import { lessonProgressService } from '../../../services/lesson-progress.service';
+import { aiService } from '../../../services/ai.service';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -209,17 +208,17 @@ const installMediaPrototypes = () => {
   Object.defineProperty(window.HTMLMediaElement.prototype, 'duration', {
     configurable: true,
     get: () => 100,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'volume', {
     configurable: true,
     get: () => 1,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'muted', {
     configurable: true,
     get: () => false,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'buffered', {
     configurable: true,
@@ -262,9 +261,8 @@ beforeEach(() => {
   vi.mocked(courseService.getCourseBySlug).mockResolvedValue(course);
   vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
   vi.mocked(lessonService.getCourseLessons).mockImplementation(() => Promise.resolve(currentLessons));
-  vi.mocked(enrollmentService.checkEnrollmentStatus).mockResolvedValue(true);
-  vi.mocked(enrollmentService.getMyEnrollments).mockImplementation(() =>
-    Promise.resolve({ data: [currentEnrollment], status: 200, success: true } as any),
+  vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockImplementation(() =>
+    Promise.resolve(currentEnrollment),
   );
   vi.mocked(lessonProgressService.startLesson).mockResolvedValue({} as any);
   vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
@@ -287,8 +285,8 @@ const renderPage = async () => {
 };
 
 const settlePage = async () => {
-  await act(async () => {});
-  await act(async () => {});
+  await act(async () => undefined);
+  await act(async () => undefined);
 };
 
 const advanceTimersAndFlush = async (ms: number) => {
@@ -356,6 +354,14 @@ describe('CoursePlayer accessibility', () => {
     const collapsedToggle = screen.getByRole('button', { name: /Practice/ });
     expect(collapsedToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('button', { name: /Knowledge check/ })).not.toBeInTheDocument();
+  });
+
+  it('announces the resulting section state when an accordion is toggled', async () => {
+    renderSidebar({ expandedSectionIds: [10] });
+
+    await userEvent.click(screen.getByRole('button', { name: /Introduction/ }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Introduction collapsed');
   });
 
   it('renders mobile curriculum as a modal, traps focus, and closes on Escape', async () => {
@@ -575,14 +581,24 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     );
   });
 
-  it('renders an inline transcript when articleContent exists', async () => {
-    const { container } = await renderPage();
+  it('renders transcript actions without showing transcript text until requested', async () => {
+    const user = userEvent.setup();
+    await renderPage();
 
     expect(screen.getByRole('heading', { name: 'Transcript' })).toBeInTheDocument();
-    expect(screen.getByText('This is the video transcript.')).toBeInTheDocument();
+    expect(screen.queryByText('This is the video transcript.')).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole('button', { name: /Transcript Available for reference/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.getByRole('button', { name: 'Download transcript for Watch the video' }),
     ).toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('region', { name: 'Transcript content' })).toBeInTheDocument();
+    expect(screen.getByText('This is the video transcript.')).toBeInTheDocument();
   });
 
   it('renders a transcript placeholder without falsely claiming captions exist', async () => {

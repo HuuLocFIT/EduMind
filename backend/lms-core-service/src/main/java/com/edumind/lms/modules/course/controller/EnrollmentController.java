@@ -18,8 +18,9 @@ import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.service.EnrollmentService;
 import com.edumind.lms.modules.course.util.EnrollmentMapper;
 import com.edumind.lms.shared.exception.UnauthorizedException;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,13 +32,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/enrollments")
 @RequiredArgsConstructor
 public class EnrollmentController {
@@ -225,6 +229,23 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
+    @GetMapping("/enrolled")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<List<Long>>> getEnrolledCourseIds(
+            @RequestParam(required = false) @Size(max = 100) List<Long> courseIds,
+            Authentication authentication) {
+
+        Long studentId = Long.valueOf(authentication.getPrincipal().toString());
+        log.info("Getting enrolled course ids for student: {} among course ids: {}", studentId, courseIds);
+
+        if (courseIds == null || courseIds.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
+        }
+
+        List<Long> enrolled = enrollmentService.findEnrolledCourseIds(studentId, courseIds);
+        return ResponseEntity.ok(ApiResponse.success(enrolled));
+    }
+
     @GetMapping("/check/{courseId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<Boolean>> checkEnrollmentStatus(
@@ -235,6 +256,25 @@ public class EnrollmentController {
         boolean isEnrolled = enrollmentService.isStudentEnrolled(courseId, studentId);
 
         return ResponseEntity.ok(ApiResponse.success(isEnrolled));
+    }
+
+    // NOTE: singular "/course/{courseId}" = the STUDENT's OWN enrollment for a course, returned
+    // regardless of status (including DROPPED/SUSPENDED). Do NOT confuse this with the plural
+    // "/courses/{courseId}" endpoint above, which is a TEACHER/ADMIN listing of all enrollments
+    // for a course.
+    @GetMapping("/course/{courseId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<EnrollmentResponse>> getMyEnrollmentForCourse(
+            @PathVariable Long courseId,
+            Authentication authentication) {
+
+        Long studentId = Long.valueOf(authentication.getPrincipal().toString());
+        log.info("Getting enrollment for student {} in course {}", studentId, courseId);
+
+        Enrollment enrollment = enrollmentService.getEnrollmentByCourseAndStudent(courseId, studentId);
+        EnrollmentResponse response = enrollmentMapper.toResponse(enrollment);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/my-stats")

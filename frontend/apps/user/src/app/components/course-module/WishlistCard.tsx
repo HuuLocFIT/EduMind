@@ -44,8 +44,16 @@ export const WishlistCard: React.FC<WishlistCardProps> = ({
 
         {/* Course Thumbnail */}
         <div
+          role="button"
+          tabIndex={0}
           className="w-full md:w-72 h-48 md:h-auto md:aspect-video bg-gray-100 flex-shrink-0 relative cursor-pointer"
           onClick={onViewCourse}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onViewCourse();
+            }
+          }}
         >
           <CloudinaryImage
             src={item.thumbnailUrl}
@@ -65,11 +73,21 @@ export const WishlistCard: React.FC<WishlistCardProps> = ({
         <div className="flex-1 p-6 flex flex-col justify-between">
           <div>
              <div className="pr-10"> {/* Padding right for absolute delete button */}
-                <h3
-                  className="font-bold text-xl text-gray-900 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors mb-1"
-                  onClick={onViewCourse}
-                >
-                  {item.courseTitle}
+                <h3 className="font-bold text-xl text-gray-900 line-clamp-2 mb-1">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={onViewCourse}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onViewCourse();
+                      }
+                    }}
+                  >
+                    {item.courseTitle}
+                  </span>
                 </h3>
                 <p className="text-gray-600 font-medium text-sm mb-2">{item.instructorName}</p>
              </div>

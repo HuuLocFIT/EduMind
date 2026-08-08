@@ -23,9 +23,13 @@ export const enrollmentsKeys = {
     ['enrollments', 'in-progress', userId, minProgress] as const,
   course: (courseId: number, userId?: number) => 
     ['enrollments', 'courses', courseId, userId] as const,
+  enrolled: (userId: number, courseIds: number[]) =>
+    ['enrollments', 'enrolled', userId, courseIds] as const,
   status: (courseId: number | string, userId?: number) =>
     ['enrollments', 'status', courseId, userId] as const,
   stats: (userId?: number) => ['enrollments', 'stats', userId] as const,
+  recent: (userId?: number, limit?: number) =>
+    ['enrollments', 'recent', userId, limit] as const,
 } as const;
 
 // ============================================
@@ -103,6 +107,7 @@ export const teacherCoursesKeys = {
   all: ['teacher-courses'] as const,
   list: (userId?: number, page?: number, size?: number) => 
     ['teacher-courses', userId, page, size] as const,
+  picker: (userId?: number) => ['teacher-courses', userId, 'picker'] as const,
   detail: (courseId: string | number) => 
     ['teacher-courses', courseId] as const,
   sections: (courseId: string | number) => 
@@ -249,6 +254,8 @@ export const certificateKeys = {
 // ============================================
 export const aiKeys = {
   summary: (lessonId: number) => ['ai', 'summary', lessonId] as const,
+  quiz: (lessonId: number) => ['ai', 'quiz', lessonId] as const,
+  attempts: (lessonId: number) => ['ai', 'attempts', lessonId] as const,
 } as const;
 
 // ============================================

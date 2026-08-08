@@ -22,10 +22,11 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="course-title" className="block text-sm font-medium text-gray-700 mb-1">
           Course Title <span className="text-red-500">*</span>
         </label>
         <Input
+          id="course-title"
           value={data.title || ""}
           onChange={(e) => {
             const title = e.target.value;
@@ -40,10 +41,11 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="course-slug" className="block text-sm font-medium text-gray-700 mb-1">
           URL Slug <span className="text-red-500">*</span>
         </label>
         <Input
+          id="course-slug"
           value={data.slug || ""}
           onChange={(e) => onChange({ slug: e.target.value })}
           placeholder="complete-web-development-bootcamp"
@@ -53,10 +55,11 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="course-short-description" className="block text-sm font-medium text-gray-700 mb-1">
           Short Description
         </label>
         <Textarea
+          id="course-short-description"
           value={data.shortDescription || ""}
           onChange={(e) => onChange({ shortDescription: e.target.value })}
           placeholder="Brief overview of your course (max 500 characters)"
@@ -69,7 +72,7 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="course-description" className="block text-sm font-medium text-gray-700 mb-1">
           Full Description <span className="text-red-500">*</span>
         </label>
         <RichTextEditor
@@ -84,10 +87,11 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="course-category" className="block text-sm font-medium text-gray-700 mb-1">
             Category <span className="text-red-500">*</span>
           </label>
           <select
+            id="course-category"
             value={data.categoryId || ""}
             onChange={(e) => onChange({ categoryId: Number(e.target.value) })}
             className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
@@ -107,10 +111,11 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="course-level" className="block text-sm font-medium text-gray-700 mb-1">
             Level <span className="text-red-500">*</span>
           </label>
           <select
+            id="course-level"
             value={data.level || ""}
             onChange={(e) => onChange({ level: e.target.value as any })}
             className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
@@ -130,10 +135,11 @@ export const Step1BasicInfo: React.FC<StepProps> = ({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="course-language" className="block text-sm font-medium text-gray-700 mb-1">
           Language
         </label>
         <select
+          id="course-language"
           value={data.language || "en"}
           onChange={(e) => onChange({ language: e.target.value })}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"

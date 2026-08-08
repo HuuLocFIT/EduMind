@@ -20,18 +20,15 @@ export const CertificatesPage: React.FC = () => {
 
   // Use React Query for caching and better performance
   const { data: enrollments = [], isLoading: loading } = useQuery<EnrollmentResponse[]>({
-    queryKey: queryKeys.enrollments.me(userId),
-    queryFn: async () => {
-      const response = await enrollmentService.getMyEnrollments({ page: 0, size: 100 });
-      return response.data || [];
-    },
+    queryKey: queryKeys.enrollments.completed(userId),
+    queryFn: () => enrollmentService.getMyCompletedCourses(),
     staleTime: STALE_TIME_ENROLLMENTS,
     enabled: Boolean(userId),
   });
 
-  // Filter only completed courses with certificate enabled
+  // Filter to certificate-enabled enrollments
   const certificates = useMemo(() => {
-    return enrollments.filter((e: EnrollmentResponse) => e.status === 'COMPLETED' && e.courseHasCertificate);
+    return enrollments.filter((e: EnrollmentResponse) => e.courseHasCertificate);
   }, [enrollments]);
 
   if (loading) {

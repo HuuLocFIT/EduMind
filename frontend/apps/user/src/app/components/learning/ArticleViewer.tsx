@@ -86,7 +86,7 @@ export const ArticleViewer: React.FC<ArticleViewerProps> = ({ html, title }) => 
   return (
     <article aria-label={title ?? 'Lesson content'}>
       {title && (
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4 pb-2 border-b border-gray-100">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-4 pb-2 border-b border-gray-100">
           {title}
         </p>
       )}

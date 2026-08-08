@@ -179,10 +179,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="profile-username" className="block text-sm font-medium text-gray-700 mb-2">
               Username
             </label>
             <Input
+              id="profile-username"
               type="text"
               value={user?.username || ""}
               disabled
@@ -190,10 +191,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
             </label>
             <Input
+              id="profile-email"
               type="email"
               value={user?.email || ""}
               disabled

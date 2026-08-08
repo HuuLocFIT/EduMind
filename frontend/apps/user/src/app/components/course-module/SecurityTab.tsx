@@ -252,10 +252,11 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="disable-2fa-password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <PasswordInput
+                id="disable-2fa-password"
                 placeholder="Enter your password"
                 error={disableErrors.password?.message}
                 fullWidth
@@ -266,10 +267,11 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="disable-2fa-code" className="block text-sm font-medium text-gray-700 mb-2">
                 Verification Code
               </label>
               <Input
+                id="disable-2fa-code"
                 type="text"
                 placeholder="000000"
                 error={disableErrors.code?.message}
@@ -343,11 +345,12 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="delete-account-confirm" className="block text-sm font-medium text-gray-700 mb-2">
               Type <span className="font-mono font-bold">Delete</span> to
               confirm
             </label>
             <Input
+              id="delete-account-confirm"
               type="text"
               placeholder="Delete"
               value={deleteConfirmText}

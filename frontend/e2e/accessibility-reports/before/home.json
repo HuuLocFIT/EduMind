@@ -18,7 +18,7 @@
       "orientationAngle": 0,
       "orientationType": "landscape-primary"
     },
-    "timestamp": "2026-07-31T04:02:58.430Z",
+    "timestamp": "2026-08-08T14:54:53.800Z",
     "url": "http://localhost:3000/",
     "toolOptions": {
       "runOnly": {
@@ -145,40 +145,6 @@
         "description": "Ensure every ARIA progressbar node has an accessible name",
         "help": "ARIA progressbar nodes must have an accessible name",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-progressbar-name?application=playwright",
-        "nodes": []
-      },
-      {
-        "id": "aria-required-children",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag131",
-          "EN-301-549",
-          "EN-9.1.3.1",
-          "RGAAv4",
-          "RGAA-9.3.1"
-        ],
-        "description": "Ensure elements with an ARIA role that require child roles contain them",
-        "help": "Certain ARIA roles must contain particular children",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-children?application=playwright",
-        "nodes": []
-      },
-      {
-        "id": "aria-required-parent",
-        "impact": null,
-        "tags": [
-          "cat.aria",
-          "wcag2a",
-          "wcag131",
-          "EN-301-549",
-          "EN-9.1.3.1",
-          "RGAAv4",
-          "RGAA-9.3.1"
-        ],
-        "description": "Ensure elements with an ARIA role that require parent roles are contained by them",
-        "help": "Certain ARIA roles must be contained by particular parents",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-parent?application=playwright",
         "nodes": []
       },
       {
@@ -848,7 +814,7 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -881,7 +847,7 @@
               }
             ],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -949,7 +915,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -980,42 +946,9 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-allowed-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attributes are used correctly for the defined role"
-              },
-              {
-                "id": "aria-allowed-attr-elm",
-                "data": null,
-                "relatedNodes": [],
-                "message": "ARIA attributes are allowed for this element",
-                "impact": "critical"
-              }
-            ],
-            "none": [
-              {
-                "id": "aria-unsupported-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute is supported"
-              }
-            ],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              "#main-content"
             ]
           },
           {
@@ -1277,9 +1210,9 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<section class=\"py-20 bg-white\" aria-labelledby=\"featured-courses-heading\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "section[aria-labelledby=\"featured-courses-heading\"]"
             ]
           },
           {
@@ -1310,9 +1243,9 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -1343,9 +1276,9 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -1376,9 +1309,9 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<section class=\"py-20 bg-gray-50\" aria-labelledby=\"popular-courses-heading\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              "section[aria-labelledby=\"popular-courses-heading\"]"
             ]
           },
           {
@@ -1409,9 +1342,42 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -1577,7 +1543,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -1595,7 +1561,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -1633,7 +1599,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -1649,27 +1615,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-conditional-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "ARIA attribute is allowed"
-              }
-            ],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              "#main-content"
             ]
           },
           {
@@ -1811,9 +1759,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<section class=\"py-20 bg-white\" aria-labelledby=\"featured-courses-heading\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "section[aria-labelledby=\"featured-courses-heading\"]"
             ]
           },
           {
@@ -1829,9 +1777,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -1847,9 +1795,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -1865,9 +1813,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<section class=\"py-20 bg-gray-50\" aria-labelledby=\"popular-courses-heading\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              "section[aria-labelledby=\"popular-courses-heading\"]"
             ]
           },
           {
@@ -1883,9 +1831,27 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -1991,6 +1957,24 @@
               }
             ],
             "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "deprecatedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "minor",
+                "message": "ARIA role is not deprecated"
+              }
+            ],
+            "impact": null,
             "html": "<figure role=\"group\" aria-label=\"Courses: 1000+, Increased by 15% vs last month\" class=\"flex items-start justify-between\">",
             "target": [
               ".rounded-xl.transition-shadow.p-6:nth-child(1) > figure"
@@ -2117,9 +2101,9 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -2135,9 +2119,45 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div role=\"listitem\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "deprecatedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "minor",
+                "message": "ARIA role is not deprecated"
+              }
+            ],
+            "impact": null,
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "target": [
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "deprecatedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "minor",
+                "message": "ARIA role is not deprecated"
+              }
+            ],
+            "impact": null,
+            "html": "<div role=\"listitem\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"]"
             ]
           }
         ]
@@ -2289,9 +2309,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<span class=\"inline-flex\" aria-hidden=\"true\">",
+            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right h-5 w-5\" aria-hidden=\"true\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white > .inline-flex[aria-hidden=\"true\"]"
+              ".min-w-\\[180px\\].shadow-lg.hover\\:shadow-xl > .lucide-arrow-right.h-5.w-5"
             ]
           },
           {
@@ -2867,7 +2887,7 @@
             "impact": null,
             "html": "<div class=\"w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4\" aria-hidden=\"true\">",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(1) > .mt-4 > .w-16.h-16.rounded-full"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(1) > .mt-4 > .w-16.h-16.rounded-full"
             ]
           },
           {
@@ -2899,7 +2919,7 @@
             "impact": null,
             "html": "<div class=\"w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4\" aria-hidden=\"true\">",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(2) > .mt-4 > .w-16.h-16.rounded-full"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(2) > .mt-4 > .w-16.h-16.rounded-full"
             ]
           },
           {
@@ -2931,7 +2951,7 @@
             "impact": null,
             "html": "<div class=\"w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4\" aria-hidden=\"true\">",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(3) > .mt-4 > .w-16.h-16.rounded-full"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(3) > .mt-4 > .w-16.h-16.rounded-full"
             ]
           },
           {
@@ -2963,7 +2983,7 @@
             "impact": null,
             "html": "<div class=\"w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4\" aria-hidden=\"true\">",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(4) > .mt-4 > .w-16.h-16.rounded-full"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(4) > .mt-4 > .w-16.h-16.rounded-full"
             ]
           },
           {
@@ -2995,7 +3015,7 @@
             "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-book-open w-12 h-12 sm:w-16 sm:h-16 text-gray-400\" aria-hidden=\"true\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .h-44.sm\\:h-48.lg\\:h-52 > .h-full.justify-center.items-center > .sm\\:w-16.sm\\:h-16.lucide-book-open"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .h-44.sm\\:h-48.lg\\:h-52 > .h-full.justify-center.items-center > .sm\\:w-16.sm\\:h-16.lucide-book-open"
             ]
           },
           {
@@ -3025,9 +3045,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-star w-4 h-4 fill-yellow-400 text-yellow-400\" aria-hidden=\"true\">",
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .fill-yellow-400.text-yellow-400.lucide-star"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .contents[aria-hidden=\"true\"]"
             ]
           },
           {
@@ -3059,7 +3079,7 @@
             "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-users w-4 h-4 text-gray-400\" aria-hidden=\"true\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > .lucide-users.text-gray-400.w-4"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > .lucide-users.text-gray-400.w-4"
             ]
           },
           {
@@ -3091,7 +3111,7 @@
             "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clock w-4 h-4 text-gray-400\" aria-hidden=\"true\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > .lucide-clock.text-gray-400.w-4"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > .lucide-clock.text-gray-400.w-4"
             ]
           },
           {
@@ -3121,9 +3141,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<span class=\"inline-flex\" aria-hidden=\"true\">",
+            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right h-5 w-5\" aria-hidden=\"true\">",
             "target": [
-              ".bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md > .inline-flex[aria-hidden=\"true\"]"
+              ".bg-blue-600.hover\\:bg-blue-700.focus-visible\\:ring-blue-600 > .lucide-arrow-right.h-5.w-5"
             ]
           },
           {
@@ -3155,7 +3175,7 @@
             "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-book-open w-12 h-12 sm:w-16 sm:h-16 text-gray-400\" aria-hidden=\"true\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .h-44.sm\\:h-48.lg\\:h-52 > .h-full.justify-center.items-center > .sm\\:w-16.sm\\:h-16.lucide-book-open"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .h-44.sm\\:h-48.lg\\:h-52 > .h-full.justify-center.items-center > .sm\\:w-16.sm\\:h-16.lucide-book-open"
             ]
           },
           {
@@ -3185,9 +3205,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-star w-4 h-4 fill-yellow-400 text-yellow-400\" aria-hidden=\"true\">",
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .fill-yellow-400.text-yellow-400.lucide-star"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .contents[aria-hidden=\"true\"]"
             ]
           },
           {
@@ -3219,7 +3239,7 @@
             "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-users w-4 h-4 text-gray-400\" aria-hidden=\"true\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > .lucide-users.text-gray-400.w-4"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > .lucide-users.text-gray-400.w-4"
             ]
           },
           {
@@ -3251,7 +3271,7 @@
             "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clock w-4 h-4 text-gray-400\" aria-hidden=\"true\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > .lucide-clock.text-gray-400.w-4"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > .lucide-clock.text-gray-400.w-4"
             ]
           },
           {
@@ -3281,9 +3301,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<span class=\"inline-flex\" aria-hidden=\"true\">",
+            "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right h-5 w-5\" aria-hidden=\"true\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white > .inline-flex[aria-hidden=\"true\"]"
+              ".min-w-\\[200px\\].shadow-lg.hover\\:shadow-xl > .lucide-arrow-right.h-5.w-5"
             ]
           }
         ]
@@ -3317,7 +3337,7 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -3335,7 +3355,7 @@
               }
             ],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -3373,7 +3393,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -3389,27 +3409,9 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "aria-prohibited-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "ARIA attribute is allowed"
-              }
-            ],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              "#main-content"
             ]
           },
           {
@@ -3551,9 +3553,9 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<section class=\"py-20 bg-white\" aria-labelledby=\"featured-courses-heading\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "section[aria-labelledby=\"featured-courses-heading\"]"
             ]
           },
           {
@@ -3569,9 +3571,9 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -3587,9 +3589,9 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -3605,9 +3607,9 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<section class=\"py-20 bg-gray-50\" aria-labelledby=\"popular-courses-heading\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              "section[aria-labelledby=\"popular-courses-heading\"]"
             ]
           },
           {
@@ -3623,9 +3625,27 @@
               }
             ],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -3731,6 +3751,24 @@
             "all": [],
             "none": [],
             "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-required-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "All required ARIA attributes are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
             "html": "<figure role=\"group\" aria-label=\"Courses: 1000+, Increased by 15% vs last month\" class=\"flex items-start justify-between\">",
             "target": [
               ".rounded-xl.transition-shadow.p-6:nth-child(1) > figure"
@@ -3857,9 +3895,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -3875,9 +3913,153 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div role=\"listitem\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-required-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "All required ARIA attributes are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "target": [
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-required-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "All required ARIA attributes are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div role=\"listitem\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-required-children",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag131",
+          "EN-301-549",
+          "EN-9.1.3.1",
+          "RGAAv4",
+          "RGAA-9.3.1"
+        ],
+        "description": "Ensure elements with an ARIA role that require child roles contain them",
+        "help": "Certain ARIA roles must contain particular children",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-children?application=playwright",
+        "nodes": [
+          {
+            "any": [
+              {
+                "id": "aria-required-children",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Required ARIA children are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "target": [
+              "div[aria-label=\"Featured courses\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-required-children",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Required ARIA children are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "target": [
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "aria-required-parent",
+        "impact": null,
+        "tags": [
+          "cat.aria",
+          "wcag2a",
+          "wcag131",
+          "EN-301-549",
+          "EN-9.1.3.1",
+          "RGAAv4",
+          "RGAA-9.3.1"
+        ],
+        "description": "Ensure elements with an ARIA role that require parent roles are contained by them",
+        "help": "Certain ARIA roles must be contained by particular parents",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/aria-required-parent?application=playwright",
+        "nodes": [
+          {
+            "any": [
+              {
+                "id": "aria-required-parent",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Required ARIA parent role present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div role=\"listitem\">",
+            "target": [
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-required-parent",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Required ARIA parent role present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div role=\"listitem\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"]"
             ]
           }
         ]
@@ -3925,6 +4107,38 @@
               }
             ],
             "impact": null,
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
+            "target": [
+              ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "invalidrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is valid"
+              },
+              {
+                "id": "abstractrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Abstract roles are not used"
+              },
+              {
+                "id": "unsupportedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is supported"
+              }
+            ],
+            "impact": null,
             "html": "<figure role=\"group\" aria-label=\"Courses: 1000+, Increased by 15% vs last month\" class=\"flex items-start justify-between\">",
             "target": [
               ".rounded-xl.transition-shadow.p-6:nth-child(1) > figure"
@@ -4149,9 +4363,9 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -4181,9 +4395,73 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div role=\"listitem\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "invalidrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is valid"
+              },
+              {
+                "id": "abstractrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Abstract roles are not used"
+              },
+              {
+                "id": "unsupportedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "target": [
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "invalidrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is valid"
+              },
+              {
+                "id": "abstractrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Abstract roles are not used"
+              },
+              {
+                "id": "unsupportedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div role=\"listitem\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"]"
             ]
           }
         ]
@@ -4231,7 +4509,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -4263,7 +4541,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -4329,7 +4607,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -4359,41 +4637,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [],
-            "all": [
-              {
-                "id": "aria-valid-attr-value",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute values are valid"
-              },
-              {
-                "id": "aria-errormessage",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
-              },
-              {
-                "id": "aria-level",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "aria-level values are valid"
-              }
-            ],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              "#main-content"
             ]
           },
           {
@@ -4647,9 +4893,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<section class=\"py-20 bg-white\" aria-labelledby=\"featured-courses-heading\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "section[aria-labelledby=\"featured-courses-heading\"]"
             ]
           },
           {
@@ -4679,9 +4925,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -4711,9 +4957,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -4743,9 +4989,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<section class=\"py-20 bg-gray-50\" aria-labelledby=\"popular-courses-heading\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              "section[aria-labelledby=\"popular-courses-heading\"]"
             ]
           },
           {
@@ -4775,9 +5021,41 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -4939,7 +5217,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -4957,7 +5235,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
               "nav"
             ]
@@ -4995,7 +5273,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -5011,27 +5289,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "aria-valid-attr",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "ARIA attribute name is valid"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              "#main-content"
             ]
           },
           {
@@ -5173,9 +5433,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<section class=\"py-20 bg-white\" aria-labelledby=\"featured-courses-heading\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "section[aria-labelledby=\"featured-courses-heading\"]"
             ]
           },
           {
@@ -5191,9 +5451,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Featured courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              "div[aria-label=\"Featured courses\"]"
             ]
           },
           {
@@ -5209,9 +5469,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div role=\"group\" aria-label=\"Course listings\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -5227,9 +5487,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<section class=\"py-20 bg-gray-50\" aria-labelledby=\"popular-courses-heading\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              "section[aria-labelledby=\"popular-courses-heading\"]"
             ]
           },
           {
@@ -5245,9 +5505,27 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<div role=\"list\" aria-label=\"Popular courses\" class=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 \">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              "div[aria-label=\"Popular courses\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-1.5\" aria-label=\"Rated 4.8 out of 5 from 0 reviews\">",
+            "target": [
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1)"
             ]
           },
           {
@@ -5587,97 +5865,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has inner text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has inner text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has inner text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has inner text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has inner text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           }
         ]
@@ -5705,13 +5893,6 @@
           {
             "any": [
               {
-                "id": "internal-link-present",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Valid skip link found"
-              },
-              {
                 "id": "header-present",
                 "data": null,
                 "relatedNodes": [
@@ -5730,49 +5911,49 @@
                   {
                     "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">AI-Powered Learning</h3>",
                     "target": [
-                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(1) > .mt-4 > h3"
+                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(1) > .mt-4 > h3"
                     ]
                   },
                   {
                     "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">Live Classes</h3>",
                     "target": [
-                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(2) > .mt-4 > h3"
+                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(2) > .mt-4 > h3"
                     ]
                   },
                   {
                     "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">Learn at Your Pace</h3>",
                     "target": [
-                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(3) > .mt-4 > h3"
+                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(3) > .mt-4 > h3"
                     ]
                   },
                   {
                     "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">Certificates</h3>",
                     "target": [
-                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(4) > .mt-4 > h3"
+                      ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(4) > .mt-4 > h3"
                     ]
                   },
                   {
-                    "html": "<h2 class=\"text-4xl font-bold text-gray-900 mb-4\">Featured Courses</h2>",
+                    "html": "<h2 id=\"featured-courses-heading\" class=\"text-4xl font-bold text-gray-900 mb-4\">Featured Courses</h2>",
                     "target": [
-                      ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .text-4xl"
-                    ]
-                  },
-                  {
-                    "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1.5 line-clamp-2 min-h-[3.5rem] leading-snug group-hover:text-blue-600 transition-colors\" title=\"Accessible Web Foundations\">Accessible Web Foundations</h3>",
-                    "target": [
-                      ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-1\\.5.line-clamp-2.min-h-\\[3\\.5rem\\]"
-                    ]
-                  },
-                  {
-                    "html": "<h2 class=\"text-4xl font-bold text-gray-900 mb-4\">Most Popular Courses</h2>",
-                    "target": [
-                      ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .text-4xl"
+                      "#featured-courses-heading"
                     ]
                   },
                   {
                     "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1.5 line-clamp-2 min-h-[3.5rem] leading-snug group-hover:text-blue-600 transition-colors\" title=\"Accessible Web Foundations\">Accessible Web Foundations</h3>",
                     "target": [
-                      ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-1\\.5.line-clamp-2.min-h-\\[3\\.5rem\\]"
+                      "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .text-lg.mb-1\\.5.line-clamp-2"
+                    ]
+                  },
+                  {
+                    "html": "<h2 id=\"popular-courses-heading\" class=\"text-4xl font-bold text-gray-900 mb-4\">Most Popular Courses</h2>",
+                    "target": [
+                      "#popular-courses-heading"
+                    ]
+                  },
+                  {
+                    "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1.5 line-clamp-2 min-h-[3.5rem] leading-snug group-hover:text-blue-600 transition-colors\" title=\"Accessible Web Foundations\">Accessible Web Foundations</h3>",
+                    "target": [
+                      "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .text-lg.mb-1\\.5.line-clamp-2"
                     ]
                   },
                   {
@@ -5808,7 +5989,7 @@
                 "data": null,
                 "relatedNodes": [
                   {
-                    "html": "<main id=\"main-content\" tabindex=\"-1\" class=\"flex-1 flex flex-col\">",
+                    "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
                     "target": [
                       "#main-content"
                     ]
@@ -5894,7 +6075,7 @@
             "impact": null,
             "html": "<a class=\"transition-colors text-gray-700 hover:text-blue-600\" href=\"/courses\">Browse Courses</a>",
             "target": [
-              ".text-gray-700.transition-colors[href$=\"courses\"]"
+              ".text-gray-700.transition-colors.hover\\:text-blue-600"
             ]
           },
           {
@@ -5944,7 +6125,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -6369,7 +6550,7 @@
             "impact": null,
             "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">AI-Powered Learning</h3>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(1) > .mt-4 > h3"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(1) > .mt-4 > h3"
             ]
           },
           {
@@ -6394,7 +6575,7 @@
             "impact": null,
             "html": "<p class=\"text-gray-600\">Personalized learning paths adapted to your pace and goals</p>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(1) > .mt-4 > .text-gray-600"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(1) > .mt-4 > .text-gray-600"
             ]
           },
           {
@@ -6419,7 +6600,7 @@
             "impact": null,
             "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">Live Classes</h3>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(2) > .mt-4 > h3"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(2) > .mt-4 > h3"
             ]
           },
           {
@@ -6444,7 +6625,7 @@
             "impact": null,
             "html": "<p class=\"text-gray-600\">Interactive sessions with expert instructors in real-time</p>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(2) > .mt-4 > .text-gray-600"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(2) > .mt-4 > .text-gray-600"
             ]
           },
           {
@@ -6469,7 +6650,7 @@
             "impact": null,
             "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">Learn at Your Pace</h3>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(3) > .mt-4 > h3"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(3) > .mt-4 > h3"
             ]
           },
           {
@@ -6494,7 +6675,7 @@
             "impact": null,
             "html": "<p class=\"text-gray-600\">Access courses anytime, anywhere with lifetime access</p>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(3) > .mt-4 > .text-gray-600"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(3) > .mt-4 > .text-gray-600"
             ]
           },
           {
@@ -6519,7 +6700,7 @@
             "impact": null,
             "html": "<h3 class=\"text-xl font-semibold text-gray-900 mb-2\">Certificates</h3>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(4) > .mt-4 > h3"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(4) > .mt-4 > h3"
             ]
           },
           {
@@ -6544,7 +6725,7 @@
             "impact": null,
             "html": "<p class=\"text-gray-600\">Earn recognized certificates upon course completion</p>",
             "target": [
-              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.rounded-xl:nth-child(4) > .mt-4 > .text-gray-600"
+              ".motion-safe\\:hover\\:scale-105.motion-safe\\:transition-transform.motion-safe\\:duration-300:nth-child(4) > .mt-4 > .text-gray-600"
             ]
           },
           {
@@ -6567,9 +6748,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<h2 class=\"text-4xl font-bold text-gray-900 mb-4\">Featured Courses</h2>",
+            "html": "<h2 id=\"featured-courses-heading\" class=\"text-4xl font-bold text-gray-900 mb-4\">Featured Courses</h2>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .text-4xl"
+              "#featured-courses-heading"
             ]
           },
           {
@@ -6594,7 +6775,7 @@
             "impact": null,
             "html": "<p class=\"text-xl text-gray-600 max-w-2xl mx-auto\">Hand-picked courses to help you reach your goals and advance your career</p>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .max-w-2xl.text-xl.text-gray-600"
+              "section[aria-labelledby=\"featured-courses-heading\"] > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .max-w-2xl.text-xl.text-gray-600"
             ]
           },
           {
@@ -6619,7 +6800,7 @@
             "impact": null,
             "html": "<span class=\"bg-white/90 backdrop-blur text-gray-800 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm border border-gray-100/50\">Beginner</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .h-44.sm\\:h-48.lg\\:h-52 > .top-3.right-3.z-10 > .bg-white\\/90.backdrop-blur.text-gray-800"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .h-44.sm\\:h-48.lg\\:h-52 > .top-3.right-3.z-10 > .bg-white\\/90.backdrop-blur.text-gray-800"
             ]
           },
           {
@@ -6644,7 +6825,7 @@
             "impact": null,
             "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1.5 line-clamp-2 min-h-[3.5rem] leading-snug group-hover:text-blue-600 transition-colors\" title=\"Accessible Web Foundations\">Accessible Web Foundations</h3>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-1\\.5.line-clamp-2.min-h-\\[3\\.5rem\\]"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .text-lg.mb-1\\.5.line-clamp-2"
             ]
           },
           {
@@ -6669,7 +6850,7 @@
             "impact": null,
             "html": "<span>by</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > span:nth-child(1)"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > span:nth-child(1)"
             ]
           },
           {
@@ -6694,7 +6875,7 @@
             "impact": null,
             "html": "<span class=\"font-medium text-gray-700\">EduMind Accessibility Team</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > .text-gray-700.font-medium"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > .text-gray-700.font-medium"
             ]
           },
           {
@@ -6719,7 +6900,7 @@
             "impact": null,
             "html": "<span class=\"font-extrabold text-gray-900 text-base\">4.8</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .font-extrabold.text-base.text-gray-900"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .contents[aria-hidden=\"true\"] > .font-extrabold.text-base.text-gray-900"
             ]
           },
           {
@@ -6744,7 +6925,7 @@
             "impact": null,
             "html": "<span class=\"text-gray-500\">(0)</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .text-gray-500"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .contents[aria-hidden=\"true\"] > .text-gray-500"
             ]
           },
           {
@@ -6769,7 +6950,7 @@
             "impact": null,
             "html": "<span>25</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > span"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > span"
             ]
           },
           {
@@ -6794,7 +6975,7 @@
             "impact": null,
             "html": "<span>2h</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > span"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > span"
             ]
           },
           {
@@ -6819,7 +7000,7 @@
             "impact": null,
             "html": "<span class=\"text-2xl font-bold text-gray-900\">$49.00</span>",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .z-20.sm\\:px-5.pb-4 > .flex-col.flex > .items-baseline.gap-2.flex > .text-2xl.font-bold.text-gray-900"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .z-20.sm\\:px-5.pb-4 > .flex-col.flex > .items-baseline.gap-2.flex > .text-2xl.font-bold.text-gray-900"
             ]
           },
           {
@@ -6830,7 +7011,7 @@
                   "fgColor": "#ffffff",
                   "bgColor": "#2563eb",
                   "contrastRatio": 5.16,
-                  "fontSize": "13.5pt (18px)",
+                  "fontSize": "12.0pt (16px)",
                   "fontWeight": "normal",
                   "expectedContrastRatio": "4.5:1"
                 },
@@ -6842,9 +7023,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2\" href=\"/courses\">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".bg-blue-600.hover\\:bg-blue-700.focus-visible\\:ring-blue-600"
             ]
           },
           {
@@ -6867,9 +7048,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<h2 class=\"text-4xl font-bold text-gray-900 mb-4\">Most Popular Courses</h2>",
+            "html": "<h2 id=\"popular-courses-heading\" class=\"text-4xl font-bold text-gray-900 mb-4\">Most Popular Courses</h2>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .text-4xl"
+              "#popular-courses-heading"
             ]
           },
           {
@@ -6894,7 +7075,7 @@
             "impact": null,
             "html": "<p class=\"text-xl text-gray-600 max-w-2xl mx-auto\">Join thousands of students learning these trending courses</p>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .max-w-2xl.text-xl.text-gray-600"
+              "section[aria-labelledby=\"popular-courses-heading\"] > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .mb-12.text-center > .max-w-2xl.text-xl.text-gray-600"
             ]
           },
           {
@@ -6919,7 +7100,7 @@
             "impact": null,
             "html": "<span class=\"bg-white/90 backdrop-blur text-gray-800 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm border border-gray-100/50\">Beginner</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .h-44.sm\\:h-48.lg\\:h-52 > .top-3.right-3.z-10 > .bg-white\\/90.backdrop-blur.text-gray-800"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .h-44.sm\\:h-48.lg\\:h-52 > .top-3.right-3.z-10 > .bg-white\\/90.backdrop-blur.text-gray-800"
             ]
           },
           {
@@ -6944,7 +7125,7 @@
             "impact": null,
             "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1.5 line-clamp-2 min-h-[3.5rem] leading-snug group-hover:text-blue-600 transition-colors\" title=\"Accessible Web Foundations\">Accessible Web Foundations</h3>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-1\\.5.line-clamp-2.min-h-\\[3\\.5rem\\]"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .text-lg.mb-1\\.5.line-clamp-2"
             ]
           },
           {
@@ -6969,7 +7150,7 @@
             "impact": null,
             "html": "<span>by</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > span:nth-child(1)"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > span:nth-child(1)"
             ]
           },
           {
@@ -6994,7 +7175,7 @@
             "impact": null,
             "html": "<span class=\"font-medium text-gray-700\">EduMind Accessibility Team</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > .text-gray-700.font-medium"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .truncate.mb-3.gap-1 > .text-gray-700.font-medium"
             ]
           },
           {
@@ -7019,7 +7200,7 @@
             "impact": null,
             "html": "<span class=\"font-extrabold text-gray-900 text-base\">4.8</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .font-extrabold.text-base.text-gray-900"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .contents[aria-hidden=\"true\"] > .font-extrabold.text-base.text-gray-900"
             ]
           },
           {
@@ -7044,7 +7225,7 @@
             "impact": null,
             "html": "<span class=\"text-gray-500\">(0)</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .text-gray-500"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center.flex:nth-child(1) > .contents[aria-hidden=\"true\"] > .text-gray-500"
             ]
           },
           {
@@ -7069,7 +7250,7 @@
             "impact": null,
             "html": "<span>25</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > span"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Students\"] > span"
             ]
           },
           {
@@ -7094,7 +7275,7 @@
             "impact": null,
             "html": "<span>2h</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > span"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5 > .mb-5.text-gray-500.gap-2 > .gap-1\\.5.items-center[title=\"Duration\"] > span"
             ]
           },
           {
@@ -7119,7 +7300,7 @@
             "impact": null,
             "html": "<span class=\"text-2xl font-bold text-gray-900\">$49.00</span>",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .z-20.sm\\:px-5.pb-4 > .flex-col.flex > .items-baseline.gap-2.flex > .text-2xl.font-bold.text-gray-900"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .z-20.sm\\:px-5.pb-4 > .flex-col.flex > .items-baseline.gap-2.flex > .text-2xl.font-bold.text-gray-900"
             ]
           },
           {
@@ -7317,9 +7498,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
+            "html": "<span>Help Center</span>",
             "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
+              "li:nth-child(1) > span"
             ]
           },
           {
@@ -7342,9 +7523,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
+            "html": "<span>Contact Us</span>",
             "target": [
-              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
+              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > span"
             ]
           },
           {
@@ -7367,9 +7548,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
+            "html": "<span>FAQ</span>",
             "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
+              "li:nth-child(3) > span"
             ]
           },
           {
@@ -7442,9 +7623,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
+            "html": "<span>Privacy Policy</span>",
             "target": [
-              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
+              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > span"
             ]
           },
           {
@@ -7529,6 +7710,42 @@
         "help": "IDs used in ARIA and labels must be unique",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/duplicate-id-aria?application=playwright",
         "nodes": [
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
+                "data": "featured-courses-heading",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<h2 id=\"featured-courses-heading\" class=\"text-4xl font-bold text-gray-900 mb-4\">Featured Courses</h2>",
+            "target": [
+              "#featured-courses-heading"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
+                "data": "popular-courses-heading",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<h2 id=\"popular-courses-heading\" class=\"text-4xl font-bold text-gray-900 mb-4\">Most Popular Courses</h2>",
+            "target": [
+              "#popular-courses-heading"
+            ]
+          },
           {
             "any": [
               {
@@ -7707,7 +7924,7 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
+            "html": "<a href=\"/#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
             "target": [
               ".sr-only"
             ]
@@ -7761,7 +7978,59 @@
             "impact": null,
             "html": "<a class=\"transition-colors text-gray-700 hover:text-blue-600\" href=\"/courses\">Browse Courses</a>",
             "target": [
-              ".text-gray-700.transition-colors[href$=\"courses\"]"
+              ".text-gray-700.transition-colors.hover\\:text-blue-600"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/courses\">",
+            "target": [
+              ".min-w-\\[180px\\].shadow-lg.hover\\:shadow-xl"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/signup\">",
+            "target": [
+              ".min-w-\\[180px\\].hover\\:bg-white\\/20[href$=\"signup\"]"
             ]
           },
           {
@@ -7787,7 +8056,33 @@
             "impact": null,
             "html": "<a href=\"/courses/pa11y-accessibility-fixture\" class=\"flex flex-col flex-grow p-4 sm:p-5 after:absolute after:inset-0 after:z-10\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a class=\"inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2\" href=\"/courses\">",
+            "target": [
+              ".bg-blue-600.hover\\:bg-blue-700.focus-visible\\:ring-blue-600"
             ]
           },
           {
@@ -7813,7 +8108,59 @@
             "impact": null,
             "html": "<a href=\"/courses/pa11y-accessibility-fixture\" class=\"flex flex-col flex-grow p-4 sm:p-5 after:absolute after:inset-0 after:z-10\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/signup\">",
+            "target": [
+              ".min-w-\\[200px\\].shadow-lg.hover\\:shadow-xl"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/courses\">",
+            "target": [
+              ".min-w-\\[200px\\].hover\\:bg-white\\/20.backdrop-blur-sm"
             ]
           },
           {
@@ -7915,113 +8262,9 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
-            "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
-            "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
             "html": "<a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a>",
             "target": [
               "a[href$=\"terms\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
             ]
           }
         ]
@@ -8073,7 +8316,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a href=\"#\" class=\"hover:text-blue-600\">Help Center</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">FAQ</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><span>Help Center</span></li><li><span>Contact Us</span></li><li><span>FAQ</span></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul"
             ]
@@ -8091,7 +8334,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a></li><li><span>Privacy Policy</span></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-legal\"] > ul"
             ]
@@ -8181,7 +8424,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Help Center</a></li>",
+            "html": "<li><span>Help Center</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(1)"
             ]
@@ -8199,7 +8442,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a></li>",
+            "html": "<li><span>Contact Us</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2)"
             ]
@@ -8217,7 +8460,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">FAQ</a></li>",
+            "html": "<li><span>FAQ</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(3)"
             ]
@@ -8253,7 +8496,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a></li>",
+            "html": "<li><span>Privacy Policy</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2)"
             ]
@@ -8348,97 +8591,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "no-focusable-content",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element does not have focusable descendants"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "no-focusable-content",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element does not have focusable descendants"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "no-focusable-content",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element does not have focusable descendants"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "no-focusable-content",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element does not have focusable descendants"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "no-focusable-content",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element does not have focusable descendants"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
-            "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           }
         ]
@@ -8471,7 +8624,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
+            "html": "<a href=\"/#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
             "target": [
               ".sr-only"
             ]
@@ -8537,7 +8690,7 @@
             "impact": null,
             "html": "<a class=\"transition-colors text-gray-700 hover:text-blue-600\" href=\"/courses\">Browse Courses</a>",
             "target": [
-              ".text-gray-700.transition-colors[href$=\"courses\"]"
+              ".text-gray-700.transition-colors.hover\\:text-blue-600"
             ]
           },
           {
@@ -8601,7 +8754,7 @@
             "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-4 py-2 text-base\" aria-busy=\"false\">",
             "target": [
-              ".gap-4.items-center.flex > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".transition-all.focus\\:ring-offset-2.focus\\:ring-blue-500:nth-child(2)"
             ]
           },
           {
@@ -8642,9 +8795,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/courses\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              ".min-w-\\[180px\\].shadow-lg.hover\\:shadow-xl"
             ]
           },
           {
@@ -8685,9 +8838,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/signup\">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              ".min-w-\\[180px\\].hover\\:bg-white\\/20[href$=\"signup\"]"
             ]
           },
           {
@@ -8719,7 +8872,7 @@
             "impact": null,
             "html": "<a href=\"/courses/pa11y-accessibility-fixture\" class=\"flex flex-col flex-grow p-4 sm:p-5 after:absolute after:inset-0 after:z-10\">",
             "target": [
-              ".py-20:nth-child(4) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5"
+              "div[aria-label=\"Featured courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5"
             ]
           },
           {
@@ -8728,12 +8881,12 @@
                 "id": "target-size",
                 "data": {
                   "minSize": 24,
-                  "width": 216.8,
-                  "height": 52
+                  "width": 203,
+                  "height": 48
                 },
                 "relatedNodes": [],
                 "impact": "serious",
-                "message": "Control has sufficient size (216.8px by 52px, should be at least 24px by 24px)"
+                "message": "Control has sufficient size (203px by 48px, should be at least 24px by 24px)"
               },
               {
                 "id": "target-offset",
@@ -8749,9 +8902,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2\" href=\"/courses\">",
             "target": [
-              ".mt-12.text-center > .bg-blue-600.hover\\:bg-blue-700.hover\\:shadow-md"
+              ".bg-blue-600.hover\\:bg-blue-700.focus-visible\\:ring-blue-600"
             ]
           },
           {
@@ -8783,7 +8936,7 @@
             "impact": null,
             "html": "<a href=\"/courses/pa11y-accessibility-fixture\" class=\"flex flex-col flex-grow p-4 sm:p-5 after:absolute after:inset-0 after:z-10\">",
             "target": [
-              ".py-20.bg-gray-50:nth-child(5) > .max-w-7xl.lg\\:px-8.sm\\:px-6 > .lg\\:grid-cols-3.sm\\:gap-4.lg\\:gap-6 > article > .flex-grow.p-4.sm\\:p-5"
+              "div[aria-label=\"Popular courses\"] > div[role=\"listitem\"] > article > .flex-grow.p-4.sm\\:p-5"
             ]
           },
           {
@@ -8824,9 +8977,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/signup\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              ".min-w-\\[200px\\].shadow-lg.hover\\:shadow-xl"
             ]
           },
           {
@@ -8867,9 +9020,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/courses\">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              ".min-w-\\[200px\\].hover\\:bg-white\\/20.backdrop-blur-sm"
             ]
           },
           {
@@ -8951,93 +9104,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
-            "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-support\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
-            "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
             "html": "<a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a>",
             "target": [
               "a[href$=\"terms\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-legal\"] > ul > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
             ]
           }
         ]
@@ -9169,7 +9238,7 @@
                 "id": "color-contrast",
                 "data": {
                   "contrastRatio": 0,
-                  "fontSize": "13.5pt (18px)",
+                  "fontSize": "12.0pt (16px)",
                   "fontWeight": "normal",
                   "messageKey": "bgOverlap",
                   "expectedContrastRatio": "4.5:1"
@@ -9182,9 +9251,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/courses\">",
             "target": [
-              ".lg\\:py-32 > .max-w-4xl.text-center.mx-auto > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              ".min-w-\\[180px\\].shadow-lg.hover\\:shadow-xl"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -9194,7 +9263,7 @@
                 "id": "color-contrast",
                 "data": {
                   "contrastRatio": 0,
-                  "fontSize": "13.5pt (18px)",
+                  "fontSize": "12.0pt (16px)",
                   "fontWeight": "normal",
                   "messageKey": "bgOverlap",
                   "expectedContrastRatio": "4.5:1"
@@ -9207,9 +9276,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/signup\">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[180px\\]"
+              ".min-w-\\[180px\\].hover\\:bg-white\\/20[href$=\"signup\"]"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -9344,7 +9413,7 @@
                 "id": "color-contrast",
                 "data": {
                   "contrastRatio": 0,
-                  "fontSize": "13.5pt (18px)",
+                  "fontSize": "12.0pt (16px)",
                   "fontWeight": "normal",
                   "messageKey": "bgOverlap",
                   "expectedContrastRatio": "4.5:1"
@@ -9357,9 +9426,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/signup\">",
             "target": [
-              ".max-w-4xl.lg\\:px-8.sm\\:px-6 > .sm\\:flex-row.gap-4.flex-col > .border-2.border-blue-600.\\!bg-white"
+              ".min-w-\\[200px\\].shadow-lg.hover\\:shadow-xl"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -9369,7 +9438,7 @@
                 "id": "color-contrast",
                 "data": {
                   "contrastRatio": 0,
-                  "fontSize": "13.5pt (18px)",
+                  "fontSize": "12.0pt (16px)",
                   "fontWeight": "normal",
                   "messageKey": "bgOverlap",
                   "expectedContrastRatio": "4.5:1"
@@ -9382,9 +9451,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<button class=\"inline-flex items-ce...\" aria-busy=\"false\">",
+            "html": "<a class=\"inline-flex min-h-12...\" href=\"/courses\">",
             "target": [
-              ".\\!text-white.hover\\:\\!bg-white\\/20.min-w-\\[200px\\]"
+              ".min-w-\\[200px\\].hover\\:bg-white\\/20.backdrop-blur-sm"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           }
@@ -9402,9 +9471,12 @@
         "name": "Skip to main content",
         "hidden": false,
         "disabled": false,
-        "focusVisible": true
+        "focusVisible": true,
+        "focusIndicatorChanged": true
       }
     ],
-    "issues": []
+    "issues": [
+      "No focus-induced indicator (decorative shadows ignored): a[tabindex=\"0\"]:nth-of-type(1)"
+    ]
   }
 }

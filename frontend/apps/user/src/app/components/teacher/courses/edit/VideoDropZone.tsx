@@ -305,6 +305,7 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- local upload preview has no caption source yet; captions are generated later via transcription */}
         <video
           src={currentVideoUrl}
           controls
@@ -351,9 +352,17 @@ export const VideoDropZone: React.FC<VideoDropZoneProps> = ({
   return (
     <>
       <div
+        role="button"
+        tabIndex={0}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
           fileError
             ? "border-red-300 bg-red-50 hover:border-red-400"

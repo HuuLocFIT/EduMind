@@ -271,8 +271,21 @@ export const OrdersPage: React.FC = () => {
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start gap-4">
-                          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 mb-2 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => handleViewOrder(order.id)}>
-                            {order.firstCourseTitle || "Untitled Order"}
+                          <h3 className="text-lg font-bold text-gray-900 line-clamp-2 mb-2">
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              className="hover:text-blue-600 transition-colors cursor-pointer"
+                              onClick={() => handleViewOrder(order.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  handleViewOrder(order.id);
+                                }
+                              }}
+                            >
+                              {order.firstCourseTitle || "Untitled Order"}
+                            </span>
                           </h3>
                           <div className="text-right">
                             <p className="text-xl font-bold text-gray-900">{formatCurrency(order.totalAmount, order.currency)}</p>

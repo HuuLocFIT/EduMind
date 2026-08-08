@@ -1,14 +1,14 @@
 import React from "react";
 import { Search } from "lucide-react";
 import { EnrollmentStatus } from "@edumind/shared-constants";
-import type { CourseResponse } from "@edumind/shared-types";
+import type { CoursePicker, CoursePickerList } from "@edumind/shared-types";
 import type { StudentsFilters as StudentsFiltersType } from "../types/students.types";
 
 interface StudentsFiltersProps {
-  courses: CourseResponse[];
+  courses: CoursePickerList;
   coursesLoading: boolean;
   filters: StudentsFiltersType;
-  selectedCourse?: CourseResponse;
+  selectedCourse?: CoursePicker;
   onCourseChange: (courseId: string) => void;
   onStatusChange: (status: string) => void;
   onSearchSubmit: (search: string) => void;

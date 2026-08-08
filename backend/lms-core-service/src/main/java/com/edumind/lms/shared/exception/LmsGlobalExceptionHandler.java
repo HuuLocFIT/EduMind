@@ -6,6 +6,8 @@ import com.edumind.lms.modules.course.exception.DuplicateReviewException;
 import com.edumind.lms.modules.course.exception.InvalidRatingException;
 import com.edumind.lms.modules.course.exception.NotEnrolledException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -104,6 +106,30 @@ public class LmsGlobalExceptionHandler {
                 .build();
 
         log.warn("Validation failed: {}", fieldErrors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex,
+                                                                    HttpServletRequest request) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+            String path = violation.getPropertyPath().toString();
+            String field = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+            fieldErrors.put(field, violation.getMessage());
+        }
+
+        ErrorResponse response = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .success(false)
+                .error("Validation Error")
+                .message("Request is invalid, please check the data.")
+                .fieldErrors(fieldErrors)
+                .requestId(generateRequestId())
+                .path(request.getRequestURI())
+                .build();
+
+        log.warn("Constraint violation: {}", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 

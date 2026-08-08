@@ -16,6 +16,7 @@ import {
   ReviewResponseSchema,
   InstructorReviewsStatsResponseSchema,
   CourseWithReviewsListSchema,
+  CoursePickerListSchema,
   type CourseResponse,
   type CourseDetailResponse,
   type InstructorStatsResponse,
@@ -41,6 +42,7 @@ import {
   type InstructorReviewsStatsResponse,
   type InstructorReplyRequest,
   type CourseWithReviewsList,
+  type CoursePickerList,
   type TeacherReviewFilterParams,
 } from "@edumind/shared-types";
 import {
@@ -81,6 +83,16 @@ export const teacherCourseService = {
     return CoursePagedResponseSchema.parse(
       response.data
     ) as CoursePagedResponse;
+  },
+
+  /**
+   * Get lightweight course picker options (id + title) for filter dropdowns
+   */
+  async getCoursePicker(instructorId: number): Promise<CoursePickerList> {
+    const response = await apiClient.get<CoursePickerList>(
+      TEACHER_PORTAL_ENDPOINTS.COURSE_PICKER(instructorId)
+    );
+    return CoursePickerListSchema.parse(response.data);
   },
 
   async getCourseDetail(courseId: number): Promise<CourseDetailResponse> {

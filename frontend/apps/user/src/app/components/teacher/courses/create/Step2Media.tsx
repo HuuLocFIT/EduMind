@@ -42,9 +42,9 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <p className="block text-sm font-medium text-gray-700 mb-2">
           Course Thumbnail
-        </label>
+        </p>
         {data.thumbnailUrl ? (
           <div className="relative border-2 border-gray-300 rounded-lg p-6">
             <img
@@ -78,10 +78,11 @@ export const Step2Media: React.FC<StepProps> = ({ data, onChange, errors }) => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="preview-video-url" className="block text-sm font-medium text-gray-700 mb-1">
           Preview Video URL
         </label>
         <Input
+          id="preview-video-url"
           value={data.previewVideoUrl || ""}
           onChange={(e) => onChange({ previewVideoUrl: e.target.value })}
           placeholder="https://www.youtube.com/watch?v=..."

@@ -32,8 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -234,6 +237,19 @@ public class CourseServiceImpl implements CourseService {
     public Page<Course> getCoursesByInstructor(Long instructorId, Pageable pageable) {
         log.debug("Getting courses for instructor: {}", instructorId);
         return courseRepository.findByInstructorId(instructorId, pageable);
+    }
+
+    @Override
+    public List<Map<String, Object>> getInstructorCoursePicker(Long instructorId) {
+        log.debug("Getting course picker options for instructor: {}", instructorId);
+        return courseRepository.findInstructorCoursePicker(instructorId).stream()
+                .map(row -> {
+                    Map<String, Object> course = new HashMap<>();
+                    course.put("id", row[0]);
+                    course.put("title", row[1]);
+                    return course;
+                })
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@edumind/user-ui';
 import { CheckCircle, ChevronRight, Trophy, X } from 'lucide-react';
-import { useFocusTrap } from '../../../hooks/useFocusTrap';
+import { useFocusTrap } from '../../../../hooks/useFocusTrap';
 
 interface CourseCompletionDialogProps {
   courseTitle: string;

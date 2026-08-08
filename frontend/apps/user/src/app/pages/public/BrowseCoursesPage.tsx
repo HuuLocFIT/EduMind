@@ -131,7 +131,8 @@ export const BrowseCoursesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const { success: showSuccess, error: showError } = useToast();
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const userId = user?.id;
   const queryClient = useQueryClient();
 
   const [initialUrlState] = useState(() => parseAppliedUrlState(searchParams));
@@ -323,6 +324,21 @@ export const BrowseCoursesPage: React.FC = () => {
   const totalPages = coursesResponse?.pagination?.totalPages || 1;
   const totalElements = coursesResponse?.pagination?.totalElements || 0;
 
+  // Fetch enrollment state for the current page of courses
+  const currentPageCourseIds = useMemo(() => courses.map(c => c.id), [courses]);
+
+  const { data: enrolledCourseIdsData } = useQuery<number[]>({
+    queryKey: queryKeys.enrollments.enrolled(userId!, currentPageCourseIds),
+    queryFn: () => enrollmentService.getEnrolledCourseIds(currentPageCourseIds),
+    enabled: isAuthenticated && userId !== undefined && currentPageCourseIds.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const enrolledCourseIds = useMemo(() => {
+    if (!enrolledCourseIdsData) return new Set<number>();
+    return new Set(enrolledCourseIdsData);
+  }, [enrolledCourseIdsData]);
+
   useEffect(() => {
     if (
       isFetching ||
@@ -505,20 +521,6 @@ export const BrowseCoursesPage: React.FC = () => {
   const { startAddingItem, finishAddingItem } = useCartStore();
   const [addingIds, setAddingIds] = useState<Set<number>>(new Set());
   const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
-
-  // Fetch user enrollments for showing "Enrolled" status
-  const { data: enrollmentsData } = useQuery({
-    queryKey: queryKeys.enrollments.me(),
-    queryFn: () => enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
-    enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  // Build sets for quick lookup
-  const enrolledCourseIds = useMemo(() => {
-    if (!enrollmentsData?.data) return new Set<number>();
-    return new Set(enrollmentsData.data.map(e => e.courseId));
-  }, [enrollmentsData]);
 
   const cartCourseIds = useMemo(() => {
     if (!cart?.items) return new Set<number>();
