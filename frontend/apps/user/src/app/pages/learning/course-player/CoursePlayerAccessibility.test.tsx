@@ -208,17 +208,17 @@ const installMediaPrototypes = () => {
   Object.defineProperty(window.HTMLMediaElement.prototype, 'duration', {
     configurable: true,
     get: () => 100,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'volume', {
     configurable: true,
     get: () => 1,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'muted', {
     configurable: true,
     get: () => false,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'buffered', {
     configurable: true,
@@ -285,8 +285,8 @@ const renderPage = async () => {
 };
 
 const settlePage = async () => {
-  await act(async () => {});
-  await act(async () => {});
+  await act(async () => undefined);
+  await act(async () => undefined);
 };
 
 const advanceTimersAndFlush = async (ms: number) => {

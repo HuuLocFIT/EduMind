@@ -29,10 +29,11 @@ export const Step4Settings: React.FC<StepProps> = ({ data, onChange, errors }) =
         <h3 className="font-medium text-gray-900">SEO Settings</h3>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="meta-title" className="block text-sm font-medium text-gray-700 mb-1">
             Meta Title
           </label>
           <Input
+            id="meta-title"
             value={data.metaTitle || ""}
             onChange={(e) => onChange({ metaTitle: e.target.value })}
             placeholder="SEO title for search engines"
@@ -42,10 +43,11 @@ export const Step4Settings: React.FC<StepProps> = ({ data, onChange, errors }) =
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="meta-description" className="block text-sm font-medium text-gray-700 mb-1">
             Meta Description
           </label>
           <Textarea
+            id="meta-description"
             value={data.metaDescription || ""}
             onChange={(e) => onChange({ metaDescription: e.target.value })}
             placeholder="SEO description for search engines"

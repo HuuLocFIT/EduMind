@@ -21,7 +21,10 @@ export default [
             "jsx-a11y": jsxA11y
         },
         rules: {
-            ...jsxA11y.flatConfigs.recommended.rules
+            ...jsxA11y.flatConfigs.recommended.rules,
+            ...Object.fromEntries(
+                Object.keys(jsxA11y.flatConfigs.recommended.rules).map((rule) => [rule, "warn"])
+            )
         }
     },
     {

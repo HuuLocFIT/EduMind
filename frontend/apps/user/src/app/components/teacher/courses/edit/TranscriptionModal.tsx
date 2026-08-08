@@ -151,9 +151,9 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
         {phase === "config" && (
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <p className="block text-sm font-medium text-gray-700 mb-1">
                 Video Source
-              </label>
+              </p>
               {videoUrl ? (
                 <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                   {source === "cloudinary" && (
@@ -200,9 +200,9 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <p className="block text-sm font-medium text-gray-700 mb-1">
                 Spoken Language
-              </label>
+              </p>
               <div className="flex gap-2">
                 {(["vi", "en"] as const).map((lang) => (
                   <button

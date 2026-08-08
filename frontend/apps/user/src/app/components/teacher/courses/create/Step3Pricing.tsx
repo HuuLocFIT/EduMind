@@ -57,10 +57,11 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="course-price" className="block text-sm font-medium text-gray-700 mb-1">
                 Price <span className="text-red-500">*</span>
               </label>
               <Input
+                id="course-price"
                 type="text"
                 inputMode="decimal"
                 value={priceInput}
@@ -72,10 +73,11 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="course-currency" className="block text-sm font-medium text-gray-700 mb-1">
                 Currency
               </label>
               <select
+                id="course-currency"
                 value={data.currency || "USD"}
                 onChange={(e) => onChange({ currency: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -87,10 +89,11 @@ export const Step3Pricing: React.FC<StepProps> = ({ data, onChange, errors }) =>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="course-discount-price" className="block text-sm font-medium text-gray-700 mb-1">
               Discount Price (optional)
             </label>
             <Input
+              id="course-discount-price"
               type="text"
               inputMode="decimal"
               value={discountInput}

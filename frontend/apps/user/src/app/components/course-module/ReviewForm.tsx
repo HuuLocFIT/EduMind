@@ -114,9 +114,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     <form onSubmit={handleSubmit} className={className}>
       {/* Rating Stars */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="block text-sm font-medium text-gray-700 mb-2">
           Rating <span className="text-red-500" aria-hidden="true">*</span><span className="sr-only">(required)</span>
-        </label>
+        </div>
         <div className="flex gap-1" role="radiogroup" aria-label="Rating">
           {[1, 2, 3, 4, 5].map((star) => {
             const isFilled = star <= (hoverRating || rating);

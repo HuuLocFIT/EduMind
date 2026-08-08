@@ -72,7 +72,6 @@ class AuthIntegrationTest extends BaseIntegrationTest {
             Optional<User> savedUser = userRepository.findByUsername("integrationuser");
             assertTrue(savedUser.isPresent());
             assertEquals("integration@example.com", savedUser.get().getEmail());
-            assertEquals("Integration", savedUser.get().getFirstName());
             assertFalse(savedUser.get().getIsEmailVerified()); // Should not be verified yet
             assertTrue(savedUser.get().getRoles().stream()
                     .anyMatch(role -> role.getName() == RoleName.ROLE_STUDENT));

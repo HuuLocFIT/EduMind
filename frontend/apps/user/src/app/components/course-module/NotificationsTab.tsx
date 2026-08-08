@@ -79,11 +79,14 @@ export const NotificationsTab: React.FC = () => {
                     onChange={() => handleToggle('emailNotifications', key)}
                     className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
+                  <span className="sr-only">
+                    Receive emails about {key.toLowerCase()}
+                  </span>
                 </label>
               ))}
             </div>
           </div>
-  
+
           {/* Push Notifications */}
           <div>
             <h3 className="font-semibold text-gray-900 mb-4">Push Notifications</h3>
@@ -104,6 +107,9 @@ export const NotificationsTab: React.FC = () => {
                     onChange={() => handleToggle('pushNotifications', key)}
                     className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
+                  <span className="sr-only">
+                    Get notified about {key.toLowerCase()}
+                  </span>
                 </label>
               ))}
             </div>
