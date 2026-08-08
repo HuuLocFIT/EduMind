@@ -97,12 +97,12 @@ export const ProfileSettingsPage: React.FC = () => {
           </aside>
 
           {/* Main Content */}
-          <main className="lg:col-span-3">
+          <div className="lg:col-span-3">
             {activeTab === 'profile' && <ProfileTab user={user} updateUser={setUser} />}
             {activeTab === 'password' && <PasswordTab />}
             {/* {activeTab === 'notifications' && <NotificationsTab />} */}
             {activeTab === 'security' && <SecurityTab user={user} />}
-          </main>
+          </div>
         </div>
       </div>
     </div>

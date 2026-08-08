@@ -72,10 +72,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-title" className="block text-sm font-medium text-gray-700 mb-1">
               Course Title
             </label>
             <Input
+              id="edit-course-title"
               value={formData.title}
               onChange={(e) => handleChange("title", e.target.value)}
               placeholder="Course title"
@@ -84,10 +85,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-slug" className="block text-sm font-medium text-gray-700 mb-1">
               URL Slug
             </label>
             <Input
+              id="edit-course-slug"
               value={formData.slug}
               onChange={(e) => handleChange("slug", e.target.value)}
               placeholder="course-url-slug"
@@ -96,10 +98,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-short-description" className="block text-sm font-medium text-gray-700 mb-1">
               Short Description
             </label>
             <Textarea
+              id="edit-course-short-description"
               value={formData.shortDescription}
               onChange={(e) => handleChange("shortDescription", e.target.value)}
               placeholder="Brief overview (max 500 characters)"
@@ -111,7 +114,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-description" className="block text-sm font-medium text-gray-700 mb-1">
               Full Description
             </label>
             <RichTextEditor
@@ -124,10 +127,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-level" className="block text-sm font-medium text-gray-700 mb-1">
               Level
             </label>
             <select
+              id="edit-course-level"
               value={formData.level}
               onChange={(e) => handleChange("level", e.target.value)}
               disabled={isPublished}
@@ -141,10 +145,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-language" className="block text-sm font-medium text-gray-700 mb-1">
               Language
             </label>
             <select
+              id="edit-course-language"
               value={formData.language}
               onChange={(e) => handleChange("language", e.target.value)}
               disabled={isPublished}
@@ -156,9 +161,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <p className="block text-sm font-medium text-gray-700 mb-2">
               Course Thumbnail
-            </label>
+            </p>
             {formData.thumbnailUrl ? (
               <div className="relative border-2 border-gray-300 rounded-lg p-6">
                 <img
@@ -189,10 +194,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-preview-video-url" className="block text-sm font-medium text-gray-700 mb-1">
               Preview Video URL
             </label>
             <Input
+              id="edit-preview-video-url"
               value={formData.previewVideoUrl}
               onChange={(e) => handleChange("previewVideoUrl", e.target.value)}
               placeholder="https://..."

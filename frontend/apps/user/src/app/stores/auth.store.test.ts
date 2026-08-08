@@ -181,6 +181,7 @@ describe('useAuthStore', () => {
       await act(async () => {
         await useAuthStore.getState().loginWith2FA({ 
           usernameOrEmail: 'test@example.com', 
+          password: 'Password123!',
           code: '123456' 
         });
       });
@@ -205,8 +206,6 @@ describe('useAuthStore', () => {
           username: 'newuser',
           email: 'new@example.com',
           password: 'Password123!',
-          firstName: 'New',
-          lastName: 'User',
         });
       });
 
@@ -227,8 +226,6 @@ describe('useAuthStore', () => {
             username: 'existinguser',
             email: 'new@example.com',
             password: 'Password123!',
-            firstName: 'New',
-            lastName: 'User',
           });
         })
       ).rejects.toThrow();
@@ -451,8 +448,6 @@ describe('useAuthStore', () => {
               username: 'test',
               email: 'invalid-email',
               password: 'pass',
-              firstName: 'Test',
-              lastName: 'User',
             });
           })
         ).rejects.toThrow();
@@ -568,8 +563,6 @@ describe('useAuthStore', () => {
         username: 'test',
         email: 'test@example.com',
         password: 'Password123!',
-        firstName: 'Test',
-        lastName: 'User',
       });
 
       // Check loading state immediately
@@ -613,6 +606,7 @@ describe('useAuthStore', () => {
 
       const twoFAOperation = useAuthStore.getState().loginWith2FA({
         usernameOrEmail: 'test@example.com',
+        password: 'Password123!',
         code: '123456',
       });
 
@@ -678,8 +672,6 @@ describe('useAuthStore', () => {
             username: 'test',
             email: 'test@example.com',
             password: 'Password123!',
-            firstName: 'Test',
-            lastName: 'User',
           });
         })
       ).rejects.toThrow();
@@ -695,6 +687,7 @@ describe('useAuthStore', () => {
         act(async () => {
           await useAuthStore.getState().loginWith2FA({
             usernameOrEmail: 'test@example.com',
+            password: 'Password123!',
             code: 'wrong',
           });
         })

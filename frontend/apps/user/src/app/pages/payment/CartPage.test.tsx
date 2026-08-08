@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartPage } from './CartPage';
 import { useCart, useRemoveFromCart, useClearCart } from '../../hooks/useCart';
@@ -12,7 +12,7 @@ import { useToast } from '@edumind/user-ui';
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
-  Link: ({ children, to }: any) => <a href={to}>{children}</a>,
+  Link: ({ children, to, ...props }: any) => <a href={to} {...props}>{children}</a>,
 }));
 
 vi.mock('../../hooks/useCart');
@@ -20,10 +20,10 @@ vi.mock('../../stores/cart.store');
 
 vi.mock('../../components/payment-module', () => ({
   CartItem: ({ item, onRemove }: any) => (
-    <div data-testid={`cart-item-${item.courseId}`}>
+    <li data-cart-item data-testid={`cart-item-${item.courseId}`}>
       {item.courseTitle}
-      <button onClick={() => onRemove(item.courseId)}>Remove</button>
-    </div>
+      <button onClick={() => onRemove(item.courseId)}>Remove {item.courseTitle}</button>
+    </li>
   ),
 }));
 
@@ -33,7 +33,7 @@ vi.mock('@edumind/user-ui', () => ({
       {children}
     </button>
   ),
-  Card: ({ children }: any) => <div>{children}</div>,
+  Card: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Loading: () => <div>Loading...</div>,
   PriceTag: ({ price }: any) => <span>${price}</span>,
   ConfirmDialog: ({ isOpen, onConfirm, onCancel, title }: any) => 
@@ -68,6 +68,7 @@ describe('CartPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    document.title = '';
 
     (useToast as any).mockReturnValue({
       success: mockShowSuccess,
@@ -99,10 +100,26 @@ describe('CartPage', () => {
     });
   });
 
+  it('sets a non-empty route-specific document title', async () => {
+    render(<CartPage />);
+
+    await waitFor(() => {
+      expect(document.title).toBe('Shopping Cart | EduMind');
+    });
+  });
+
   it('renders loading state', () => {
     (useCart as any).mockReturnValue({ isLoading: true });
     render(<CartPage />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('focuses the page heading when the cart page mounts', () => {
+    render(<CartPage />);
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Shopping Cart' });
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    expect(heading).toHaveFocus();
   });
 
   it('renders error state', async () => {
@@ -120,7 +137,6 @@ describe('CartPage', () => {
   });
 
   it('renders empty state', async () => {
-    const user = userEvent.setup();
     (useCart as any).mockReturnValue({ 
       data: { items: [] },
       isLoading: false 
@@ -130,8 +146,8 @@ describe('CartPage', () => {
     
     expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
     
-    await user.click(screen.getByText('Browse Courses'));
-    expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.COURSES);
+    expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Browse Courses' })).toHaveAttribute('href', USER_ROUTES.COURSES);
   });
 
   it('renders populated cart with items and summary', () => {
@@ -154,12 +170,17 @@ describe('CartPage', () => {
     expect(screen.getByText('2 courses in your cart')).toBeInTheDocument();
     
     // Items check
+    const courseList = screen.getByRole('list', { name: 'Courses in your cart' });
+    expect(courseList).toBeInTheDocument();
+    expect(within(courseList).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByTestId('cart-item-1')).toBeInTheDocument();
     expect(screen.getByTestId('cart-item-2')).toBeInTheDocument();
     
     // Summary check
-    expect(screen.getByText('Subtotal (2 items):')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    const summary = screen.getByRole('region', { name: 'Order Summary' });
+    expect(within(summary).getByText('Subtotal (2 items):')).toBeInTheDocument();
+    expect(within(summary).getByText('$100.00')).toBeInTheDocument();
+    expect(within(summary).getByText('Total:')).toBeInTheDocument();
   });
 
   it('handles remove item interaction', async () => {
@@ -171,8 +192,8 @@ describe('CartPage', () => {
     
     render(<CartPage />);
     
-    await user.click(screen.getByText('Remove'));
-    
+    await user.click(screen.getByText('Remove React 101'));
+    await user.click(screen.getByText('Confirm'));
     expect(mockRemoveMutate).toHaveBeenCalled();
     // Verify callback handling via mock logic if needed, but basic call is enough here
     const mutateCallArgs = mockRemoveMutate.mock.calls[0];
@@ -180,7 +201,48 @@ describe('CartPage', () => {
     
     // Simulate success callback execution
     mutateCallArgs[1].onSuccess();
-    expect(mockShowSuccess).toHaveBeenCalledWith('Item removed from cart');
+    expect(mockShowSuccess).toHaveBeenCalledTimes(1);
+    expect(mockShowSuccess).toHaveBeenCalledWith(
+      'React 101 removed from cart. New total: $0.00 USD.',
+    );
+    const removalStatus = screen.getByRole('status');
+    expect(removalStatus).toHaveAttribute('aria-live', 'polite');
+    expect(removalStatus).toHaveAttribute('aria-atomic', 'true');
+    await waitFor(() => {
+      expect(removalStatus).toHaveTextContent(
+        'React 101 removed from cart. New total: $0.00 USD.',
+      );
+    });
+  });
+
+  it('moves focus only after the removed item is absent from the rendered cart', async () => {
+    const user = userEvent.setup();
+    const initialCart = {
+      items: [
+        { courseId: 1, courseTitle: 'React 101', effectivePrice: 40 },
+        { courseId: 2, courseTitle: 'Advanced TS', effectivePrice: 60 },
+      ],
+      subtotal: 100,
+      totalAmount: 100,
+      currency: 'USD',
+    };
+    (useCart as any).mockReturnValue({ data: initialCart, isLoading: false });
+
+    const { rerender } = render(<CartPage />);
+    await user.click(screen.getByRole('button', { name: 'Remove React 101' }));
+    await user.click(screen.getByText('Confirm'));
+
+    const mutationOptions = mockRemoveMutate.mock.calls[0][1];
+    await act(async () => mutationOptions.onSuccess());
+    expect(screen.getByRole('button', { name: 'Remove React 101' })).toBeInTheDocument();
+
+    (useCart as any).mockReturnValue({
+      data: { ...initialCart, items: [initialCart.items[1]], subtotal: 60, totalAmount: 60 },
+      isLoading: false,
+    });
+    rerender(<CartPage />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Advanced TS' })).toHaveFocus());
   });
 
   it('handles checkout navigation', async () => {

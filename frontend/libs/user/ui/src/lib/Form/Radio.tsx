@@ -1,20 +1,25 @@
 import React, { forwardRef, useId } from "react";
 import { clsx } from "clsx";
 
+/* eslint-disable jsx-a11y/role-supports-aria-props -- aria-invalid exposes this native form control's validation state */
+
 export interface RadioProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   label?: string;
   error?: string;
+  helperText?: string;
 }
 
 export const Radio = forwardRef<HTMLInputElement, RadioProps>(
-  ({ label, error, className, disabled, ...props }, ref) => {
-    const radioId = props.id || useId();
+  ({ label, error, helperText, className, disabled, ...props }, ref) => {
+    const generatedId = useId();
+    const radioId = props.id || generatedId;
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-start gap-2">
           <input
             ref={ref}
+            id={radioId}
             type="radio"
             className={clsx(
               "w-4 h-4 mt-0.5 border-gray-300 text-blue-600",
@@ -26,7 +31,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
             )}
             disabled={disabled}
             aria-invalid={!!error}
-            aria-describedby={error ? `${radioId}-error` : undefined}
+            aria-describedby={[helperText ? `${radioId}-description` : null, error ? `${radioId}-error` : null].filter(Boolean).join(" ") || undefined}
             {...props}
           />
 
@@ -48,6 +53,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
             {error}
           </p>
         )}
+        {helperText && <p id={`${radioId}-description`} className="text-sm text-gray-500 ml-6">{helperText}</p>}
       </div>
     );
   }

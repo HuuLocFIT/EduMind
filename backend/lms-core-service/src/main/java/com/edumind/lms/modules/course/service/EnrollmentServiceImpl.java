@@ -292,11 +292,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     public List<Enrollment> getCompletedCourses(Long studentId) {
-        log.debug("Getting completed courses for student: {} (excluding DROPPED)", studentId);
-        // Filter out DROPPED enrollments - even if they were completed before being dropped
-        return enrollmentRepository.findCompletedEnrollmentsByStudent(studentId).stream()
-                .filter(enrollment -> enrollment.getStatus() != EnrollmentStatus.DROPPED)
-                .collect(java.util.stream.Collectors.toList());
+        log.debug("Getting completed courses for student: {}", studentId);
+        return enrollmentRepository.findCompletedEnrollmentsByStudent(studentId);
     }
 
     @Override
@@ -304,6 +301,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         log.debug("Getting recently accessed courses for student: {} (limit: {})", studentId, limit);
         Pageable pageable = PageRequest.of(0, limit);
         return enrollmentRepository.findRecentlyAccessedCourses(studentId, pageable);
+    }
+
+    @Override
+    public List<Long> findEnrolledCourseIds(Long studentId, List<Long> courseIds) {
+        return enrollmentRepository.findEnrolledCourseIds(studentId, courseIds);
     }
 
     @Override

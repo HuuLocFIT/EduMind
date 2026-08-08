@@ -6,6 +6,7 @@ interface ProgressBarProps {
   showLabel?: boolean;
   color?: "blue" | "green" | "purple";
   className?: string;
+  label?: string;
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
@@ -14,6 +15,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   showLabel = false,
   color = "blue",
   className = "",
+  label = "Progress",
 }) => {
   const heightClasses = {
     sm: "h-1.5",
@@ -33,12 +35,20 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     <div className={className}>
       {showLabel && (
         <div className="flex justify-between mb-1 text-sm">
-          <span className="text-gray-600">Progress</span>
+          <span className="text-gray-600">{label}</span>
           <span className="font-medium text-gray-900">{clampedProgress}%</span>
         </div>
       )}
-      <div className={`w-full bg-gray-200 rounded-full ${heightClasses[size]}`}>
+      <div
+        className={`w-full bg-gray-200 rounded-full ${heightClasses[size]}`}
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={clampedProgress}
+      >
         <div
+          aria-hidden="true"
           className={`${heightClasses[size]} ${colorClasses[color]} rounded-full`}
           style={{ width: `${clampedProgress}%` }}
         />

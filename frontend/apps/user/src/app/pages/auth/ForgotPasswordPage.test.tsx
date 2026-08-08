@@ -37,10 +37,10 @@ vi.mock('@edumind/user-ui', () => ({
       {isLoading ? 'Loading...' : children}
     </button>
   ),
-  Input: ({ label, error, helperText, ...props }: any) => (
+  Input: ({ label, error, helperText, id, ...props }: any) => (
     <div>
-      {label && <label>{label}</label>}
-      <input {...props} aria-invalid={!!error} />
+      {label && <label htmlFor={id}>{label}</label>}
+      <input id={id} {...props} aria-invalid={!!error} />
       {error && <span role="alert">{error}</span>}
       {helperText && <span>{helperText}</span>}
     </div>
@@ -110,8 +110,16 @@ describe('ForgotPasswordPage', () => {
       await user.click(screen.getByRole('button', { name: /send reset link/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Check Your Email')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Check Your Email' })).toHaveFocus();
       }, { timeout: 3000 });
+    });
+
+    it('uses an email label and appropriate autocomplete metadata', () => {
+      renderForgotPasswordPage();
+
+      const email = screen.getByRole('textbox', { name: /email address/i });
+      expect(email).toHaveAttribute('autocomplete', 'email');
+      expect(email).toBeRequired();
     });
 
     it('should show error on failed request', async () => {
@@ -213,6 +221,26 @@ describe('ForgotPasswordPage', () => {
 
       resolveForgot!({ success: true });
       await forgotPromise;
+    });
+  });
+
+  describe('Success actions', () => {
+    it('supports keyboard resend and announces completion', async () => {
+      const user = userEvent.setup();
+      mockForgotPassword.mockResolvedValue({ success: true });
+      renderForgotPasswordPage();
+
+      await user.type(screen.getByRole('textbox', { name: /email address/i }), 'test@example.com');
+      await user.click(screen.getByRole('button', { name: /send reset link/i }));
+      await screen.findByRole('heading', { name: /check your email/i });
+
+      const resend = screen.getByRole('button', { name: /resend email/i });
+      resend.focus();
+      await user.keyboard('{Enter}');
+
+      const announcement = await screen.findByText('Reset email sent again.');
+      expect(announcement).toHaveAttribute('role', 'status');
+      expect(screen.getByRole('link', { name: /back to login/i })).toHaveAttribute('href', '/login');
     });
   });
 });

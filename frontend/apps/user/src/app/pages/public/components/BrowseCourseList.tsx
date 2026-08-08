@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button } from "@edumind/user-ui";
 import { CourseGrid, CourseGridSkeleton } from "../../../components/course-module";
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
@@ -31,6 +31,8 @@ interface BrowseCourseListProps {
   // Empty state actions
   activeFiltersCount: number;
   onClearFilters: () => void;
+  focusRequest?: number;
+  resultsAnnouncement?: string;
 }
 
 export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
@@ -58,32 +60,68 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
 
   activeFiltersCount,
   onClearFilters,
+  focusRequest = 0,
+  resultsAnnouncement = "",
 }) => {
+  const resultsSummaryRef = useRef<HTMLParagraphElement>(null);
+  const handledFocusRequestRef = useRef(0);
+  const resultsSummaryText = totalElements === 0
+    ? "0 courses found"
+    : totalPages > 1
+    ? `Showing courses ${(page * pageSize + 1).toLocaleString()} through ${Math.min(
+        (page + 1) * pageSize,
+        totalElements
+      ).toLocaleString()} of ${totalElements.toLocaleString()} course${
+        totalElements === 1 ? "" : "s"
+      } found`
+    : `${totalElements.toLocaleString()} course${totalElements === 1 ? "" : "s"} found`;
+
+  useEffect(() => {
+    if (
+      focusRequest > handledFocusRequestRef.current &&
+      !isFetching
+    ) {
+      handledFocusRequestRef.current = focusRequest;
+      resultsSummaryRef.current?.focus();
+    }
+  }, [focusRequest, isFetching]);
+
   return (
-    <main className="flex-1">
-      <h2 className="sr-only">Course Results</h2>
+    <section className="flex-1" aria-labelledby="course-results-heading" aria-busy={isFetching}>
+      <h2
+        id="course-results-heading"
+        className="sr-only"
+      >
+        Course Results
+      </h2>
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {resultsAnnouncement}
+      </p>
       {/* Sort & Results Count */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
-          {isFetching ? (
+          {isFetching && (
             <div className="flex items-center gap-2 text-gray-600" role="status" aria-label="Loading results">
               <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
               <span>Loading...</span>
             </div>
-          ) : (
-            <>
-              {totalElements > 0 && (
-                <span className="text-gray-700 font-medium" role="status" aria-live="polite">
-                  {`${totalElements.toLocaleString()} course${totalElements !== 1 ? 's' : ''} found`}
-                </span>
-              )}
-              {courses.length > 0 && totalElements > courses.length && (
-                <span className="text-gray-500 text-sm">
-                  (Showing {page * pageSize + 1}-
-                  {Math.min((page + 1) * pageSize, totalElements)})
-                </span>
-              )}
-            </>
+          )}
+          <p
+            id="course-results-summary"
+            ref={resultsSummaryRef}
+            tabIndex={-1}
+            className="text-gray-700 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 rounded"
+          >
+            <span className="sr-only">{resultsSummaryText}</span>
+            <span aria-hidden="true">
+              {`${totalElements.toLocaleString()} course${totalElements !== 1 ? 's' : ''} found`}
+            </span>
+          </p>
+          {!isFetching && courses.length > 0 && totalElements > courses.length && (
+            <span className="text-gray-500 text-sm" aria-hidden="true">
+              (Showing {page * pageSize + 1}-
+              {Math.min((page + 1) * pageSize, totalElements)})
+            </span>
           )}
         </div>
 
@@ -127,7 +165,11 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
       )}
 
       {/* Loading State — grid skeleton matching the real grid exactly */}
-      {isLoading && <CourseGridSkeleton count={pageSize} columns={3} />}
+      {isLoading && (
+        <div aria-hidden="true">
+          <CourseGridSkeleton count={pageSize} columns={3} />
+        </div>
+      )}
 
       {/* Courses Grid */}
       {!isLoading && !error && courses.length > 0 && (
@@ -264,6 +306,6 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
           </Button>
         </nav>
       )}
-    </main>
+    </section>
   );
 };

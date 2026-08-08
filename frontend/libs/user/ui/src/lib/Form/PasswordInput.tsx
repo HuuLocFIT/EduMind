@@ -4,8 +4,8 @@ import { Input, InputProps } from "./Input";
 
 export const PasswordInput = forwardRef<
   HTMLInputElement,
-  Omit<InputProps, "type">
->((props, ref) => {
+  Omit<InputProps, "type"> & { visibilityLabel?: string }
+>(({ visibilityLabel = "password", ...props }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -16,13 +16,14 @@ export const PasswordInput = forwardRef<
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-          tabIndex={-1}
+          className="inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label={`${showPassword ? "Hide" : "Show"} ${visibilityLabel}`}
+          aria-pressed={showPassword}
         >
           {showPassword ? (
-            <EyeOff className="w-5 h-5" />
+            <EyeOff aria-hidden="true" className="w-5 h-5" />
           ) : (
-            <Eye className="w-5 h-5" />
+            <Eye aria-hidden="true" className="w-5 h-5" />
           )}
         </button>
       }

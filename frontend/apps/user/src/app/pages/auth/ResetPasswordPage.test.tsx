@@ -30,7 +30,7 @@ import { ResetPasswordPage } from './ResetPasswordPage';
 
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
@@ -47,11 +47,11 @@ vi.mock('@edumind/user-ui', () => ({
       {isLoading ? 'Loading...' : children}
     </button>
   ),
-  PasswordInput: ({ label, error, helperText, ...props }: any) => (
+  PasswordInput: ({ label, error, helperText, id, ...props }: any) => (
     <div>
-      {label && <label>{label}</label>}
-      <input type="password" {...props} aria-invalid={!!error} />
-      {error && <span role="alert">{error}</span>}
+      {label && <label htmlFor={id}>{label}</label>}
+      <input id={id} type="password" {...props} aria-invalid={!!error} />
+      {error && <span>{error}</span>}
       {helperText && <span>{helperText}</span>}
     </div>
   ),
@@ -62,6 +62,7 @@ vi.mock('@edumind/user-ui', () => ({
 
 // Mock lucide-react
 vi.mock('lucide-react', () => ({
+  ArrowLeft: () => <span aria-hidden="true">←</span>,
   Lock: () => <span>🔒</span>,
   CheckCircle: () => <span>✓</span>,
   GraduationCap: () => <span>🎓</span>,
@@ -86,7 +87,13 @@ describe('ResetPasswordPage', () => {
       renderResetPasswordPage();
 
       expect(screen.getByText('Invalid Reset Link')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /request new link/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /request new link/i })).toHaveAttribute('href', '/forgot-password');
+    });
+
+    it('focuses the missing-token heading', async () => {
+      renderResetPasswordPage();
+
+      await waitFor(() => expect(screen.getByRole('heading', { name: /invalid reset link/i })).toHaveFocus());
     });
 
     it('should show reset form when token is present', () => {
@@ -142,8 +149,11 @@ describe('ResetPasswordPage', () => {
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Password Reset!')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Password Reset!' })).toHaveFocus();
       }, { timeout: 3000 });
+      expect(screen.getByRole('status')).toHaveTextContent('Password reset successfully.');
+      expect(screen.getByRole('link', { name: /go to login/i })).toHaveAttribute('href', '/login');
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 
@@ -158,7 +168,7 @@ describe('ResetPasswordPage', () => {
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveFocus();
       });
     });
 
@@ -212,6 +222,25 @@ describe('ResetPasswordPage', () => {
     });
   });
 
+  describe('Password accessibility', () => {
+    it('labels both fields and uses new-password autocomplete', () => {
+      renderResetPasswordPage('valid-token');
+
+      const password = screen.getByLabelText('New Password');
+      const confirmation = screen.getByLabelText('Confirm New Password');
+      expect(password).toHaveAttribute('autocomplete', 'new-password');
+      expect(confirmation).toHaveAttribute('autocomplete', 'new-password');
+      expect(password).toBeRequired();
+      expect(confirmation).toBeRequired();
+    });
+
+    it('keeps password requirements available before validation', () => {
+      renderResetPasswordPage('valid-token');
+
+      expect(screen.getByText(/must be at least 8 characters with uppercase/i)).toBeInTheDocument();
+    });
+  });
+
   describe('Loading States', () => {
     it('should disable submit button when loading', async () => {
       const user = userEvent.setup();
@@ -262,6 +291,7 @@ describe('ResetPasswordPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
+      expect(screen.getByRole('heading', { name: /invalid reset link/i })).toHaveFocus();
     });
 
     it('should handle invalid token error', async () => {
@@ -280,6 +310,7 @@ describe('ResetPasswordPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
+      expect(screen.getByRole('link', { name: /request new link/i })).toBeInTheDocument();
     });
   });
 });

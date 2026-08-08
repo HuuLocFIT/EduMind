@@ -39,12 +39,14 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('@edumind/user-ui', () => ({
-  Button: ({ children, onClick, disabled, isLoading }: any) => (
-    <button onClick={onClick} disabled={disabled}>
+  Button: ({ children, onClick, disabled, isLoading, leftIcon, rightIcon, ...props }: any) => (
+    <button onClick={onClick} disabled={disabled} {...props}>
+      {leftIcon}
       {isLoading ? 'Processing...' : children}
+      {rightIcon}
     </button>
   ),
-  Card: ({ children }: any) => <div>{children}</div>,
+  Card: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Loading: () => <div>Loading...</div>,
   PriceTag: ({ price }: any) => <span>${price}</span>,
   useToast: vi.fn(),
@@ -54,9 +56,9 @@ vi.mock('lucide-react', () => ({
   CreditCard: () => <span>CreditCardIcon</span>,
   Wallet: () => <span>WalletIcon</span>,
   ArrowLeft: () => <span>ArrowLeftIcon</span>,
-  ArrowRight: () => <span>ArrowRightIcon</span>,
-  ShieldCheck: () => <span>ShieldCheckIcon</span>,
-  Lock: () => <span>LockIcon</span>,
+  ArrowRight: (props: any) => <svg data-testid="arrow-right-icon" {...props} />,
+  ShieldCheck: (props: any) => <svg data-testid="shield-check-icon" {...props} />,
+  Lock: (props: any) => <svg data-testid="lock-icon" {...props} />,
   AlertTriangle: () => <span>AlertTriangleIcon</span>,
 }));
 
@@ -138,7 +140,7 @@ describe('CheckoutPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
   });
 
-  it('renders cart checkout preview correctly', () => {
+  it('renders cart checkout preview with valid summary semantics and a page title', () => {
     (useCheckoutPreview as any).mockReturnValue({ 
       data: mockCartPreviewData,
       isLoading: false 
@@ -149,13 +151,24 @@ describe('CheckoutPage', () => {
     expect(screen.getByText('Checkout')).toBeInTheDocument();
     expect(screen.getByText('React Course')).toBeInTheDocument();
     expect(screen.getByText('PayPal')).toBeInTheDocument();
+    expect(document.title).toBe('Checkout | EduMind');
+
+    const summary = screen.getByRole('region', { name: 'Order Summary' });
+    const definitionList = summary.querySelector('dl');
+    expect(definitionList).not.toBeNull();
+    expect(
+      Array.from(definitionList!.children).every((child) =>
+        child.matches('div') &&
+        Array.from(child.children).every((item) => item.matches('dt, dd')),
+      ),
+    ).toBe(true);
   });
 
   it('renders direct checkout preview correctly (Buy Now)', () => {
     mockSearchParams.set('courseId', '99');
     
     (useDirectCheckoutPreview as any).mockReturnValue({
-      data: { ...mockCartPreviewData, items: [{ courseId: 99, courseTitle: 'Direct Course' }] },
+      data: { ...mockCartPreviewData, items: [{ courseId: 99, courseTitle: 'Direct Course', courseSlug: 'direct-course' }] },
       isLoading: false
     });
 
@@ -168,6 +181,56 @@ describe('CheckoutPage', () => {
     expect(useCheckoutPreview).toHaveBeenCalledWith(false); 
     // Should call direct preview
     expect(useDirectCheckoutPreview).toHaveBeenCalledWith(99, true);
+  });
+
+  it('navigates back to the course slug from direct checkout', async () => {
+    const user = userEvent.setup();
+    mockSearchParams.set('courseId', '99');
+    (useDirectCheckoutPreview as any).mockReturnValue({
+      data: {
+        ...mockCartPreviewData,
+        items: [{ courseId: 99, courseTitle: 'Direct Course', courseSlug: 'direct-course' }],
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<CheckoutPage />);
+    await user.click(screen.getByText('Back to course'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/courses/direct-course');
+  });
+
+  it('navigates back to the cart from cart checkout', async () => {
+    const user = userEvent.setup();
+    (useCheckoutPreview as any).mockReturnValue({
+      data: mockCartPreviewData,
+      isLoading: false,
+      error: null,
+    });
+
+    render(<CheckoutPage />);
+    await user.click(screen.getByText('Back to cart'));
+
+    expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
+  });
+
+  it('falls back to the courses page when a direct checkout preview has no matching slug', async () => {
+    const user = userEvent.setup();
+    mockSearchParams.set('courseId', '99');
+    (useDirectCheckoutPreview as any).mockReturnValue({
+      data: {
+        ...mockCartPreviewData,
+        items: [{ courseId: 100, courseTitle: 'Different Course', courseSlug: 'different-course' }],
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<CheckoutPage />);
+    await user.click(screen.getByText('Back to course'));
+
+    expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.COURSES);
   });
 
   it('handles payment method selection', async () => {
@@ -600,6 +663,147 @@ describe('CheckoutPage', () => {
       render(<CheckoutPage />);
 
       expect(screen.queryByText('Warnings')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('checkout accessibility', () => {
+    it('uses a heading hierarchy, semantic order summary, and native radio group', () => {
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+
+      render(<CheckoutPage />);
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Checkout' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: 'Order Summary' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: 'Payment Method' })).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Payment Method' })).toBeInTheDocument();
+      expect(screen.getAllByRole('radio')).toHaveLength(2);
+      expect(screen.getByRole('region', { name: 'Order Summary' })).toBeInTheDocument();
+      expect(screen.getAllByText('100.00 US dollars')).toHaveLength(2);
+    });
+
+    it('exposes understandable amounts and hides decorative security icons', () => {
+      const previewWithAdjustments = {
+        ...mockCartPreviewData,
+        subtotal: 120,
+        discountTotal: 25,
+        taxAmount: 5,
+        totalAmount: 100,
+      };
+      (useCheckoutPreview as any).mockReturnValue({ data: previewWithAdjustments, isLoading: false, error: null });
+
+      render(<CheckoutPage />);
+
+      expect(screen.getByText('120.00 US dollars')).toHaveClass('sr-only');
+      expect(screen.getByText('Minus 25.00 US dollars')).toHaveClass('sr-only');
+      expect(screen.getByText('5.00 US dollars')).toHaveClass('sr-only');
+      expect(screen.getByText('SSL encrypted').previousElementSibling).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.getByText('30-day guarantee').previousElementSibling).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('supports arrow-key payment selection through native radios', async () => {
+      const user = userEvent.setup();
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+      render(<CheckoutPage />);
+
+      const paypal = screen.getByRole('radio', { name: /PayPal/i });
+      paypal.focus();
+      await user.keyboard('{ArrowDown}');
+
+      expect(mockSetPaymentMethod).toHaveBeenCalledWith(PaymentMethod.SEPAY);
+    });
+
+    it('focuses an accessible validation summary when no payment method is selected', async () => {
+      const user = userEvent.setup();
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+      render(<CheckoutPage />);
+
+      await user.click(screen.getByRole('button', { name: /Complete Order/i }));
+
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent('Select a payment method');
+      expect(screen.getByRole('heading', { name: 'Unable to place order' })).toHaveFocus();
+      expect(mockCheckoutMutate).not.toHaveBeenCalled();
+    });
+
+    it('announces and focuses the external-provider status before redirecting', async () => {
+      const user = userEvent.setup();
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.PAYPAL,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+      mockCheckoutMutate.mockResolvedValue({
+        success: false,
+        requiresRedirect: true,
+        redirectUrl: 'https://payments.example.test/checkout',
+      });
+
+      const { unmount } = render(<CheckoutPage />);
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('');
+      expect(status).toHaveAttribute('aria-live', 'assertive');
+
+      await user.click(screen.getByRole('button', { name: /Complete Order/i }));
+
+      await waitFor(() => {
+        expect(status).toHaveTextContent('You are now leaving EduMind');
+        expect(status).toHaveFocus();
+      });
+      unmount();
+    });
+
+    it.each(['abc', '-1'])('B3: rejects invalid direct-checkout courseId=%s and focuses the error', async (courseId) => {
+      mockSearchParams.set('courseId', courseId);
+      render(<CheckoutPage />);
+
+      const heading = screen.getByRole('heading', { level: 1, name: 'Checkout Error' });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(screen.getByRole('alert')).toHaveTextContent('valid course');
+      expect(screen.getByRole('button', { name: 'Return to Courses' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /(?:Place|Complete) Order/i })).not.toBeInTheDocument();
+      expect(useDirectCheckoutPreview).toHaveBeenCalledWith(0, false);
+    });
+
+    it('B3: shows and focuses Checkout Error when the course is unavailable', async () => {
+      mockSearchParams.set('courseId', '999999');
+      (useDirectCheckoutPreview as any).mockReturnValue({
+        data: null,
+        isLoading: false,
+        error: new Error('Course not found'),
+      });
+      render(<CheckoutPage />);
+
+      const heading = screen.getByRole('heading', { level: 1, name: 'Checkout Error' });
+      await waitFor(() => expect(heading).toHaveFocus());
+      expect(screen.getByRole('button', { name: 'Return to Courses' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /(?:Place|Complete) Order/i })).not.toBeInTheDocument();
+      expect(useDirectCheckoutPreview).toHaveBeenCalledWith(999999, true);
+    });
+
+    it('guards against Enter and Space submitting the same order twice', async () => {
+      const user = userEvent.setup();
+      let resolveCheckout: (value: any) => void = () => undefined;
+      mockCheckoutMutate.mockReturnValue(new Promise((resolve) => { resolveCheckout = resolve; }));
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+      (useCheckoutStore as any).mockReturnValue({
+        selectedPaymentMethod: PaymentMethod.PAYPAL,
+        setPaymentMethod: mockSetPaymentMethod,
+        setStep: mockSetStep,
+        setResult: mockSetResult,
+        reset: mockResetCheckout,
+      });
+      render(<CheckoutPage />);
+
+      const submit = screen.getByRole('button', { name: /Complete Order/i });
+      submit.focus();
+      await user.keyboard('{Enter} ');
+      expect(mockCheckoutMutate).toHaveBeenCalledTimes(1);
+
+      resolveCheckout({ success: true, orderNumber: 'ORD-ONCE' });
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(`${USER_ROUTES.CHECKOUT_SUCCESS}?order=ORD-ONCE`));
     });
   });
 });

@@ -29,16 +29,13 @@ export const CartItem: React.FC<CartItemProps> = ({
 
   if (compact) {
     return (
-      <div className={`flex gap-3 p-3 bg-white rounded-lg ${isRemoving ? "opacity-50" : ""} ${isUnavailable ? "border border-red-200 bg-red-50" : ""}`}>
+      <li data-cart-item data-course-id={item.courseId} className={`relative flex gap-3 p-3 bg-white rounded-lg ${isRemoving ? "opacity-50" : ""} ${isUnavailable ? "border border-red-200 bg-red-50" : ""}`}>
         {/* Thumbnail */}
-        <Link
-          to={UserRouteHelpers.courseDetail(item.courseSlug)}
-          className="flex-shrink-0 relative"
-        >
+        <div className="flex-shrink-0 relative" aria-hidden="true">
           <div className={`w-16 h-12 rounded overflow-hidden bg-gray-200 ${isUnavailable ? "opacity-50" : ""}`}>
             <CloudinaryImage
               src={item.courseThumbnailUrl}
-              alt={item.courseTitle}
+              alt=""
               widths={[128]}
               className="w-full h-full object-cover"
             />
@@ -51,13 +48,13 @@ export const CartItem: React.FC<CartItemProps> = ({
               <AlertCircle className="w-3 h-3 text-white" />
             </div>
           )}
-        </Link>
+        </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <Link
             to={UserRouteHelpers.courseDetail(item.courseSlug)}
-            className={`text-sm font-medium hover:text-blue-600 line-clamp-1 ${isUnavailable ? "text-gray-500" : "text-gray-900"}`}
+            className={`text-sm font-medium hover:text-blue-600 line-clamp-1 after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-blue-500 focus-visible:after:outline-offset-2 ${isUnavailable ? "text-gray-500" : "text-gray-900"}`}
           >
             {item.courseTitle}
           </Link>
@@ -82,19 +79,20 @@ export const CartItem: React.FC<CartItemProps> = ({
           <button
             onClick={handleRemove}
             disabled={isRemoving}
-            className="text-gray-400 hover:text-red-500 transition-colors p-1"
-            title="Remove from cart"
+            aria-label={`Remove ${item.courseTitle} from cart`}
+            aria-busy={isRemoving}
+            className="relative z-10 inline-flex h-9 w-9 items-center justify-center self-end rounded-lg text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 active:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 focus-visible:outline-offset-2"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
-      </div>
+      </li>
     );
   }
 
   // Full size item (for cart page)
   return (
-    <div className={`bg-white rounded-lg border ${isRemoving ? "opacity-50" : ""} ${isUnavailable ? "border-red-200 bg-red-50" : ""}`}>
+    <li data-cart-item data-course-id={item.courseId} className={`relative bg-white rounded-lg border ${isRemoving ? "opacity-50" : ""} ${isUnavailable ? "border-red-200 bg-red-50" : ""}`}>
       {/* Unavailable Banner */}
       {isUnavailable && (
         <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-100 border-b border-red-200 rounded-t-lg">
@@ -107,14 +105,11 @@ export const CartItem: React.FC<CartItemProps> = ({
 
       <div className="flex gap-3 sm:gap-4 p-3 sm:p-4">
         {/* Thumbnail */}
-        <Link
-          to={UserRouteHelpers.courseDetail(item.courseSlug)}
-          className="flex-shrink-0 relative"
-        >
+        <div className="flex-shrink-0 relative" aria-hidden="true">
           <div className={`w-20 h-14 sm:w-28 sm:h-20 lg:w-32 lg:h-24 rounded-lg overflow-hidden bg-gray-200 ${isUnavailable ? "opacity-50 grayscale" : ""}`}>
             <CloudinaryImage
               src={item.courseThumbnailUrl}
-              alt={item.courseTitle}
+              alt=""
               widths={[160, 320]}
               sizes="(max-width: 640px) 80px, (max-width: 1024px) 112px, 128px"
               className="w-full h-full object-cover"
@@ -123,14 +118,14 @@ export const CartItem: React.FC<CartItemProps> = ({
               <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200" />
             )}
           </div>
-        </Link>
+        </div>
 
         {/* Content - takes remaining space */}
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Title & Instructor */}
           <Link
             to={UserRouteHelpers.courseDetail(item.courseSlug)}
-            className={`text-sm sm:text-base lg:text-lg font-semibold hover:text-blue-600 line-clamp-2 ${isUnavailable ? "text-gray-500" : "text-gray-900"}`}
+            className={`text-sm sm:text-base lg:text-lg font-semibold hover:text-blue-600 line-clamp-2 after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-blue-500 focus-visible:after:outline-offset-2 ${isUnavailable ? "text-gray-500" : "text-gray-900"}`}
           >
             {item.courseTitle}
           </Link>
@@ -151,30 +146,10 @@ export const CartItem: React.FC<CartItemProps> = ({
             )}
           </div>
 
-          {/* Price & Remove - Mobile: inline, Desktop: right aligned */}
-          <div className="flex items-center justify-between mt-2 sm:hidden">
-            {!isUnavailable ? (
-              <PriceTag
-                price={item.effectivePrice}
-                originalPrice={item.discountAmount ? item.originalPrice : undefined}
-                size="sm"
-              />
-            ) : (
-              <span className="text-sm font-medium text-red-600">Unavailable</span>
-            )}
-            <button
-              onClick={handleRemove}
-              disabled={isRemoving}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 transition-colors p-1"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Remove</span>
-            </button>
-          </div>
         </div>
 
-        {/* Price & Actions - Desktop only */}
-        <div className="hidden sm:flex flex-col items-end justify-between flex-shrink-0">
+        {/* One action target at every breakpoint avoids duplicate controls. */}
+        <div className="flex flex-col items-end justify-between flex-shrink-0">
           {!isUnavailable ? (
             <PriceTag
               price={item.effectivePrice}
@@ -187,13 +162,15 @@ export const CartItem: React.FC<CartItemProps> = ({
           <button
             onClick={handleRemove}
             disabled={isRemoving}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 transition-colors"
+            aria-label={`Remove ${item.courseTitle} from cart`}
+            aria-busy={isRemoving}
+            className="relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 text-sm text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 active:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 focus-visible:outline-offset-2"
           >
-            <Trash2 className="w-4 h-4" />
-            Remove
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline" aria-hidden="true">Remove</span>
           </button>
         </div>
       </div>
-    </div>
+    </li>
   );
 };

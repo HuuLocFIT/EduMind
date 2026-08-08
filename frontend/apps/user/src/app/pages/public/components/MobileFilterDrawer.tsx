@@ -20,7 +20,6 @@ interface MobileFilterDrawerProps {
   setMinRating: (rating: number | undefined) => void;
   filterType: "all" | "free";
   onFilterTypeChange?: (type: "all" | "free") => void;
-  setPage: (page: number) => void;
   onClearFilters: () => void;
   showClearButton: boolean;
   onApply: () => void;
@@ -110,12 +109,12 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Course filters"
+            aria-labelledby="mobile-filter-title"
             className="fixed inset-y-0 left-0 w-full max-w-sm bg-white z-50 lg:hidden flex flex-col shadow-xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+              <h2 id="mobile-filter-title" className="text-lg font-semibold text-gray-900">Filters</h2>
               <button
                 ref={closeButtonRef}
                 onClick={onClose}
@@ -129,25 +128,25 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="p-4">
-                <BrowseFilterSidebar {...sidebarProps} />
+                <BrowseFilterSidebar {...sidebarProps} showClearButton={false} idPrefix="mobile" />
               </div>
             </div>
 
             {/* Footer */}
             <div className="border-t border-gray-200 p-4 space-y-2">
-              <Button onClick={onApply} className="w-full" variant="primary">
+              <Button id="mobile-apply-filters" onClick={onApply} className="w-full" variant="primary">
                 Apply Filters
               </Button>
               {sidebarProps.showClearButton && (
                 <Button
                   onClick={() => {
                     sidebarProps.onClearFilters();
-                    onApply();
+                    requestAnimationFrame(() => document.getElementById("mobile-apply-filters")?.focus());
                   }}
                   className="w-full"
                   variant="secondary"
                 >
-                  Reset Filters
+                  Clear Filters
                 </Button>
               )}
             </div>

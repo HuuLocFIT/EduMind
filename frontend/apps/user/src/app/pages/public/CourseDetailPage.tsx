@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Button,
@@ -57,6 +57,7 @@ import {
   STALE_TIME_WISHLIST,
   STALE_TIME_ENROLLMENTS,
 } from "../../lib/query-config";
+import { hasPositiveCourseMetric } from "./course-detail.utils";
 
 export const CourseDetailPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
@@ -140,8 +141,14 @@ export const CourseDetailPage: React.FC = () => {
         queryKey: queryKeys.wishlist.all,
         exact: false,
       });
-      showSuccess("Successfully enrolled in course!");
-      navigate(USER_ROUTES.LEARNING);
+      navigate(USER_ROUTES.LEARNING, {
+        state: {
+          notification: {
+            variant: "success",
+            message: "Successfully enrolled in course!",
+          },
+        },
+      });
     },
     onError: (err: any) => {
       showError(err?.message || "Failed to enroll in course");
@@ -224,7 +231,12 @@ export const CourseDetailPage: React.FC = () => {
           title="Loading Course..."
           description="Accessing course details on EduMind"
         />
-        <CourseDetailSkeleton />
+        <div aria-busy="true" aria-describedby="course-loading-status">
+          <p id="course-loading-status" className="sr-only" role="status">
+            Loading course details
+          </p>
+          <CourseDetailSkeleton />
+        </div>
       </>
     );
   }
@@ -241,7 +253,10 @@ export const CourseDetailPage: React.FC = () => {
         />
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <Card className="p-8 text-center max-w-md">
-            <p className="text-red-600 text-lg mb-4">
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">
+              Course not found
+            </h1>
+            <p className="text-red-600 text-lg mb-4" role="alert">
               {(courseError as any)?.message || "Course not found"}
             </p>
             <Button
@@ -261,14 +276,14 @@ export const CourseDetailPage: React.FC = () => {
 
   return (
     <>
-        <SeoMetaTags
-         key={course.id}
-         title={course.metaTitle || course.title}
-         description={course.metaDescription || stripHtml(course.shortDescription) || stripHtml(course.description).substring(0, 160) || `Learn ${course.title} on EduMind`}
-         canonicalUrl={canonicalPath}
-         ogType="product"
-         {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
-         jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
+      <SeoMetaTags
+        key={course.id}
+        title={course.metaTitle || course.title}
+        description={course.metaDescription || stripHtml(course.shortDescription) || stripHtml(course.description).substring(0, 160) || `Learn ${course.title} on EduMind`}
+        canonicalUrl={canonicalPath}
+        ogType="product"
+        {...(course.thumbnailUrl ? { ogImage: course.thumbnailUrl } : {})}
+        jsonLd={buildCourseJsonLd(course, `https://edumind.nguyenloc.dev${canonicalPath}`)}
       />
       <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
@@ -285,15 +300,15 @@ export const CourseDetailPage: React.FC = () => {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
           <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
-            <button
-              type="button"
-              onClick={() => navigate(USER_ROUTES.COURSES)}
+            <nav aria-label="Breadcrumb">
+            <Link
+              to={USER_ROUTES.COURSES}
               className="group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <ArrowLeft aria-hidden="true" focusable="false" className="w-6 h-6 transition-transform group-hover:-translate-x-0.5" />
-              <span className="sm:hidden">Back</span>
-              <span className="hidden sm:inline">Back to Courses</span>
-            </button>
+              <span>Back to Courses</span>
+            </Link>
+            </nav>
 
             {course.category && (
               <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-2 text-sm font-medium text-white/95 backdrop-blur-sm">
@@ -326,14 +341,16 @@ export const CourseDetailPage: React.FC = () => {
               </p>
 
               <div className="flex flex-wrap items-center gap-6 mb-6">
-                <div className="flex items-center gap-2">
-                  <RatingStars rating={course.averageRating || 0} size="md" />
+                <div className="flex items-center gap-2" role="img" aria-label={course.averageRating
+                  ? `${course.averageRating.toFixed(1)} out of 5 stars from ${course.totalReviews || 0} ${course.totalReviews === 1 ? "review" : "reviews"}`
+                  : "No ratings yet"}>
+                  <span aria-hidden="true"><RatingStars rating={course.averageRating || 0} size="md" /></span>
                   { course.averageRating? 
-                    <span className="text-lg font-semibold">
+                    <span aria-hidden="true" className="text-lg font-semibold">
                       {course.averageRating?.toFixed(1) || "0.0"}
-                    </span> : <span className="text italic">No rating yet</span>
+                    </span> : <span aria-hidden="true" className="text italic">No rating yet</span>
                    }
-                  <span className="text-blue-200">
+                  <span aria-hidden="true" className="text-blue-200">
                     ({course.totalReviews || 0}{" "}
                     {course.totalReviews === 1 ? "review" : "reviews"})
                   </span>
@@ -342,7 +359,7 @@ export const CourseDetailPage: React.FC = () => {
                   <Users aria-hidden="true" focusable="false" className="w-5 h-5" />
                   <span>{course.totalStudents || 0} students</span>
                 </div>
-                {course.durationHours && (
+                {hasPositiveCourseMetric(course.durationHours) && (
                   <div className="flex items-center gap-2 text-blue-100">
                     <Clock aria-hidden="true" focusable="false" className="w-5 h-5" />
                     <span>{course.durationHours}h</span>
@@ -365,7 +382,7 @@ export const CourseDetailPage: React.FC = () => {
                 <div className="mb-6 rounded-lg overflow-hidden bg-gray-200 h-48 shadow-md">
                   <CloudinaryImage
                     src={course.thumbnailUrl}
-                    alt={course.title}
+                    alt={`Course thumbnail for ${course.title}`}
                     widths={[400, 800]}
                     sizes="(max-width: 768px) calc(100vw - 3rem), 384px"
                     priority={true}
@@ -460,7 +477,7 @@ export const CourseDetailPage: React.FC = () => {
                     This course includes:
                   </h2>
                   <ul className="space-y-3 text-sm text-gray-600">
-                    {course.durationHours && (
+                    {hasPositiveCourseMetric(course.durationHours) && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                           <Clock aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
@@ -470,7 +487,7 @@ export const CourseDetailPage: React.FC = () => {
                         </span>
                       </li>
                     )}
-                    {course.totalLessons && (
+                    {hasPositiveCourseMetric(course.totalLessons) && (
                       <li className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                           <BookOpen aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
@@ -588,7 +605,8 @@ export const CourseDetailPage: React.FC = () => {
                     </Card>
                   )}
 
-                  <div className="space-y-4">
+                  <section className="space-y-4" aria-labelledby="review-list-heading">
+                    <h3 id="review-list-heading" className="sr-only">Course review list</h3>
                     {reviews.length > 0 ? (
                       reviews.map((review) => <ReviewCard key={review.id} review={review} />)
                     ) : (
@@ -598,7 +616,7 @@ export const CourseDetailPage: React.FC = () => {
                         <p className="text-gray-500">Be the first to review this course!</p>
                       </Card>
                     )}
-                  </div>
+                  </section>
                 </div>
               </TabsContent>
             </Tabs>
@@ -628,9 +646,9 @@ export const CourseDetailPage: React.FC = () => {
 
             {/* Course Stats */}
             <Card variant="elevated" className="p-6">
-              <h3 className="font-semibold text-gray-900 mb-6 text-lg">
+              <h2 className="font-semibold text-gray-900 mb-1 text-lg">
                 Course Stats
-              </h3>
+              </h2>
               <CourseStats
                 totalStudents={course.totalStudents ?? undefined}
                 duration={course.durationHours ?? undefined}

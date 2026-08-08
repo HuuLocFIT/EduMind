@@ -24,7 +24,7 @@ interface CourseListProps {
 }
 
 const CourseCardSkeleton: React.FC = () => (
-  <div className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse">
+  <div aria-hidden="true" className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse">
     <div className="flex gap-4">
       <div className="w-24 h-16 bg-slate-200 rounded-xl flex-shrink-0" />
       <div className="flex-1 space-y-2">
@@ -51,10 +51,27 @@ export const CourseList: React.FC<CourseListProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const totalPages = pagination?.totalPages ?? 0;
+  const emptyContent = {
+    all: {
+      heading: 'No courses here yet',
+      description: 'Courses you enroll in will appear here.',
+    },
+    active: {
+      heading: 'No active courses here yet',
+      description: 'Courses you are currently learning will appear here.',
+    },
+    completed: {
+      heading: 'No completed courses here yet',
+      description: 'Courses you complete will appear here.',
+    },
+  }[filterStatus];
+  const { heading: emptyHeading, description: emptyDescription } = emptyContent;
+  const emptyAnnouncement = `${emptyHeading}. ${emptyDescription}`;
 
   if (isLoading) {
     return (
-      <div className="flex-1">
+      <div className="flex-1" aria-busy="true">
+        <p className="sr-only" role="status">Loading courses</p>
         <div className="space-y-4">
           {Array.from({ length: 4 }, (_, i) => (
             <CourseCardSkeleton key={i} />
@@ -70,11 +87,14 @@ export const CourseList: React.FC<CourseListProps> = ({
       <div className="space-y-4">
         {enrollments.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+            <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {emptyAnnouncement}
+            </p>
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-slate-400" />
+              <BookOpen className="w-8 h-8 text-slate-400" aria-hidden="true" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No courses here yet</h3>
-            <p className="text-slate-500 mb-4">Start learning something new today!</p>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">{emptyHeading}</h3>
+            <p className="text-slate-500 mb-4">{emptyDescription}</p>
             <button
               onClick={onBrowseCourses}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-colors"
@@ -83,9 +103,10 @@ export const CourseList: React.FC<CourseListProps> = ({
             </button>
           </div>
         ) : (
-          enrollments.map((enrollment) => (
+          <ul className="space-y-4" aria-label={`${filterStatus} courses`}>
+          {enrollments.map((enrollment) => (
+            <li key={enrollment.id}>
             <EnrollmentCardNew
-              key={enrollment.id}
               enrollment={enrollment}
               isHovered={hoveredCourse === enrollment.id}
               onMouseEnter={() => {
@@ -96,7 +117,9 @@ export const CourseList: React.FC<CourseListProps> = ({
               onContinue={() => onContinue(enrollment)}
               onViewDetails={() => enrollment.courseSlug && onViewDetails(enrollment.courseSlug)}
             />
+            </li>
           ))
+          }</ul>
         )}
       </div>
 
@@ -104,11 +127,12 @@ export const CourseList: React.FC<CourseListProps> = ({
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center justify-center gap-2 mt-12">
           <button
+            aria-label={`Previous page, page ${Math.max(1, currentPage)}`}
             onClick={() => onPageChange(Math.max(0, currentPage - 1))}
             disabled={currentPage === 0}
             className="flex items-center gap-1 px-4 py-2 rounded-lg font-medium transition-colors bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             Previous
           </button>
 
@@ -125,6 +149,8 @@ export const CourseList: React.FC<CourseListProps> = ({
                   <button
                     key={i}
                     onClick={() => onPageChange(i)}
+                    aria-label={`Page ${i + 1}`}
+                    aria-current={currentPage === i ? 'page' : undefined}
                     className={`w-10 h-10 rounded-lg transition-all font-medium ${
                       currentPage === i
                         ? 'bg-blue-600 text-white shadow-md scale-105'
@@ -140,12 +166,13 @@ export const CourseList: React.FC<CourseListProps> = ({
           </div>
 
           <button
+            aria-label={`Next page, page ${Math.min(totalPages, currentPage + 2)}`}
             onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
             disabled={currentPage >= totalPages - 1}
             className="flex items-center gap-1 px-4 py-2 rounded-lg font-medium transition-colors bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       )}

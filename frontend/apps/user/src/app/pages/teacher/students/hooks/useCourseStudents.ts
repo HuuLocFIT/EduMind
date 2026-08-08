@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { teacherCourseService } from '../../../../services/teacher-course.service';
-import type { CourseResponse } from "@edumind/shared-types";
+import { queryKeys } from "../../../../lib/query-keys";
+import { STALE_TIME_TEACHER_COURSES } from "../../../../lib/query-config";
+import type { CoursePickerList } from "@edumind/shared-types";
 import type { CourseStudentsPageState } from "../types/students.types";
 
 interface UseCourseStudentsProps {
@@ -15,8 +18,21 @@ export const useCourseStudents = ({ userId }: UseCourseStudentsProps) => {
   const pageSize = Number(searchParams.get("size") || "10");
   const courseId = courseIdParam ? Number(courseIdParam) : undefined;
 
-  const [courses, setCourses] = useState<CourseResponse[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
+  // Fetch lightweight course picker options (id + title) for the filter dropdown
+  const {
+    data: courses = [],
+    isLoading: coursesLoading,
+    error: coursesError,
+  } = useQuery({
+    queryKey: queryKeys.teacherCourses.picker(userId),
+    queryFn: async () => {
+      if (!userId) throw new Error("User not found");
+      return teacherCourseService.getCoursePicker(userId);
+    },
+    staleTime: STALE_TIME_TEACHER_COURSES,
+    enabled: Boolean(userId),
+  });
+
   const [state, setState] = useState<CourseStudentsPageState>({
     enrollments: [],
     pagination: undefined,
@@ -24,27 +40,12 @@ export const useCourseStudents = ({ userId }: UseCourseStudentsProps) => {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch courses
   useEffect(() => {
-    const fetchCourses = async () => {
-      if (!userId) return;
-      try {
-        setCoursesLoading(true);
-        const response = await teacherCourseService.getMyCourses(userId, {
-          page: 0,
-          size: 100,
-        });
-        setCourses(response.data || []);
-      } catch (err: any) {
-        console.error("Failed to load courses", err);
-        setError(err.message || "Failed to load courses");
-      } finally {
-        setCoursesLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, [userId]);
+    if (coursesError) {
+      console.error("Failed to load course picker", coursesError);
+      setError((coursesError as any).message || "Failed to load courses");
+    }
+  }, [coursesError]);
 
   // Fetch students
   useEffect(() => {
@@ -104,4 +105,3 @@ export const useCourseStudents = ({ userId }: UseCourseStudentsProps) => {
     refreshStudents,
   };
 };
-

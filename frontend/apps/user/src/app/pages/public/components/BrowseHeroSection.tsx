@@ -1,16 +1,18 @@
 import React from 'react';
-import { Sparkles, Search } from 'lucide-react';
+import { Sparkles, Search, X } from 'lucide-react';
 
 interface BrowseHeroSectionProps {
-  searchKeyword: string;
-  setSearchKeyword: (keyword: string) => void;
-  onSearch: (keyword: string) => void;
+  value: string;
+  onInputChange: (keyword: string) => void;
+  onSubmit: () => void;
+  onClear: () => void;
 }
 
 export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
-  searchKeyword,
-  setSearchKeyword,
-  onSearch,
+  value,
+  onInputChange,
+  onSubmit,
+  onClear,
 }) => {
   return (
     <header role="banner" className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white relative overflow-hidden">
@@ -37,7 +39,7 @@ export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
                role="search"
                onSubmit={(e) => {
                  e.preventDefault();
-                 onSearch(searchKeyword);
+                 onSubmit();
                }}
                className="bg-white rounded-xl flex items-center p-1.5 shadow-sm"
              >
@@ -46,11 +48,21 @@ export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
                <input
                  id="course-search-input"
                  type="text"
-                 value={searchKeyword}
-                 onChange={(e) => setSearchKeyword(e.target.value)}
+                 value={value}
+                 onChange={(e) => onInputChange(e.target.value)}
                  placeholder="Search for courses, skills, or teachers..."
                  className="flex-1 bg-transparent border-none outline-none h-12 px-4 text-gray-900 placeholder:text-gray-400 text-base"
                />
+               {value && (
+                 <button
+                   type="button"
+                   onClick={onClear}
+                   aria-label="Clear course search"
+                   className="h-10 w-10 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                 >
+                   <X className="w-5 h-5" aria-hidden="true" />
+                 </button>
+               )}
                <button
                  type="submit"
                  aria-label="Search"

@@ -32,18 +32,19 @@ vi.mock('../../services/auth.service', () => ({
 
 // Mock react-router-dom hooks
 const mockNavigate = vi.fn();
+let mockLocationState: Record<string, unknown> = { message: 'Verification successful!' };
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ state: { message: 'Verification successful!' } }),
+    useLocation: () => ({ state: mockLocationState }),
   };
 });
 
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
@@ -113,6 +114,7 @@ const renderLoginPage = () => {
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocationState = { message: 'Verification successful!' };
     // Reset useAuthStore mock to default
     mockUseAuthStore.mockReturnValue({
       login: mockLogin,
@@ -128,8 +130,8 @@ describe('LoginPage', () => {
     it('should render the login form', () => {
       renderLoginPage();
 
-      expect(screen.getByText('Welcome Back')).toBeInTheDocument();
-      expect(screen.getByText('Sign in to your EduMind account')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument();
+      expect(screen.getByText('Welcome back to EduMind')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('e.g. lucas or lucas@email.com')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
@@ -240,7 +242,7 @@ describe('LoginPage', () => {
 
       // Wait for navigation and toast
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+        expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true });
       }, { timeout: 2000 });
 
       await waitFor(() => {
@@ -248,7 +250,27 @@ describe('LoginPage', () => {
       });
     });
 
-    it('should show error toast on login failure', async () => {
+    it('returns to the protected route after login', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {
+        from: { pathname: '/learning', search: '?tab=active', hash: '#course-list' },
+      };
+      mockLogin.mockResolvedValue(undefined);
+      renderLoginPage();
+
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'student');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'Password123!');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          '/learning?tab=active#course-list',
+          { replace: true },
+        );
+      }, { timeout: 2000 });
+    });
+
+    it('should announce a login failure once through the inline alert', async () => {
       const user = userEvent.setup();
       const error = new Error('Invalid credentials');
       mockLogin.mockRejectedValue(error);
@@ -259,8 +281,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalledWith('Login failed. Please check your credentials.');
+        expect(screen.getByTestId('login-error')).toHaveTextContent('Invalid credentials');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should show 2FA form when 2FA is required', async () => {
@@ -349,7 +372,7 @@ describe('LoginPage', () => {
 
       // Should show login form again
       await waitFor(() => {
-        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument();
       });
     });
 
@@ -382,8 +405,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
+        expect(screen.getByTestId('login-error')).toHaveTextContent('Invalid 2FA code');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should handle network error during 2FA verification', async () => {
@@ -415,8 +439,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
+        expect(screen.getByTestId('login-error')).toHaveTextContent('Network error');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should show error message for expired 2FA code', async () => {
@@ -449,8 +474,9 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /verify/i }));
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalled();
+        expect(screen.getByTestId('login-error')).toHaveTextContent('2FA code has expired');
       });
+      expect(mockToastError).not.toHaveBeenCalled();
     });
 
     it('should validate 2FA code format (6 digits)', async () => {
@@ -513,7 +539,10 @@ describe('LoginPage', () => {
         expect(hrefValue).toBe('https://accounts.google.com/oauth2/auth');
       });
       
-      window.location = originalLocation;
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: originalLocation,
+      });
     });
 
   });

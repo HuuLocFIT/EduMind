@@ -23,8 +23,6 @@ async function createUiLoginStudent(page: Page) {
     data: {
       email,
       password,
-      firstName: 'E2E',
-      lastName: 'UI',
       username: `e2e_ui_${id.replace('-', '_')}`,
     },
   });

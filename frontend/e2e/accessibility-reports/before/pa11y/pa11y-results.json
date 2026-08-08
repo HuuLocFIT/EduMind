@@ -1,0 +1,407 @@
+{
+  "generatedAt": "2026-07-31T03:47:53.913Z",
+  "standard": "WCAG2AA",
+  "baseUrl": "http://localhost:3000",
+  "results": [
+    {
+      "documentTitle": "Learn with AI-Powered Education | EduMind",
+      "pageUrl": "http://localhost:3000/",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(4) > div > div:nth-child(2) > article > a > div > span:nth-child(2)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(4) > div > div:nth-child(2) > article > a > div > span:nth-child(4)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(5) > div > div:nth-child(2) > article > a > div > span:nth-child(2)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(5) > div > div:nth-child(2) > article > a > div > span:nth-child(4)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/",
+      "name": "home"
+    },
+    {
+      "documentTitle": "Browse Courses | EduMind",
+      "pageUrl": "http://localhost:3000/courses",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputNumber.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This numberinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 text-sm\" aria-invalid=\"false\" min=\"0\" max=\"200\" step=\"0.01...",
+          "selector": "#filter-section-price-range > div > fieldset > div:nth-child(2) > div > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputNumber.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This numberinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 text-sm\" aria-invalid=\"false\" min=\"0\" max=\"200\" step=\"0.01...",
+          "selector": "#filter-section-price-range > div > fieldset > div:nth-child(3) > div > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div:nth-child(1) > div > div:nth-child(2) > main > div:nth-child(3) > article > a > div > span:nth-child(2)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div:nth-child(1) > div > div:nth-child(2) > main > div:nth-child(3) > article > a > div > span:nth-child(4)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/courses",
+      "name": "courses"
+    },
+    {
+      "documentTitle": "Accessible Web Foundations | EduMind",
+      "pageUrl": "http://localhost:3000/courses/pa11y-accessibility-fixture",
+      "issues": [],
+      "route": "/courses/pa11y-accessibility-fixture",
+      "name": "course-detail"
+    },
+    {
+      "documentTitle": "Account | EduMind",
+      "pageUrl": "http://localhost:3000/login",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputText.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This textinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas or luc...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(1) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas or luc...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(1) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputPassword.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This passwordinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"••••••••\" type=\"p...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(2) > div:nth-child(2) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"••••••••\" type=\"p...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(2) > div:nth-child(2) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.Button.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This button element does not have a name available to an accessibility API. Valid names are: title , element content, aria-label , aria-labelledby .",
+          "context": "<button type=\"button\" class=\"text-gray-400 hover:text-gray-600 transition-colors\" tabindex=\"-1\"><svg xmlns=\"http://www.w3.org/2...</button>",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(2) > div:nth-child(2) > div > div > button",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/login",
+      "name": "login"
+    },
+    {
+      "documentTitle": "Account | EduMind",
+      "pageUrl": "http://localhost:3000/signup",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(1) > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputText.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This textinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" requi...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(1) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"e.g. lucas\" requi...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(1) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(2) > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputEmail.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This emailinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"your.email@exampl...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(2) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(3) > div > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputPassword.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This passwordinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Create a strong p...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(3) > div > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Create a strong p...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(3) > div > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.Button.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This button element does not have a name available to an accessibility API. Valid names are: title , element content, aria-label , aria-labelledby .",
+          "context": "<button type=\"button\" class=\"text-gray-400 hover:text-gray-600 transition-colors\" tabindex=\"-1\"><svg xmlns=\"http://www.w3.org/2...</button>",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(3) > div > div > div > button",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputText.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This textinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(4) > div:nth-child(1) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Lucas\" name=\"firstName\">",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(4) > div:nth-child(1) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputText.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This textinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(4) > div:nth-child(2) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_1.F68",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This form field should be labelled in some way. Use the label element (either with a \"for\" attribute or wrapped around the form field), or \"title\", \"aria-label\" or \"aria-labelledby\" attributes as appropriate.",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"Nguyen\" name=\"lastName\">",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(4) > div:nth-child(2) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputTel.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This telinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placeholder=\"0912 345 678\" typ...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > div > form > div:nth-child(5) > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/signup",
+      "name": "signup"
+    },
+    {
+      "documentTitle": "Account | EduMind",
+      "pageUrl": "http://localhost:3000/forgot-password",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle4.Guideline4_1.4_1_2.H91.InputEmail.Name",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This emailinput element does not have a name available to an accessibility API. Valid names are: label element, title , aria-label , aria-labelledby .",
+          "context": "<input class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" aria-describedby=\"_r_0_-descri...",
+          "selector": "#root > div:nth-child(2) > div:nth-child(2) > div > div:nth-child(2) > form > div > div > input",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/forgot-password",
+      "name": "forgot-password"
+    },
+    {
+      "documentTitle": "Account | EduMind",
+      "pageUrl": "http://localhost:3000/reset-password",
+      "issues": [],
+      "route": "/reset-password",
+      "name": "reset-password-missing-token"
+    },
+    {
+      "documentTitle": "",
+      "pageUrl": "http://localhost:3000/checkout/success?order=PA11Y-ORDER-001",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle2.Guideline2_4.2_4_2.H25.1.NoTitleEl",
+          "type": "error",
+          "typeCode": 1,
+          "message": "A title should be provided for the document, using a non-empty title element in the head section.",
+          "context": "<head>\n    <script type=\"module\">impo...</head>",
+          "selector": "html > head",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/checkout/success?order=PA11Y-ORDER-001",
+      "name": "checkout-success"
+    },
+    {
+      "documentTitle": "",
+      "pageUrl": "http://localhost:3000/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle2.Guideline2_4.2_4_2.H25.1.NoTitleEl",
+          "type": "error",
+          "typeCode": 1,
+          "message": "A title should be provided for the document, using a non-empty title element in the head section.",
+          "context": "<head>\n    <script type=\"module\">impo...</head>",
+          "selector": "html > head",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true",
+      "name": "checkout-failed"
+    }
+  ]
+}

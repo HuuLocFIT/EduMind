@@ -62,8 +62,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm" showCloseButton={false}>
-      <div className="flex flex-col items-center text-center px-2 pt-2 pb-6">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm" showCloseButton={false}>
+      <div className="flex flex-col items-center text-center px-2 pb-6">
         {/* Icon */}
         <div
           className={clsx(
@@ -71,14 +71,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             config.iconWrapperClass
           )}
         >
-          <Icon className={clsx("w-7 h-7", config.iconClass)} strokeWidth={1.75} />
+          <Icon aria-hidden="true" className={clsx("w-7 h-7", config.iconClass)} strokeWidth={1.75} />
         </div>
 
-        {/* Title */}
-        <h3 className="text-lg font-semibold text-gray-900 mb-2 leading-snug">{title}</h3>
-
         {/* Message */}
-        <p className="text-sm text-gray-500 leading-relaxed max-w-xs">{message}</p>
+        <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{message}</p>
       </div>
 
       {/* Actions */}
@@ -86,6 +83,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <Button
           variant="outline"
           fullWidth
+          data-autofocus
           onClick={onClose}
           disabled={isLoading}
           className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus:ring-gray-300"

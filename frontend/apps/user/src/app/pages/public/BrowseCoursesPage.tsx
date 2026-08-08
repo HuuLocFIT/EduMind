@@ -26,6 +26,37 @@ import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
+type CourseFilters = {
+  filterType: FilterType;
+  selectedCategoryIds: number[];
+  selectedLevels: string[];
+  minPrice: string;
+  maxPrice: string;
+  minRating?: number;
+};
+
+const EMPTY_FILTERS: CourseFilters = {
+  filterType: "all",
+  selectedCategoryIds: [],
+  selectedLevels: [],
+  minPrice: "",
+  maxPrice: "",
+  minRating: undefined,
+};
+
+const cloneFilters = (filters: CourseFilters): CourseFilters => ({
+  ...filters,
+  selectedCategoryIds: [...filters.selectedCategoryIds],
+  selectedLevels: [...filters.selectedLevels],
+});
+
+const filtersEqual = (left: CourseFilters, right: CourseFilters): boolean =>
+  left.filterType === right.filterType &&
+  left.minPrice === right.minPrice &&
+  left.maxPrice === right.maxPrice &&
+  left.minRating === right.minRating &&
+  left.selectedCategoryIds.join(",") === right.selectedCategoryIds.join(",") &&
+  left.selectedLevels.join(",") === right.selectedLevels.join(",");
 
 const SPECIFIC_COURSE_LEVELS = [
   CourseLevel.BEGINNER,
@@ -43,48 +74,74 @@ const normalizeSelectedLevels = (levels: string[]): string[] => {
   return hasAllSpecificLevels ? [] : unique;
 };
 
+type AppliedUrlState = {
+  filters: CourseFilters;
+  keyword: string;
+  sortBy: string;
+};
+
+const parseAppliedUrlState = (searchParams: URLSearchParams): AppliedUrlState => {
+  const filterParam = searchParams.get("filter");
+  const filterType: FilterType = filterParam === "free" ? "free" : "all";
+  const categories = searchParams.get("categories");
+  const levels = searchParams.get("levels");
+  const rating = searchParams.get("minRating");
+
+  return {
+    filters: {
+      filterType,
+      selectedCategoryIds: categories
+        ? categories.split(",").map(Number).filter(Boolean)
+        : [],
+      selectedLevels: levels ? normalizeSelectedLevels(levels.split(",")) : [],
+      minPrice: filterType === "free" ? "" : searchParams.get("minPrice") || "",
+      maxPrice: filterType === "free" ? "" : searchParams.get("maxPrice") || "",
+      minRating: rating ? Number(rating) : undefined,
+    },
+    keyword: searchParams.get("q") || "",
+    sortBy: searchParams.get("sort") || "latest",
+  };
+};
+
+const serializeAppliedUrlState = ({
+  filters,
+  keyword,
+  sortBy,
+}: AppliedUrlState): URLSearchParams => {
+  const params = new URLSearchParams();
+  if (filters.filterType !== "all") params.set("filter", filters.filterType);
+  if (filters.selectedCategoryIds.length > 0) {
+    params.set("categories", filters.selectedCategoryIds.join(","));
+  }
+  if (keyword) params.set("q", keyword);
+  if (filters.selectedLevels.length > 0) {
+    params.set("levels", filters.selectedLevels.join(","));
+  }
+  if (filters.filterType !== "free") {
+    if (filters.minPrice) params.set("minPrice", filters.minPrice);
+    if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
+  }
+  if (filters.minRating) params.set("minRating", String(filters.minRating));
+  if (sortBy !== "latest") params.set("sort", sortBy);
+  return params;
+};
+
 export const BrowseCoursesPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const { success: showSuccess, error: showError } = useToast();
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const userId = user?.id;
   const queryClient = useQueryClient();
 
-  // Filter type (all, free)
-  const initialFilterType = (searchParams.get("filter") as FilterType) || "all";
-  const [filterType, setFilterType] = useState<FilterType>(initialFilterType);
-
-  // Filters - using arrays for multi-select
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(() => {
-    const categories = searchParams.get("categories");
-    return categories ? categories.split(",").map(Number).filter(Boolean) : [];
-  });
-  const [searchKeyword, setSearchKeyword] = useState<string>(
-    searchParams.get("q") || ""
+  const [initialUrlState] = useState(() => parseAppliedUrlState(searchParams));
+  const [appliedFilters, setAppliedFilters] = useState<CourseFilters>(() =>
+    cloneFilters(initialUrlState.filters)
   );
-  const [debouncedKeyword, setDebouncedKeyword] = useState<string>(
-    searchParams.get("q") || ""
-  );
-  const [selectedLevels, setSelectedLevels] = useState<string[]>(() => {
-    const levels = searchParams.get("levels");
-    return levels ? normalizeSelectedLevels(levels.split(",")) : [];
-  });
-  const [minPrice, setMinPrice] = useState<string>(() => {
-    if (initialFilterType === "free") return "";
-    return searchParams.get("minPrice") || "";
-  });
-  const [maxPrice, setMaxPrice] = useState<string>(() => {
-    if (initialFilterType === "free") return "";
-    return searchParams.get("maxPrice") || "";
-  });
-  const [minRating, setMinRating] = useState<number | undefined>(() => {
-    const rating = searchParams.get("minRating");
-    return rating ? Number(rating) : undefined;
-  });
-  const [sortBy, setSortBy] = useState<string>(
-    searchParams.get("sort") || "latest"
-  );
+  const [searchInputValue, setSearchInputValue] = useState(initialUrlState.keyword);
+  const [appliedKeyword, setAppliedKeyword] = useState(initialUrlState.keyword);
+  const [sortBy, setSortBy] = useState<string>(initialUrlState.sortBy);
 
   // Pagination
   const [page, setPage] = useState(0);
@@ -92,36 +149,85 @@ export const BrowseCoursesPage: React.FC = () => {
 
   // Mobile drawer state
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [mobileDraftFilters, setMobileDraftFilters] = useState<CourseFilters>(() =>
+    cloneFilters(appliedFilters)
+  );
+  const [resultsFocusRequest, setResultsFocusRequest] = useState(0);
+  const [appliedRequest, setAppliedRequest] = useState(0);
+  const [resultsAnnouncement, setResultsAnnouncement] = useState("");
+  const pendingResultsFocusRef = useRef(false);
+  const lastAnnouncedRequestRef = useRef(-1);
+  const announcementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingInternalUrlRef = useRef<string | null>(null);
+  const hydratingFromUrlRef = useRef(false);
 
-  // Debounce search to avoid spamming requests
-  useEffect(() => {
-    const handle = setTimeout(() => setDebouncedKeyword(searchKeyword), 300);
-    return () => clearTimeout(handle);
-  }, [searchKeyword]);
-
-  // Sync filters to URL
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (filterType !== "all") params.set("filter", filterType);
-    if (selectedCategoryIds.length > 0) params.set("categories", selectedCategoryIds.join(","));
-    if (debouncedKeyword) params.set("q", debouncedKeyword);
-    if (selectedLevels.length > 0) params.set("levels", selectedLevels.join(","));
-    if (filterType !== "free") {
-      if (minPrice) params.set("minPrice", minPrice);
-      if (maxPrice) params.set("maxPrice", maxPrice);
+  const markAppliedRequest = (focusResults = false) => {
+    if (announcementTimerRef.current) {
+      clearTimeout(announcementTimerRef.current);
+      announcementTimerRef.current = null;
     }
-    if (minRating) params.set("minRating", String(minRating));
-    if (sortBy !== "latest") params.set("sort", sortBy);
+    pendingResultsFocusRef.current ||= focusResults;
+    setResultsAnnouncement("");
+    setAppliedRequest((request) => request + 1);
+  };
+
+  useEffect(() => () => {
+    if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
+  }, []);
+
+  // Hydrate applied state for browser Back/Forward and same-route navigations.
+  // URL updates initiated by the controls are already represented in local state.
+  useEffect(() => {
+    const currentUrl = searchParams.toString();
+    if (pendingInternalUrlRef.current === currentUrl) {
+      pendingInternalUrlRef.current = null;
+      return;
+    }
+
+    const next = parseAppliedUrlState(searchParams);
+    const appliedStateChanged =
+      !filtersEqual(appliedFilters, next.filters) ||
+      appliedKeyword !== next.keyword ||
+      sortBy !== next.sortBy;
+
+    if (appliedStateChanged) {
+      hydratingFromUrlRef.current = true;
+      setAppliedFilters(cloneFilters(next.filters));
+      setAppliedKeyword(next.keyword);
+      setSortBy(next.sortBy);
+    }
+    setSearchInputValue(next.keyword);
+    setPage(0);
+    markAppliedRequest();
+    // Keep an open mobile draft untouched. openMobileDrawer copies the latest
+    // applied state the next time the drawer is opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Sync control-driven applied state changes to the URL.
+  useEffect(() => {
+    const params = serializeAppliedUrlState({
+      filters: appliedFilters,
+      keyword: appliedKeyword,
+      sortBy,
+    });
+    const nextUrl = params.toString();
+    const currentAppliedUrl = serializeAppliedUrlState(
+      parseAppliedUrlState(searchParams)
+    ).toString();
+
+    if (hydratingFromUrlRef.current) {
+      if (nextUrl === currentAppliedUrl) hydratingFromUrlRef.current = false;
+      return;
+    }
+    if (nextUrl === currentAppliedUrl) return;
+
+    pendingInternalUrlRef.current = nextUrl;
     setSearchParams(params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    filterType,
-    selectedCategoryIds,
-    debouncedKeyword,
-    selectedLevels,
-    minPrice,
-    maxPrice,
-    minRating,
+    appliedFilters,
+    appliedKeyword,
     sortBy,
     // setSearchParams is stable and doesn't need to be in dependencies
   ]);
@@ -141,27 +247,27 @@ export const BrowseCoursesPage: React.FC = () => {
     refetch,
   } = useQuery<CoursesResponse>({
     queryKey: queryKeys.courses.filtered({
-      filterType,
+      filterType: appliedFilters.filterType,
       page,
       size: pageSize,
-      categoryIds: selectedCategoryIds,
-      levels: selectedLevels,
-      keyword: debouncedKeyword,
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      minRating,
+      categoryIds: appliedFilters.selectedCategoryIds,
+      levels: appliedFilters.selectedLevels,
+      keyword: appliedKeyword,
+      minPrice: appliedFilters.minPrice ? Number(appliedFilters.minPrice) : undefined,
+      maxPrice: appliedFilters.maxPrice ? Number(appliedFilters.maxPrice) : undefined,
+      minRating: appliedFilters.minRating,
       sortBy,
     }),
     queryFn: async () => {
       const baseParams = {
         page,
         size: pageSize,
-        categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
-        levels: selectedLevels.length > 0 ? selectedLevels : undefined,
-        keyword: debouncedKeyword || undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        minRating,
+        categoryIds: appliedFilters.selectedCategoryIds.length > 0 ? appliedFilters.selectedCategoryIds : undefined,
+        levels: appliedFilters.selectedLevels.length > 0 ? appliedFilters.selectedLevels : undefined,
+        keyword: appliedKeyword || undefined,
+        minPrice: appliedFilters.minPrice ? Number(appliedFilters.minPrice) : undefined,
+        maxPrice: appliedFilters.maxPrice ? Number(appliedFilters.maxPrice) : undefined,
+        minRating: appliedFilters.minRating,
       };
 
       // Determine sort direction based on sortBy
@@ -190,7 +296,7 @@ export const BrowseCoursesPage: React.FC = () => {
       let finalMaxPrice = baseParams.maxPrice;
 
       // Apply filterType as additional constraints
-      switch (filterType) {
+      switch (appliedFilters.filterType) {
         case "free":
           // Free courses: price = 0
           finalMinPrice = 0;
@@ -218,30 +324,74 @@ export const BrowseCoursesPage: React.FC = () => {
   const totalPages = coursesResponse?.pagination?.totalPages || 1;
   const totalElements = coursesResponse?.pagination?.totalElements || 0;
 
+  // Fetch enrollment state for the current page of courses
+  const currentPageCourseIds = useMemo(() => courses.map(c => c.id), [courses]);
+
+  const { data: enrolledCourseIdsData } = useQuery<number[]>({
+    queryKey: queryKeys.enrollments.enrolled(userId!, currentPageCourseIds),
+    queryFn: () => enrollmentService.getEnrolledCourseIds(currentPageCourseIds),
+    enabled: isAuthenticated && userId !== undefined && currentPageCourseIds.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const enrolledCourseIds = useMemo(() => {
+    if (!enrolledCourseIdsData) return new Set<number>();
+    return new Set(enrolledCourseIdsData);
+  }, [enrolledCourseIdsData]);
+
+  useEffect(() => {
+    if (
+      isFetching ||
+      error ||
+      isMobileDrawerOpen ||
+      !coursesResponse ||
+      lastAnnouncedRequestRef.current === appliedRequest
+    ) return;
+
+    const announcement = totalElements === 0
+      ? "0 courses found"
+      : totalPages > 1
+      ? `Showing courses ${(page * pageSize + 1).toLocaleString()} through ${Math.min(
+          (page + 1) * pageSize,
+          totalElements
+        ).toLocaleString()} of ${totalElements.toLocaleString()} course${
+          totalElements === 1 ? "" : "s"
+        } found`
+      : `${totalElements.toLocaleString()} course${totalElements === 1 ? "" : "s"} found`;
+
+    lastAnnouncedRequestRef.current = appliedRequest;
+    if (pendingResultsFocusRef.current) {
+      pendingResultsFocusRef.current = false;
+      setResultsFocusRequest((request) => request + 1);
+      return;
+    }
+
+    // VoiceOver commonly prioritizes focus/activation events and drops a
+    // live-region update committed in the same render. This is especially
+    // common when a clear/remove control disappears after activation.
+    // Publish the status separately after the control DOM has settled.
+    announcementTimerRef.current = setTimeout(() => {
+      setResultsAnnouncement(announcement);
+      announcementTimerRef.current = null;
+    }, 300);
+  }, [appliedRequest, coursesResponse, error, isFetching, isMobileDrawerOpen, page, totalElements, totalPages]);
+
   // Get selected categories
   const selectedCategories = useMemo(() => {
-    return categories.filter((cat) => selectedCategoryIds.includes(cat.id));
-  }, [categories, selectedCategoryIds]);
+    return categories.filter((cat) => appliedFilters.selectedCategoryIds.includes(cat.id));
+  }, [appliedFilters.selectedCategoryIds, categories]);
 
   // Active filters count
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (filterType !== "all") count++;
-    if (selectedCategoryIds.length > 0) count++;
-    if (selectedLevels.length > 0) count++;
-    if (minPrice || maxPrice) count++;
-    if (minRating) count++;
-    if (searchKeyword) count++;
+    if (appliedFilters.filterType !== "all") count++;
+    if (appliedFilters.selectedCategoryIds.length > 0) count++;
+    if (appliedFilters.selectedLevels.length > 0) count++;
+    if (appliedFilters.minPrice || appliedFilters.maxPrice) count++;
+    if (appliedFilters.minRating) count++;
+    if (appliedKeyword) count++;
     return count;
-  }, [
-    filterType,
-    selectedCategoryIds,
-    selectedLevels,
-    minPrice,
-    maxPrice,
-    minRating,
-    searchKeyword,
-  ]);
+  }, [appliedFilters, appliedKeyword]);
 
   const handleCourseClick = (course: CourseResponse) => {
     navigate(
@@ -249,62 +399,120 @@ export const BrowseCoursesPage: React.FC = () => {
     );
   };
 
-  const handleSearch = (keyword: string) => {
-    setSearchKeyword(keyword);
-    setPage(0); // Reset to first page
+  const handleSearchSubmit = () => {
+    const keyword = searchInputValue.trim();
+    const shouldRefetchCurrentQuery = keyword === appliedKeyword;
+    setSearchInputValue(keyword);
+    setAppliedKeyword(keyword);
+    setPage(0);
+    markAppliedRequest();
+    if (shouldRefetchCurrentQuery) void refetch();
   };
 
-  const handleCategoryChange = (categoryId: number) => {
-    setSelectedCategoryIds((prev) => {
-      if (prev.includes(categoryId)) {
-        return prev.filter((id) => id !== categoryId);
-      } else {
-        return [...prev, categoryId];
-      }
-    });
+  const handleClearSearch = () => {
+    const shouldRefetchCurrentQuery = appliedKeyword === "";
+    setSearchInputValue("");
+    setAppliedKeyword("");
     setPage(0);
+    markAppliedRequest(true);
+    if (shouldRefetchCurrentQuery) void refetch();
   };
 
-  const handleLevelChange = (level: string) => {
-    setSelectedLevels((prev) => {
-      const next = prev.includes(level)
-        ? prev.filter((l) => l !== level)
-        : [...prev, level];
-
-      return normalizeSelectedLevels(next);
-    });
+  const handleCategoryChange = (categoryId: number, focusResults = false) => {
+    setAppliedFilters((prev) => ({
+      ...prev,
+      selectedCategoryIds: prev.selectedCategoryIds.includes(categoryId)
+        ? prev.selectedCategoryIds.filter((id) => id !== categoryId)
+        : [...prev.selectedCategoryIds, categoryId],
+    }));
     setPage(0);
+    markAppliedRequest(focusResults);
+  };
+
+  const handleLevelChange = (level: string, focusResults = false) => {
+    setAppliedFilters((prev) => ({
+      ...prev,
+      selectedLevels: normalizeSelectedLevels(
+        prev.selectedLevels.includes(level)
+          ? prev.selectedLevels.filter((item) => item !== level)
+          : [...prev.selectedLevels, level]
+      ),
+    }));
+    setPage(0);
+    markAppliedRequest(focusResults);
   };
 
   const handleSortChange = (sort: string) => {
     setSortBy(sort);
     setPage(0);
+    markAppliedRequest();
   };
 
-  const handleFilterTypeChange = (type: FilterType) => {
-    setFilterType(type);
-    if (type === "free") {
-      setMinPrice("");
-      setMaxPrice("");
-    }
+  const handleFilterTypeChange = (type: FilterType, focusResults = false) => {
+    setAppliedFilters((prev) => ({
+      ...prev,
+      filterType: type,
+      minPrice: type === "free" ? "" : prev.minPrice,
+      maxPrice: type === "free" ? "" : prev.maxPrice,
+    }));
     setPage(0);
+    markAppliedRequest(focusResults);
   };
 
   const clearFilters = () => {
-    setFilterType("all");
-    setSelectedCategoryIds([]);
-    setSearchKeyword("");
-    setSelectedLevels([]);
-    setMinPrice("");
-    setMaxPrice("");
-    setMinRating(undefined);
+    setAppliedFilters(cloneFilters(EMPTY_FILTERS));
+    setSearchInputValue("");
+    setAppliedKeyword("");
     setSortBy("latest");
     setPage(0);
+    markAppliedRequest(true);
+  };
+
+  const openMobileDrawer = () => {
+    // Ignore any background result completion while the modal is active.
+    if (announcementTimerRef.current) {
+      clearTimeout(announcementTimerRef.current);
+      announcementTimerRef.current = null;
+    }
+    setResultsAnnouncement("");
+    lastAnnouncedRequestRef.current = appliedRequest;
+    pendingResultsFocusRef.current = false;
+    setMobileDraftFilters(cloneFilters(appliedFilters));
+    setIsMobileDrawerOpen(true);
   };
 
   const handleCloseMobileDrawer = () => {
     setIsMobileDrawerOpen(false);
     setTimeout(() => filterButtonRef.current?.focus(), 0);
+  };
+
+  const handleApplyMobileFilters = () => {
+    const shouldRefetchCurrentQuery = filtersEqual(appliedFilters, mobileDraftFilters) && page === 0;
+    setAppliedFilters(cloneFilters(mobileDraftFilters));
+    setPage(0);
+    setIsMobileDrawerOpen(false);
+    markAppliedRequest(true);
+    if (shouldRefetchCurrentQuery) void refetch();
+  };
+
+  const updateAppliedFilter = <K extends keyof CourseFilters,>(
+    key: K,
+    value: CourseFilters[K],
+    focusResults = false
+  ) => {
+    setAppliedFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(0);
+    markAppliedRequest(focusResults);
+  };
+
+  const updateDraftFilter = <K extends keyof CourseFilters,>(key: K, value: CourseFilters[K]) => {
+    setMobileDraftFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleClearPrice = (focusResults = false) => {
+    setAppliedFilters((prev) => ({ ...prev, minPrice: "", maxPrice: "" }));
+    setPage(0);
+    markAppliedRequest(focusResults);
   };
 
   // Cart and enrollment state for action buttons
@@ -313,20 +521,6 @@ export const BrowseCoursesPage: React.FC = () => {
   const { startAddingItem, finishAddingItem } = useCartStore();
   const [addingIds, setAddingIds] = useState<Set<number>>(new Set());
   const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
-
-  // Fetch user enrollments for showing "Enrolled" status
-  const { data: enrollmentsData } = useQuery({
-    queryKey: queryKeys.enrollments.me(),
-    queryFn: () => enrollmentService.getMyEnrollments({ page: 0, size: 100 }),
-    enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  // Build sets for quick lookup
-  const enrolledCourseIds = useMemo(() => {
-    if (!enrollmentsData?.data) return new Set<number>();
-    return new Set(enrollmentsData.data.map(e => e.courseId));
-  }, [enrollmentsData]);
 
   const cartCourseIds = useMemo(() => {
     if (!cart?.items) return new Set<number>();
@@ -403,13 +597,13 @@ export const BrowseCoursesPage: React.FC = () => {
     });
   };
 
-  const pageTitle = searchKeyword
-    ? `${searchKeyword} Courses`
-    : filterType === 'free' ? 'Free Courses' : 'Browse Courses';
+  const pageTitle = appliedKeyword
+    ? `${appliedKeyword} Courses`
+    : appliedFilters.filterType === 'free' ? 'Free Courses' : 'Browse Courses';
 
-  const pageDescription = searchKeyword
-    ? `Browse ${searchKeyword} courses on EduMind. Find the perfect course for your learning journey.`
-    : filterType === 'free'
+  const pageDescription = appliedKeyword
+    ? `Browse ${appliedKeyword} courses on EduMind. Find the perfect course for your learning journey.`
+    : appliedFilters.filterType === 'free'
     ? 'Explore free courses on EduMind. Start learning without any cost.'
     : 'Browse our wide selection of courses on EduMind. Find expert-led courses to advance your skills.';
 
@@ -423,34 +617,35 @@ export const BrowseCoursesPage: React.FC = () => {
       />
       <div className="min-h-screen bg-gray-50" aria-hidden={isMobileDrawerOpen || undefined}>
       <BrowseHeroSection
-        searchKeyword={searchKeyword}
-        setSearchKeyword={setSearchKeyword}
-        onSearch={handleSearch}
+        value={searchInputValue}
+        onInputChange={setSearchInputValue}
+        onSubmit={handleSearchSubmit}
+        onClear={handleClearSearch}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <BrowseActiveFilters
           activeFiltersCount={activeFiltersCount}
-          filterType={filterType}
-          onFilterTypeChange={handleFilterTypeChange}
+          filterType={appliedFilters.filterType}
+          onFilterTypeChange={(type) => handleFilterTypeChange(type, true)}
           selectedCategories={selectedCategories}
-          onCategoryChange={handleCategoryChange}
-          selectedLevels={selectedLevels}
-          onLevelChange={handleLevelChange}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          setMinPrice={setMinPrice}
-          setMaxPrice={setMaxPrice}
-          setPage={setPage}
-          searchKeyword={searchKeyword}
-          setSearchKeyword={setSearchKeyword}
+          onCategoryChange={(id) => handleCategoryChange(id, true)}
+          selectedLevels={appliedFilters.selectedLevels}
+          onLevelChange={(level) => handleLevelChange(level, true)}
+          minPrice={appliedFilters.minPrice}
+          maxPrice={appliedFilters.maxPrice}
+          onClearPrice={() => handleClearPrice(true)}
+          minRating={appliedFilters.minRating}
+          onClearRating={() => updateAppliedFilter("minRating", undefined, true)}
+          appliedKeyword={appliedKeyword}
+          onClearSearch={handleClearSearch}
         />
 
         {/* Mobile Filter Button */}
         <div className="lg:hidden mb-4">
           <button
             ref={filterButtonRef}
-            onClick={() => setIsMobileDrawerOpen(true)}
+            onClick={openMobileDrawer}
             aria-expanded={isMobileDrawerOpen}
             aria-controls="mobile-filter-drawer"
             aria-haspopup="dialog"
@@ -472,21 +667,20 @@ export const BrowseCoursesPage: React.FC = () => {
           <div className="hidden lg:block">
             <BrowseFilterSidebar
               categories={categories}
-              selectedCategoryIds={selectedCategoryIds}
+              selectedCategoryIds={appliedFilters.selectedCategoryIds}
               onCategoryChange={handleCategoryChange}
-              selectedLevels={selectedLevels}
+              selectedLevels={appliedFilters.selectedLevels}
               onLevelChange={handleLevelChange}
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-              setMinPrice={setMinPrice}
-              setMaxPrice={setMaxPrice}
-              minRating={minRating}
-              setMinRating={setMinRating}
-               filterType={filterType}
+              minPrice={appliedFilters.minPrice}
+              maxPrice={appliedFilters.maxPrice}
+              setMinPrice={(value) => updateAppliedFilter("minPrice", value)}
+              setMaxPrice={(value) => updateAppliedFilter("maxPrice", value)}
+              minRating={appliedFilters.minRating}
+              setMinRating={(value) => updateAppliedFilter("minRating", value)}
+               filterType={appliedFilters.filterType}
                onFilterTypeChange={handleFilterTypeChange}
-               setPage={setPage}
                onClearFilters={clearFilters}
-               showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
+               showClearButton={activeFiltersCount > 0}
             />
           </div>
 
@@ -503,7 +697,10 @@ export const BrowseCoursesPage: React.FC = () => {
             sortBy={sortBy}
             onSortChange={handleSortChange}
             onRefetch={() => refetch()}
-            onPageChange={setPage}
+            onPageChange={(nextPage) => {
+              setPage(nextPage);
+              markAppliedRequest(true);
+            }}
             
             handleCourseClick={handleCourseClick}
             enrolledCourseIds={enrolledCourseIds}
@@ -516,6 +713,8 @@ export const BrowseCoursesPage: React.FC = () => {
 
             activeFiltersCount={activeFiltersCount}
             onClearFilters={clearFilters}
+            focusRequest={resultsFocusRequest}
+            resultsAnnouncement={resultsAnnouncement}
           />
         </div>
       </div>
@@ -523,26 +722,46 @@ export const BrowseCoursesPage: React.FC = () => {
       <MobileFilterDrawer
         isOpen={isMobileDrawerOpen}
         onClose={handleCloseMobileDrawer}
-        onApply={() => {
-          handleCloseMobileDrawer();
-          setPage(0);
-        }}
+        onApply={handleApplyMobileFilters}
         categories={categories}
-        selectedCategoryIds={selectedCategoryIds}
-        onCategoryChange={handleCategoryChange}
-        selectedLevels={selectedLevels}
-        onLevelChange={handleLevelChange}
-        minPrice={minPrice}
-        maxPrice={maxPrice}
-        setMinPrice={setMinPrice}
-        setMaxPrice={setMaxPrice}
-        minRating={minRating}
-        setMinRating={setMinRating}
-        filterType={filterType}
-        onFilterTypeChange={handleFilterTypeChange}
-        setPage={setPage}
-        onClearFilters={clearFilters}
-        showClearButton={Boolean(selectedCategoryIds.length > 0 || searchKeyword || selectedLevels.length > 0 || minPrice || maxPrice || minRating || filterType !== "all")}
+        selectedCategoryIds={mobileDraftFilters.selectedCategoryIds}
+        onCategoryChange={(categoryId) => setMobileDraftFilters((prev) => ({
+          ...prev,
+          selectedCategoryIds: prev.selectedCategoryIds.includes(categoryId)
+            ? prev.selectedCategoryIds.filter((id) => id !== categoryId)
+            : [...prev.selectedCategoryIds, categoryId],
+        }))}
+        selectedLevels={mobileDraftFilters.selectedLevels}
+        onLevelChange={(level) => setMobileDraftFilters((prev) => ({
+          ...prev,
+          selectedLevels: normalizeSelectedLevels(
+            prev.selectedLevels.includes(level)
+              ? prev.selectedLevels.filter((item) => item !== level)
+              : [...prev.selectedLevels, level]
+          ),
+        }))}
+        minPrice={mobileDraftFilters.minPrice}
+        maxPrice={mobileDraftFilters.maxPrice}
+        setMinPrice={(value) => updateDraftFilter("minPrice", value)}
+        setMaxPrice={(value) => updateDraftFilter("maxPrice", value)}
+        minRating={mobileDraftFilters.minRating}
+        setMinRating={(value) => updateDraftFilter("minRating", value)}
+        filterType={mobileDraftFilters.filterType}
+        onFilterTypeChange={(filterType) => setMobileDraftFilters((prev) => ({
+          ...prev,
+          filterType,
+          minPrice: filterType === "free" ? "" : prev.minPrice,
+          maxPrice: filterType === "free" ? "" : prev.maxPrice,
+        }))}
+        onClearFilters={() => setMobileDraftFilters(cloneFilters(EMPTY_FILTERS))}
+        showClearButton={Boolean(
+          mobileDraftFilters.filterType !== "all" ||
+          mobileDraftFilters.selectedCategoryIds.length ||
+          mobileDraftFilters.selectedLevels.length ||
+          mobileDraftFilters.minPrice ||
+          mobileDraftFilters.maxPrice ||
+          mobileDraftFilters.minRating
+        )}
       />
     </>
   );

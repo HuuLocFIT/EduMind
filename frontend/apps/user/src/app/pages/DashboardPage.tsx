@@ -6,7 +6,7 @@ import { enrollmentService } from '../services/enrollment.service';
 import { courseService } from '../services/course.service';
 import { wishlistService } from '../services/wishlist.service';
 import { CourseGrid } from "../components/course-module";
-import type { EnrollmentResponse, CourseResponse } from "@edumind/shared-types";
+import type { EnrollmentResponse, EnrollmentStatsResponse, CourseResponse } from "@edumind/shared-types";
 import { queryKeys } from "../lib/query-keys";
 import {
   STALE_TIME_ENROLLMENTS,
@@ -37,20 +37,22 @@ export const DashboardPage: React.FC = () => {
   const [hoveredCourse, setHoveredCourse] = useState<number | null>(null);
 
   // Data fetching
-  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<
+  const { data: recentEnrollments = [], isLoading: recentLoading } = useQuery<
     EnrollmentResponse[]
   >({
-    queryKey: queryKeys.enrollments.me(userId),
-    queryFn: async () => {
-      const response = await enrollmentService.getMyEnrollments({
-        page: 0,
-        size: 100,
-      });
-      return response.data || [];
-    },
+    queryKey: queryKeys.enrollments.recent(userId, 3),
+    queryFn: () => enrollmentService.getRecentlyAccessedCourses(3),
     staleTime: STALE_TIME_ENROLLMENTS,
     enabled: Boolean(userId),
   });
+
+  const { data: statsData, isLoading: statsLoading } =
+    useQuery<EnrollmentStatsResponse>({
+      queryKey: queryKeys.enrollments.stats(userId),
+      queryFn: () => enrollmentService.getMyEnrollmentStats(),
+      staleTime: STALE_TIME_ENROLLMENTS,
+      enabled: Boolean(userId),
+    });
 
   const { data: recommendedCourses = [] } =
     useQuery<CourseResponse[]>({
@@ -98,28 +100,18 @@ export const DashboardPage: React.FC = () => {
     });
 
   // Derived data
-  const recentEnrollments = useMemo(
-    () => enrollments.slice(0, 3),
-    [enrollments]
-  );
+  const mostRecentCourse = recentEnrollments.length > 0 ? recentEnrollments[0] : null;
 
   const stats = useMemo(
     () => ({
-      totalCourses: enrollments.length,
-      activeCourses: enrollments.filter((e) => e.status === "ACTIVE").length,
-      completedCourses: enrollments.filter((e) => e.status === "COMPLETED").length,
-      notStarted: enrollments.filter((e) => e.progressPercentage === 0).length,
+      totalCourses: statsData?.total ?? 0,
+      activeCourses: statsData?.active ?? 0,
+      completedCourses: statsData?.completed ?? 0,
+      notStarted: Math.max(0, (statsData?.total ?? 0) - (statsData?.started ?? 0)),
       currentStreak: 7, // TODO: Implement streak calculation
     }),
-    [enrollments]
+    [statsData]
   );
-
-  const mostRecentCourse = useMemo(() => {
-    if (enrollments.length === 0) return null;
-    return [...enrollments].sort(
-      (a, b) => new Date(b.lastAccessedAt || b.enrolledAt).getTime() - new Date(a.lastAccessedAt || a.enrolledAt).getTime()
-    )[0];
-  }, [enrollments]);
 
   // Helpers
   const getGreeting = () => {
@@ -140,7 +132,7 @@ export const DashboardPage: React.FC = () => {
     navigate(buildRouteWithParams(USER_ROUTES.COURSE_DETAIL, { courseSlug }));
   };
 
-  if (enrollmentsLoading) {
+  if (recentLoading) {
     return <DashboardSkeleton />;
   }
 
@@ -157,13 +149,13 @@ export const DashboardPage: React.FC = () => {
         greeting={getGreeting()}
         userName={user?.firstName || user?.username}
         stats={stats}
-        statsLoading={enrollmentsLoading}
+        statsLoading={statsLoading}
         mostRecentCourse={mostRecentCourse}
         onContinueLearning={handleContinueLearning}
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <TeacherApplicationBanner />
 
         <CategoriesSection
@@ -242,7 +234,7 @@ export const DashboardPage: React.FC = () => {
           }
           onViewAll={() => navigate(USER_ROUTES.COURSES)}
         />
-      </main>
+      </div>
     </div>
     </>
   );

@@ -7,6 +7,7 @@ interface CategoryFilterProps {
   selectedCategoryIds: number[];
   onSelectCategory: (categoryId: number) => void;
   className?: string;
+  idPrefix?: string;
 }
 
 export const CategoryFilter: React.FC<CategoryFilterProps> = ({
@@ -14,9 +15,9 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
   selectedCategoryIds,
   onSelectCategory,
   className = "",
+  idPrefix = "course-category",
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
   // Filter categories by search query
@@ -66,9 +67,9 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       {/* Search Input */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
-        <label htmlFor="category-search-input" className="sr-only">Search categories</label>
+        <label htmlFor={`${idPrefix}-search-input`} className="sr-only">Search categories</label>
         <input
-          id="category-search-input"
+          id={`${idPrefix}-search-input`}
           type="text"
           placeholder="Search categories..."
           value={searchQuery}
@@ -80,7 +81,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
       {/* Category List */}
       <fieldset>
         <legend className="sr-only">Categories</legend>
-        <div id="category-list" className="space-y-1 max-h-64 overflow-y-auto">
+        <div id={`${idPrefix}-list`} className="space-y-1 max-h-64 overflow-y-auto">
           {displayCategories.length === 0 ? (
             <p className="text-sm text-gray-500 py-2">No categories found</p>
           ) : (
@@ -117,7 +118,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
         <button
           onClick={() => setShowMore(!showMore)}
           aria-expanded={showMore}
-          aria-controls="category-list"
+          aria-controls={`${idPrefix}-list`}
           className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center gap-1 py-2"
         >
           {showMore ? (

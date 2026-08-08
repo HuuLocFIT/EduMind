@@ -161,8 +161,16 @@ export const TeacherLayout: React.FC = () => {
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
+          role="button"
+          tabIndex={0}
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setMobileMenuOpen(false);
+            }
+          }}
         />
       )}
 
@@ -352,7 +360,12 @@ export const TeacherLayout: React.FC = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-screen overflow-x-hidden">
+        <main
+          id="main-content"
+          aria-label="Main content"
+          tabIndex={-1}
+          className="flex-1 min-h-screen overflow-x-hidden focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600"
+        >
           {/* Desktop Header */}
           <header className="hidden lg:flex items-center justify-between bg-white border-b px-6 h-16 sticky top-0 z-30">
             <div className="flex items-center gap-4">

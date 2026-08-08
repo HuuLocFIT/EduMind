@@ -1,5 +1,5 @@
 import React from "react";
-import { ShoppingCart, Check, Loader2 } from "lucide-react";
+import { ShoppingCart, Check } from "lucide-react";
 import { Button, useToast } from "@edumind/user-ui";
 import { useAddToCart, useIsInCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
@@ -27,7 +27,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const navigate = useNavigate();
   const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated } = useAuthStore();
-  
+
   const { data: isInCart, isLoading: checkingCart } = useIsInCart(
     courseId,
     isAuthenticated
@@ -63,7 +63,10 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       startAddingItem(courseId);
       
       await addToCart.mutateAsync(courseId);
-      showSuccess("Course added to cart!");
+      // ToastContainer is the single polite live region for this update. Do
+      // not add a second component-local status: VoiceOver would announce the
+      // same successful action twice.
+      showSuccess("Course added to cart. You can now view your cart or continue browsing.");
     } catch (error: any) {
       showError(error?.message || "Failed to add to cart");
     } finally {
@@ -93,6 +96,8 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       size={size}
       onClick={handleAddToCart}
       isLoading={isLoading}
+      disabled={isLoading}
+      aria-busy={isLoading}
       className={`${fullWidth ? "w-full" : ""} ${className}`}
       leftIcon={!isLoading ? <ShoppingCart className="w-4 h-4" /> : undefined}
     >

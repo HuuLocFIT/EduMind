@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +31,16 @@ export const TwoFactorSetupPage = () => {
   } = useForm<Verify2FACodeRequest>({
     resolver: zodResolver(Verify2FACodeRequestSchema),
   });
+
+  const verifyCodeInputRef = useRef<HTMLInputElement | null>(null);
+  const { ref: verifyCodeRegisterRef, ...verifyCodeRegisterRest } =
+    register("code");
+
+  useEffect(() => {
+    if (currentStep === "verify") {
+      verifyCodeInputRef.current?.focus();
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     // Don't redirect if we're showing backup codes or currently verifying
@@ -433,18 +443,22 @@ export const TwoFactorSetupPage = () => {
 
                 <form onSubmit={handleSubmit(onVerify)} className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="verify-2fa-code" className="block text-sm font-medium text-gray-700 mb-2">
                       Verification Code
                     </label>
                     <input
+                      id="verify-2fa-code"
                       type="text"
                       placeholder="000000"
-                      {...register("code")}
+                      {...verifyCodeRegisterRest}
+                      ref={(el) => {
+                        verifyCodeRegisterRef(el);
+                        verifyCodeInputRef.current = el;
+                      }}
                       className={`w-full px-4 py-3 border rounded-lg text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                         errors.code ? "border-red-500" : "border-gray-300"
                       }`}
                       maxLength={6}
-                      autoFocus
                     />
                     {errors.code && (
                       <p className="mt-2 text-sm text-red-600">

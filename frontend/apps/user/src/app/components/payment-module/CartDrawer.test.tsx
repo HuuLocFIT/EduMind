@@ -10,7 +10,7 @@ import { USER_ROUTES } from '@edumind/shared-utils';
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
-  Link: ({ children, to }: any) => <a href={to}>{children}</a>,
+  Link: ({ children, to, ...props }: any) => <a href={to} {...props}>{children}</a>,
 }));
 
 vi.mock('../../hooks/useCart');
@@ -35,6 +35,7 @@ vi.mock('@edumind/user-ui', () => ({
   ),
   Loading: () => <div>Loading...</div>,
   useToast: () => ({ error: mockShowError }),
+  ConfirmDialog: ({ isOpen, onConfirm, title }: any) => isOpen ? <div role="dialog" aria-label={title}><button onClick={onConfirm}>Confirm removal</button></div> : null,
 }));
 
 vi.mock('lucide-react', () => ({
@@ -97,7 +98,7 @@ describe('CartDrawer', () => {
     // Test Browse Courses button
     await user.click(screen.getByText('Browse Courses'));
     expect(mockOnClose).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.COURSES);
+    expect(screen.getByRole('link', { name: 'Browse Courses' })).toHaveAttribute('href', USER_ROUTES.COURSES);
   });
 
   it('renders cart items and total', () => {
@@ -118,6 +119,27 @@ describe('CartDrawer', () => {
     expect(screen.getByTestId('cart-item-1')).toBeInTheDocument();
     expect(screen.getByTestId('cart-item-2')).toBeInTheDocument();
     expect(screen.getByText(/150.00 USD/)).toBeInTheDocument();
+    const accessibleTotal = screen.getByLabelText('Total 150.00 US dollars');
+    expect(accessibleTotal).toHaveAttribute('role', 'text');
+    expect(screen.getByText('Total:')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText(/150.00 USD/)).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('dialog', { name: 'Shopping Cart, 2 items' })).toBeInTheDocument();
+    expect(screen.getByText('2')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('uses singular item wording in the dialog name', () => {
+    (useCart as any).mockReturnValue({
+      data: {
+        items: [{ courseId: 1, courseTitle: 'React Course', effectivePrice: 100 }],
+        totalAmount: 100,
+        currency: 'USD',
+      },
+      isLoading: false,
+    });
+
+    render(<CartDrawer {...defaultProps} />);
+
+    expect(screen.getByRole('dialog', { name: 'Shopping Cart, 1 item' })).toBeInTheDocument();
   });
 
   it('handles item removal', async () => {
@@ -134,8 +156,9 @@ describe('CartDrawer', () => {
 
     const removeBtn = screen.getByText('Remove');
     await user.click(removeBtn);
+    await user.click(screen.getByText('Confirm removal'));
 
-    expect(mockRemoveMutate).toHaveBeenCalledWith(1);
+    expect(mockRemoveMutate).toHaveBeenCalledWith(1, expect.any(Object));
   });
 
   it('handles checkout navigation', async () => {

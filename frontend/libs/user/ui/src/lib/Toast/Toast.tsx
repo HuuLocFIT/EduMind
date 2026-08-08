@@ -21,12 +21,12 @@ const variantConfig = {
   },
   success: {
     icon: CheckCircle,
-    containerClass: "bg-green-600",
+    containerClass: "bg-green-700",
     iconClass: "text-white",
   },
   warning: {
     icon: AlertTriangle,
-    containerClass: "bg-yellow-600",
+    containerClass: "bg-yellow-700",
     iconClass: "text-white",
   },
   error: {
@@ -65,11 +65,11 @@ export const Toast: React.FC<ToastProps> = ({
         "animate-in slide-in-from-right duration-300",
         config.containerClass
       )}
-      role={variant === "error" ? "alert" : "status"}
-      aria-live={variant === "error" ? "assertive" : "polite"}
+      role={variant === "error" ? "alert" : undefined}
     >
       <div className="p-4 flex items-start gap-3">
         <Icon
+          aria-hidden="true"
           className={clsx("w-5 h-5 flex-shrink-0 mt-0.5", config.iconClass)}
         />
 
@@ -79,11 +79,12 @@ export const Toast: React.FC<ToastProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={() => onClose(id)}
           className="flex-shrink-0 p-0.5 rounded hover:bg-white/20 transition-colors text-white"
           aria-label="Close notification"
         >
-          <X className="w-5 h-5" />
+          <X aria-hidden="true" className="w-5 h-5" />
         </button>
       </div>
     </div>

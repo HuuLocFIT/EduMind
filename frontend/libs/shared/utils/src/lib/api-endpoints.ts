@@ -131,6 +131,10 @@ export const TEACHER_PORTAL_ENDPOINTS = {
   MY_COURSES: (instructorId: string | number) =>
     `${API_BASE_PATH}/courses/instructor/${instructorId}`,
   
+  // Lightweight course picker options (id + title) for filter dropdowns
+  COURSE_PICKER: (instructorId: string | number) =>
+    `${API_BASE_PATH}/courses/instructor/${instructorId}/picker`,
+  
   // Course CRUD
   COURSE_CREATE: `${API_BASE_PATH}/courses`,
   COURSE_UPDATE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
@@ -204,6 +208,8 @@ export const ENROLLMENT_ENDPOINTS = {
   MY_RECENT: `${API_BASE_PATH}/enrollments/my-recent`,
   MY_STATS: `${API_BASE_PATH}/enrollments/my-stats`,
   CHECK: (courseId: string | number) => `${API_BASE_PATH}/enrollments/check/${courseId}`,
+  MY_FOR_COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/course/${courseId}`,
+  ENROLLED_IN: `${API_BASE_PATH}/enrollments/enrolled`,
   STUDENT: (studentId: string | number) => `${API_BASE_PATH}/enrollments/student/${studentId}`,
   COURSE: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
   SUSPEND: (enrollmentId: string | number) => `${API_BASE_PATH}/enrollments/${enrollmentId}/suspend`,

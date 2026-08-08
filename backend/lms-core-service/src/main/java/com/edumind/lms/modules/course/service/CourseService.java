@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public interface CourseService {
     /**
@@ -50,6 +51,11 @@ public interface CourseService {
      * Get courses by instructor
      */
     Page<Course> getCoursesByInstructor(Long instructorId, Pageable pageable);
+
+    /**
+     * Get course picker options (id, title) for an instructor, ordered by title ASC
+     */
+    List<Map<String, Object>> getInstructorCoursePicker(Long instructorId);
 
     /**
      * Get instructor's courses by status

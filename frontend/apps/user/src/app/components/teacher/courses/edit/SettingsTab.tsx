@@ -53,8 +53,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving
         <h3 className="text-lg font-medium text-gray-900 mb-4">SEO Settings</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+            <label htmlFor="edit-meta-title" className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
             <Input
+              id="edit-meta-title"
               value={formData.metaTitle}
               onChange={(e) => handleChange("metaTitle", e.target.value)}
               placeholder="SEO title for search engines"
@@ -64,8 +65,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ course, onSave, saving
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+            <label htmlFor="edit-meta-description" className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
             <Textarea
+              id="edit-meta-description"
               value={formData.metaDescription}
               onChange={(e) => handleChange("metaDescription", e.target.value)}
               placeholder="SEO description for search engines"

@@ -5,23 +5,27 @@ export interface SwitchProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   label?: string;
   error?: string;
+  helperText?: string;
 }
 
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
-  ({ label, error, className, disabled, checked, ...props }, ref) => {
-    const switchId = props.id || useId();
+  ({ label, error, helperText, className, disabled, checked, ...props }, ref) => {
+    const generatedId = useId();
+    const switchId = props.id || generatedId;
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-3">
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label htmlFor={switchId} className="relative inline-flex items-center cursor-pointer">
             <input
               ref={ref}
+              id={switchId}
               type="checkbox"
+              role="switch"
               checked={checked}
               className="sr-only peer"
               disabled={disabled}
               aria-invalid={!!error}
-              aria-describedby={error ? `${switchId}-error` : undefined}
+              aria-describedby={[helperText ? `${switchId}-description` : null, error ? `${switchId}-error` : null].filter(Boolean).join(" ") || undefined}
               {...props}
             />
             <div
@@ -44,14 +48,14 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
           </label>
 
           {label && (
-            <span
+            <label htmlFor={switchId}
               className={clsx(
                 "text-sm text-gray-700",
                 disabled && "opacity-50 cursor-not-allowed"
               )}
             >
               {label}
-            </span>
+            </label>
           )}
         </div>
 
@@ -60,6 +64,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
             {error}
           </p>
         )}
+        {helperText && <p id={`${switchId}-description`} className="text-sm text-gray-500">{helperText}</p>}
       </div>
     );
   }

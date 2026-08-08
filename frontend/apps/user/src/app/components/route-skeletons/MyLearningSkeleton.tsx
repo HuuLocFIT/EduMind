@@ -61,7 +61,7 @@ export const MyLearningSkeleton: React.FC = () => {
       </section>
 
       {/* Main Content — mirrors <main className="... py-10"> */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Two-column region — flex (mirrors MyLearningPage:203) */}
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Column — Filters + Course List */}
@@ -183,7 +183,7 @@ export const MyLearningSkeleton: React.FC = () => {
             </div>
           </aside>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

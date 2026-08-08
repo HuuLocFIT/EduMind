@@ -20,9 +20,9 @@ interface BrowseFilterSidebarProps {
   setMinRating: (rating: number | undefined) => void;
   filterType: 'all' | 'free';
   onFilterTypeChange?: (type: 'all' | 'free') => void;
-  setPage: (page: number) => void;
   onClearFilters: () => void;
   showClearButton: boolean;
+  idPrefix?: string;
 }
 
 interface FilterSectionProps {
@@ -32,16 +32,16 @@ interface FilterSectionProps {
   children: React.ReactNode;
 }
 
-const FilterSection: React.FC<FilterSectionProps & { sectionId: string }> = ({
+const FilterSection: React.FC<FilterSectionProps & { sectionId: string; idPrefix: string }> = ({
   title,
   count,
   defaultOpen = true,
   children,
   sectionId,
+  idPrefix,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const contentId = `filter-section-${sectionId}`;
-  const labelText = `${isOpen ? "Collapse" : "Expand"} ${title}`;
+  const contentId = `${idPrefix}-filter-section-${sectionId}`;
 
   return (
     <div className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
@@ -85,9 +85,9 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
   setMinRating,
   filterType,
   onFilterTypeChange,
-  setPage,
   onClearFilters,
   showClearButton,
+  idPrefix = "desktop",
 }) => {
   const PRICE_MIN = 0;
   const PRICE_MAX = 200;
@@ -103,23 +103,19 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
     const [newMin, newMax] = value;
     setMinPrice(newMin === PRICE_MIN ? "" : String(newMin));
     setMaxPrice(newMax === PRICE_MAX ? "" : String(newMax));
-    setPage(0);
   };
 
   const handleMinPriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMinPrice(e.target.value);
-    setPage(0);
   };
 
   const handleMaxPriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMaxPrice(e.target.value);
-    setPage(0);
   };
 
   const handleFreeToggle = () => {
     const newType = filterType === "free" ? "all" : "free";
     onFilterTypeChange?.(newType);
-    setPage(0);
   };
 
   const ratingOptions = [
@@ -144,11 +140,13 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           count={selectedCategoryIds.length}
           defaultOpen={true}
           sectionId="categories"
+          idPrefix={idPrefix}
         >
           <CategoryFilter
             categories={categories}
             selectedCategoryIds={selectedCategoryIds}
             onSelectCategory={onCategoryChange}
+            idPrefix={`${idPrefix}-category`}
           />
         </FilterSection>
 
@@ -158,6 +156,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           count={selectedLevels.length}
           defaultOpen={true}
           sectionId="level"
+          idPrefix={idPrefix}
         >
           <div className="space-y-2" role="group" aria-label="Level">
             {levelOptions.map((level) => {
@@ -170,7 +169,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onClick={() => onLevelChange(level)}
+                      onChange={() => onLevelChange(level)}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                   <span className="text-sm text-gray-700">
@@ -188,6 +187,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           count={minPrice || maxPrice ? 1 : 0}
           defaultOpen={true}
           sectionId="price-range"
+          idPrefix={idPrefix}
         >
           <div className="space-y-4">
             {/* Free Only Toggle */}
@@ -195,8 +195,8 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
               <input
                 type="checkbox"
                 checked={filterType === "free"}
-                onClick={handleFreeToggle}
-                aria-describedby={filterType === "free" ? "free-only-info" : undefined}
+                onChange={handleFreeToggle}
+                aria-describedby={filterType === "free" ? `${idPrefix}-free-only-info` : undefined}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">Free only</span>
@@ -216,10 +216,11 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                 <fieldset className="grid grid-cols-2 gap-3">
                   <legend className="sr-only">Price range values</legend>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">
+                    <label htmlFor={`${idPrefix}-min-price`} className="block text-xs text-gray-600 mb-1">
                       Min ($)
                     </label>
                     <Input
+                      id={`${idPrefix}-min-price`}
                       type="number"
                       min={PRICE_MIN}
                       max={PRICE_MAX}
@@ -231,10 +232,11 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">
+                    <label htmlFor={`${idPrefix}-max-price`} className="block text-xs text-gray-600 mb-1">
                       Max ($)
                     </label>
                     <Input
+                      id={`${idPrefix}-max-price`}
                       type="number"
                       min={PRICE_MIN}
                       max={PRICE_MAX}
@@ -250,7 +252,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
             )}
 
             {filterType === "free" && (
-              <p id="free-only-info" className="text-xs text-gray-500">
+              <p id={`${idPrefix}-free-only-info`} className="text-xs text-gray-500">
                 Showing free courses only (price = $0)
               </p>
             )}
@@ -263,14 +265,16 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
           count={minRating ? 1 : 0}
           defaultOpen={false}
           sectionId="rating"
+          idPrefix={idPrefix}
         >
           <div className="space-y-2" role="radiogroup" aria-label="Minimum rating">
-            <label className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+            <label htmlFor={`${idPrefix}-rating-all`} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
               <input
+                id={`${idPrefix}-rating-all`}
                 type="radio"
-                name="rating"
+                name={`${idPrefix}-rating`}
                 checked={!minRating}
-                onClick={() => setMinRating(undefined)}
+                onChange={() => setMinRating(undefined)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700">All Ratings</span>
@@ -278,16 +282,16 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
             {ratingOptions.map((option) => (
               <label
                 key={option.value}
+                htmlFor={`${idPrefix}-rating-${option.value}`}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
               >
                 <input
+                  id={`${idPrefix}-rating-${option.value}`}
                   type="radio"
-                  name="rating"
+                  aria-label={`Minimum rating ${option.label}`}
+                  name={`${idPrefix}-rating`}
                   checked={minRating === option.value}
-                  onClick={() => {
-                    setMinRating(option.value);
-                    setPage(0);
-                  }}
+                  onChange={() => setMinRating(option.value)}
                   className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                 />
                 <span className="flex items-center gap-2 text-sm text-gray-700">

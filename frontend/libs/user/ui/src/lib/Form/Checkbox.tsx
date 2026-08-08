@@ -5,16 +5,19 @@ export interface CheckboxProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   label?: string;
   error?: string;
+  helperText?: string;
 }
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ label, error, className, disabled, ...props }, ref) => {
-    const checkboxId = props.id || useId();
+  ({ label, error, helperText, className, disabled, ...props }, ref) => {
+    const generatedId = useId();
+    const checkboxId = props.id || generatedId;
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-start gap-2">
           <input
             ref={ref}
+            id={checkboxId}
             type="checkbox"
             className={clsx(
               "w-4 h-4 mt-0.5 rounded border-gray-300 text-blue-600",
@@ -26,7 +29,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             )}
             disabled={disabled}
             aria-invalid={!!error}
-            aria-describedby={error ? `${checkboxId}-error` : undefined}
+            aria-describedby={[helperText ? `${checkboxId}-description` : null, error ? `${checkboxId}-error` : null].filter(Boolean).join(" ") || undefined}
             {...props}
           />
 
@@ -48,6 +51,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             {error}
           </p>
         )}
+        {helperText && <p id={`${checkboxId}-description`} className="text-sm text-gray-500 ml-6">{helperText}</p>}
       </div>
     );
   }

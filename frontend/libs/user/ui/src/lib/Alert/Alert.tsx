@@ -60,9 +60,10 @@ export const Alert: React.FC<AlertProps> = ({
         config.containerClass,
         className
       )}
-      role="alert"
+      role={variant === "error" ? "alert" : "status"}
     >
       <Icon
+        aria-hidden="true"
         className={clsx("w-5 h-5 flex-shrink-0 mt-0.5", config.iconClass)}
       />
 
@@ -77,6 +78,7 @@ export const Alert: React.FC<AlertProps> = ({
 
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
           className={clsx(
             "flex-shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors",
@@ -84,7 +86,7 @@ export const Alert: React.FC<AlertProps> = ({
           )}
           aria-label="Close alert"
         >
-          <X className="w-5 h-5" />
+          <X aria-hidden="true" className="w-5 h-5" />
         </button>
       )}
     </div>

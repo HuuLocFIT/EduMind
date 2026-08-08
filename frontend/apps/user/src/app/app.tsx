@@ -79,6 +79,9 @@ const ResetPasswordPage = createLazyRoute(
 const EmailVerificationPage = createLazyRoute(
   () => import("./pages/auth/EmailVerificationPage")
 );
+const ResendVerificationPage = createLazyRoute(
+  () => import("./pages/auth/ResendVerificationPage")
+);
 const TwoFactorSetupPage = createLazyRoute(
   () => import("./pages/auth/TwoFactorSetupPage")
 );
@@ -105,7 +108,7 @@ const ProfileSettingsPage = createLazyRoute(
 
 // Learning Pages
 const CoursePlayerPage = createLazyRoute(
-  () => import("./pages/learning/CoursePlayerPage")
+  () => import("./pages/learning/course-player/CoursePlayerPage")
 );
 const CertificatesPage = createLazyRoute(
   () => import("./pages/learning/CertificatesPage")
@@ -316,6 +319,14 @@ function AppContent() {
               element={
                 <Suspense fallback={<FullPageLoading message="Loading email verification..." />}>
                   <EmailVerificationPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path={USER_ROUTES.RESEND_VERIFICATION}
+              element={
+                <Suspense fallback={<FullPageLoading message="Loading verification form..." />}>
+                  <ResendVerificationPage />
                 </Suspense>
               }
             />

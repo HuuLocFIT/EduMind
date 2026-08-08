@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useId, useState } from 'react';
 import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 
 export interface UploadedFile {
@@ -30,9 +30,11 @@ export const FileUpload = ({
   helperText,
   required = false,
 }: FileUploadProps) => {
+  const generatedId = useId();
+  const inputId = `${generatedId}-file-upload`;
+  const helperTextId = `${inputId}-description`;
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
@@ -94,32 +96,34 @@ export const FileUpload = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-2">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span aria-hidden="true" className="text-red-500 ml-1">*</span>}
         </label>
       )}
 
       {/* Upload Area */}
-      <div
+      <label
+        htmlFor={inputId}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-lg p-6
+          relative block w-full border-2 border-dashed rounded-lg p-6
           transition-colors cursor-pointer
           ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
         `}
-        onClick={() => fileInputRef.current?.click()}
       >
         <input
-          ref={fileInputRef}
+          id={inputId}
           type="file"
           accept={accept}
           multiple={multiple}
+          required={required}
+          aria-describedby={helperText ? helperTextId : undefined}
           onChange={(e) => handleFiles(e.target.files)}
-          className="hidden"
+          className="sr-only"
         />
 
         <div className="flex flex-col items-center justify-center text-center">
@@ -132,10 +136,10 @@ export const FileUpload = ({
             Max {maxSize}MB {multiple && `(up to ${maxFiles} files)`}
           </p>
         </div>
-      </div>
+      </label>
 
       {helperText && (
-        <p className="mt-2 text-sm text-gray-500">{helperText}</p>
+        <p id={helperTextId} className="mt-2 text-sm text-gray-500">{helperText}</p>
       )}
 
       {/* File List */}

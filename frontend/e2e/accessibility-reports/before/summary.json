@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-08-08T14:55:07.937Z",
+  "standard": "WCAG 2.2 AA (A/AA Axe tags)",
+  "purpose": "Phase 0 task 2.4 before-remediation evidence",
+  "routes": [
+    {
+      "name": "home",
+      "route": "/",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 1,
+      "scanError": null
+    },
+    {
+      "name": "courses",
+      "route": "/courses",
+      "axeViolations": 1,
+      "criticalNodes": 0,
+      "seriousNodes": 1,
+      "keyboardIssues": 1,
+      "scanError": null
+    },
+    {
+      "name": "course-detail",
+      "route": "/courses/pa11y-accessibility-fixture",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 1,
+      "scanError": null
+    },
+    {
+      "name": "login",
+      "route": "/login",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 2,
+      "scanError": null
+    },
+    {
+      "name": "signup",
+      "route": "/signup",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 1,
+      "scanError": null
+    },
+    {
+      "name": "forgot-password",
+      "route": "/forgot-password",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 1,
+      "scanError": null
+    },
+    {
+      "name": "reset-password-missing-token",
+      "route": "/reset-password",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 0,
+      "scanError": null
+    },
+    {
+      "name": "checkout-success",
+      "route": "/checkout/success?order=PA11Y-ORDER-001",
+      "axeViolations": 0,
+      "criticalNodes": 0,
+      "seriousNodes": 0,
+      "keyboardIssues": 2,
+      "scanError": null
+    },
+    {
+      "name": "checkout-failed",
+      "route": "/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true",
+      "axeViolations": 1,
+      "criticalNodes": 0,
+      "seriousNodes": 1,
+      "keyboardIssues": 2,
+      "scanError": null
+    }
+  ]
+}

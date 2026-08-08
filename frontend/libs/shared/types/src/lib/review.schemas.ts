@@ -76,6 +76,13 @@ export const CourseWithReviewsSchema = z.object({
 
 export const CourseWithReviewsListSchema = z.array(CourseWithReviewsSchema);
 
+export const CoursePickerSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+});
+
+export const CoursePickerListSchema = z.array(CoursePickerSchema);
+
 export const TeacherReviewFilterParamsSchema = z.object({
   courseId: z.number().optional(),
   rating: z.number().min(1).max(5).optional(),
@@ -100,4 +107,6 @@ export type InstructorReviewsStatsResponse = z.infer<
 >;
 export type CourseWithReviews = z.infer<typeof CourseWithReviewsSchema>;
 export type CourseWithReviewsList = z.infer<typeof CourseWithReviewsListSchema>;
+export type CoursePicker = z.infer<typeof CoursePickerSchema>;
+export type CoursePickerList = z.infer<typeof CoursePickerListSchema>;
 export type TeacherReviewFilterParams = z.infer<typeof TeacherReviewFilterParamsSchema>;

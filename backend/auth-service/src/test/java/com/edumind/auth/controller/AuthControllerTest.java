@@ -63,8 +63,6 @@ class AuthControllerTest {
                         request.setUsername("newuser");
                         request.setEmail("newuser@example.com");
                         request.setPassword("Password123!");
-                        request.setFirstName("New");
-                        request.setLastName("User");
 
                         when(authService.registerUser(any(SignupRequest.class)))
                                         .thenReturn(MessageResponse.builder()

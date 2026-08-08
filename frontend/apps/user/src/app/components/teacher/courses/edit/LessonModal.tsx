@@ -44,6 +44,12 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   onAutoTranscribeClick,
   onVideoChange,
 }) => {
+  const titleInputId = React.useId();
+  const contentTypeId = React.useId();
+  const transcriptInputId = React.useId();
+  const descriptionInputId = React.useId();
+  const previewInputId = React.useId();
+  const mandatoryInputId = React.useId();
   const [form, setForm] = useState<LessonFormData>({
     title: "",
     description: "",
@@ -91,12 +97,13 @@ export const LessonModal: React.FC<LessonModalProps> = ({
       title={editingLesson?.lesson ? "Edit Lesson" : "Add Lesson"}
       size="3xl"
     >
-      <div className="space-y-4">
+      <div className="space-y-4 px-0.5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={titleInputId} className="block text-sm font-medium text-gray-700 mb-1">
             Lesson Title <span className="text-red-500">*</span>
           </label>
           <Input
+            id={titleInputId}
             value={form.title}
             onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
             placeholder="e.g., Setting up your development environment"
@@ -104,8 +111,9 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
+          <label htmlFor={contentTypeId} className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
           <select
+            id={contentTypeId}
             value={form.contentType}
             onChange={(e) => setForm((p) => ({ ...p, contentType: e.target.value }))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -129,7 +137,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         {form.contentType === ContentType.VIDEO && !isQuiz && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Video</label>
+              <p className="text-sm font-medium text-gray-700 mb-1">Video</p>
               <VideoDropZone
                 lessonId={lessonId ?? null}
                 lessonTitle={form.title || 'Untitled Lesson'}
@@ -146,7 +154,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
             ) : null}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor={transcriptInputId} className="block text-sm font-medium text-gray-700">
                   Video Summary / Transcript{" "}
                   <span className="text-xs text-gray-400 font-normal">
                     (optional — used for quiz generation)
@@ -169,6 +177,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                 ) : null}
               </div>
               <Textarea
+                id={transcriptInputId}
                 value={stripHtml(form.articleContent ?? "")}
                 onChange={(e) => setForm((p) => ({ ...p, articleContent: e.target.value }))}
                 rows={8}
@@ -205,10 +214,11 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor={descriptionInputId} className="block text-sm font-medium text-gray-700 mb-1">
             Description (optional)
           </label>
           <Textarea
+            id={descriptionInputId}
             value={form.description}
             onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
             rows={2}
@@ -217,30 +227,32 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-lg">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label aria-label="Free Preview" htmlFor={previewInputId} className="flex items-center gap-2 cursor-pointer">
             <input
+              id={previewInputId}
               type="checkbox"
               checked={form.isPreview}
               onChange={(e) => setForm((p) => ({ ...p, isPreview: e.target.checked }))}
               className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
-            <div>
+            <span>
               <span className="text-sm font-medium text-gray-900">Free Preview</span>
-              <p className="text-xs text-gray-500">Allow non-enrolled users to view</p>
-            </div>
+              <span className="block text-xs text-gray-500">Allow non-enrolled users to view</span>
+            </span>
           </label>
 
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label aria-label="Mandatory" htmlFor={mandatoryInputId} className="flex items-center gap-2 cursor-pointer">
             <input
+              id={mandatoryInputId}
               type="checkbox"
               checked={form.isMandatory}
               onChange={(e) => setForm((p) => ({ ...p, isMandatory: e.target.checked }))}
               className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
             />
-            <div>
+            <span>
               <span className="text-sm font-medium text-gray-900">Mandatory</span>
-              <p className="text-xs text-gray-500">Required for course completion</p>
-            </div>
+              <span className="block text-xs text-gray-500">Required for course completion</span>
+            </span>
           </label>
         </div>
 
