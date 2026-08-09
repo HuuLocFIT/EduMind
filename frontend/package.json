@@ -32,6 +32,9 @@
     "test:a11y:auth": "playwright test --config=e2e/playwright.config.ts --project=user-app --grep @a11y-auth",
     "test:a11y:purchase": "playwright test --config=e2e/playwright.config.ts --project=user-app --grep @a11y-purchase",
     "test:a11y:learning": "playwright test --config=e2e/playwright.config.ts --project=user-app --grep @a11y-learning",
+    "test:a11y:utilities": "playwright test --config=e2e/playwright.utilities.config.ts",
+    "test:a11y:baseline": "playwright test --config=e2e/playwright.baseline-a11y.config.ts",
+    "test:a11y:after": "A11Y_REPORT_DIR=e2e/accessibility-reports/after A11Y_REPORT_PURPOSE='after-remediation evidence' playwright test --config=e2e/playwright.baseline-a11y.config.ts",
     "pa11y": "node e2e/pa11y/run.cjs",
     "pa11y:ci": "node e2e/pa11y/run.cjs --ci",
     "test:a11y:report": "playwright show-report e2e/playwright-report"

@@ -1,188 +1,387 @@
 # Accessibility Testing Guide
 
-Tài liệu này hướng dẫn cách sử dụng và kiểm tra accessibility test infrastructure
-của EduMind. Nội dung hiện tại bao phủ Phase 0, mục 2.2 trong
-`4-flow-a11y.md`.
+This document explains how to use, run, and extend EduMind's accessibility
+test infrastructure, and describes the automated regression suites for the
+four user flows implemented per `4-flow-a11y.md`:
 
-## Phạm vi hiện tại
+1. Discover — Home → Browse Courses → Course Detail
+2. Authentication — Login / Signup / Forgot Password / Reset Password
+3. Purchase — Cart → Checkout → Success / Failed
+4. Learning — My Learning → Course Player
 
-Các utility dùng chung nằm tại:
+New team members should read this document in order: **Setup** →
+**Using `checkA11y`/keyboard utilities** → **Four flow a11y suites** →
+**Pa11y** → **Current CI status and target policy**. See
+`BASELINE_ACCESSIBILITY_AUDIT.md` for remediation
+status per issue, and `E2E_TESTING_GUIDE.md` for general E2E conventions
+(page objects, fixtures, auth strategy) that are not specific to accessibility.
+
+## Three testing tiers
+
+No single tool proves accessibility. The project uses three complementary
+tiers:
+
+| Tier | Tooling | Catches | Does not catch |
+|---|---|---|---|
+| Static | `eslint-plugin-jsx-a11y` (`npm run lint:a11y`) | Clear-cut JSX semantic errors at write time | Runtime errors, data/state-dependent errors |
+| Automated browser | Axe (`checkA11y`) + Pa11y + keyboard helpers | Rule-level violations, missing accessible name/role/state, keyboard traps, focus order | Whether the listening experience is natural, whether reading order makes sense |
+| Assistive technology | Safari + VoiceOver (manual) | Real listening experience, duplicated/silent announcements, business content | — (this is the final confirmation tier) |
+
+Automation at the first two tiers is a necessary condition, not a sufficient
+one. Do not use Axe/Pa11y/accessibility-tree results to declare a flow
+complete per `4-flow-a11y.md`.
+
+## Current scope
+
+Shared utilities live at:
 
 - `e2e/utils/accessibility.ts`
-- `e2e/tests/user/accessibility-utils.spec.ts`
+- `e2e/tests/user/accessibility-utils.spec.ts` (tests for the utility, not for a flow)
 - `e2e/playwright.utilities.config.ts`
 
-Infrastructure này cung cấp:
+This infrastructure provides:
 
-- Axe scan cho toàn document, CSS selector hoặc Playwright `Locator`.
-- Accessibility gate mặc định theo WCAG A/AA.
-- Test chỉ fail với violation mức `critical` hoặc `serious`.
-- JSON report được đính kèm vào Playwright artifact khi Axe gate fail.
-- Output gồm rule ID, WCAG tags, selector, HTML, hướng sửa và URL tham khảo.
-- Kiểm tra focus order, hidden/disabled focus target và keyboard trap.
-- Kiểm tra focus indicator bằng computed style hoặc screenshot assertion.
+- Axe scans of the full document, a CSS selector, or a Playwright `Locator`.
+- An accessibility gate defaulting to WCAG A/AA.
+- Tests that only fail on `critical` or `serious` violations.
+- A JSON report attached to the Playwright artifact when the Axe gate fails.
+- Output including rule ID, WCAG tags, selector, HTML, fix guidance, and reference URL.
+- Focus order, hidden/disabled focus target, and keyboard trap checks.
+- Focus indicator checks via computed style or screenshot assertion.
 
-Đây mới là test cho test infrastructure. Accessibility tests của từng user flow
-sẽ sử dụng các helper này trong những phase tiếp theo.
+These helpers are used directly by the four flow a11y suites below — this is
+no longer purely "tests for the test infrastructure," but the foundation for
+the entire four-flow regression suite.
 
-## Pa11y cho public/auth routes
+## Four flow a11y suites
 
-Pa11y scan chín route được yêu cầu trong Phase 0 bằng `WCAG2AA`. Runner dùng
-fixture API read-only ở `e2e/pa11y/fixtures.cjs`, chặn mọi API write và đợi
-selector page-ready riêng cho từng route trước khi audit. Vì vậy CI không đọc
-hay thay đổi production data. Hai trang kết quả checkout được mở bằng auth state
-fixture cục bộ; runner sẽ fail nếu một route bị redirect sang trang khác.
+Each of the four flows in `4-flow-a11y.md` has its own spec file under
+`e2e/tests/user/`, sharing page objects and fixtures with the other E2E tests
+(see `E2E_TESTING_GUIDE.md`). Each suite calls `checkA11y` at its important UI
+states (not just page load), plus keyboard/focus/announcement assertions
+specific to those states.
 
-Khởi động user app local trước, sau đó chạy:
+| Flow | Spec file | Tag | npm script | Page object |
+|---|---|---|---|---|
+| Discover | `e2e/tests/user/discover-flow-a11y.spec.ts` | `@a11y @a11y-public` | `npm run test:a11y:public` | `e2e/page-objects/user/DiscoverFlowPage.ts` |
+| Authentication | `e2e/tests/user/auth-flow-a11y.spec.ts` | `@a11y @a11y-auth` | `npm run test:a11y:auth` | `e2e/page-objects/user/LoginPage.ts` |
+| Purchase | `e2e/tests/user/purchase-flow-a11y.spec.ts` | `@a11y-purchase` | `npm run test:a11y:purchase` | `e2e/page-objects/user/CartPage.ts` |
+| Learning | `e2e/tests/user/learning-flow-a11y.spec.ts` | `@a11y-learning` | `npm run test:a11y:learning` | `e2e/page-objects/user/CoursePlayerPage.ts` |
+
+Run all four suites together via their shared tag prefix. Playwright treats
+`--grep @a11y` as a regular expression over the full test title, so it matches
+`@a11y-public`, `@a11y-auth`, `@a11y-purchase`, and `@a11y-learning`:
 
 ```bash
-npm run start:user (tương tự như nx serve user)
+npm run test:a11y
+```
+
+These run alongside the existing functional (non-a11y) suites
+(`auth.spec.ts`, `course-browse.spec.ts`, `learning.spec.ts`): the a11y
+suites do not replace the functional ones, they check a different dimension
+(accessible name/role/state/keyboard) of the same flow. Exception:
+`purchase-flow-a11y.spec.ts` is currently the only suite for cart/checkout —
+there is no separate `purchase-flow.spec.ts` functional file, so this suite
+also serves as the functional coverage for the purchase flow. If
+functional/a11y coverage for purchase is split apart later, keep the network
+mock pattern described in `E2E_TESTING_GUIDE.md`.
+
+### Discover flow
+
+`discover-flow-a11y.spec.ts` runs one end-to-end journey via
+`DiscoverFlowPage`: Home → use the skip link with the keyboard → Tab to
+"Browse Courses" → search/filter on `/courses` → open a fixture course
+detail page → expand the curriculum accordion → Add to Cart as a guest
+(redirects to `/login`). `checkA11y` runs at 5 states: home after using the
+skip link, filtered results, course detail (guest), expanded curriculum, and
+the destination page after the guest redirect. Beyond Axe, the test also
+asserts: the skip link receives focus correctly via `Tab` then `Enter` moves
+focus to the `#main-content` heading (`tabindex="-1"`), the "Expand/Collapse
+all" button keeps `aria-expanded` in sync, and an expanded section panel has
+`role="region"`.
+
+### Authentication flow
+
+`auth-flow-a11y.spec.ts` covers Login, Signup, Forgot Password, Reset Password,
+and a separate guest-redirect-then-return journey:
+
+- **Login:** label/autocomplete per field, password show/hide (`aria-pressed`
+  toggles along with the name "Show password"/"Hide password"), 2FA challenge
+  (`aria-describedby`/`toHaveAccessibleDescription`), validation error
+  (`aria-invalid` + focus moves to the field/summary), one-time success
+  (redirect to `/dashboard`), server error rendering exactly one
+  `role="alert"` that itself receives focus (checks announcements aren't
+  duplicated).
+- **Signup:** `autocomplete` per field, `aria-invalid` + focus on validation
+  error, success heading receives focus with `toHaveAccessibleDescription`.
+- **Forgot Password:** validation, success `role="status"`, resend flow,
+  server error rendering exactly one `role="alert"` that receives focus.
+- **Reset Password:** missing-token state, valid-token labels/autocomplete,
+  validation error, expired-token server error (a single alert, focus
+  returns to the "Invalid Reset Link" heading), success announcement with a
+  Login link.
+- **Guest redirect:** visiting `/learning` while unauthenticated → redirect
+  to `/login` → after successful login → return to `/learning`.
+
+`checkA11y` runs after the relevant state transitions, not only after initial
+render.
+
+### Purchase flow
+
+`purchase-flow-a11y.spec.ts` is split into two groups:
+
+- **Cart and cart drawer** (`@a11y-purchase cart and drawer`, 6 tests):
+  adding to cart from course detail emits exactly one `role="status"`
+  announcement (no duplication); the cart drawer is a `role="dialog"` with
+  focus trap, `Escape`, and focus returning to the trigger; an empty cart is
+  a `role="region"` named "Your cart is empty"; a populated cart uses
+  `role="list"` named "Courses in your cart"; removing an item shows a
+  `role="dialog"` confirmation; after removal, the announcement reads the
+  correct content and focus moves to the next item; a remove-API error has a
+  recovery action.
+- **Checkout acceptance** (`@a11y-purchase Flow 3 checkout acceptance`,
+  3 tests): selecting a payment method by radio, the "Processing..." button's
+  disabled state, the Success page's heading receiving focus with a
+  `role="status"` of "Payment completed successfully.", the Failed page's
+  heading "Payment Failed" receiving focus with Try Again/Return to Cart
+  buttons, and a direct-checkout flow (`?courseId=`, "Buy Now" button)
+  independent of cart state.
+
+`/checkout/failed` is scanned with Axe and also has an explicit
+`toHaveTitle()` assertion. The distinction matters: Axe's `document-title`
+rule detects a missing or empty title, but a client-side SPA transition can
+retain a non-empty title from the previous route. The explicit assertion
+verifies that the title is correct for the failed-payment state.
+
+### Learning flow
+
+`learning-flow-a11y.spec.ts` uses the `authTest` fixture (from
+`e2e/fixtures/auth.fixture.ts`) for its `@a11y-learning` journeys:
+
+- **Main journey:** My Learning → roving-tabindex tablist (`ArrowRight` moves
+  focus and `aria-selected`) → `role="list"` named "active courses" → into
+  the Course Player: the current lesson has `aria-current="step"` and its
+  accessible name includes "Completed" where applicable; keyboard media
+  controls (`k` play/pause, `m` mute with `aria-pressed`, a "Captions" toggle
+  with `aria-pressed` and a real `<track kind="captions">`); a simulated
+  progress-save failure surfaces as `role="alert"` with a retry button;
+  marking a lesson complete emits a `role="status"` progress announcement;
+  navigating into a quiz lesson.
+- **Desktop curriculum:** sidebar section toggle `aria-expanded` via
+  Enter/Space, the selected lesson has `aria-current="step"`, selecting a
+  lesson moves focus to the lesson heading.
+- **Mobile drawer:** `role="dialog"` named "Course Content" opens/closes via
+  `Escape` with a focus trap and focus returning to the toggle button.
+- **Access error:** `role="alertdialog"` named "Enrollment required" with
+  focus on the "Go Now" button.
+
+`checkA11y` runs across the principal My Learning and Course Player states.
+
+## Pa11y for public/auth routes
+
+Current route list (defined in `e2e/pa11y/config.cjs`), each with its own
+`readySelector` so the runner waits at the right moment:
+
+| Route name | Path | Ready selector | Requires auth |
+|---|---|---|---|
+| `home` | `/` | `main h1` | No |
+| `courses` | `/courses` | `main` | No |
+| `course-detail` | `/courses/pa11y-accessibility-fixture` | `main h1` | No |
+| `login` | `/login` | `form` | No |
+| `signup` | `/signup` | `form` | No |
+| `forgot-password` | `/forgot-password` | `form` | No |
+| `reset-password-missing-token` | `/reset-password` | `h2` | No |
+| `checkout-success` | `/checkout/success?order=PA11Y-ORDER-001` | `h1` | Yes |
+| `checkout-failed` | `/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true` | `h1` | Yes |
+
+Pa11y scans the nine routes required in Phase 0 using `WCAG2AA`. The runner
+uses a read-only API fixture in `e2e/pa11y/fixtures.cjs`, blocks every API
+write, and waits for a route-specific page-ready selector before auditing.
+This means the runner does not read or mutate production data when it is
+invoked locally or by a future CI job. The two checkout
+result pages are opened using a local auth-state fixture; the runner fails if
+a route is redirected to a different page.
+
+Start the user app locally first, then run:
+
+```bash
+npm run start:user (same as nx serve user)
 npm run pa11y
 ```
 
-Để trỏ vào một local/ephemeral environment khác:
+To point at a different local/ephemeral environment:
 
 ```bash
 PA11Y_BASE_URL=http://127.0.0.1:3000 npm run pa11y
 ```
 
-Timeout mặc định là 60 giây, có thể đổi bằng `PA11Y_TIMEOUT`. JSON tổng hợp và
-HTML theo route được ghi vào `e2e/pa11y/reports/`; CI cần upload toàn bộ thư mục
-này kể cả khi command fail do tìm thấy violation.
+The default timeout is 60 seconds, overridable via `PA11Y_TIMEOUT`. Combined
+JSON and per-route HTML are written to `e2e/pa11y/reports/`. A future
+accessibility CI job should upload this entire directory even when the command
+fails due to found violations.
 
-`e2e/pa11y/reports/` là runtime output và bị Git ignore. Baseline bất biến dùng
-cho Phase 0 audit được commit riêng tại
-`e2e/accessibility-reports/before/pa11y/`. Khi remediation hoàn tất, lưu bản
-re-scan tương ứng tại `e2e/accessibility-reports/after/pa11y/`; không ghi đè
-baseline.
+`e2e/pa11y/reports/` is runtime output and is Git-ignored. The immutable
+baseline from the Phase 0 audit is committed separately at
+`e2e/accessibility-reports/before/pa11y/`. Once remediation is complete, save
+the corresponding re-scan at `e2e/accessibility-reports/after/pa11y/`; do not
+overwrite the baseline.
 
-## Quản lý vòng đời report: runtime, before và after
+## Report lifecycle: runtime, before, and after
 
-Ba loại output có mục đích khác nhau:
+Three kinds of output serve different purposes:
 
-| Loại | Thư mục | Khi nào dùng | Git |
+| Kind | Directory | When to use | Git |
 |---|---|---|---|
-| Runtime | `e2e/pa11y/reports/` và Playwright artifacts | Mọi lần chạy local/CI thông thường | Ignore; CI upload artifact nếu cần |
-| Before | `e2e/accessibility-reports/before/` | Chụp baseline một lần, trước remediation | Evidence bất biến theo policy của dự án |
-| After | `e2e/accessibility-reports/after/` | Re-scan sau remediation để so sánh | Chỉ lưu khi milestone thực sự hoàn tất |
+| Runtime | `e2e/pa11y/reports/` and Playwright artifacts | Every normal local run; future CI runs | Ignored; inspect locally today, upload when CI integration exists |
+| Before | `e2e/accessibility-reports/before/` | Captured once, before remediation | Immutable evidence per project policy |
+| After | `e2e/accessibility-reports/after/` | Re-scan after remediation, for comparison | Only committed once a milestone is actually complete |
 
-### Chạy kiểm tra thông thường
+### Running a normal check
 
-Đây là command mặc định khi phát triển. Không cần move report:
+This is the default command during development. No need to move any report:
 
 ```bash
 npm run pa11y
 ```
 
-Pa11y tự ghi JSON/HTML vào `e2e/pa11y/reports/`. Có thể xóa các generated files
-trong thư mục này bất kỳ lúc nào; lần chạy tiếp theo sẽ tạo lại. Giữ `.gitignore`
-và `README.md`.
+Pa11y writes JSON/HTML into `e2e/pa11y/reports/` automatically. Files in this
+directory can be deleted at any time; the next run regenerates them. Keep
+`.gitignore` and `README.md`.
 
-Playwright tests dùng `checkA11y()` lưu JSON trong Playwright artifact khi Axe
-gate fail. Các artifact này cũng là runtime output, không phải committed
-before/after evidence.
+Playwright tests using `checkA11y()` save JSON into the Playwright artifact
+when the Axe gate fails. These artifacts are also runtime output, not
+committed before/after evidence.
 
-### Tạo Pa11y before evidence
+### Generating Pa11y before evidence
 
-Chỉ thực hiện một lần trước khi sửa code:
+Do this only once, before fixing any code:
 
 ```bash
 PA11Y_REPORT_DIR=e2e/accessibility-reports/before/pa11y npm run pa11y
 ```
 
-`PA11Y_REPORT_DIR` làm runner ghi thẳng vào evidence directory, nên không cần
-move thủ công. Phase 0 đã có baseline này; **không chạy lại command trên để ghi
-đè `before/pa11y/`**.
+`PA11Y_REPORT_DIR` makes the runner write directly into the evidence
+directory, so no manual move is needed. Phase 0 already has this baseline;
+**do not re-run the command above and overwrite `before/pa11y/`**.
 
-### Tạo Pa11y after evidence
+### Generating Pa11y after evidence
 
-Chỉ chạy khi remediation đã hoàn tất và UI đang ở commit cần đánh giá:
+Only run this once remediation is complete and the UI is at the commit being
+evaluated:
 
 ```bash
 PA11Y_REPORT_DIR=e2e/accessibility-reports/after/pa11y npm run pa11y
 ```
 
-Sau đó:
+Then:
 
-1. Xác nhận đủ chín route và không có `scanError`.
-2. So sánh kết quả với `before/pa11y/pa11y-results.json`.
-3. Cập nhật `BASELINE_ACCESSIBILITY_AUDIT.md` hoặc remediation report.
-4. Chỉ lưu `after` làm evidence khi kết quả đúng với milestone đang bàn giao.
+1. Confirm all nine routes ran and none has a `scanError`.
+2. Compare the result against `before/pa11y/pa11y-results.json`.
+3. Update `BASELINE_ACCESSIBILITY_AUDIT.md` or the remediation report.
+4. Only commit `after` as evidence once the result matches the milestone
+   being delivered.
 
 ### Axe + keyboard before evidence
 
-Collector hiện tại ghi trực tiếp vào `e2e/accessibility-reports/before/`:
+The baseline collector defaults to `e2e/accessibility-reports/before/` and
+refuses to overwrite existing evidence:
 
 ```bash
-A11Y_BASE_URL=http://localhost:3000 \
-  npx playwright test \
-  --config=e2e/playwright.baseline-a11y.config.ts
+npm run test:a11y:baseline
 ```
 
-Command này đã được dùng để tạo Phase 0 baseline. **Không chạy lại sau khi đã
-remediate**, vì collector hiện chưa hỗ trợ chọn output directory và có thể ghi
-đè before evidence.
+The committed Phase 0 files already exist, so this command now fails safely.
+`A11Y_ALLOW_OVERWRITE=true` is an emergency opt-in for an intentional
+replacement and must never be used during normal development or remediation.
 
 ### Axe + keyboard after evidence
 
-Hiện chưa có command tự động để ghi Axe/keyboard re-scan vào `after/`. Không
-copy report thủ công rồi gọi đó là after evidence. Cần bổ sung collector/config
-cho phép chọn output directory, sau đó mới tài liệu hóa command chính thức.
+Generate a fresh after-remediation scan in its own directory:
 
-Trạng thái hiện tại:
-
-```text
-Pa11y runtime    → tự động
-Pa11y before     → đã có; không ghi đè
-Pa11y after      → có thể ghi trực tiếp bằng PA11Y_REPORT_DIR
-Axe before       → đã có; collector ghi cố định vào before
-Axe after        → chưa được tự động hóa
+```bash
+npm run test:a11y:after
 ```
 
-## Cài đặt
+The command sets `A11Y_REPORT_DIR=e2e/accessibility-reports/after`. It refuses
+to replace an existing after report unless the caller explicitly sets
+`A11Y_ALLOW_OVERWRITE=true`. Review the generated files before committing
+them; do not copy or relabel before evidence.
 
-Từ repository root:
+Current status:
+
+```text
+Pa11y runtime    → automatic
+Pa11y before     → exists; do not overwrite
+Pa11y after      → can be written directly via PA11Y_REPORT_DIR
+Axe before       → exists; collector writes to before by default
+Axe after        → supported via npm run test:a11y:after; not yet committed
+```
+
+## Current CI status and target policy
+
+The current `.github/workflows/frontend-ci.yml` runs Nx affected lint, unit
+tests, and builds. It does **not** currently install Playwright browsers, start
+the fixture-backed user app, run Pa11y or the four Playwright accessibility
+flows, or upload their artifacts. Accessibility commands in this guide are
+therefore local/manual gates today, not existing CI behavior.
+
+The target production CI job should:
+
+1. Install dependencies and Chromium.
+2. Build or start the user app with deterministic fixtures.
+3. Run `npm run lint:a11y`, `npm run test:a11y:utilities`, and the four-flow
+   Playwright accessibility suite.
+4. Run Pa11y against its nine stable routes.
+5. Upload Playwright and Pa11y JSON/HTML artifacts even when a gate fails.
+
+Until that workflow lands, pull requests must record the relevant local
+commands and results; documentation must not describe artifact upload or
+accessibility gating as automatic CI behavior.
+
+## Setup
+
+From the repository root:
 
 ```bash
 cd frontend
 npm install
 ```
 
-Nếu Chromium của Playwright chưa được cài:
+If Playwright's Chromium is not yet installed:
 
 ```bash
 npx playwright install chromium
 ```
 
-## Kiểm tra lại infrastructure
+## Verifying the infrastructure
 
 ### 1. TypeScript
 
-Từ thư mục `frontend`:
+From the `frontend` directory:
 
 ```bash
 ./node_modules/.bin/tsc -p e2e/tsconfig.json --noEmit
 ```
 
-Kết quả đúng: command kết thúc với exit code `0` và không có TypeScript error.
+Expected result: the command exits with code `0` and reports no TypeScript
+errors.
 
 ### 2. Utility regression tests
 
 ```bash
-./node_modules/.bin/playwright test \
-  --config=e2e/playwright.utilities.config.ts
+npm run test:a11y:utilities
 ```
 
-Kết quả mong đợi:
+Expected result:
 
 ```text
-4 passed
+6 passed
 ```
 
-Bộ test này không khởi động user app, admin app hoặc database. Test sử dụng
-`page.setContent()` nên có thể chạy độc lập và nhanh.
+This suite does not start the user app, admin app, or database. Tests use
+`page.setContent()`, so they can run independently and quickly.
 
-Chạy tuần tự với output dễ đọc:
+Run sequentially with readable output:
 
 ```bash
 ./node_modules/.bin/playwright test \
@@ -191,7 +390,7 @@ Chạy tuần tự với output dễ đọc:
   --reporter=list
 ```
 
-Debug bằng Playwright UI:
+Debug with Playwright UI:
 
 ```bash
 ./node_modules/.bin/playwright test \
@@ -199,9 +398,9 @@ Debug bằng Playwright UI:
   --ui
 ```
 
-## Sử dụng `checkA11y`
+## Using `checkA11y`
 
-Ví dụ scan toàn document:
+Example: scan the entire document:
 
 ```ts
 import { test } from '@playwright/test';
@@ -220,7 +419,8 @@ test('course page has no serious Axe violations @a11y-public', async ({
 });
 ```
 
-`stateName` phải mô tả đúng UI state đang được scan, không chỉ ghi route. Ví dụ:
+`stateName` must describe the exact UI state being scanned, not just the
+route. For example:
 
 - `login initial`
 - `login validation errors`
@@ -228,9 +428,9 @@ test('course page has no serious Axe violations @a11y-public', async ({
 - `checkout payment pending`
 - `course player lesson loaded`
 
-### Scan một vùng cụ thể
+### Scanning a specific region
 
-Có thể truyền CSS selector:
+You can pass a CSS selector:
 
 ```ts
 await checkA11y(page, {
@@ -240,7 +440,7 @@ await checkA11y(page, {
 });
 ```
 
-Hoặc Playwright `Locator`:
+Or a Playwright `Locator`:
 
 ```ts
 await checkA11y(page, {
@@ -250,12 +450,13 @@ await checkA11y(page, {
 });
 ```
 
-Mặc định nên scan toàn document. Chỉ giới hạn context khi test đang kiểm tra một
-UI state biệt lập và phần còn lại của page đã được cover ở test khác.
+Scanning the whole document should be the default. Only scope the context
+when the test is checking an isolated UI state and the rest of the page is
+already covered by another test.
 
 ### WCAG tags
 
-Mặc định helper chạy:
+By default the helper runs:
 
 ```ts
 [
@@ -267,17 +468,19 @@ Mặc định helper chạy:
 ]
 ```
 
-Chỉ override `tags` khi test có mục đích cụ thể và lý do được ghi rõ trong test.
+Only override `tags` when the test has a specific purpose and the reason is
+documented clearly in the test.
 
-## Quy tắc exclusion
+## Exclusion rules
 
-Không được thêm `exclude` chỉ để làm test pass. Mỗi selector bị exclude phải có:
+Do not add an `exclude` just to make a test pass. Every excluded selector
+must have:
 
-- Lý do kỹ thuật và user impact còn tồn tại.
-- Issue ID có thể theo dõi.
-- Điều kiện cụ thể để xóa exclusion.
+- A technical reason and the remaining user impact.
+- A trackable issue ID.
+- A specific condition for removing the exclusion.
 
-Ví dụ:
+Example:
 
 ```ts
 await checkA11y(page, {
@@ -297,16 +500,16 @@ await checkA11y(page, {
 });
 ```
 
-Helper sẽ fail trước khi Axe chạy nếu:
+The helper fails before Axe runs if:
 
-- Selector trong `exclude` không có documentation.
-- `reason` hoặc `removalCondition` trống.
-- `issueId` không đúng dạng issue key hoặc issue URL.
-- Documentation đã cũ và không còn selector tương ứng trong `exclude`.
+- A selector in `exclude` has no documentation.
+- `reason` or `removalCondition` is empty.
+- `issueId` is not a valid issue key or issue URL.
+- Documentation is stale and no longer matches any selector in `exclude`.
 
 ## Keyboard utilities
 
-### Gửi Tab và ghi lại focus
+### Sending Tab and recording focus
 
 ```ts
 const focused = await tabAndRecordFocus(page);
@@ -314,9 +517,10 @@ const focused = await tabAndRecordFocus(page);
 expect(focused.selector).toBe('#email');
 ```
 
-Helper tự động fail nếu focus đi vào element hidden hoặc disabled.
+The helper automatically fails if focus lands on a hidden or disabled
+element.
 
-### Kiểm tra focus traversal và keyboard trap
+### Checking focus traversal and keyboard traps
 
 ```ts
 const focusOrder = await walkKeyboardFocus(page, {
@@ -330,7 +534,7 @@ expect(focusOrder.map((item) => item.selector)).toEqual([
 ]);
 ```
 
-Đối với widget mà focus phải thoát được:
+For a widget where focus must be able to exit:
 
 ```ts
 await walkKeyboardFocus(page, {
@@ -340,16 +544,17 @@ await walkKeyboardFocus(page, {
 });
 ```
 
-Nếu focus lặp lại trước khi rời khỏi scope, helper báo keyboard trap.
+If focus repeats before leaving the scope, the helper reports a keyboard
+trap.
 
-Không dùng `mustExitScope: true` cho modal được thiết kế đúng theo modal focus
-trap. Với modal, cần test riêng:
+Do not use `mustExitScope: true` for a modal that is correctly designed with
+a focus trap. For modals, test separately:
 
-- `Escape` đóng modal.
-- Focus được trả về element đã mở modal.
-- Focus không thoát ra background trong khi modal còn mở.
+- `Escape` closes the modal.
+- Focus is returned to the element that opened the modal.
+- Focus cannot escape to the background while the modal is open.
 
-### Kiểm tra focus indicator
+### Checking the focus indicator
 
 ```ts
 const submitButton = page.getByRole('button', { name: 'Sign in' });
@@ -358,59 +563,100 @@ await submitButton.focus();
 await expectFocusVisible(submitButton);
 ```
 
-Helper chấp nhận focus indicator được thể hiện bằng `outline` hoặc `box-shadow`.
+The helper accepts a focus indicator expressed via `outline` or
+`box-shadow`.
 
-Tại những điểm UI quan trọng có thể thêm screenshot assertion:
+At important UI points, you can add a screenshot assertion:
 
 ```ts
 await expectFocusVisible(submitButton, 'login-submit-focused.png');
 ```
 
-Screenshot assertion cần baseline ổn định và phải được review khi giao diện thay
-đổi; không tự động update snapshot khi chưa kiểm tra bằng mắt.
+Screenshot assertions need a stable baseline and must be reviewed whenever
+the UI changes; never auto-update a snapshot without a visual check first.
 
-## Khi Axe test fail
+## When an Axe test fails
 
-Console output chứa:
+Console output includes:
 
 - Severity.
 - Axe rule ID.
 - WCAG tags.
-- Selector của node lỗi.
+- Selector of the failing node.
 - HTML snippet.
-- Failure summary và hướng sửa.
+- Failure summary and fix guidance.
 - Axe help URL.
 
-Nếu `testInfo` được truyền vào `checkA11y`, helper đính kèm file JSON có tên dạng:
+If `testInfo` is passed to `checkA11y`, the helper attaches a JSON file named
+like:
 
 ```text
 axe-checkout-payment-pending.json
 ```
 
-Mở Playwright report hoặc thư mục test artifact để xem report đầy đủ. Không chỉ
-sửa node được báo lỗi; cần xác định root cause nằm ở shared component, page hay
-third-party integration.
+Open the Playwright report or the test artifact directory for the full
+report. Don't just fix the reported node — determine whether the root cause
+lives in a shared component, a page, or a third-party integration.
 
-## Checklist khi thêm accessibility test mới
+## Shared accessibility components/hooks
 
-- Chờ selector đại diện cho UI-ready state trước khi gọi `checkA11y`.
-- Scan từng state quan trọng, bao gồm loading, validation error, success và dialog.
-- Đặt `stateName` rõ ràng và duy nhất trong flow.
-- Luôn truyền `testInfo` để lưu JSON artifact khi fail.
-- Không dùng timeout cố định để giả lập UI ổn định nếu có selector/state rõ ràng.
-- Không thêm exclusion thiếu issue và điều kiện gỡ.
-- Test keyboard behavior, không chỉ kiểm tra Axe.
-- Kiểm tra focus indicator tại các điểm chuyển trạng thái quan trọng.
-- Giữ Safari + VoiceOver manual test trong handoff; automated test không thay thế
-  assistive technology thật.
+Flows don't implement accessibility independently — most of the behavior is
+provided by a set of shared components/hooks in `apps/user/src` and
+`libs/user/ui/src`. When adding a new screen, prefer reusing these instead of
+hand-rolling ARIA:
 
-## Giới hạn hiện tại
+| Component | Location | Responsibility |
+|---|---|---|
+| Skip link + route focus | `apps/user/src/app/layouts/MainLayout.tsx`, `AuthLayout.tsx` | Renders "Skip to main content"; after route changes, moves focus to the first heading inside `#main-content` |
+| `useFocusTrap` | `apps/user/src/app/hooks/useFocusTrap.ts` | Traps Tab/Shift+Tab inside a container, focuses the first focusable element on open, closes on `Escape`, restores focus to the trigger on close. Used by `CartDrawer`, `RefundRequestModal`, `CourseAccessErrorDialog`, `CourseCompletionDialog`, the mobile course-curriculum drawer |
+| `Input` / `PasswordInput` | `libs/user/ui/src/lib/Form/` | Label association via `useId()`, `aria-describedby` for error/helper text, required marker is `aria-hidden` |
+| `Tabs` (roving tabindex) | `libs/user/ui/src/lib/Tabs/Tabs.tsx` | `role="tablist"`, Arrow/Home/End navigation, `aria-selected`. Used by My Learning's filter tabs |
+| Live region / status | Scattered across `CartDrawer`, `CheckoutSuccessPage`, `CheckoutFailedPage`, `ForgotPasswordPage`, `ResetPasswordPage`, `SignupPage`, `AutoAdvanceBanner`, `ProgressSaveStatus`, etc. | `role="status"`/`aria-live="polite"` for success/error/progress announcements |
+| `CourseCurriculumSidebar` | `apps/user/src/app/components/course-module/` (Course Player) | `aria-current="step"` for the current lesson, `aria-expanded` for sections, drawer semantics on mobile |
 
-- Axe không đánh giá được trải nghiệm nghe thực tế hoặc thứ tự đọc có tự nhiên.
-- Computed style chỉ xác nhận có focus indicator kỹ thuật; vẫn cần visual review
-  để xác nhận indicator đủ rõ và không bị che.
-- Keyboard traversal helper không thay thế test interaction riêng cho tabs,
-  menus, comboboxes, grids và modal dialogs.
-- Accessibility infrastructure chưa chứng minh bốn user flow đạt WCAG 2.2 AA.
-  Mỗi flow vẫn cần automated regression, before/after evidence và Safari +
-  VoiceOver manual confirmation theo `4-flow-a11y.md`.
+If an issue recurs across multiple pages (e.g. a missing label, a missing
+focus trap), fix it in the shared component — do not patch each page
+separately with an ARIA workaround. See this rule in more detail in
+`4-flow-a11y.md` section 2.5.
+
+## Checklist for adding a new accessibility test
+
+- Wait for a selector that represents the UI-ready state before calling `checkA11y`.
+- Scan every important state, including loading, validation error, success, and dialog.
+- Set a clear, unique `stateName` within the flow.
+- Always pass `testInfo` so a JSON artifact is saved on failure.
+- Don't use a fixed timeout to simulate a stable UI when a clear selector/state exists.
+- Don't add an exclusion without an issue and a removal condition.
+- Test keyboard behavior, not just Axe.
+- Check the focus indicator at important state-transition points.
+- Keep Safari + VoiceOver manual testing in the handoff; automated tests do not
+  replace real assistive technology.
+
+## Current limitations
+
+- Axe cannot evaluate the real listening experience or whether the reading
+  order is natural.
+- Computed style only confirms a technical focus indicator exists; a visual
+  review is still needed to confirm the indicator is clear enough and not
+  obscured.
+- The keyboard traversal helper does not replace dedicated interaction tests
+  for tabs, menus, comboboxes, grids, and modal dialogs.
+- The four flow a11y suites (`discover-flow-a11y.spec.ts`,
+  `auth-flow-a11y.spec.ts`, `purchase-flow-a11y.spec.ts`,
+  `learning-flow-a11y.spec.ts`) provide automated regression coverage for
+  Axe/keyboard/focus/announcements at the main states, but **do not prove
+  the four flows meet WCAG 2.2 AA**. Safari + VoiceOver manual confirmation
+  per the checklist in `4-flow-a11y.md` section 8 remains a mandatory
+  requirement and has not been performed/recorded in this repository.
+- No `e2e/accessibility-reports/after/` has been committed yet.
+  `npm run test:a11y:after` can generate Axe/keyboard evidence safely, but the
+  result still needs to be run, reviewed, and committed; see
+  `BASELINE_ACCESSIBILITY_AUDIT.md`'s "After-evidence status" section for
+  what's required before treating a flow as "closed."
+- The A11Y-BL-004 visual contrast findings remain open until their rendered
+  colors or decorative status are manually reverified. A11Y-BL-005 has code
+  and regression-test coverage but still lacks committed after-scan and
+  VoiceOver evidence. See `BASELINE_ACCESSIBILITY_AUDIT.md` for detail.
+- Video lesson captions/transcripts use a fixture test track. Real caption
+  content for each course video still requires data/production support from
+  the project owner per `4-flow-a11y.md`'s "Responsibility split" section.
