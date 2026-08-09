@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -12,6 +12,11 @@ import {
   InputComponent,
   TextareaComponent,
   ConfirmDialogComponent,
+  DataTableComponent,
+  type TableColumn,
+  DropdownMenuComponent,
+  type DropdownMenuItem,
+  ImageUploadComponent,
 } from '@edumind/admin-ui';
 import {
   CategoryResponse,
@@ -19,7 +24,8 @@ import {
   UpdateCategoryRequest,
 } from '@edumind/shared-types';
 import { CategoryService } from '../../core/services/category.service';
-import { injectAsyncState, injectModal, getActiveBadgeVariant } from '../../core/utils';
+import { FileUploadService } from '../../core/services/file-upload.service';
+import { injectAsyncState, injectMediaQuery, injectModal, getActiveBadgeVariant } from '../../core/utils';
 import { CloudinaryUrlPipe } from '../../shared/pipes/cloudinary-url.pipe';
 
 @Component({
@@ -37,12 +43,16 @@ import { CloudinaryUrlPipe } from '../../shared/pipes/cloudinary-url.pipe';
     InputComponent,
     TextareaComponent,
     ConfirmDialogComponent,
+    DataTableComponent,
+    DropdownMenuComponent,
     CloudinaryUrlPipe,
+    ImageUploadComponent,
   ],
   templateUrl: './categories.component.html',
 })
 export class CategoriesComponent implements OnInit {
   private categoryService = inject(CategoryService);
+  private fileUploadService = inject(FileUploadService);
 
   // ── Utilities ────────────────────────────────────────────────────────────
   private async = injectAsyncState();
@@ -74,15 +84,41 @@ export class CategoriesComponent implements OnInit {
     );
   });
 
+  // ── Table ─────────────────────────────────────────────────────────────────
+  isMobile = injectMediaQuery('(max-width: 768px)');
+  columns: TableColumn<CategoryResponse>[] = [];
+  actionsSticky = signal<'left' | 'right' | undefined>('right');
+
+  @ViewChild('categoryTpl', { static: true }) categoryTpl!: TemplateRef<{ $implicit: CategoryResponse; row: CategoryResponse; index: number }>;
+  @ViewChild('statusTpl', { static: true }) statusTpl!: TemplateRef<{ $implicit: CategoryResponse; row: CategoryResponse; index: number }>;
+  @ViewChild('createdTpl', { static: true }) createdTpl!: TemplateRef<{ $implicit: CategoryResponse; row: CategoryResponse; index: number }>;
+
   // ── Form ─────────────────────────────────────────────────────────────────
   formName = '';
   formSlug = '';
   formDescription: string | null = null;
   formIconUrl: string | null = null;
   formErrors = signal<Partial<Record<keyof CreateCategoryRequest, string>>>({});
+  isUploadingIcon = signal(false);
+  iconUploadError = signal('');
 
   ngOnInit(): void {
+    this.buildColumns();
     this.loadCategories();
+  }
+
+  private buildColumns(): void {
+    const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
+
+    this.columns = [
+      { key: 'name', header: 'Category', template: this.categoryTpl, sortable: false, width: '280px' },
+      { key: 'slug', header: 'Slug' },
+      { key: 'courseCount', header: 'Courses' },
+      { key: 'isActive', header: 'Status', sortable: false, template: this.statusTpl },
+      { key: 'createdAt', header: 'Created', sortable: false, template: this.createdTpl },
+    ];
+
+    this.actionsSticky.set(stickyRight);
   }
 
   loadCategories(): void {
@@ -100,12 +136,36 @@ export class CategoriesComponent implements OnInit {
     return getActiveBadgeVariant(isActive ?? false);
   }
 
+  getRowActions(category: CategoryResponse): DropdownMenuItem[] {
+    return [
+      {
+        id: 'toggle-status',
+        label: category.isActive ? 'Deactivate' : 'Activate',
+      },
+      { id: 'divider', label: '', divider: true },
+      {
+        id: 'delete',
+        label: 'Delete',
+        danger: true,
+      },
+    ];
+  }
+
+  onRowAction(item: DropdownMenuItem, category: CategoryResponse): void {
+    if (item.id === 'toggle-status') {
+      this.toggleCategoryStatus(category);
+    } else if (item.id === 'delete') {
+      this.openDeleteModal(category);
+    }
+  }
+
   openCreateModal(): void {
     this.formName = '';
     this.formSlug = '';
     this.formDescription = null;
     this.formIconUrl = null;
     this.formErrors.set({});
+    this.iconUploadError.set('');
     this.showCreateModal.set(true);
   }
 
@@ -116,11 +176,29 @@ export class CategoriesComponent implements OnInit {
     this.formDescription = category.description ?? null;
     this.formIconUrl = category.iconUrl ?? null;
     this.formErrors.set({});
+    this.iconUploadError.set('');
     this.editModal.open(category);
+  }
+
+  onIconFileSelected(file: File): void {
+    this.isUploadingIcon.set(true);
+    this.iconUploadError.set('');
+
+    this.fileUploadService.uploadIcon(file, 'images/categories').subscribe({
+      next: (result) => {
+        this.formIconUrl = result.url;
+        this.isUploadingIcon.set(false);
+      },
+      error: () => {
+        this.iconUploadError.set('Failed to upload image');
+        this.isUploadingIcon.set(false);
+      },
+    });
   }
 
   openDeleteModal(category: CategoryResponse): void {
     this.selectedCategory.set(category);
+    this.errorMessage.set('');
     this.deleteModal.open(category);
   }
 

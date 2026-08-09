@@ -37,10 +37,17 @@ describe('LoginComponent', () => {
     roles: [UserRole.ADMIN],
     firstName: 'Admin',
     lastName: 'User',
+    isActive: true,
+    isEmailVerified: true,
+    is2faEnabled: false,
+    isTrial: false,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   };
 
   const mockLoginResponse: JwtResponse = {
     accessToken: 'mock-access-token',
+    tokenType: 'Bearer',
     user: mockAdminUser,
   };
 
@@ -82,7 +89,6 @@ describe('LoginComponent', () => {
     
     // Initialize signals using Angular's signal function
     component.showPassword = signal(false);
-    component.successMessage = signal('');
 
     // Call ngOnInit to initialize the form
     component.ngOnInit();
@@ -100,10 +106,6 @@ describe('LoginComponent', () => {
 
     it('should initialize showPassword to false', () => {
       expect(component.showPassword()).toBe(false);
-    });
-
-    it('should initialize successMessage to empty string', () => {
-      expect(component.successMessage()).toBe('');
     });
 
     it('should have required validators on usernameOrEmail', () => {
@@ -226,42 +228,12 @@ describe('LoginComponent', () => {
       expect(mockAuthService.clearError).toHaveBeenCalled();
     });
 
-    it('should set success message on successful login', () => {
-      mockAuthService.login.mockReturnValue(of(mockLoginResponse));
-      
-      component.onSubmit();
-      
-      expect(component.successMessage()).toBe('Login successful! Redirecting...');
-    });
-
     it('should navigate to dashboard on successful login', () => {
       mockAuthService.login.mockReturnValue(of(mockLoginResponse));
-      vi.useFakeTimers();
-      
-      component.onSubmit();
-      
-      // Fast-forward time by 1 second
-      vi.advanceTimersByTime(1000);
-      
-      expect(mockRouter.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.DASHBOARD]);
-      
-      vi.useRealTimers();
-    });
 
-    it('should navigate after 1 second delay', () => {
-      mockAuthService.login.mockReturnValue(of(mockLoginResponse));
-      vi.useFakeTimers();
-      
       component.onSubmit();
-      
-      // Should not navigate immediately
-      expect(mockRouter.navigate).not.toHaveBeenCalled();
-      
-      // Should navigate after 1 second
-      vi.advanceTimersByTime(1000);
+
       expect(mockRouter.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.DASHBOARD]);
-      
-      vi.useRealTimers();
     });
 
     it('should handle login error', () => {
@@ -280,24 +252,10 @@ describe('LoginComponent', () => {
     it('should not navigate on login error', () => {
       const error = new Error('Invalid credentials');
       mockAuthService.login.mockReturnValue(throwError(() => error));
-      vi.useFakeTimers();
-      
-      component.onSubmit();
-      
-      vi.advanceTimersByTime(1000);
-      
-      expect(mockRouter.navigate).not.toHaveBeenCalled();
-      
-      vi.useRealTimers();
-    });
 
-    it('should not set success message on error', () => {
-      const error = new Error('Invalid credentials');
-      mockAuthService.login.mockReturnValue(throwError(() => error));
-      
       component.onSubmit();
-      
-      expect(component.successMessage()).toBe('');
+
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
     });
   });
 
@@ -325,19 +283,6 @@ describe('LoginComponent', () => {
     it('should call clearError on closeError', () => {
       component.closeError();
       expect(mockAuthService.clearError).toHaveBeenCalled();
-    });
-  });
-
-  describe('Success Message', () => {
-    it('should display success message when set', () => {
-      component.successMessage.set('Login successful!');
-      expect(component.successMessage()).toBe('Login successful!');
-    });
-
-    it('should close success message on dismiss', () => {
-      component.successMessage.set('Login successful!');
-      component.closeSuccessMessage();
-      expect(component.successMessage()).toBe('');
     });
   });
 

@@ -84,7 +84,7 @@ export class InputComponent implements ControlValueAccessor {
   getInputClasses(): string {
     const baseClasses = [
       'w-full px-4 py-2.5 border rounded-xl transition-all duration-200 shadow-sm bg-white',
-      'text-gray-900 placeholder-gray-400',
+      'text-sm text-gray-900 placeholder-gray-400',
       'focus:outline-none focus:ring-2',
       this.leftIcon ? 'pl-10' : '',
       this.rightIcon ? 'pr-10' : '',
@@ -92,8 +92,8 @@ export class InputComponent implements ControlValueAccessor {
     ];
 
     const stateClasses = this.error
-      ? ['border-red-400 focus:ring-red-500 focus:border-red-400']
-      : ['border-gray-200 hover:border-gray-300 focus:ring-indigo-500 focus:border-indigo-400'];
+      ? ['border-red-400 focus:ring-red-500/20 focus:border-red-400']
+      : ['border-gray-200 hover:border-gray-300 focus:ring-brand-500/20 focus:border-brand-400'];
 
     return [...baseClasses, ...stateClasses].filter(Boolean).join(' ');
   }

@@ -1,10 +1,10 @@
-<div class="space-y-6 text-gray-900">
+<div class="space-y-6 text-neutral-900">
 
   <!-- Page Header -->
   <div class="flex items-center justify-between gap-4 flex-wrap">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-      <p class="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
+      <h1 class="text-2xl font-bold text-neutral-900">Dashboard</h1>
+      <p class="text-sm text-neutral-500 flex items-center gap-1.5 mt-0.5">
         <span class="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse"></span>
         Live · Updated {{ lastUpdated() | date: 'h:mm a, MMM d' }}
       </p>
@@ -12,7 +12,7 @@
     <button
       (click)="loadDashboardData()"
       [disabled]="isLoading()"
-      class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-neutral-200 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <svg
         class="w-4 h-4"
@@ -43,44 +43,35 @@
       <!-- Skeleton KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         @for (item of skeletonItems; track item) {
-          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-l-gray-200">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex-1">
-                <div class="h-3 bg-gray-200 rounded w-28"></div>
-                <div class="h-9 bg-gray-200 rounded w-24 mt-3"></div>
-                <div class="h-3 bg-gray-200 rounded w-40 mt-2.5"></div>
-              </div>
-              <div class="w-11 h-11 bg-gray-200 rounded-xl flex-shrink-0"></div>
-            </div>
-          </div>
+          <app-stat-card [loading]="true" />
         }
       </div>
       <!-- Skeleton Health Strip -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         @for (item of skeletonHealthItems; track item) {
-          <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <div class="h-3 bg-gray-200 rounded w-24 mb-3"></div>
-            <div class="h-7 bg-gray-200 rounded w-16 mb-3"></div>
-            <div class="h-1.5 bg-gray-200 rounded-full w-full"></div>
+          <div class="bg-white rounded-xl border border-neutral-200 p-4">
+            <div class="h-3 bg-neutral-200 rounded w-24 mb-3"></div>
+            <div class="h-7 bg-neutral-200 rounded w-16 mb-3"></div>
+            <div class="h-1.5 bg-neutral-200 rounded-full w-full"></div>
           </div>
         }
       </div>
       <!-- Skeleton Charts -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         @for (item of skeletonChartItems; track item) {
-          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <div class="h-5 bg-gray-200 rounded w-48 mb-1.5"></div>
-            <div class="h-3 bg-gray-200 rounded w-36 mb-5"></div>
-            <div class="h-[280px] bg-gray-100 rounded-lg"></div>
+          <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200 p-5">
+            <div class="h-5 bg-neutral-200 rounded w-48 mb-1.5"></div>
+            <div class="h-3 bg-neutral-200 rounded w-36 mb-5"></div>
+            <div class="h-[280px] bg-neutral-100 rounded-lg"></div>
           </div>
         }
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         @for (item of skeletonChartItems; track item) {
-          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-            <div class="h-5 bg-gray-200 rounded w-48 mb-1.5"></div>
-            <div class="h-3 bg-gray-200 rounded w-36 mb-5"></div>
-            <div class="h-[280px] bg-gray-100 rounded-lg"></div>
+          <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200 p-5">
+            <div class="h-5 bg-neutral-200 rounded w-48 mb-1.5"></div>
+            <div class="h-3 bg-neutral-200 rounded w-36 mb-5"></div>
+            <div class="h-[280px] bg-neutral-100 rounded-lg"></div>
           </div>
         }
       </div>
@@ -131,150 +122,103 @@
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-      <!-- Total Students -->
-      <div data-testid="stat-card" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-l-blue-500">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Total Students</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ totalStudents() | number }}</p>
-            <p class="text-xs text-gray-400 mt-1.5">All registered students</p>
-          </div>
-          <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <app-stat-card
+        testId="stat-card"
+        label="Total Students"
+        [value]="totalStudents() | number"
+        subtitle="All registered students"
+        tone="info"
+      >
+        <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </app-stat-card>
 
-      <!-- Total Teachers -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-l-purple-500">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Total Teachers</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ totalTeachers() | number }}</p>
-            <p class="text-xs text-gray-400 mt-1.5">Active instructors</p>
-          </div>
-          <div class="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <app-stat-card
+        label="Total Teachers"
+        [value]="totalTeachers() | number"
+        subtitle="Active instructors"
+        tone="brand"
+      >
+        <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      </app-stat-card>
 
-      <!-- Revenue This Month -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-l-emerald-500">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Revenue This Month</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ formatCurrency(stats()!.revenueThisMonth) }}</p>
-            <p class="text-xs mt-1.5 flex items-center gap-1" [class]="revenueChange().isPositive ? 'text-emerald-600' : 'text-red-500'">
-              @if (revenueChange().isPositive) {
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
-              } @else {
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-              }
-              {{ revenueChange().value | number: '1.1-1' }}% vs last month
-            </p>
-          </div>
-          <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <app-stat-card
+        label="Revenue This Month"
+        [value]="formatCurrency(stats()!.revenueThisMonth)"
+        tone="success"
+        [trend]="revenueChange()"
+      >
+        <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </app-stat-card>
 
-      <!-- Active Enrollments -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-l-indigo-500">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Active Enrollments</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ stats()!.activeEnrollments | number }}</p>
-            <p class="text-xs mt-1.5 flex items-center gap-1" [class]="enrollmentChange().isPositive ? 'text-emerald-600' : 'text-red-500'">
-              @if (enrollmentChange().isPositive) {
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
-              } @else {
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-              }
-              {{ enrollmentChange().value | number: '1.1-1' }}% vs last month
-            </p>
-          </div>
-          <div class="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <app-stat-card
+        label="Active Enrollments"
+        [value]="stats()!.activeEnrollments | number"
+        tone="accent"
+        [trend]="enrollmentChange()"
+      >
+        <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </app-stat-card>
 
-      <!-- Courses -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 border-l-4 border-l-orange-500">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Courses</p>
-            <p class="text-3xl font-bold text-gray-900 mt-2 tabular-nums">{{ stats()!.totalCourses | number }}</p>
-            <div class="mt-1.5 flex items-center gap-3">
-              <span class="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                {{ stats()!.publishedCourses }} live
-              </span>
-              @if (stats()!.pendingReviewCourses > 0) {
-                <span class="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
-                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                  {{ stats()!.pendingReviewCourses }} in review
-                </span>
-              }
-            </div>
-          </div>
-          <div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
+      <app-stat-card
+        label="Courses"
+        [value]="stats()!.totalCourses | number"
+        tone="warning"
+      >
+        <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <div detail class="mt-1.5 flex items-center gap-3">
+          <span class="inline-flex items-center gap-1 text-xs text-success-600 font-medium">
+            <span class="w-2 h-2 rounded-full bg-success-500"></span>
+            {{ stats()!.publishedCourses }} live
+          </span>
+          @if (stats()!.pendingReviewCourses > 0) {
+            <span class="inline-flex items-center gap-1 text-xs text-warning-600 font-medium">
+              <span class="w-2 h-2 rounded-full bg-warning-500"></span>
+              {{ stats()!.pendingReviewCourses }} in review
+            </span>
+          }
         </div>
-      </div>
+      </app-stat-card>
 
-      <!-- Pending Tasks -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5"
-           [class]="pendingTasksCount() > 0 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-gray-200'">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1">
-            <p class="text-xs uppercase tracking-widest text-gray-500 font-semibold">Pending Tasks</p>
-            <p class="text-3xl font-bold mt-2 tabular-nums"
-               [class]="pendingTasksCount() > 0 ? 'text-red-600' : 'text-gray-900'">
-              {{ pendingTasksCount() | number }}
-            </p>
-            <div class="mt-1.5 flex flex-wrap gap-1.5">
-              @if (pendingAppsCount() > 0) {
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                  {{ pendingAppsCount() }} apps
-                </span>
-              }
-              @if (stats()!.pendingEnrollmentReports > 0) {
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
-                  {{ stats()!.pendingEnrollmentReports }} reports
-                </span>
-              }
-              @if (stats()!.pendingRefunds > 0) {
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                  {{ stats()!.pendingRefunds }} refunds
-                </span>
-              }
-              @if (pendingTasksCount() === 0) {
-                <span class="text-xs text-gray-400">All clear</span>
-              }
-            </div>
-          </div>
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-               [class]="pendingTasksCount() > 0 ? 'bg-red-50' : 'bg-gray-50'">
-            <svg class="w-5 h-5" [class]="pendingTasksCount() > 0 ? 'text-red-500' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
+      <app-stat-card
+        label="Pending Tasks"
+        [value]="pendingTasksCount() | number"
+        [tone]="pendingTasksCount() > 0 ? 'danger' : 'neutral'"
+        [tintValue]="true"
+      >
+        <svg icon class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div detail class="mt-1.5 flex flex-wrap gap-1.5">
+          @if (pendingAppsCount() > 0) {
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-warning-100 text-warning-700">
+              {{ pendingAppsCount() }} apps
+            </span>
+          }
+          @if (stats()!.pendingEnrollmentReports > 0) {
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-accent-100 text-accent-700">
+              {{ stats()!.pendingEnrollmentReports }} reports
+            </span>
+          }
+          @if (stats()!.pendingRefunds > 0) {
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-danger-100 text-danger-700">
+              {{ stats()!.pendingRefunds }} refunds
+            </span>
+          }
+          @if (pendingTasksCount() === 0) {
+            <span class="text-xs text-neutral-400">All clear</span>
+          }
         </div>
-      </div>
+      </app-stat-card>
 
     </div>
 
@@ -282,51 +226,51 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 
       <!-- Completion Rate -->
-      <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Completion Rate</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1.5 tabular-nums">{{ completionRate() | number: '1.0-1' }}%</p>
-        <div class="mt-2.5 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+      <div class="bg-white rounded-xl border border-neutral-200 p-4">
+        <p class="text-xs text-neutral-500 font-medium uppercase tracking-wide">Completion Rate</p>
+        <p class="text-2xl font-bold text-neutral-900 mt-1.5 tabular-nums">{{ completionRate() | number: '1.0-1' }}%</p>
+        <div class="mt-2.5 bg-neutral-100 rounded-full h-1.5 overflow-hidden">
           <div class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
                [style.width]="completionRate() + '%'"></div>
         </div>
-        <p class="text-xs text-gray-400 mt-1.5">{{ stats()!.completedEnrollments | number }} of {{ stats()!.totalEnrollments | number }}</p>
+        <p class="text-xs text-neutral-400 mt-1.5">{{ stats()!.completedEnrollments | number }} of {{ stats()!.totalEnrollments | number }}</p>
       </div>
 
       <!-- Course Publish Rate -->
-      <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Publish Rate</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1.5 tabular-nums">{{ coursePublishRate() | number: '1.0-1' }}%</p>
-        <div class="mt-2.5 bg-gray-100 rounded-full h-1.5 overflow-hidden">
-          <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
+      <div class="bg-white rounded-xl border border-neutral-200 p-4">
+        <p class="text-xs text-neutral-500 font-medium uppercase tracking-wide">Publish Rate</p>
+        <p class="text-2xl font-bold text-neutral-900 mt-1.5 tabular-nums">{{ coursePublishRate() | number: '1.0-1' }}%</p>
+        <div class="mt-2.5 bg-neutral-100 rounded-full h-1.5 overflow-hidden">
+          <div class="bg-info-500 h-1.5 rounded-full transition-all duration-500"
                [style.width]="coursePublishRate() + '%'"></div>
         </div>
-        <p class="text-xs text-gray-400 mt-1.5">{{ stats()!.publishedCourses }} of {{ stats()!.totalCourses }} courses</p>
+        <p class="text-xs text-neutral-400 mt-1.5">{{ stats()!.publishedCourses }} of {{ stats()!.totalCourses }} courses</p>
       </div>
 
       <!-- Avg Revenue / Enrollment -->
-      <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Avg Rev / Enrollment</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1.5 tabular-nums">{{ formatCurrency(avgRevenuePerEnrollment()) }}</p>
-        <div class="mt-2.5 bg-gray-100 rounded-full h-1.5">
+      <div class="bg-white rounded-xl border border-neutral-200 p-4">
+        <p class="text-xs text-neutral-500 font-medium uppercase tracking-wide">Avg Rev / Enrollment</p>
+        <p class="text-2xl font-bold text-neutral-900 mt-1.5 tabular-nums">{{ formatCurrency(avgRevenuePerEnrollment()) }}</p>
+        <div class="mt-2.5 bg-neutral-100 rounded-full h-1.5">
           <div class="bg-teal-500 h-1.5 rounded-full w-full"></div>
         </div>
-        <p class="text-xs text-gray-400 mt-1.5">Total {{ formatCurrency(stats()!.totalRevenue) }}</p>
+        <p class="text-xs text-neutral-400 mt-1.5">Total {{ formatCurrency(stats()!.totalRevenue) }}</p>
       </div>
 
       <!-- Pending Review -->
-      <div class="bg-white rounded-xl border border-gray-200 p-4"
+      <div class="bg-white rounded-xl border border-neutral-200 p-4"
            [class.border-amber-200]="stats()!.pendingReviewCourses > 0">
-        <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Pending Review</p>
+        <p class="text-xs text-neutral-500 font-medium uppercase tracking-wide">Pending Review</p>
         <p class="text-2xl font-bold mt-1.5 tabular-nums"
-           [class]="stats()!.pendingReviewCourses > 0 ? 'text-amber-600' : 'text-gray-900'">
+           [class]="stats()!.pendingReviewCourses > 0 ? 'text-amber-600' : 'text-neutral-900'">
           {{ stats()!.pendingReviewCourses | number }}
         </p>
-        <div class="mt-2.5 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+        <div class="mt-2.5 bg-neutral-100 rounded-full h-1.5 overflow-hidden">
           <div class="h-1.5 rounded-full transition-all duration-500"
-               [class]="stats()!.pendingReviewCourses > 0 ? 'bg-amber-400' : 'bg-gray-200'"
+               [class]="stats()!.pendingReviewCourses > 0 ? 'bg-amber-400' : 'bg-neutral-200'"
                [style.width]="stats()!.totalCourses > 0 ? (stats()!.pendingReviewCourses / stats()!.totalCourses * 100) + '%' : '0%'"></div>
         </div>
-        <p class="text-xs text-gray-400 mt-1.5">Courses awaiting review</p>
+        <p class="text-xs text-neutral-400 mt-1.5">Courses awaiting review</p>
       </div>
 
     </div>
@@ -335,10 +279,10 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
       <!-- Enrollment Trends -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200 p-5">
         <div class="mb-4">
-          <h3 class="text-base font-semibold text-gray-900">Enrollment Trends</h3>
-          <p class="text-xs text-gray-500 mt-0.5">Monthly new enrollments over the last 6 months</p>
+          <h3 class="text-base font-semibold text-neutral-900">Enrollment Trends</h3>
+          <p class="text-xs text-neutral-500 mt-0.5">Monthly new enrollments over the last 6 months</p>
         </div>
         @let enrollOpts = enrollmentChartOptions();
         <apx-chart
@@ -356,10 +300,10 @@
       </div>
 
       <!-- Course Status Distribution -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200 p-5">
         <div class="mb-4">
-          <h3 class="text-base font-semibold text-gray-900">Course Status Distribution</h3>
-          <p class="text-xs text-gray-500 mt-0.5">Breakdown of all {{ stats()!.totalCourses | number }} courses by status</p>
+          <h3 class="text-base font-semibold text-neutral-900">Course Status Distribution</h3>
+          <p class="text-xs text-neutral-500 mt-0.5">Breakdown of all {{ stats()!.totalCourses | number }} courses by status</p>
         </div>
         @let courseStatusOpts = courseStatusChartOptions();
         <apx-chart
@@ -380,15 +324,15 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
       <!-- Monthly Revenue -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200 p-5">
         <div class="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 class="text-base font-semibold text-gray-900">Monthly Revenue</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Platform earnings over the last 6 months</p>
+            <h3 class="text-base font-semibold text-neutral-900">Monthly Revenue</h3>
+            <p class="text-xs text-neutral-500 mt-0.5">Platform earnings over the last 6 months</p>
           </div>
           <div class="text-right flex-shrink-0">
-            <p class="text-sm font-bold text-gray-900">{{ formatCurrency(stats()!.totalRevenue) }}</p>
-            <p class="text-xs text-gray-400">all time</p>
+            <p class="text-sm font-bold text-neutral-900">{{ formatCurrency(stats()!.totalRevenue) }}</p>
+            <p class="text-xs text-neutral-400">all time</p>
           </div>
         </div>
         @let revenueOpts = revenueChartOptions();
@@ -406,10 +350,10 @@
       </div>
 
       <!-- Top Categories -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200 p-5">
         <div class="mb-4">
-          <h3 class="text-base font-semibold text-gray-900">Top Categories</h3>
-          <p class="text-xs text-gray-500 mt-0.5">Categories with the most published courses</p>
+          <h3 class="text-base font-semibold text-neutral-900">Top Categories</h3>
+          <p class="text-xs text-neutral-500 mt-0.5">Categories with the most published courses</p>
         </div>
         @let categoryOpts = categoryChartOptions();
         <apx-chart
@@ -431,16 +375,16 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
       <!-- Pending Teacher Applications -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
           <div>
-            <h3 class="text-base font-semibold text-gray-900">Teacher Applications</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Pending review</p>
+            <h3 class="text-base font-semibold text-neutral-900">Teacher Applications</h3>
+            <p class="text-xs text-neutral-500 mt-0.5">Pending review</p>
           </div>
           @if (pendingAppsCount() > 0) {
             <a
               [routerLink]="ADMIN_ROUTES.TEACHER_APPLICATIONS"
-              class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
             >
               View all
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,26 +396,26 @@
 
         @if (recentApplications().length === 0) {
           <div class="px-5 py-10 flex flex-col items-center gap-2 text-center">
-            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-neutral-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p class="text-sm text-gray-500">No pending applications</p>
+            <p class="text-sm text-neutral-500">No pending applications</p>
           </div>
         } @else {
-          <ul class="divide-y divide-gray-50">
+          <ul class="divide-y divide-neutral-50">
             @for (app of recentApplications(); track app.id) {
-              <li class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+              <li class="flex items-center gap-3 px-5 py-3.5 hover:bg-neutral-50 transition-colors">
                 <!-- Initials Avatar -->
-                <div class="w-9 h-9 rounded-full bg-purple-100 text-purple-700 text-sm font-bold flex items-center justify-center flex-shrink-0">
+                <div class="w-9 h-9 rounded-full bg-brand-100 text-brand-700 text-sm font-bold flex items-center justify-center flex-shrink-0">
                   {{ ((app.firstName && app.lastName) ? (app.firstName + ' ' + app.lastName) : app.email) | getInitials }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">
+                  <p class="text-sm font-medium text-neutral-900 truncate">
                     {{ (app.firstName && app.lastName) ? (app.firstName + ' ' + app.lastName) : app.email }}
                   </p>
-                  <p class="text-xs text-gray-500 truncate">{{ app.email }}</p>
+                  <p class="text-xs text-neutral-500 truncate">{{ app.email }}</p>
                 </div>
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex-shrink-0">
                   Pending
@@ -483,16 +427,16 @@
       </div>
 
       <!-- Pending Enrollment Reports -->
-      <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      <div class="bg-white rounded-xl border border-neutral-200 shadow-rest hover:shadow-hover transition-shadow duration-200">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
           <div>
-            <h3 class="text-base font-semibold text-gray-900">Enrollment Reports</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Pending review</p>
+            <h3 class="text-base font-semibold text-neutral-900">Enrollment Reports</h3>
+            <p class="text-xs text-neutral-500 mt-0.5">Pending review</p>
           </div>
           @if (stats()!.pendingEnrollmentReports > 0) {
             <a
               [routerLink]="ADMIN_ROUTES.ENROLLMENT_REPORTS"
-              class="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              class="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
             >
               View all
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -504,22 +448,22 @@
 
         @if (recentReports().length === 0) {
           <div class="px-5 py-10 flex flex-col items-center gap-2 text-center">
-            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 bg-neutral-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p class="text-sm text-gray-500">No pending reports</p>
+            <p class="text-sm text-neutral-500">No pending reports</p>
           </div>
         } @else {
-          <ul class="divide-y divide-gray-50">
+          <ul class="divide-y divide-neutral-50">
             @for (report of recentReports(); track report.id) {
-              <li class="px-5 py-3.5 hover:bg-gray-50 transition-colors">
+              <li class="px-5 py-3.5 hover:bg-neutral-50 transition-colors">
                 <div class="flex items-start gap-3">
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs text-gray-600 truncate mt-0.5">{{ report.courseTitle }}</p>
-                    <p class="text-xs text-gray-400 line-clamp-1 mt-0.5">{{ report.reason }} <span class="text-gray-500 font-bold">[Student #{{ report.studentId }}]</span></p>
-                    <p class="text-xs text-gray-400 mt-1">{{ report.requestedAt | date: 'mediumDate' }}</p>
+                    <p class="text-xs text-neutral-600 truncate mt-0.5">{{ report.courseTitle }}</p>
+                    <p class="text-xs text-neutral-400 line-clamp-1 mt-0.5">{{ report.reason }} <span class="text-neutral-500 font-bold">[Student #{{ report.studentId }}]</span></p>
+                    <p class="text-xs text-neutral-400 mt-1">{{ report.requestedAt | date: 'mediumDate' }}</p>
                   </div>
                   <div class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex-shrink-0">
                     Pending

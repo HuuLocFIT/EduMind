@@ -29,7 +29,7 @@ export interface Tab {
             }
             <span>{{ tab.label }}</span>
             @if (tab.badge !== undefined) {
-              <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-purple-600 text-white">
+              <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-brand-600 text-white">
                 {{ tab.badge }}
               </span>
             }
@@ -77,13 +77,13 @@ export class TabsComponent {
     
     const variants = {
       default: isActive
-        ? 'px-4 py-3 text-sm text-indigo-600 border-b-2 border-indigo-500 -mb-px bg-white'
+        ? 'px-4 py-3 text-sm text-brand-600 border-b-2 border-brand-500 -mb-px bg-white'
         : 'px-4 py-3 text-sm text-gray-600 hover:text-gray-900 border-b-2 border-transparent -mb-px',
       pills: isActive
-        ? 'px-4 py-2 text-sm text-white bg-indigo-600 rounded-md'
+        ? 'px-4 py-2 text-sm text-white bg-brand-600 rounded-md'
         : 'px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-md',
       underline: isActive
-        ? 'pb-3 text-sm text-indigo-600 border-b-2 border-indigo-500 -mb-px'
+        ? 'pb-3 text-sm text-brand-600 border-b-2 border-brand-500 -mb-px'
         : 'pb-3 text-sm text-gray-600 hover:text-gray-900 border-b-2 border-transparent -mb-px',
     };
 

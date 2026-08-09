@@ -1,16 +1,25 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, timer } from 'rxjs';
 
 export interface ExecuteOptions<T> {
   successMsg?: string;
+  /** Fallback shown only when the backend response has no `message` field */
   errorMsg?: string;
   /** Use isSubmitting instead of isLoading (for mutation actions). Default: false */
   submitting?: boolean;
   /** Skip all loading-state toggling (fire-and-forget). Default: false */
   silent?: boolean;
   onSuccess?: (result: T) => void;
-  onError?: () => void;
+  onError?: (error: HttpErrorResponse) => void;
+}
+
+function extractErrorMessage(error: HttpErrorResponse, fallback?: string): string {
+  if (typeof error?.error?.message === 'string' && error.error.message) {
+    return error.error.message;
+  }
+  return fallback ?? 'Something went wrong. Please try again.';
 }
 
 export function injectAsyncState() {
@@ -47,7 +56,7 @@ export function injectAsyncState() {
         }
         onSuccess?.(result);
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         if (!silent) {
           if (submitting) {
             isSubmitting.set(false);
@@ -55,11 +64,11 @@ export function injectAsyncState() {
             isLoading.set(false);
           }
         }
-        if (errorMsg) {
-          errorMessage.set(errorMsg);
+        if (!silent || errorMsg) {
+          errorMessage.set(extractErrorMessage(error, errorMsg));
           timer(5000).pipe(takeUntilDestroyed(destroyRef)).subscribe(() => errorMessage.set(''));
         }
-        onError?.();
+        onError?.(error);
       },
     });
   }

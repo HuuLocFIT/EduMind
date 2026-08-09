@@ -26,7 +26,6 @@ import {
 export class LoginComponent implements OnInit {
   loginForm!: FormGroup;
   showPassword = signal(false);
-  successMessage = signal('');
 
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
@@ -60,10 +59,7 @@ export class LoginComponent implements OnInit {
     this.authService.clearError();
     this.authService.login(this.loginForm.value).subscribe({
       next: () => {
-        this.successMessage.set('Login successful! Redirecting...');
-        setTimeout(() => {
-          this.router.navigate([ADMIN_ROUTES.DASHBOARD]);
-        }, 1000);
+        this.router.navigate([ADMIN_ROUTES.DASHBOARD]);
       },
       error: (error) => {
         console.error('Login error:', error);
@@ -89,10 +85,6 @@ export class LoginComponent implements OnInit {
         : `Password must be at least ${requiredLength} characters`;
     }
     return '';
-  }
-
-  closeSuccessMessage(): void {
-    this.successMessage.set('');
   }
 
   closeError(): void {

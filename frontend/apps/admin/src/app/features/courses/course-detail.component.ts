@@ -4,7 +4,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   AlertComponent,
   BadgeComponent,
-  ButtonComponent,
   CardComponent,
 } from '@edumind/admin-ui';
 import { CourseService } from '../../core/services/course.service';
@@ -23,7 +22,6 @@ type CourseLevelValue = (typeof CourseLevel)[keyof typeof CourseLevel];
   imports: [
     CommonModule,
     CardComponent,
-    ButtonComponent,
     BadgeComponent,
     AlertComponent,
     CourseDescriptionViewerComponent,

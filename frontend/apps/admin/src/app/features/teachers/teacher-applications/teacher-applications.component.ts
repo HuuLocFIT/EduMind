@@ -1,7 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import {
   ButtonComponent,
   CardComponent,
@@ -11,6 +10,11 @@ import {
   AlertComponent,
   ModalComponent,
   TextareaComponent,
+  EmptyStateComponent,
+  SelectComponent,
+  type SelectOption,
+  StatCardComponent,
+  type StatCardTone,
 } from '@edumind/admin-ui';
 import {
   ApplicationStatus,
@@ -23,6 +27,7 @@ import {
   type ApplicationQueryParams,
 } from '../../../core/services/teacher-application.service';
 import { injectAsyncState, injectModal, injectPagination, getStatusVariant } from '../../../core/utils';
+import { DocumentTypeLabelPipe } from '../../../shared/pipes/document-type-label.pipe';
 
 type ApplicationStats = {
   totalPending: number;
@@ -43,7 +48,6 @@ type TeacherApplicationView = TeacherApplicationResponse & {
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
     ButtonComponent,
     CardComponent,
     SearchBarComponent,
@@ -51,6 +55,10 @@ type TeacherApplicationView = TeacherApplicationResponse & {
     AlertComponent,
     ModalComponent,
     TextareaComponent,
+    EmptyStateComponent,
+    SelectComponent,
+    StatCardComponent,
+    DocumentTypeLabelPipe,
   ],
   templateUrl: './teacher-applications.component.html',
 })
@@ -95,11 +103,42 @@ export class TeacherApplicationsComponent implements OnInit {
     label: string;
     subtitle: string;
     statKey: keyof ApplicationStats;
+    tone: StatCardTone;
+    iconPath: string;
   }> = [
-      { key: 'PENDING', label: 'Pending Review', subtitle: 'Awaiting evaluation', statKey: 'totalPending' },
-      { key: 'APPROVED', label: 'Approved', subtitle: 'Ready to teach', statKey: 'totalApproved' },
-      { key: 'REJECTED', label: 'Rejected', subtitle: 'Closed out', statKey: 'totalRejected' },
+      {
+        key: 'PENDING',
+        label: 'Pending Review',
+        subtitle: 'Awaiting evaluation',
+        statKey: 'totalPending',
+        tone: 'warning',
+        iconPath:
+          'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      },
+      {
+        key: 'APPROVED',
+        label: 'Approved',
+        subtitle: 'Ready to teach',
+        statKey: 'totalApproved',
+        tone: 'success',
+        iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      },
+      {
+        key: 'REJECTED',
+        label: 'Rejected',
+        subtitle: 'Closed out',
+        statKey: 'totalRejected',
+        tone: 'danger',
+        iconPath:
+          'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+      },
     ];
+
+  readonly statusOptions: SelectOption[] = [
+    { value: 'PENDING', label: 'Pending' },
+    { value: 'APPROVED', label: 'Approved' },
+    { value: 'REJECTED', label: 'Rejected' },
+  ];
 
   filters: ApplicationQueryParams = { page: 0, size: this.pageSize, status: 'PENDING' };
 
@@ -138,9 +177,10 @@ export class TeacherApplicationsComponent implements OnInit {
     });
   }
 
-  onStatusChange(status: ApplicationStatus): void {
-    this.activeStatus.set(status);
-    this.filters.status = status;
+  onStatusChange(status: string | number): void {
+    const nextStatus = status as ApplicationStatus;
+    this.activeStatus.set(nextStatus);
+    this.filters.status = nextStatus;
     this.filters.page = 0;
     this.filters.search = undefined;
     this.searchQuery.set('');
@@ -167,10 +207,6 @@ export class TeacherApplicationsComponent implements OnInit {
 
   getStatusVariant(status: ApplicationStatus): BadgeVariant {
     return getStatusVariant(status);
-  }
-
-  isActiveStatus(status: ApplicationStatus): boolean {
-    return this.activeStatus() === status;
   }
 
   viewApplication(app: TeacherApplicationView): void {

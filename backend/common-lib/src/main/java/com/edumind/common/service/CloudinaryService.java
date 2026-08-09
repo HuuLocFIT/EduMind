@@ -5,6 +5,8 @@ import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import com.edumind.common.dto.FileUploadResponse;
 import com.edumind.common.exception.FileUploadException;
+import com.edumind.common.util.FileTypeSniffer;
+import com.edumind.common.util.SvgSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CloudinaryService {
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+    // Sniff-based icon allowlist. The client-supplied Content-Type header is never used to
+    // gate this decision, since it is fully attacker-controlled.
+    private static final java.util.Set<String> ALLOWED_ICON_TYPES = java.util.Set.of(
+            "image/jpeg", "image/png", "image/webp", "image/svg+xml"
+    );
 
     private final Cloudinary cloudinary;
 
@@ -221,6 +229,87 @@ public class CloudinaryService {
     }
 
     /**
+     * Upload icon (category icons). Supports JPEG/PNG plus SVG, since icons benefit from
+     * crisp vector scaling that raster formats can't provide. SVG content is parsed and
+     * sanitized before upload; this is isolated from uploadImage()/validateImageFile() so
+     * the avatar/thumbnail path keeps rejecting SVG.
+     */
+    public FileUploadResponse uploadIcon(MultipartFile file, String folder) {
+        validateFile(file);
+
+        try {
+            byte[] bytes = file.getBytes();
+            String sniffed = FileTypeSniffer.sniff(bytes);
+
+            if (sniffed == null || !ALLOWED_ICON_TYPES.contains(sniffed)) {
+                throw new FileUploadException("Only JPEG, PNG, WEBP, and SVG icons are allowed");
+            }
+
+            String publicId = folder + "/" + UUID.randomUUID().toString();
+
+            if ("image/svg+xml".equals(sniffed)) {
+                log.info("🔄 Uploading SVG icon to Cloudinary: {}", file.getOriginalFilename());
+
+                byte[] sanitized = SvgSanitizer.sanitize(bytes);
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                        sanitized,
+                        ObjectUtils.asMap(
+                                "public_id", publicId,
+                                "folder", folder,
+                                "resource_type", "image"
+                        )
+                );
+
+                String secureUrl = (String) uploadResult.get("secure_url");
+                log.info("✅ SVG icon uploaded successfully: {}", secureUrl);
+
+                return FileUploadResponse.builder()
+                        .publicId((String) uploadResult.get("public_id"))
+                        .url(secureUrl)
+                        .fileName(file.getOriginalFilename())
+                        .fileType((String) uploadResult.get("format"))
+                        .resourceType("image")
+                        .size(((Number) uploadResult.get("bytes")).longValue())
+                        .build();
+            }
+
+            log.info("🔄 Uploading icon to Cloudinary: {}", file.getOriginalFilename());
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    bytes,
+                    ObjectUtils.asMap(
+                            "public_id", publicId,
+                            "folder", folder,
+                            "resource_type", "image",
+                            "transformation", new Transformation<>()
+                                    .width(200)
+                                    .height(200)
+                                    .crop("limit")
+                    )
+            );
+
+            String secureUrl = (String) uploadResult.get("secure_url");
+            log.info("✅ Icon uploaded successfully: {}", secureUrl);
+
+            return FileUploadResponse.builder()
+                    .publicId((String) uploadResult.get("public_id"))
+                    .url(secureUrl)
+                    .fileName(file.getOriginalFilename())
+                    .fileType((String) uploadResult.get("format"))
+                    .resourceType("image")
+                    .size(((Number) uploadResult.get("bytes")).longValue())
+                    .build();
+
+        } catch (IOException e) {
+            log.error("❌ Failed to upload icon to Cloudinary", e);
+            throw new FileUploadException("Failed to upload icon: " + e.getMessage());
+        }
+    }
+
+    /**
      * Delete file from Cloudinary
      * @param publicId: The ID of the file on Cloudinary
      * @param resourceType: "image", "video", or "raw"
@@ -371,5 +460,6 @@ public class CloudinaryService {
             throw new FileUploadException("Only JPEG, JPG, and PNG images are allowed");
         }
     }
+
 }
 

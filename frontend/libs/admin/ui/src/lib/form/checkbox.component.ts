@@ -23,7 +23,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
           [(ngModel)]="checked"
           (ngModelChange)="onValueChange($event)"
           (blur)="onTouched()"
-          class="w-4 h-4 mt-0.5 rounded border-gray-300 bg-white text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-4 h-4 mt-0.5 rounded border-gray-300 bg-white text-brand-600 focus:ring-2 focus:ring-brand-500 focus:ring-offset-0 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           [attr.aria-invalid]="error ? 'true' : null"
           [attr.aria-describedby]="error ? checkboxId + '-error' : null"
         />

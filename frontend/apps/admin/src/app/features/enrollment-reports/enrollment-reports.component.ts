@@ -10,7 +10,12 @@ import {
   type TableColumn,
   ModalComponent,
   TextareaComponent,
+  DropdownMenuComponent,
+  type DropdownMenuItem,
   type BadgeVariant,
+  SelectComponent,
+  type SelectOption,
+  StatCardComponent,
 } from '@edumind/admin-ui';
 import { AdminEnrollmentService } from '../../core/services/admin-enrollment.service';
 import { EnrollmentReportResponse, ReportRequestStatus } from '@edumind/shared-types';
@@ -32,6 +37,9 @@ type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
     DataTableComponent,
     ModalComponent,
     TextareaComponent,
+    DropdownMenuComponent,
+    SelectComponent,
+    StatCardComponent,
   ],
   templateUrl: './enrollment-reports.component.html',
 })
@@ -61,6 +69,13 @@ export class EnrollmentReportsComponent implements OnInit {
   // ── Data ─────────────────────────────────────────────────────────────────
   reports = signal<ReportRow[]>([]);
   statusFilter = signal<StatusFilter>('ALL');
+
+  readonly statusOptions: SelectOption[] = [
+    { value: 'ALL', label: 'All' },
+    { value: 'PENDING', label: 'Pending' },
+    { value: 'APPROVED', label: 'Approved' },
+    { value: 'REJECTED', label: 'Rejected' },
+  ];
 
   statsPending = signal(0);
   statsApproved = signal(0);
@@ -92,11 +107,11 @@ export class EnrollmentReportsComponent implements OnInit {
     const stickyLeft: 'left' | undefined = this.isMobile() ? undefined : 'left';
     const stickyRight: 'right' | undefined = this.isMobile() ? undefined : 'right';
     this.columns = [
-      { key: 'studentId', header: 'Student', template: this.studentTpl, sortable: true, width: '150px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
-      { key: 'courseTitle', header: 'Course', template: this.courseTpl, sortable: true, width: '250px' },
-      { key: 'reason', header: 'Reason', template: this.reasonTpl, width: '300px' },
-      { key: 'status', header: 'Status', template: this.statusTpl, sortable: true, width: '120px' },
-      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: true, width: '150px' },
+      { key: 'studentId', header: 'Student', template: this.studentTpl, sortable: false, width: '180px', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'courseTitle', header: 'Course', template: this.courseTpl, sortable: false, width: '280px' },
+      { key: 'reason', header: 'Reason', template: this.reasonTpl, width: '220px' },
+      { key: 'status', header: 'Status', template: this.statusTpl, sortable: false, width: '120px' },
+      { key: 'requestedAt', header: 'Requested At', template: this.requestedAtTpl, sortable: false, width: '170px' },
     ];
     this.actionsSticky.set(stickyRight);
   }
@@ -204,6 +219,23 @@ export class EnrollmentReportsComponent implements OnInit {
 
   getStatusVariant(status: ReportRequestStatus): BadgeVariant {
     return getStatusVariant(status);
+  }
+
+  getRowActions(report: ReportRow): DropdownMenuItem[] {
+    if (report.status !== 'PENDING') return [];
+
+    return [
+      { id: 'approve', label: 'Approve' },
+      { id: 'reject', label: 'Reject', danger: true },
+    ];
+  }
+
+  onRowAction(item: DropdownMenuItem, report: ReportRow): void {
+    if (item.id === 'approve') {
+      this.openApproveModal(report);
+    } else if (item.id === 'reject') {
+      this.openRejectModal(report);
+    }
   }
 
   formatDate(date: string): string {

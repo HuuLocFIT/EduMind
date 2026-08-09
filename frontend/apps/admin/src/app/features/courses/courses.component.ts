@@ -29,7 +29,8 @@ import { CategoryService } from '../../core/services/category.service';
 import { CourseResponse } from '@edumind/shared-types';
 import { CourseLevel } from '@edumind/shared-constants';
 import { StatusVariantPipe } from './status-variant.pipe';
-import { injectAsyncState, injectMediaQuery, injectModal, injectPagination } from '../../core/utils';
+import { EnumLabelPipe } from '../../shared/pipes/enum-label.pipe';
+import { injectAsyncState, injectMediaQuery, injectModal, injectPagination, formatEnumLabel } from '../../core/utils';
 
 type CourseRow = CourseResponse;
 
@@ -48,6 +49,7 @@ type CourseRow = CourseResponse;
     MultiSelectComponent,
     ConfirmDialogComponent,
     StatusVariantPipe,
+    EnumLabelPipe,
   ],
   templateUrl: './courses.component.html',
 })
@@ -83,7 +85,7 @@ export class CoursesComponent implements OnInit {
   categoriesOptions = signal<SelectOption[]>([]);
   levelOptions: SelectOption[] = Object.values(CourseLevel).map((level) => ({
     value: level,
-    label: level.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+    label: formatEnumLabel(level),
   }));
 
   // ── Data ─────────────────────────────────────────────────────────────────
@@ -131,6 +133,7 @@ export class CoursesComponent implements OnInit {
         this.isLoading.set(false);
       });
 
+    this.isLoading.set(true);
     this.filter$.next();
   }
 
@@ -141,16 +144,16 @@ export class CoursesComponent implements OnInit {
     const titleWidth = '260px';
 
     this.columns = [
-      { key: 'id', header: 'ID', template: this.idTpl, sortable: true, width: idWidth, align: 'left', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
-      { key: 'title', header: 'Title', template: this.titleTpl, sortable: true, width: titleWidth, sticky: stickyLeft, stickyOffset: stickyLeft ? idWidth : undefined },
-      { key: 'categoryName', header: 'Category', sortable: true },
-      { key: 'instructorName', header: 'Instructor', sortable: true },
-      { key: 'price', header: 'Pricing', template: this.priceTpl, sortable: true },
+      { key: 'id', header: 'ID', template: this.idTpl, sortable: false, width: idWidth, align: 'left', sticky: stickyLeft, stickyOffset: stickyLeft ? '0px' : undefined },
+      { key: 'title', header: 'Title', template: this.titleTpl, sortable: false, width: titleWidth, sticky: stickyLeft, stickyOffset: stickyLeft ? idWidth : undefined },
+      { key: 'categoryName', header: 'Category', sortable: false },
+      { key: 'instructorName', header: 'Instructor', sortable: false },
+      { key: 'price', header: 'Pricing', template: this.priceTpl, sortable: false },
       { key: 'level', header: 'Level', template: this.levelTpl },
       { key: 'status', header: 'Status', template: this.statusTpl },
-      { key: 'totalStudents', header: 'Students', sortable: true },
-      { key: 'averageRating', header: 'Rating', sortable: true },
-      { key: 'createdAt', header: 'Created', sortable: true, template: this.createdTpl },
+      { key: 'totalStudents', header: 'Students', sortable: false },
+      { key: 'averageRating', header: 'Rating', sortable: false },
+      { key: 'createdAt', header: 'Created', sortable: false, template: this.createdTpl },
     ];
 
     this.actionsSticky.set(stickyRight);

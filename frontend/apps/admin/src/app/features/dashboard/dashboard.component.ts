@@ -6,6 +6,8 @@ import { NgApexchartsModule } from 'ng-apexcharts';
 import {
   AlertComponent,
   type BadgeVariant,
+  StatCardComponent,
+  type StatCardTrend,
 } from '@edumind/admin-ui';
 import { AdminDashboardService } from '../../core/services/admin-dashboard.service';
 import { AdminUserService } from '../../core/services/admin-user.service';
@@ -22,10 +24,46 @@ import { injectAsyncState, getStatusVariant } from '../../core/utils';
 
 type ReportRow = EnrollmentReportResponse;
 
+// ApexCharts requires literal color values — mirrors tokens.css (brand/warning/info/neutral/success).
+const DASHBOARD_CHART_COLORS = {
+  brand600: '#0d9488',
+  success500: '#22c55e',
+  warning500: '#f59e0b',
+  info500: '#3b82f6',
+  danger500: '#ef4444',
+  neutral200: '#e7e5e4',
+  neutral400: '#a8a29e',
+  neutral500: '#78716c',
+} as const;
+
+// Fixed categorical order (validated for CVD/contrast) — never reorder or cycle per series.
+// Categories beyond this count fold into neutral400 rather than repeating a hue.
+const CATEGORY_PALETTE = [
+  DASHBOARD_CHART_COLORS.brand600,
+  DASHBOARD_CHART_COLORS.warning500,
+  DASHBOARD_CHART_COLORS.info500,
+  DASHBOARD_CHART_COLORS.danger500,
+  DASHBOARD_CHART_COLORS.success500,
+] as const;
+
+const MONTH_OVER_MONTH_SUFFIX = 'vs last month';
+const MONTH_OVER_MONTH_FLAT: StatCardTrend = {
+  value: 0,
+  isPositive: true,
+  suffix: MONTH_OVER_MONTH_SUFFIX,
+};
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, NgApexchartsModule, AlertComponent, GetInitialsPipe],
+  imports: [
+    CommonModule,
+    RouterModule,
+    NgApexchartsModule,
+    AlertComponent,
+    StatCardComponent,
+    GetInitialsPipe,
+  ],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent implements OnInit {
@@ -72,21 +110,21 @@ export class DashboardComponent implements OnInit {
     return stats.pendingEnrollmentReports + stats.pendingRefunds + this.pendingAppsCount();
   });
 
-  revenueChange = computed<{ value: number; isPositive: boolean }>(() => {
+  revenueChange = computed<StatCardTrend>(() => {
     const stats = this.stats();
-    if (!stats || stats.revenueLastMonth === 0) return { value: 0, isPositive: true };
+    if (!stats || stats.revenueLastMonth === 0) return MONTH_OVER_MONTH_FLAT;
     const change = ((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth) * 100;
-    return { value: Math.abs(change), isPositive: change >= 0 };
+    return { value: Math.abs(change), isPositive: change >= 0, suffix: MONTH_OVER_MONTH_SUFFIX };
   });
 
-  enrollmentChange = computed<{ value: number; isPositive: boolean }>(() => {
+  enrollmentChange = computed<StatCardTrend>(() => {
     const s = this.stats();
-    if (!s || s.monthlyEnrollments.length < 2) return { value: 0, isPositive: true };
+    if (!s || s.monthlyEnrollments.length < 2) return MONTH_OVER_MONTH_FLAT;
     const last = s.monthlyEnrollments[s.monthlyEnrollments.length - 1]?.count ?? 0;
     const prev = s.monthlyEnrollments[s.monthlyEnrollments.length - 2]?.count ?? 0;
-    if (prev === 0) return { value: 0, isPositive: true };
+    if (prev === 0) return MONTH_OVER_MONTH_FLAT;
     const change = ((last - prev) / prev) * 100;
-    return { value: Math.abs(change), isPositive: change >= 0 };
+    return { value: Math.abs(change), isPositive: change >= 0, suffix: MONTH_OVER_MONTH_SUFFIX };
   });
 
   // ── Chart options ──────────────────────────────────────────────────────────
@@ -98,11 +136,11 @@ export class DashboardComponent implements OnInit {
       dataLabels: { enabled: false },
       stroke: { curve: 'smooth', width: 2 },
       fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] } },
-      colors: ['#6366f1'],
+      colors: [DASHBOARD_CHART_COLORS.brand600],
       series: [{ name: 'Enrollments', data: s.monthlyEnrollments.map((m) => m.count ?? 0) }],
-      xaxis: { categories: s.monthlyEnrollments.map((m) => m.month), labels: { style: { colors: '#9ca3af', fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-      yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '12px' } } },
-      grid: { borderColor: '#f3f4f6', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+      xaxis: { categories: s.monthlyEnrollments.map((m) => m.month), labels: { style: { colors: DASHBOARD_CHART_COLORS.neutral500, fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+      yaxis: { labels: { style: { colors: DASHBOARD_CHART_COLORS.neutral500, fontSize: '12px' } } },
+      grid: { borderColor: DASHBOARD_CHART_COLORS.neutral200, strokeDashArray: 4, padding: { left: 0, right: 0 } },
       tooltip: { theme: 'light' },
     };
   });
@@ -114,11 +152,11 @@ export class DashboardComponent implements OnInit {
       chart: { type: 'bar' as const, height: 280, toolbar: { show: false } },
       plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
       dataLabels: { enabled: false },
-      colors: ['#10b981'],
+      colors: [DASHBOARD_CHART_COLORS.success500],
       series: [{ name: 'Revenue ($)', data: s.monthlyRevenue.map((m) => Number(m.amount ?? 0)) }],
-      xaxis: { categories: s.monthlyRevenue.map((m) => m.month), labels: { style: { colors: '#9ca3af', fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-      yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '12px' }, formatter: (val: number) => `$${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}` } },
-      grid: { borderColor: '#f3f4f6', strokeDashArray: 4, padding: { left: 0, right: 0 } },
+      xaxis: { categories: s.monthlyRevenue.map((m) => m.month), labels: { style: { colors: DASHBOARD_CHART_COLORS.neutral500, fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+      yaxis: { labels: { style: { colors: DASHBOARD_CHART_COLORS.neutral500, fontSize: '12px' }, formatter: (val: number) => `$${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}` } },
+      grid: { borderColor: DASHBOARD_CHART_COLORS.neutral200, strokeDashArray: 4, padding: { left: 0, right: 0 } },
       tooltip: { theme: 'light', y: { formatter: (val: number) => `$${val.toLocaleString()}` } },
     };
   });
@@ -128,10 +166,14 @@ export class DashboardComponent implements OnInit {
     if (!s) return this.getEmptyChartOptions();
     return {
       chart: { type: 'donut' as const, height: 280 },
-      colors: ['#10b981', '#f59e0b', '#6366f1', '#9ca3af'],
-      labels: ['Published', 'Pending Review', 'Draft', 'Archived'],
-      series: [s.publishedCourses, s.pendingReviewCourses, s.draftCourses, s.archivedCourses],
-      legend: { position: 'bottom', labels: { colors: '#6b7280' } },
+      colors: [
+        DASHBOARD_CHART_COLORS.brand600,
+        DASHBOARD_CHART_COLORS.neutral400,
+        DASHBOARD_CHART_COLORS.info500,
+      ],
+      labels: ['Published', 'Draft', 'Archived'],
+      series: [s.publishedCourses, s.draftCourses, s.archivedCourses],
+      legend: { position: 'bottom', labels: { colors: DASHBOARD_CHART_COLORS.neutral500 } },
       dataLabels: { enabled: true, formatter: (val: number) => `${Math.round(val)}%` },
       plotOptions: { pie: { donut: { size: '65%' } } },
       tooltip: { theme: 'light' },
@@ -142,15 +184,17 @@ export class DashboardComponent implements OnInit {
     const s = this.stats();
     if (!s) return this.getEmptyChartOptions();
     const categories = s.coursesByCategory.slice(0, 8);
+    const colors = categories.map((_, i) => CATEGORY_PALETTE[i] ?? DASHBOARD_CHART_COLORS.neutral400);
     return {
       chart: { type: 'bar' as const, height: 280, toolbar: { show: false } },
-      plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } },
-      colors: ['#6366f1'],
+      plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%', distributed: true } },
+      colors,
+      legend: { show: false },
       dataLabels: { enabled: true, style: { fontSize: '11px' } },
       series: [{ name: 'Courses', data: categories.map((c) => c.courseCount) }],
-      xaxis: { categories: categories.map((c) => c.categoryName), labels: { style: { colors: '#9ca3af', fontSize: '11px' } } },
-      yaxis: { labels: { style: { colors: '#6b7280', fontSize: '12px' } } },
-      grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
+      xaxis: { categories: categories.map((c) => c.categoryName), labels: { style: { colors: DASHBOARD_CHART_COLORS.neutral500, fontSize: '11px' } } },
+      yaxis: { labels: { style: { colors: DASHBOARD_CHART_COLORS.neutral500, fontSize: '12px' } } },
+      grid: { borderColor: DASHBOARD_CHART_COLORS.neutral200, strokeDashArray: 4 },
       tooltip: { theme: 'light' },
     };
   });
@@ -209,7 +253,7 @@ export class DashboardComponent implements OnInit {
       xaxis: { categories: [] },
       dataLabels: { enabled: false },
       colors: [],
-      grid: { borderColor: '#f3f4f6' },
+      grid: { borderColor: DASHBOARD_CHART_COLORS.neutral200 },
       tooltip: { theme: 'light' },
     };
   }

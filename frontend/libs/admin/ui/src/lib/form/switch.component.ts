@@ -25,8 +25,8 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
           class="sr-only peer"
         />
         <div
-          class="w-11 h-6 rounded-full transition-colors duration-200 peer-focus:ring-2 peer-focus:ring-purple-500 peer-focus:ring-offset-2"
-          [class.bg-purple-600]="checked"
+          class="w-11 h-6 rounded-full transition-colors duration-200 peer-focus:ring-2 peer-focus:ring-brand-500 peer-focus:ring-offset-2"
+          [class.bg-brand-600]="checked"
           [class.bg-gray-300]="!checked"
           [class.opacity-50]="disabled"
           [class.cursor-not-allowed]="disabled"

@@ -58,28 +58,28 @@ export class AlertComponent {
 
   private variantConfig: Record<AlertVariant, { container: string; icon: string; title: string; message: string }> = {
     info: {
-      container: 'bg-blue-50 border-blue-200',
-      icon: 'text-blue-600',
-      title: 'text-blue-800',
-      message: 'text-blue-700',
+      container: 'bg-info-50 border-info-200',
+      icon: 'text-info-600',
+      title: 'text-info-800',
+      message: 'text-info-700',
     },
     success: {
-      container: 'bg-emerald-50 border-emerald-200',
-      icon: 'text-emerald-600',
-      title: 'text-emerald-800',
-      message: 'text-emerald-700',
+      container: 'bg-success-50 border-success-200',
+      icon: 'text-success-600',
+      title: 'text-success-800',
+      message: 'text-success-700',
     },
     warning: {
-      container: 'bg-amber-50 border-amber-200',
-      icon: 'text-amber-600',
-      title: 'text-amber-800',
-      message: 'text-amber-700',
+      container: 'bg-warning-50 border-warning-200',
+      icon: 'text-warning-600',
+      title: 'text-warning-800',
+      message: 'text-warning-700',
     },
     error: {
-      container: 'bg-rose-50 border-rose-200',
-      icon: 'text-rose-600',
-      title: 'text-rose-800',
-      message: 'text-rose-700',
+      container: 'bg-danger-50 border-danger-200',
+      icon: 'text-danger-600',
+      title: 'text-danger-800',
+      message: 'text-danger-700',
     },
   };
 

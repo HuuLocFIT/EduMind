@@ -1,0 +1,99 @@
+/*
+ * Design tokens — single source of truth for the admin panel palette.
+ * Brand: deep teal. Accent: warm terracotta (used narrowly for "needs attention" states).
+ * Tailwind's `brand`/`accent`/`neutral`/`success`/`warning`/`danger`/`info` colors
+ * (see tailwind.config.js) all resolve to these variables.
+ */
+:root {
+  /* Brand — teal */
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+
+  /* Accent — warm terracotta */
+  --color-accent-50: #fef6ee;
+  --color-accent-100: #fdead4;
+  --color-accent-200: #fbd0a8;
+  --color-accent-300: #f8b171;
+  --color-accent-400: #f38b3c;
+  --color-accent-500: #ee6c1a;
+  --color-accent-600: #df5410;
+  --color-accent-700: #b93f0f;
+  --color-accent-800: #943414;
+  --color-accent-900: #782d14;
+
+  /* Neutral — warm gray */
+  --color-neutral-50: #fafaf9;
+  --color-neutral-100: #f5f5f4;
+  --color-neutral-200: #e7e5e4;
+  --color-neutral-300: #d6d3d1;
+  --color-neutral-400: #a8a29e;
+  --color-neutral-500: #78716c;
+  --color-neutral-600: #57534e;
+  --color-neutral-700: #44403c;
+  --color-neutral-800: #292524;
+  --color-neutral-900: #1c1917;
+
+  /* Semantic — success */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+
+  /* Semantic — warning */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+
+  /* Semantic — danger */
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+
+  /* Semantic — info */
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-300: #93c5fd;
+  --color-info-400: #60a5fa;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+  --color-info-800: #1e40af;
+  --color-info-900: #1e3a8a;
+
+  /* Elevation */
+  --shadow-rest: 0 1px 2px 0 rgba(20, 30, 28, 0.06);
+  --shadow-hover: 0 4px 12px -2px rgba(20, 30, 28, 0.12), 0 2px 4px -2px rgba(20, 30, 28, 0.08);
+  --shadow-active: inset 0 1px 2px 0 rgba(20, 30, 28, 0.08);
+
+  /* Typography */
+  --font-display: 'Sora', 'Inter', sans-serif;
+}

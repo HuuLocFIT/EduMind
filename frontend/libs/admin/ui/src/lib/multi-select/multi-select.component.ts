@@ -18,7 +18,7 @@ import { SelectOption } from '../select/select.component';
   template: `
     <div class="relative">
       @if (label) {
-        <span class="block text-sm font-medium text-gray-700 mb-1.5">{{ label }}</span>
+        <span class="block text-sm font-bold text-gray-700 mb-1.5">{{ label }}</span>
       }
 
       <button
@@ -41,7 +41,7 @@ import { SelectOption } from '../select/select.component';
               <button
                 type="button"
                 (click)="clearAll($event)"
-                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                class="text-xs text-brand-600 hover:text-brand-800 font-medium"
               >
                 Clear
               </button>
@@ -53,7 +53,7 @@ import { SelectOption } from '../select/select.component';
                 type="checkbox"
                 [checked]="isSelected(option.value)"
                 (change)="toggleOption(option.value)"
-                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
               />
               {{ option.label }}
             </label>
@@ -109,7 +109,7 @@ export class MultiSelectComponent {
 
   getTriggerClasses(): string {
     const base =
-      'flex items-center justify-between gap-2 w-full bg-white border text-gray-900 rounded-lg shadow-sm focus:outline-none focus:ring-2 transition-colors cursor-pointer border-gray-300 focus:ring-indigo-500/20 focus:border-indigo-500 hover:border-gray-400';
+      'flex items-center justify-between gap-2 w-full bg-white border text-gray-900 rounded-lg shadow-sm focus:outline-none focus:ring-2 transition-colors cursor-pointer border-gray-300 focus:ring-brand-500/20 focus:border-brand-500 hover:border-gray-400';
     const sizes: Record<string, string> = {
       sm: 'px-3 py-1.5 text-sm',
       md: 'px-4 py-2.5 text-md',

@@ -23,11 +23,11 @@ import { ButtonComponent } from '../button/button.component';
       }
 
       <!-- Title -->
-      <h3 class="text-lg font-medium text-gray-200">{{ title }}</h3>
+      <h3 class="text-lg font-medium text-neutral-800">{{ title }}</h3>
 
       <!-- Description -->
       @if (description) {
-        <p class="mt-1 text-sm text-gray-400 max-w-md">{{ description }}</p>
+        <p class="mt-1 text-sm text-neutral-500 max-w-md">{{ description }}</p>
       }
 
       <!-- Action Button -->
@@ -68,6 +68,6 @@ export class EmptyStateComponent {
   }
 
   getIconClasses(): string {
-    return 'mb-4 text-gray-600';
+    return 'mb-4 text-neutral-400';
   }
 }

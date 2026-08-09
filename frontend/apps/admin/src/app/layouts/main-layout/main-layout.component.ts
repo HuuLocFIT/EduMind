@@ -26,7 +26,6 @@ export class MainLayoutComponent {
 
   isSidebarOpen = signal(true);
   isUserMenuOpen = signal(false);
-  isNotificationOpen = signal(false);
   expandedItems = signal<Set<string>>(new Set());
 
   readonly ADMIN_ROUTES = ADMIN_ROUTES;
@@ -97,21 +96,10 @@ export class MainLayoutComponent {
 
   toggleUserMenu(): void {
     this.isUserMenuOpen.update((value) => !value);
-    if (this.isUserMenuOpen()) {
-      this.isNotificationOpen.set(false);
-    }
-  }
-
-  toggleNotifications(): void {
-    this.isNotificationOpen.update((value) => !value);
-    if (this.isNotificationOpen()) {
-      this.isUserMenuOpen.set(false);
-    }
   }
 
   closeMenus(): void {
     this.isUserMenuOpen.set(false);
-    this.isNotificationOpen.set(false);
   }
 
   toggleExpanded(itemLabel: string): void {

@@ -2,7 +2,6 @@ import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import {
   ButtonComponent,
   CardComponent,
@@ -11,6 +10,10 @@ import {
   AlertComponent,
   ModalComponent,
   TextareaComponent,
+  EmptyStateComponent,
+  SelectComponent,
+  type SelectOption,
+  StatCardComponent,
 } from '@edumind/admin-ui';
 import { TeacherApplicationService } from '../../../core/services/teacher-application.service';
 import { ApplicationStats, TrialStatusResponse, TrialTeachersResponse, AdminMessageResponse } from '@edumind/shared-types';
@@ -24,7 +27,6 @@ import { injectAsyncState, injectModal, injectPagination } from '../../../core/u
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
     ButtonComponent,
     CardComponent,
     SearchBarComponent,
@@ -32,6 +34,9 @@ import { injectAsyncState, injectModal, injectPagination } from '../../../core/u
     AlertComponent,
     ModalComponent,
     TextareaComponent,
+    EmptyStateComponent,
+    SelectComponent,
+    StatCardComponent,
   ],
   templateUrl: './trial-teachers.component.html',
 })
@@ -63,6 +68,11 @@ export class TrialTeachersComponent implements OnInit {
   showExpiringOnly = signal(false);
   showExpiredFilter = false;
   searchQuery = '';
+
+  readonly expiryOptions: SelectOption[] = [
+    { value: 'ALL', label: 'All Teachers' },
+    { value: 'EXPIRING_SOON', label: 'Expiring Soon' },
+  ];
 
   // ── Search debounce ───────────────────────────────────────────────────────
   private searchSubject = new Subject<string>();
@@ -124,6 +134,10 @@ export class TrialTeachersComponent implements OnInit {
     this.loadTeachers();
   }
 
+  onExpiryFilterChange(value: string | number): void {
+    this.setExpiringOnly(value === 'EXPIRING_SOON');
+  }
+
   onFilterChange(): void {
     this.pagination.resetPage();
     this.loadTeachers();
@@ -146,21 +160,11 @@ export class TrialTeachersComponent implements OnInit {
     return Math.max(0, Math.min(100, Math.round(((totalDays - daysRemaining) / totalDays) * 100)));
   }
 
-  getProgressBarStyle(teacher: TrialStatusResponse): { [key: string]: string } {
-    const width = this.getTrialProgress(teacher) + '%';
-    let background: string;
-
-    if (teacher.isExpired) {
-      background = '#ef4444';
-    } else if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 3) {
-      background = 'linear-gradient(to right, #ef4444, #f87171)';
-    } else if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 7) {
-      background = 'linear-gradient(to right, #f97316, #fb923c)';
-    } else {
-      background = 'linear-gradient(to right, #3b82f6, #60a5fa)';
-    }
-
-    return { width, 'min-width': '0', display: 'block', background };
+  getProgressBarColorClass(teacher: TrialStatusResponse): string {
+    if (teacher.isExpired) return 'bg-danger-500';
+    if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 2) return 'bg-danger-500';
+    if (typeof teacher.daysRemaining === 'number' && teacher.daysRemaining <= 7) return 'bg-warning-500';
+    return 'bg-info-500';
   }
 
   getFullName(teacher: TrialStatusResponse): string {

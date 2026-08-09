@@ -25,7 +25,7 @@ describe('AuthService', () => {
   // Initialize TestBed platform before all tests
   beforeAll(() => {
     // Try to get or create the testing platform
-    if (!TestBed.platformRef) {
+    if (!TestBed.platform) {
       // For Angular 15+, we might need to use a different approach
       // This is a workaround for Vitest compatibility
       try {
@@ -44,6 +44,12 @@ describe('AuthService', () => {
     roles: [UserRole.ADMIN],
     firstName: 'Admin',
     lastName: 'User',
+    isActive: true,
+    isEmailVerified: true,
+    is2faEnabled: false,
+    isTrial: false,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   };
 
   const mockNonAdminUser: User = {
@@ -51,6 +57,12 @@ describe('AuthService', () => {
     username: 'student',
     email: 'student@example.com',
     roles: [UserRole.STUDENT],
+    isActive: true,
+    isEmailVerified: true,
+    is2faEnabled: false,
+    isTrial: false,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   };
 
   // Helper to create a valid JWT token (not expired)
@@ -81,11 +93,13 @@ describe('AuthService', () => {
 
   const mockLoginResponse: JwtResponse = {
     accessToken: createValidToken(),
+    tokenType: 'Bearer',
     user: mockAdminUser,
   };
 
   const mockRefreshResponse: RefreshTokenResponse = {
     accessToken: createValidToken(),
+    tokenType: 'Bearer',
     user: mockAdminUser,
   };
 
@@ -260,6 +274,7 @@ describe('AuthService', () => {
     it('should validate admin role and throw error if not admin', async () => {
       const nonAdminResponse: JwtResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
         user: mockNonAdminUser,
       };
 
@@ -287,6 +302,7 @@ describe('AuthService', () => {
     it('should handle 403 Forbidden error (non-admin user)', async () => {
       const nonAdminResponse: JwtResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
         user: mockNonAdminUser,
       };
       
@@ -457,6 +473,7 @@ describe('AuthService', () => {
     it('should not update user if not provided in refresh response', async () => {
       const refreshResponseWithoutUser: RefreshTokenResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
       };
 
       localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
@@ -873,6 +890,7 @@ describe('AuthService', () => {
 
       const nonAdminResponse: JwtResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
         user: mockNonAdminUser,
       };
 
@@ -893,10 +911,17 @@ describe('AuthService', () => {
         username: 'teacher',
         email: 'teacher@example.com',
         roles: [UserRole.TEACHER],
+        isActive: true,
+        isEmailVerified: true,
+        is2faEnabled: false,
+        isTrial: false,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
       };
 
       const teacherResponse: JwtResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
         user: teacherUser,
       };
 
@@ -917,10 +942,17 @@ describe('AuthService', () => {
         username: 'norole',
         email: 'norole@example.com',
         roles: [],
+        isActive: true,
+        isEmailVerified: true,
+        is2faEnabled: false,
+        isTrial: false,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
       };
 
       const noRoleResponse: JwtResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
         user: noRoleUser,
       };
 
@@ -941,10 +973,17 @@ describe('AuthService', () => {
         username: 'multirole',
         email: 'multirole@example.com',
         roles: [UserRole.TEACHER, UserRole.ADMIN], // ADMIN is secondary role
+        isActive: true,
+        isEmailVerified: true,
+        is2faEnabled: false,
+        isTrial: false,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
       };
 
       const multiRoleResponse: JwtResponse = {
         accessToken: createValidToken(),
+        tokenType: 'Bearer',
         user: multiRoleUser,
       };
 

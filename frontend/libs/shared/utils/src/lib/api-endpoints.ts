@@ -78,6 +78,7 @@ export const TEACHER_APPLICATION_ENDPOINTS = {
 export const UPLOAD_ENDPOINTS = {
   BASE: `${API_BASE_PATH}/upload`,
   IMAGE: `${API_BASE_PATH}/upload/image`,
+  ICON: `${API_BASE_PATH}/upload/icon`,
   DOCUMENT: `${API_BASE_PATH}/upload/document`,
   DELETE: `${API_BASE_PATH}/upload`,
 } as const;

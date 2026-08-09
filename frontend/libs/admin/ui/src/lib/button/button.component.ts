@@ -61,11 +61,12 @@ export class ButtonComponent {
   @Input() rightIcon = false;
 
   private variantClasses: Record<ButtonVariant, string> = {
-    primary: 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm hover:shadow-md',
-    secondary: 'bg-gray-600 hover:bg-gray-700 text-white shadow-sm hover:shadow-md',
-    outline: 'border-2 border-purple-600 text-purple-600 hover:bg-purple-50',
-    ghost: 'text-purple-600 hover:bg-purple-50',
-    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-md',
+    primary: 'bg-brand-600 hover:bg-brand-700 text-white shadow-rest hover:shadow-hover',
+    secondary: 'bg-neutral-600 hover:bg-neutral-700 text-white shadow-rest hover:shadow-hover',
+    outline:
+      'bg-brand-50 text-brand-700 border border-brand-200 shadow-rest hover:bg-brand-100 hover:border-brand-300 hover:shadow-hover',
+    ghost: 'text-brand-600 hover:bg-brand-50',
+    danger: 'bg-danger-600 hover:bg-danger-700 text-white shadow-rest hover:shadow-hover',
   };
 
   private sizeClasses: Record<ButtonSize, string> = {
@@ -77,7 +78,7 @@ export class ButtonComponent {
   getButtonClasses(): string {
     return [
       'inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200',
-      'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500',
+      'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500',
       this.variantClasses[this.variant],
       this.sizeClasses[this.size],
       this.disabled || this.isLoading ? 'opacity-50 cursor-not-allowed' : '',

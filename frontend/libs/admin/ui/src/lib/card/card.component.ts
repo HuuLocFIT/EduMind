@@ -21,9 +21,9 @@ export class CardComponent {
   @Input() customClass = '';
 
   private variantClasses: Record<CardVariant, string> = {
-    default: 'bg-slate-800',
-    bordered: 'bg-slate-800 border border-slate-700',
-    elevated: 'bg-slate-800 shadow-lg hover:shadow-xl transition-shadow duration-200',
+    default: 'bg-white',
+    bordered: 'bg-white border border-neutral-200',
+    elevated: 'bg-white shadow-rest hover:shadow-hover transition-shadow duration-200',
   };
 
   private paddingClasses: Record<CardPadding, string> = {
