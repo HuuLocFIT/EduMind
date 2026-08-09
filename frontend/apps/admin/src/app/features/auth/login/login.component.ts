@@ -26,7 +26,6 @@ import {
 export class LoginComponent implements OnInit {
   loginForm!: FormGroup;
   showPassword = signal(false);
-  successMessage = signal('');
 
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
@@ -86,10 +85,6 @@ export class LoginComponent implements OnInit {
         : `Password must be at least ${requiredLength} characters`;
     }
     return '';
-  }
-
-  closeSuccessMessage(): void {
-    this.successMessage.set('');
   }
 
   closeError(): void {

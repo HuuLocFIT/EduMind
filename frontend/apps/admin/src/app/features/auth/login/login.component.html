@@ -17,16 +17,6 @@
             </div>
           </div>
   
-          <!-- Success Alert -->
-          @if (successMessage()) {
-            <app-alert
-              [variant]="'success'"
-              [message]="successMessage()"
-              [dismissible]="true"
-              (onClose)="closeSuccessMessage()"
-            />
-          }
-  
           <!-- Error Alert -->
           @if (error) {
             <app-alert
