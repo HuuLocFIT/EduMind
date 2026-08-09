@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, type Page } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { WCAG_AA_TAGS } from '../../utils/accessibility.js';
 
@@ -14,8 +14,35 @@ const { responseForApi } = require('../../pa11y/fixtures.cjs') as {
 
 const reportDirectory = resolve(
   process.cwd(),
-  'e2e/accessibility-reports/before',
+  process.env['A11Y_REPORT_DIR'] || 'e2e/accessibility-reports/before',
 );
+const allowOverwrite = process.env['A11Y_ALLOW_OVERWRITE'] === 'true';
+const reportPurpose =
+  process.env['A11Y_REPORT_PURPOSE'] ||
+  (process.env['A11Y_REPORT_DIR']
+    ? 'after-remediation evidence'
+    : 'Phase 0 task 2.4 before-remediation evidence');
+
+async function assertEvidenceCanBeWritten(): Promise<void> {
+  if (allowOverwrite) return;
+
+  const evidenceFiles = [
+    'summary.json',
+    ...routes.map((route) => `${route.name}.json`),
+  ];
+  for (const file of evidenceFiles) {
+    try {
+      await access(resolve(reportDirectory, file));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    throw new Error(
+      `Refusing to overwrite accessibility evidence at ${reportDirectory}. ` +
+        'Choose an empty A11Y_REPORT_DIR, or set A11Y_ALLOW_OVERWRITE=true only for an intentional replacement.',
+    );
+  }
+}
 
 const routes = [
   { name: 'home', path: '/', ready: 'main h1' },
@@ -201,6 +228,7 @@ test('collect Axe and keyboard baseline for Phase 0 task 2.4', async ({
   baseURL,
 }, testInfo) => {
   testInfo.setTimeout(300_000);
+  await assertEvidenceCanBeWritten();
   await mkdir(reportDirectory, { recursive: true });
   const summary = [];
 
@@ -265,7 +293,7 @@ test('collect Axe and keyboard baseline for Phase 0 task 2.4', async ({
       {
         generatedAt: new Date().toISOString(),
         standard: 'WCAG 2.2 AA (A/AA Axe tags)',
-        purpose: 'Phase 0 task 2.4 before-remediation evidence',
+        purpose: reportPurpose,
         routes: summary,
       },
       null,

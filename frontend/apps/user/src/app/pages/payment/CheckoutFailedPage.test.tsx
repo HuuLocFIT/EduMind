@@ -50,6 +50,15 @@ describe('CheckoutFailedPage', () => {
     });
   });
 
+  it('sets a route-specific document title', async () => {
+    mockSearchParams.set('errorCode', 'INSTRUMENT_DECLINED');
+    render(<CheckoutFailedPage />);
+
+    await waitFor(() => {
+      expect(document.title).toBe('Payment Declined | EduMind');
+    });
+  });
+
   it.each([
     ['user cancelled', { orderId: '123' }],
     ['instrument declined', { errorCode: 'INSTRUMENT_DECLINED' }],

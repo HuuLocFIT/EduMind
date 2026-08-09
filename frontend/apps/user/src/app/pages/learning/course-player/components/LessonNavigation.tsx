@@ -34,10 +34,12 @@ export const LessonNavigation: React.FC<LessonNavigationProps> = ({
     >
       <div className="max-w-4xl mx-auto px-3 sm:px-6 py-3 grid grid-cols-2 gap-3 sm:gap-4">
         <Button
-          variant="secondary"
+          variant="primary"
           onClick={onPrevious}
           disabled={!hasPrevious}
-          className="justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center"
+          className={`justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center ${
+            !hasPrevious ? '!opacity-100 !bg-gray-600 !text-white' : ''
+          }`}
         >
           <ChevronLeft className="w-5 h-5 mr-2" />
           <span className="sm:hidden">Previous</span>

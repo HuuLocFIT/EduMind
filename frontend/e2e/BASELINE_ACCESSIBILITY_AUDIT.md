@@ -1,13 +1,29 @@
-# Phase 0 accessibility baseline audit
+# Accessibility baseline audit and remediation status
 
-**Scope:** task 2.4 in `4-flow-a11y.md`
+**Scope:** task 2.4 in `4-flow-a11y.md`, tracked through remediation of the
+four flows (Discover, Authentication, Purchase, Learning).
 
 **Standard:** WCAG 2.2 Level AA target
 
 **Baseline date:** 2026-07-31
 
-**Status:** DOES NOT CONFORM (automated baseline); real Safari + VoiceOver
-testing remains required.
+**Remediation status as of:** 2026-08-09 (see [Remediation status](#remediation-status)).
+This section supersedes the per-issue "Open" status recorded at baseline time.
+The baseline numbers below (lint/Pa11y/Axe counts, issue log) are a frozen
+point-in-time snapshot and are **not** re-run in place — re-running any of the
+baseline commands today will not reproduce these exact numbers, because the
+underlying components have since changed. See
+[After-evidence status](#after-evidence-status) for why a committed `after/`
+report set does not exist yet, and what is required to produce one.
+
+**Overall status:** Four-flow implementation (shared components, page fixes,
+automated regression tests) was merged in commit `6bc954f`
+([PR #139](https://github.com/HuuLocFIT/EduMind/pull/139)).
+**Real Safari + VoiceOver testing per
+`4-flow-a11y.md` §1 has not been recorded in this repository and remains
+required before any flow can be marked "closed"** under that plan's closing
+criteria. Do not describe this project as WCAG 2.2 AA conformant based on this
+document alone.
 
 ## Commands and evidence
 
@@ -25,10 +41,80 @@ Axe route totals: home 0, courses 1 serious, stable course detail 1 serious,
 login 1 critical, signup 1 critical, forgot password 0, missing-token reset 0,
 checkout success 1 serious, and checkout failed 1 serious.
 
+## Remediation status
+
+Summary table; see the [Issue log](#issue-log) for full detail per issue.
+"Fixed (code-verified)" means the current source was read and confirmed to
+implement the described behavior — it is **not** the same as a re-run Axe/Pa11y
+scan or a Safari + VoiceOver pass, both of which are still outstanding for
+every issue below.
+
+| ID | Summary | Status |
+|---|---|---|
+| A11Y-BL-001 | Auth input label association | Fixed (code-verified) |
+| A11Y-BL-002 | Password-visibility toggle keyboard/name | Fixed (code-verified) |
+| A11Y-BL-003 | Price filter input labels on `/courses` | Fixed (code-verified) |
+| A11Y-BL-004 | Contrast: required marker / decorative separators | Open — `aria-hidden` changes do not verify or remediate rendered contrast |
+| A11Y-BL-005 | Missing/empty `<title>` on `/courses`, checkout success/failed | Fixed (code-verified) on all three routes; after scan and VoiceOver pending |
+| A11Y-BL-006 | Invalid list markup in course-detail curriculum | Fixed (code-verified) |
+
+Beyond the six original issues, the four-flow implementation (see
+`4-flow-a11y.md`) added shared accessibility infrastructure that the baseline
+audit did not have and could not have checked, because it did not exist yet:
+
+- A skip link and route-level focus management in `MainLayout.tsx` and
+  `AuthLayout.tsx` (moves focus to the page's first heading after navigation).
+- `useFocusTrap` (`apps/user/src/app/hooks/useFocusTrap.ts`), used by
+  `CartDrawer`, `RefundRequestModal`, `CourseAccessErrorDialog`,
+  `CourseCompletionDialog`, and the mobile course-curriculum drawer.
+- A roving-tabindex `Tabs` component (`libs/user/ui/src/lib/Tabs/Tabs.tsx`)
+  used by My Learning's status filter tabs.
+- `role="status"`/`aria-live` announcements across cart, checkout, auth,
+  My Learning, and course-player state transitions.
+- `aria-current="step"` on the active lesson in the course player sidebar.
+
+These are exercised by the new Playwright suites described in
+[ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md), not by the original
+Phase 0 Pa11y/Axe baseline, so there is no "before" count to compare them
+against — they are new coverage, not remediated baseline findings.
+
+## After-evidence status
+
+No `e2e/accessibility-reports/after/` directory exists yet. The remaining work
+has three different statuses:
+
+1. **Pa11y** already supports writing to an arbitrary directory via
+   `PA11Y_REPORT_DIR` (see
+   [ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md#generating-pa11y-after-evidence)),
+   so an after-evidence Pa11y re-scan can be produced today with:
+
+   ```bash
+   PA11Y_REPORT_DIR=e2e/accessibility-reports/after/pa11y npm run pa11y
+   ```
+
+   This has not been run yet for the current codebase state — do so before
+   closing any flow per `4-flow-a11y.md`'s handoff requirements.
+
+2. **Axe + keyboard after scan is supported but pending execution.** The
+   collector accepts `A11Y_REPORT_DIR`, refuses to overwrite existing evidence
+   by default, and is exposed as `npm run test:a11y:after`. Run it against the
+   remediated app, review the output, and commit the result to
+   `e2e/accessibility-reports/after/`. Do not hand-copy files from a `before`
+   run and relabel them as `after`.
+
+3. **Manual verification remains pending.** Safari + VoiceOver results have
+   not been recorded for any of the four flows.
+
+Until both of the above are done and reviewed against the `before/` baseline,
+treat every "Fixed (code-verified)" status in this document as source-level
+confirmation only, not as a validated accessibility regression gate.
+
 ## Issue log
 
-Issues are grouped by shared root cause. `After evidence` is deliberately
-unfilled because task 2.4 is a before-remediation audit.
+Issues are grouped by shared root cause. `After evidence` was deliberately
+left unfilled when this document was a before-remediation-only audit; per-issue
+current status is now recorded below and rolled up in
+[Remediation status](#remediation-status).
 
 ### A11Y-BL-001
 
@@ -42,8 +128,8 @@ unfilled because task 2.4 is a before-remediation audit.
 - **Expected behavior:** Every form control has a programmatically associated, persistent label; placeholder text is supplementary only.
 - **Proposed fix:** Correct the shared input API so visible labels use matching `for`/`id` associations (or wrapping labels), and preserve descriptions/errors with `aria-describedby`.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/pa11y-results.json`; 15 Pa11y errors across the related H91 and F68 rules (some nodes produce both rules).
-- **After evidence:** Pending remediation and re-scan.
-- **Status:** Open — priority 2 (missing accessible name).
+- **After evidence:** No committed re-scan yet; see [After-evidence status](#after-evidence-status). Verified fixed by source inspection: `libs/user/ui/src/lib/Form/Input.tsx` generates `inputId` via `useId()` and matches `<label htmlFor>` to `<input id>`; error/helper text is wired through `aria-describedby`. `PasswordInput` wraps `Input`, so Login/Signup/Forgot/Reset all inherit the fix. Covered by `e2e/tests/user/auth-flow-a11y.spec.ts` (label/`getByLabel` assertions per field).
+- **Status:** Fixed (code-verified) — pending Pa11y/Axe re-scan and VoiceOver confirmation per `4-flow-a11y.md`.
 
 ### A11Y-BL-002
 
@@ -57,8 +143,8 @@ unfilled because task 2.4 is a before-remediation audit.
 - **Expected behavior:** The control is keyboard reachable, has a name such as “Show password,” and exposes its current state.
 - **Proposed fix:** Keep the button in normal tab order, add a stable accessible name, and expose pressed/expanded state appropriate to the chosen interaction.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/login.html` and `signup.html` (`H91.Button.Name`, 2 nodes); `e2e/accessibility-reports/before/login.json` and `signup.json` (`button-name`, 1 critical node per route). The keyboard snapshot records no traversal anomaly, but the source/markup observation remains valid because a `tabindex="-1"` control is intentionally absent from sequential focus.
-- **After evidence:** Pending remediation and re-scan.
-- **Status:** Open — priority 1 (keyboard/screen-reader operation).
+- **After evidence:** No committed re-scan yet; see [After-evidence status](#after-evidence-status). Verified fixed by source inspection: `libs/user/ui/src/lib/Form/PasswordInput.tsx` renders the toggle as a normal-tab-order `<button type="button">` with `aria-label` that switches between "Show {field}"/"Hide {field}" and `aria-pressed={showPassword}`. Covered by `e2e/tests/user/auth-flow-a11y.spec.ts` (asserts `getByRole('button', { name: 'Show password' })` / `'Hide password'` and `aria-pressed` toggling).
+- **Status:** Fixed (code-verified) — pending Pa11y/Axe re-scan and VoiceOver confirmation per `4-flow-a11y.md`.
 
 ### A11Y-BL-003
 
@@ -72,8 +158,8 @@ unfilled because task 2.4 is a before-remediation audit.
 - **Expected behavior:** Minimum and maximum inputs have distinct programmatic names and are associated with the price-range group.
 - **Proposed fix:** Add visible associated labels (preferred), unique IDs, and retain the fieldset/legend grouping.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/courses.html` (`H91.InputNumber.Name`, 2 nodes).
-- **After evidence:** Pending remediation and re-scan.
-- **Status:** Open — priority 2 (missing accessible name).
+- **After evidence:** No committed re-scan yet; see [After-evidence status](#after-evidence-status). Verified fixed by source inspection: `apps/user/src/app/pages/public/components/BrowseFilterSidebar.tsx` wraps the min/max price inputs in a `<fieldset>` with a `sr-only legend`, and each input has its own visible `<label htmlFor>` ("Min ($)" / "Max ($)"). The slider variant (`PriceRangeSlider.tsx`) additionally exposes `aria-label`/`aria-valuemin/max/now/text`.
+- **Status:** Fixed (code-verified) — pending Pa11y/Axe re-scan and VoiceOver confirmation per `4-flow-a11y.md`.
 
 ### A11Y-BL-004
 
@@ -87,8 +173,19 @@ unfilled because task 2.4 is a before-remediation audit.
 - **Expected behavior:** Meaningful text meets 4.5:1 (or 3:1 for qualifying large text); purely decorative separators are not exposed as meaningful text.
 - **Proposed fix:** Treat decorative separators as decorative and adjust visual tokens; change the required-marker token or presentation so visible meaningful content meets contrast.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/pa11y-results.json` (`G18.Fail`, 9 nodes).
-- **After evidence:** Pending remediation and re-scan.
-- **Status:** Open — priority 6 (contrast).
+- **After evidence:** No committed re-scan yet; see [After-evidence status](#after-evidence-status).
+- **Status:** Open — the rendered contrast has not been reverified:
+  - Required-marker part (signup): `Input.tsx` now wraps the asterisk in
+    `<span aria-hidden="true">`, which removes it from the accessible-name path
+    but does not change its visible `text-red-500` contrast. This is not a fix
+    for WCAG 1.4.3; measure the rendered foreground/background colors and
+    change the token or presentation if they fail.
+  - Decorative-separator part: `CourseCard.tsx` and
+    `ApplicationStatusPage.tsx` still require a visual/content decision. If a
+    separator is purely decorative, encode that semantics and document why
+    contrast requirements do not apply; if it conveys information, provide a
+    conforming visual representation. `aria-hidden` alone cannot remediate
+    visual contrast.
 
 ### A11Y-BL-005
 
@@ -102,8 +199,17 @@ unfilled because task 2.4 is a before-remediation audit.
 - **Expected behavior:** Each route has a non-empty, descriptive, state-specific `<title>` element.
 - **Proposed fix:** Set route-specific document titles through the shared page metadata mechanism and ensure it creates or updates the actual `<title>` element.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/checkout-success.html` and `checkout-failed.html` (`H25.1.NoTitleEl`, 2 nodes); `e2e/accessibility-reports/before/courses.json`, `checkout-success.json`, and `checkout-failed.json` (`document-title`, 3 serious nodes).
-- **After evidence:** Pending remediation and re-scan.
-- **Status:** Open — priority 5 (page structure/orientation).
+- **After evidence:** No committed re-scan yet; see [After-evidence status](#after-evidence-status).
+- **Status:** Fixed (code-verified) on all three routes; automated after scan
+  and VoiceOver confirmation remain pending:
+  - `/courses`: **Fixed.** `BrowseCoursesPage.tsx` renders `<SeoMetaTags title={pageTitle} .../>`, which sets a real `<title>` element.
+  - `/checkout/success`: **Fixed.** `CheckoutSuccessPage.tsx` renders `<SeoMetaTags title="Payment Confirmation" .../>`.
+  - `/checkout/failed`: **Fixed in code.** `CheckoutFailedPage.tsx` renders
+    state-specific `SeoMetaTags`, its component test verifies the resulting
+    title, and `purchase-flow-a11y.spec.ts` uses `toHaveTitle()` after the SPA
+    transition. The explicit assertion is necessary because Axe detects an
+    empty title but cannot determine that a non-empty title inherited from the
+    previous SPA route is contextually wrong.
 
 ### A11Y-BL-006
 
@@ -117,8 +223,8 @@ unfilled because task 2.4 is a before-remediation audit.
 - **Expected behavior:** A semantic list contains only permitted list-item structure, with non-list content placed outside the list or inside an `li`.
 - **Proposed fix:** Correct the shared course-detail list markup without replacing native list semantics with ARIA.
 - **Before evidence:** `e2e/accessibility-reports/before/course-detail.json` (`list`, 1 serious node).
-- **After evidence:** Pending remediation and re-scan.
-- **Status:** Open — priority 5 (structure/relationships).
+- **After evidence:** No committed re-scan yet; see [After-evidence status](#after-evidence-status). Verified fixed by source inspection: `apps/user/src/app/components/course-module/CurriculumAccordion.tsx` — the outer `<ul id="course-curriculum-list">` contains only `<li>` section elements, and each expanded lesson list is a nested `<ul>` whose direct children are exclusively `<li>`. `CourseDetailPage.tsx`'s "This course includes" list is likewise a clean `<ul><li>` structure. Covered by `e2e/tests/user/discover-flow-a11y.spec.ts` (Axe scan of the expanded-curriculum state).
+- **Status:** Fixed (code-verified) — pending Pa11y/Axe re-scan and VoiceOver confirmation per `4-flow-a11y.md`.
 
 ## Coverage limits and manual follow-up
 
@@ -144,9 +250,33 @@ unfilled because task 2.4 is a before-remediation audit.
 
 ## Remediation order
 
-1. A11Y-BL-002 — keyboard-excluded, unnamed password control.
-2. A11Y-BL-001 and A11Y-BL-003 — missing form-control names/relationships.
+Original plan, kept for historical reference; see
+[Remediation status](#remediation-status) for what has actually landed:
+
+1. A11Y-BL-002 — keyboard-excluded, unnamed password control. **Done.**
+2. A11Y-BL-001 and A11Y-BL-003 — missing form-control names/relationships. **Done.**
 3. Add stateful Axe/keyboard coverage for focus, validation, dialogs, and
-   announcements as each flow enters remediation.
+   announcements as each flow enters remediation. **Done** — see the four
+   `*-flow-a11y.spec.ts` suites in
+   [ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md#four-flow-a11y-suites).
 4. A11Y-BL-005 and A11Y-BL-006 — page orientation and semantic structure.
-5. A11Y-BL-004 — contrast/decorative content.
+   **Both are fixed in code; after evidence and manual confirmation remain.**
+5. A11Y-BL-004 — contrast/decorative content. **Still open pending rendered
+   contrast measurement and a documented decorative/content decision.**
+
+## Outstanding work before any flow can be closed
+
+Per `4-flow-a11y.md` §1 "Điều kiện đóng một flow", closing a flow requires
+automated checks **and** a confirmed Safari + VoiceOver pass **and** committed
+before/after evidence. As of this document's remediation-status date:
+
+1. Measure and remediate the rendered required-marker/separator contrast, and
+   document which separators are decorative versus meaningful (A11Y-BL-004).
+2. Run and commit `e2e/accessibility-reports/after/` for both Pa11y and Axe +
+   keyboard using the supported output-directory commands.
+3. Run the Safari + VoiceOver checklists for all four flows and record
+   Pass/Fail/Blocked results, per the manual-test matrix in
+   [ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md#current-limitations).
+4. Only after 1–3 are complete, update this document's per-issue status from
+   "Fixed (code-verified)" to "Verified" and mark the corresponding flow
+   closed in `4-flow-a11y.md`.

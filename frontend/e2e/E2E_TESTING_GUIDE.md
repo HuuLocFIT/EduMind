@@ -21,6 +21,7 @@
 13. [Debugging and Reports](#debugging-and-reports)
 14. [Troubleshooting](#troubleshooting)
 15. [How to Add New E2E Tests](#how-to-add-new-e2e-tests)
+16. [Current CI Boundary](#current-ci-boundary)
 
 ---
 
@@ -38,6 +39,15 @@ It focuses on high-value flows:
 - Cart and checkout flow
 - Admin categories CRUD
 - Admin student and teacher application management
+
+It also includes a dedicated accessibility (a11y) regression layer for the
+four critical user journeys (Discover, Authentication, Purchase, Learning).
+Those suites live alongside the functional specs described here but are
+documented separately in
+[ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md), since they follow their
+own conventions (`checkA11y`, keyboard helpers, `@a11y*` tags). This guide
+covers general E2E conventions — page objects, fixtures, auth strategy,
+mocking — that apply to both functional and a11y specs.
 
 ---
 
@@ -71,6 +81,10 @@ Important behavior:
 - `global-setup.ts` checks backend health and validates the student test account.
 - If credentials are invalid in auth fixtures, tests are skipped with a clear reason (not hard-failed).
 - Tests are parallel locally; CI can reduce workers/retry differently.
+- The routine `user-app` project includes functional specs and the four
+  `*-flow-a11y.spec.ts` suites. It explicitly excludes the one-shot baseline
+  collector and the app-independent accessibility utility regression spec;
+  those use dedicated configs and commands.
 
 ---
 
@@ -89,6 +103,7 @@ frontend/
 │   │   ├── user/
 │   │   │   ├── LoginPage.ts
 │   │   │   ├── CourseBrowsePage.ts
+│   │   │   ├── DiscoverFlowPage.ts     # skip link, filter, curriculum a11y helpers
 │   │   │   ├── CartPage.ts
 │   │   │   └── CoursePlayerPage.ts
 │   │   └── admin/
@@ -98,19 +113,38 @@ frontend/
 │   │       └── TeacherApplicationsPage.ts
 │   ├── tests/
 │   │   ├── user/
-│   │   │   ├── auth.spec.ts
-│   │   │   ├── course-browse.spec.ts
-│   │   │   ├── purchase-flow.spec.ts
-│   │   │   └── learning.spec.ts
+│   │   │   ├── auth.spec.ts                  # functional: login/logout/guards
+│   │   │   ├── auth-flow-a11y.spec.ts        # a11y: Flow 2 (see ACCESSIBILITY_TESTING.md)
+│   │   │   ├── course-browse.spec.ts         # functional: browse/search/pagination
+│   │   │   ├── discover-flow-a11y.spec.ts    # a11y: Flow 1
+│   │   │   ├── purchase-flow-a11y.spec.ts    # functional + a11y: Flow 3 (cart/checkout)
+│   │   │   ├── learning.spec.ts              # functional: enrollment/player navigation
+│   │   │   ├── learning-flow-a11y.spec.ts    # a11y: Flow 4
+│   │   │   ├── baseline-a11y.spec.ts         # one-shot Axe+keyboard baseline collector
+│   │   │   └── accessibility-utils.spec.ts   # tests for e2e/utils/accessibility.ts itself
 │   │   └── admin/
 │   │       ├── admin-auth.spec.ts
 │   │       ├── categories-crud.spec.ts
 │   │       ├── student-management.spec.ts
 │   │       └── teacher-applications.spec.ts
+│   ├── utils/
+│   │   └── accessibility.ts            # checkA11y, keyboard/focus helpers (see ACCESSIBILITY_TESTING.md)
+│   ├── accessibility-reports/
+│   │   └── before/                     # committed Axe/Pa11y baseline evidence
+│   ├── pa11y/
+│   │   ├── config.cjs, run.cjs, fixtures.cjs
+│   │   └── reports/                    # gitignored runtime output
 │   └── scripts/
 │       └── seed-test-accounts.ts
 └── package.json
 ```
+
+Note: `purchase-flow-a11y.spec.ts` is currently the **only** spec covering
+cart/checkout — there is no separate `purchase-flow.spec.ts` functional file.
+It combines network-mocked functional assertions (see
+[Network Mocking Pattern](#network-mocking-pattern)) with `checkA11y`/keyboard
+checks in one file, unlike auth/course-browse/learning where functional and
+a11y coverage are split into separate spec files.
 
 ---
 
@@ -165,6 +199,7 @@ Main config: `frontend/e2e/playwright.config.ts`
 
 - `user-app`
   - `testMatch: tests/user/**/*.spec.ts`
+  - `testIgnore: baseline-a11y.spec.ts, accessibility-utils.spec.ts`
   - `baseURL: http://localhost:3000`
 - `admin-app`
   - `testMatch: tests/admin/**/*.spec.ts`
@@ -289,6 +324,53 @@ npm run e2e:ui
 npm run e2e:report
 ```
 
+Accessibility suites run through the same Playwright config but are selected
+by tag rather than by project, and only target `user-app`:
+
+```bash
+# All four a11y flow suites
+npm run test:a11y
+
+# One flow at a time
+npm run test:a11y:public      # Discover (Home → Browse → Course Detail)
+npm run test:a11y:auth        # Authentication (Login/Signup/Forgot/Reset)
+npm run test:a11y:purchase    # Purchase (Cart → Checkout → Success/Failed)
+npm run test:a11y:learning    # Learning (My Learning → Course Player)
+```
+
+See [ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md) for what each suite
+asserts, the `checkA11y`/keyboard helper API, and the Pa11y/Axe baseline
+tooling (`npm run pa11y`, `playwright.baseline-a11y.config.ts`).
+
+Dedicated accessibility infrastructure and evidence commands:
+
+```bash
+# App-independent regression tests for e2e/utils/accessibility.ts
+npm run test:a11y:utilities
+
+# Historical collector; refuses to overwrite the committed before evidence
+npm run test:a11y:baseline
+
+# Write a new Axe + keyboard scan to accessibility-reports/after/
+npm run test:a11y:after
+```
+
+Inspect selection without executing tests:
+
+```bash
+# Confirm all four @a11y-* prefixes are selected
+npx playwright test --config=e2e/playwright.config.ts \
+  --project=user-app --grep @a11y --list
+
+# Confirm the routine user project excludes collector and utility specs
+npx playwright test --config=e2e/playwright.config.ts \
+  --project=user-app --list
+
+# Confirm each dedicated config selects one intended spec
+npx playwright test --config=e2e/playwright.utilities.config.ts --list
+npx playwright test --config=e2e/playwright.baseline-a11y.config.ts --list
+```
+
 Run one specific file:
 
 ```bash
@@ -320,6 +402,8 @@ npx playwright test --config=e2e/playwright.config.ts --last-failed
 
 ### User test suites
 
+Functional suites (behavior/routing/state, no accessibility assertions):
+
 - `e2e/tests/user/auth.spec.ts`
   - guest guards
   - login success/failure
@@ -330,16 +414,37 @@ npx playwright test --config=e2e/playwright.config.ts --last-failed
   - search interaction
   - pagination
   - navigate to course detail
-- `e2e/tests/user/purchase-flow.spec.ts`
-  - cart behavior
-  - checkout success/failure with route interception
-  - empty cart state
 - `e2e/tests/user/learning.spec.ts`
   - enrollment list
   - filter tabs
   - continue learning to player
   - lesson navigation and progress UI
   - certificates page access
+
+Accessibility suites (`checkA11y` scans + keyboard/focus/announcement
+assertions per UI state; see
+[ACCESSIBILITY_TESTING.md](ACCESSIBILITY_TESTING.md) for full detail):
+
+- `e2e/tests/user/discover-flow-a11y.spec.ts` — `@a11y-public`: skip link,
+  Home → Browse → Course Detail keyboard journey, curriculum accordion,
+  guest add-to-cart redirect.
+- `e2e/tests/user/auth-flow-a11y.spec.ts` — `@a11y-auth`: Login, Signup,
+  Forgot/Reset Password, and guest-redirect-then-return, across default,
+  validation-error, server-error, 2FA, and success states.
+- `e2e/tests/user/purchase-flow-a11y.spec.ts` — `@a11y-purchase`: cart/cart
+  drawer, remove-item flow, checkout payment-method selection, and Success/
+  Failed pages. Also the only spec covering cart/checkout functionally (see
+  the note in [File Structure](#file-structure)).
+- `e2e/tests/user/learning-flow-a11y.spec.ts` — `@a11y-learning`: My Learning
+  tabs, Course Player sidebar/lesson navigation, video keyboard controls and
+  captions, progress-save error/retry, mark-complete announcement.
+- `e2e/tests/user/baseline-a11y.spec.ts` — one-shot Axe + keyboard scan across
+  9 fixture routes, writing evidence to `e2e/accessibility-reports/before/`.
+  Excluded from the routine `user-app` project and protected against
+  overwriting existing evidence; see ACCESSIBILITY_TESTING.md before running it.
+- `e2e/tests/user/accessibility-utils.spec.ts` — regression tests for the
+  `checkA11y`/keyboard helpers themselves (`e2e/utils/accessibility.ts`), run
+  via `playwright.utilities.config.ts`, not the main `playwright.config.ts`.
 
 ### Admin test suites
 
@@ -435,7 +540,7 @@ Guideline:
 
 ## Network Mocking Pattern
 
-Used in `e2e/tests/user/purchase-flow.spec.ts` via `page.route()`.
+Used in `e2e/tests/user/purchase-flow-a11y.spec.ts` via `page.route()`.
 
 Why this pattern is used:
 
@@ -515,6 +620,14 @@ Useful for step-by-step debugging, locator inspection, and quick retries.
 
 - Use `npm run e2e:report` to open the correct configured report path.
 
+### Baseline collector refuses to run
+
+- This is expected when committed evidence already exists in
+  `e2e/accessibility-reports/before/`.
+- Use `npm run test:a11y:after` for a remediation re-scan.
+- Use `A11Y_ALLOW_OVERWRITE=true` only for an intentional, reviewed evidence
+  replacement; never use it to make a normal local run pass.
+
 ---
 
 ## How to Add New E2E Tests
@@ -550,3 +663,12 @@ test.describe('Feature Name', () => {
 
 If you keep selectors stable, isolate data per test, and use fixtures intentionally,
 this suite stays fast, readable, and reliable for both local development and CI.
+
+## Current CI Boundary
+
+The current frontend workflow runs Nx affected lint, unit tests, and builds.
+It does not run Playwright E2E, the four accessibility flows, Pa11y, or browser
+artifact upload. All commands in this guide are supported locally, but E2E/a11y
+results must be recorded manually in pull requests until a dedicated CI job is
+implemented. See `ACCESSIBILITY_TESTING.md` for the target accessibility CI
+policy.

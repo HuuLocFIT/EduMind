@@ -340,6 +340,7 @@ test.describe('@a11y-purchase Flow 3 checkout acceptance', () => {
     await page.getByRole('radio', { name: /PayPal/ }).check();
     await page.getByRole('button', { name: /Complete Order|Pay Now/ }).click();
     await page.waitForURL(/\/checkout\/failed/);
+    await expect(page).toHaveTitle('Payment Failed | EduMind');
     const heading = page.getByRole('heading', { level: 1, name: 'Payment Failed' });
     await expect(heading).toBeFocused();
     await expect(page.getByRole('button', { name: 'Try Again' })).toBeVisible();

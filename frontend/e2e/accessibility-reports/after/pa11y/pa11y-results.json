@@ -1,0 +1,195 @@
+{
+  "generatedAt": "2026-08-09T04:09:05.991Z",
+  "standard": "WCAG2AA",
+  "baseUrl": "http://localhost:3000",
+  "results": [
+    {
+      "documentTitle": "Learn with AI-Powered Education | EduMind",
+      "pageUrl": "http://localhost:3000/",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(4) > div > div:nth-child(2) > div > article > a > div > span:nth-child(2)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(4) > div > div:nth-child(2) > div > article > a > div > span:nth-child(4)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(5) > div > div:nth-child(2) > div > article > a > div > span:nth-child(2)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div > section:nth-child(5) > div > div:nth-child(2) > div > article > a > div > span:nth-child(4)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/",
+      "name": "home"
+    },
+    {
+      "documentTitle": "Browse Courses | EduMind",
+      "pageUrl": "http://localhost:3000/courses",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div:nth-child(1) > div > div:nth-child(2) > section > div:nth-child(4) > div > article > a > div > span:nth-child(2)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 1.47:1. Recommendation:  change text colour to #73777d.",
+          "context": "<span class=\"text-gray-300 mx-1\">•</span>",
+          "selector": "#main-content > div:nth-child(1) > div > div:nth-child(2) > section > div:nth-child(4) > div > article > a > div > span:nth-child(4)",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/courses",
+      "name": "courses"
+    },
+    {
+      "documentTitle": "Accessible Web Foundations | EduMind",
+      "pageUrl": "http://localhost:3000/courses/pa11y-accessibility-fixture",
+      "issues": [],
+      "route": "/courses/pa11y-accessibility-fixture",
+      "name": "course-detail"
+    },
+    {
+      "documentTitle": "Sign In | EduMind",
+      "pageUrl": "http://localhost:3000/login",
+      "issues": [],
+      "route": "/login",
+      "name": "login"
+    },
+    {
+      "documentTitle": "Create Account | EduMind",
+      "pageUrl": "http://localhost:3000/signup",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_3.1_3_5.H98",
+          "type": "error",
+          "typeCode": 1,
+          "message": "Invalid autocomplete value: username. Element does not belong to Text control group.",
+          "context": "<input id=\"signup-username\" class=\"w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 border-gray-300 hover:border-gray-400\" aria-invalid=\"false\" placehold...",
+          "selector": "#signup-username",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#main-content > div > div:nth-child(2) > div > form > div:nth-child(1) > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#main-content > div > div:nth-child(2) > div > form > div:nth-child(2) > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        },
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#main-content > div > div:nth-child(2) > div > form > div:nth-child(3) > div > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/signup",
+      "name": "signup"
+    },
+    {
+      "documentTitle": "Forgot Password | EduMind",
+      "pageUrl": "http://localhost:3000/forgot-password",
+      "issues": [
+        {
+          "code": "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+          "type": "error",
+          "typeCode": 1,
+          "message": "This element has insufficient contrast at this conformance level. Expected a contrast ratio of at least 4.5:1, but text in this element has a contrast ratio of 3.76:1. Recommendation:  change text colour to #de3333.",
+          "context": "<span aria-hidden=\"true\" class=\"text-red-500 ml-1\">*</span>",
+          "selector": "#main-content > div > div:nth-child(2) > form > div > label > span",
+          "runner": "htmlcs",
+          "runnerExtras": {},
+          "typeLabel": "Error"
+        }
+      ],
+      "route": "/forgot-password",
+      "name": "forgot-password"
+    },
+    {
+      "name": "reset-password-missing-token",
+      "route": "/reset-password",
+      "pageUrl": "http://localhost:3000/reset-password",
+      "issues": [],
+      "scanError": "TimeoutError: Waiting failed: 30000ms exceeded\n    at new WaitTask (file:///Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/puppeteer-core/lib/puppeteer/common/WaitTask.js:46:34)\n    at IsolatedWorld.waitForFunction (file:///Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/puppeteer-core/lib/puppeteer/api/Realm.js:49:26)\n    at CdpFrame.waitForFunction (file:///Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:580:43)\n    at CdpFrame.<anonymous> (file:///Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/puppeteer-core/lib/puppeteer/util/decorators.js:101:27)\n    at CdpPage.waitForFunction (file:///Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1447:37)\n    at Object.run (/Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/pa11y/lib/action.js:243:15)\n    at runAction (/Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/pa11y/lib/action.js:29:15)\n    at runActionsList (/Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/pa11y/lib/pa11y.js:285:10)\n    at runPa11yTest (/Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/pa11y/lib/pa11y.js:91:8)\n    at async pa11y (/Users/nguyenloc2310/Web/Interview/Projects/edumind/frontend/node_modules/pa11y/lib/pa11y.js:54:18)"
+    },
+    {
+      "documentTitle": "Payment Confirmation | EduMind",
+      "pageUrl": "http://localhost:3000/checkout/success?order=PA11Y-ORDER-001",
+      "issues": [],
+      "route": "/checkout/success?order=PA11Y-ORDER-001",
+      "name": "checkout-success"
+    },
+    {
+      "documentTitle": "Payment Declined | EduMind",
+      "pageUrl": "http://localhost:3000/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true",
+      "issues": [],
+      "route": "/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true",
+      "name": "checkout-failed"
+    }
+  ]
+}

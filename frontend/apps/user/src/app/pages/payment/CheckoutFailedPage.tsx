@@ -4,6 +4,7 @@ import { Card, Button } from "@edumind/user-ui";
 import { XCircle, RefreshCw, ArrowLeft, HelpCircle, Ban, AlertTriangle, CreditCard } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useCancelPayment } from "../../hooks/useCheckout";
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 type FailureContent = {
   title: string;
@@ -77,8 +78,15 @@ export const CheckoutFailedPage: React.FC = () => {
   const iconStyle = isCancelledByUser ? "bg-yellow-100 text-yellow-700" : isEnrollmentFailure || isRefundPending ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700";
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="max-w-md w-full p-8 text-center">
+    <>
+      <SeoMetaTags
+        title={content.title}
+        description={content.message}
+        canonicalUrl="/checkout/failed"
+        noIndex
+      />
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center">
         <div aria-hidden="true" className={`w-16 h-16 ${iconStyle} rounded-full flex items-center justify-center mx-auto mb-6`}>
           <Icon className="w-8 h-8" />
         </div>
@@ -148,8 +156,9 @@ export const CheckoutFailedPage: React.FC = () => {
             Contact Support
           </a>
         </div>
-      </Card>
-    </main>
+        </Card>
+      </main>
+    </>
   );
 };
 

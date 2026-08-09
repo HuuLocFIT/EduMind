@@ -43,6 +43,12 @@ export default defineConfig({
     {
       name: 'user-app',
       testMatch: 'tests/user/**/*.spec.ts',
+      // One-shot evidence collection and app-independent utility regression
+      // have dedicated configs and must never run as part of routine E2E.
+      testIgnore: [
+        '**/baseline-a11y.spec.ts',
+        '**/accessibility-utils.spec.ts',
+      ],
       use: {
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3000',
