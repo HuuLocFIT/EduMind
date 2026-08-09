@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { Shield, ArrowLeft, Key } from "lucide-react";
@@ -38,6 +38,22 @@ export const TwoFactorRecoveryPage = () => {
       backupCode: "",
     },
   });
+
+  const backupCodeInputRef = useRef<HTMLInputElement | null>(null);
+  const { ref: backupCodeRegisterRef, ...backupCodeRegisterRest } = register(
+    "backupCode",
+    {
+      required: "Backup code is required",
+      pattern: {
+        value: /^[A-Z0-9]{8}$/,
+        message: "Backup code must be 8 characters (letters and numbers)",
+      },
+    }
+  );
+
+  useEffect(() => {
+    backupCodeInputRef.current?.focus();
+  }, []);
 
   const onSubmit = async (data: RecoveryFormData) => {
     if (!loginData) {
@@ -123,24 +139,22 @@ export const TwoFactorRecoveryPage = () => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="backup-code" className="block text-sm font-medium text-gray-700 mb-2">
                 Backup Code
               </label>
               <input
+                id="backup-code"
                 type="text"
                 placeholder="Enter backup code"
-                {...register("backupCode", {
-                  required: "Backup code is required",
-                  pattern: {
-                    value: /^[A-Z0-9]{8}$/,
-                    message: "Backup code must be 8 characters (letters and numbers)",
-                  },
-                })}
+                {...backupCodeRegisterRest}
+                ref={(el) => {
+                  backupCodeRegisterRef(el);
+                  backupCodeInputRef.current = el;
+                }}
                 className={`w-full px-4 py-3 border rounded-lg text-center text-lg tracking-wider font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase ${
                   errors.backupCode ? "border-red-500" : "border-gray-300"
                 }`}
                 maxLength={8}
-                autoFocus
                 autoComplete="off"
               />
               {errors.backupCode && (

@@ -63,6 +63,21 @@ export const STALE_TIME_TEACHER_COURSES = 2 * 60 * 1000; // 2 minutes
  */
 export const STALE_TIME_TEACHER_REVIEWS = 2 * 60 * 1000; // 2 minutes
 
+/**
+ * Lesson quiz + a student's own attempts
+ * Cache for 5 minutes so revisiting a quiz lesson in the same session
+ * doesn't refetch/re-show a loading state; attempts are patched into the
+ * cache directly on submit instead of relying on staleness.
+ */
+export const STALE_TIME_QUIZ = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * AI-generated lesson summary
+ * Cache for 5 minutes so revisiting a lesson in the same session renders
+ * the summary instantly instead of re-showing a loading state.
+ */
+export const STALE_TIME_LESSON_SUMMARY = 5 * 60 * 1000; // 5 minutes
+
 // ============================================
 // Retry Configuration
 // ============================================

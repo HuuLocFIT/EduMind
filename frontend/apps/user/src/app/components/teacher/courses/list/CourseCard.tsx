@@ -101,8 +101,16 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           {menuOpen && (
             <>
               <div
+                role="button"
+                tabIndex={0}
                 className="fixed inset-0 z-10"
                 onClick={() => setMenuOpen(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setMenuOpen(false);
+                  }
+                }}
               />
               <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-20">
                 <button
@@ -249,8 +257,16 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             {menuOpen && (
               <>
                 <div
+                  role="button"
+                  tabIndex={0}
                   className="fixed inset-0 z-40"
                   onClick={() => setMenuOpen(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setMenuOpen(false);
+                    }
+                  }}
                 />
                 <div className="absolute right-0 bottom-full mb-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
                   <button

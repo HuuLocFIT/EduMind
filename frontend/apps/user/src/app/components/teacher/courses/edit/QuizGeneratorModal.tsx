@@ -136,8 +136,9 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
   return (
     <div className="border-2 border-purple-300 rounded-lg overflow-hidden">
       <div className="p-4 bg-purple-50">
-        <label className="block text-xs font-medium text-gray-500 mb-1">Question</label>
+        <label htmlFor={`question-text-${qi}`} className="block text-xs font-medium text-gray-500 mb-1">Question</label>
         <textarea
+          id={`question-text-${qi}`}
           className="w-full text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
           rows={2}
           value={localDraft.question}
@@ -145,9 +146,9 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
         />
       </div>
       <div className="p-4 space-y-2">
-        <label className="block text-xs font-medium text-gray-500 mb-1">
+        <p className="block text-xs font-medium text-gray-500 mb-1">
           Options — select the correct answer
-        </label>
+        </p>
         {localDraft.options.map((opt: string, oi: number) => (
           <div key={oi} className="flex items-center gap-3">
             <input
@@ -172,8 +173,9 @@ function QuestionCardEditable({ q, qi, draft, onEdit, onCancel, onSave, saving }
         ))}
       </div>
       <div className="px-4 pb-3 border-t border-purple-100 pt-3">
-        <label className="block text-xs font-medium text-gray-500 mb-1">Explanation</label>
+        <label htmlFor={`question-explanation-${qi}`} className="block text-xs font-medium text-gray-500 mb-1">Explanation</label>
         <textarea
+          id={`question-explanation-${qi}`}
           className="w-full text-sm text-gray-700 bg-white border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
           rows={2}
           value={localDraft.explanation ?? ""}
@@ -510,7 +512,7 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
             {hasMultiSelector && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">Source Lessons</label>
+                  <p className="block text-sm font-medium text-gray-700">Source Lessons</p>
                   {selectedSourceIds.length > 0 && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
                       {selectedSourceIds.length} lesson{selectedSourceIds.length !== 1 ? "s" : ""} selected
@@ -536,11 +538,12 @@ export const QuizGeneratorModal: React.FC<QuizGeneratorModalProps> = ({
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="quiz-question-count" className="block text-sm font-medium text-gray-700 mb-2">
                 Number of Questions
               </label>
               <div className="flex items-center gap-3">
                 <input
+                  id="quiz-question-count"
                   type="text"
                   inputMode="numeric"
                   value={questionCountInput}

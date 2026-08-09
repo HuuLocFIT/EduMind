@@ -49,7 +49,7 @@ const installMediaMocks = () => {
   Object.defineProperty(window.HTMLMediaElement.prototype, 'duration', {
     configurable: true,
     get: () => 100,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'volume', {
     configurable: true,
@@ -71,6 +71,7 @@ const installMediaMocks = () => {
   });
 
   const requestFullscreenMock = vi.fn(function (this: Element) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- capturing invocation context of Element.prototype.requestFullscreen mock; arrow fn can't bind `this`
     fullscreenElement = this;
     return Promise.resolve();
   });

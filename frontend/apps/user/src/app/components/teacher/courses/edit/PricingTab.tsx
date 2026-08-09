@@ -48,8 +48,9 @@ export const PricingTab: React.FC<PricingTabProps> = ({ course, onSave, saving }
       {!isFree && (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+            <label htmlFor="edit-course-currency" className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
             <select
+              id="edit-course-currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -60,8 +61,9 @@ export const PricingTab: React.FC<PricingTabProps> = ({ course, onSave, saving }
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Regular Price</label>
+            <label htmlFor="edit-course-price" className="block text-sm font-medium text-gray-700 mb-1">Regular Price</label>
             <Input
+              id="edit-course-price"
               type="text"
               inputMode="decimal"
               min={0}
@@ -75,10 +77,11 @@ export const PricingTab: React.FC<PricingTabProps> = ({ course, onSave, saving }
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="edit-course-discount-price" className="block text-sm font-medium text-gray-700 mb-1">
               Discount Price (optional)
             </label>
             <Input
+              id="edit-course-discount-price"
               type="text"
               inputMode="decimal"
               min={0}

@@ -18,7 +18,7 @@
       "orientationAngle": 0,
       "orientationType": "landscape-primary"
     },
-    "timestamp": "2026-07-31T04:03:00.970Z",
+    "timestamp": "2026-08-08T14:54:57.244Z",
     "url": "http://localhost:3000/courses/pa11y-accessibility-fixture",
     "toolOptions": {
       "runOnly": {
@@ -792,7 +792,7 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -825,9 +825,9 @@
               }
             ],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
-              "nav"
+              "nav[aria-label=\"Main navigation\"]"
             ]
           },
           {
@@ -924,6 +924,39 @@
               }
             ],
             "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
             "html": "<section aria-label=\"Course overview\" class=\"relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden\">",
             "target": [
               ".from-blue-600"
@@ -957,9 +990,42 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<nav aria-label=\"Breadcrumb\">",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              "nav[aria-label=\"Breadcrumb\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -1290,6 +1356,39 @@
             "html": "<div role=\"tabpanel\" id=\"_r_0_-panel-overview\" aria-labelledby=\"_r_0_-tab-overview\" tabindex=\"0\" class=\"outline-none\">",
             "target": [
               "#_r_0_-panel-overview"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-allowed-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attributes are used correctly for the defined role"
+              },
+              {
+                "id": "aria-allowed-attr-elm",
+                "data": null,
+                "relatedNodes": [],
+                "message": "ARIA attributes are allowed for this element",
+                "impact": "critical"
+              }
+            ],
+            "none": [
+              {
+                "id": "aria-unsupported-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<article aria-label=\"Lesson content\"><div class=\"article-viewer__content min-w-0\"><p>Learn semantic HTML, keyboard navigation, and accessible forms.</p></div></article>",
+            "target": [
+              "article"
             ]
           },
           {
@@ -1488,7 +1587,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -1506,9 +1605,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
-              "nav"
+              "nav[aria-label=\"Main navigation\"]"
             ]
           },
           {
@@ -1560,6 +1659,24 @@
             ],
             "none": [],
             "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
             "html": "<section aria-label=\"Course overview\" class=\"relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden\">",
             "target": [
               ".from-blue-600"
@@ -1578,9 +1695,27 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<nav aria-label=\"Breadcrumb\">",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              "nav[aria-label=\"Breadcrumb\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -1776,6 +1911,24 @@
             ],
             "none": [],
             "impact": null,
+            "html": "<article aria-label=\"Lesson content\"><div class=\"article-viewer__content min-w-0\"><p>Learn semantic HTML, keyboard navigation, and accessible forms.</p></div></article>",
+            "target": [
+              "article"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-conditional-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "none": [],
+            "impact": null,
             "html": "<aside aria-label=\"Course sidebar\" class=\"lg:col-span-1\">",
             "target": [
               "aside"
@@ -1884,9 +2037,27 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "deprecatedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "minor",
+                "message": "ARIA role is not deprecated"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -1920,7 +2091,7 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"tablist\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
+            "html": "<div role=\"tablist\" tabindex=\"-1\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
             "target": [
               ".mb-8"
             ]
@@ -2178,9 +2349,73 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div aria-hidden=\"true\" class=\"flex items-center gap-1\">",
+            "html": "<span aria-hidden=\"true\">",
             "target": [
-              ".gap-1.flex[aria-hidden=\"true\"]"
+              ".gap-2.flex[role=\"img\"] > span[aria-hidden=\"true\"]:nth-child(1)"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"text-lg font-semibold\">4.8</span>",
+            "target": [
+              ".text-lg.font-semibold[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"text-blue-200\">(0 reviews)</span>",
+            "target": [
+              ".text-blue-200"
             ]
           },
           {
@@ -2498,9 +2733,329 @@
             ],
             "none": [],
             "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".p-8.hover\\:shadow-lg.transition-shadow > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(1) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".p-8.hover\\:shadow-lg.transition-shadow > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(2) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
             "html": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-star w-16 h-16 text-gray-400 mx-auto mb-4\" aria-hidden=\"true\" focusable=\"false\">",
             "target": [
               ".p-12 > .text-gray-400.w-16.h-16"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<div aria-hidden=\"true\" class=\"w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xl flex-shrink-0\">E</div>",
+            "target": [
+              ".bg-blue-600.text-xl.w-16"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".gap-1\\.5:nth-child(1) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".gap-1\\.5:nth-child(2) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".gap-1\\.5:nth-child(3) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(1) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(2) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".text-gray-600:nth-child(3) > .contents[aria-hidden=\"true\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "focusable-modal-open",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements while a modal is open"
+              },
+              {
+                "id": "focusable-disabled",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              },
+              {
+                "id": "focusable-not-tabbable",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "No focusable elements contained within element"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<span aria-hidden=\"true\" class=\"contents\">",
+            "target": [
+              ".text-gray-600:nth-child(4) > .contents[aria-hidden=\"true\"]"
             ]
           }
         ]
@@ -2534,7 +3089,7 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -2552,9 +3107,9 @@
               }
             ],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
-              "nav"
+              "nav[aria-label=\"Main navigation\"]"
             ]
           },
           {
@@ -2606,6 +3161,24 @@
               }
             ],
             "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
             "html": "<section aria-label=\"Course overview\" class=\"relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden\">",
             "target": [
               ".from-blue-600"
@@ -2624,9 +3197,27 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<nav aria-label=\"Breadcrumb\">",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              "nav[aria-label=\"Breadcrumb\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -2822,6 +3413,24 @@
               }
             ],
             "impact": null,
+            "html": "<article aria-label=\"Lesson content\"><div class=\"article-viewer__content min-w-0\"><p>Learn semantic HTML, keyboard navigation, and accessible forms.</p></div></article>",
+            "target": [
+              "article"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "aria-prohibited-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "ARIA attribute is allowed"
+              }
+            ],
+            "impact": null,
             "html": "<aside aria-label=\"Course sidebar\" class=\"lg:col-span-1\">",
             "target": [
               "aside"
@@ -2930,9 +3539,27 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              ".fixed"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-required-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "All required ARIA attributes are present"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -2966,7 +3593,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div role=\"tablist\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
+            "html": "<div role=\"tablist\" tabindex=\"-1\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
             "target": [
               ".mb-8"
             ]
@@ -3074,7 +3701,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div role=\"tablist\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
+            "html": "<div role=\"tablist\" tabindex=\"-1\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
             "target": [
               ".mb-8"
             ]
@@ -3196,9 +3823,41 @@
               }
             ],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              ".fixed"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "invalidrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is valid"
+              },
+              {
+                "id": "abstractrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Abstract roles are not used"
+              },
+              {
+                "id": "unsupportedrole",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA role is supported"
+              }
+            ],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -3260,7 +3919,7 @@
               }
             ],
             "impact": null,
-            "html": "<div role=\"tablist\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
+            "html": "<div role=\"tablist\" tabindex=\"-1\" class=\"inline-flex items-center gap-1 border-b border-gray-200 mb-8 bg-white rounded-t-lg w-full\">",
             "target": [
               ".mb-8"
             ]
@@ -3438,7 +4097,7 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -3470,9 +4129,9 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
-              "nav"
+              "nav[aria-label=\"Main navigation\"]"
             ]
           },
           {
@@ -3566,6 +4225,38 @@
             ],
             "none": [],
             "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
             "html": "<section aria-label=\"Course overview\" class=\"relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden\">",
             "target": [
               ".from-blue-600"
@@ -3598,9 +4289,41 @@
             ],
             "none": [],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<nav aria-label=\"Breadcrumb\">",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              "nav[aria-label=\"Breadcrumb\"]"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -3921,6 +4644,38 @@
             "html": "<div role=\"tabpanel\" id=\"_r_0_-panel-overview\" aria-labelledby=\"_r_0_-tab-overview\" tabindex=\"0\" class=\"outline-none\">",
             "target": [
               "#_r_0_-panel-overview"
+            ]
+          },
+          {
+            "any": [],
+            "all": [
+              {
+                "id": "aria-valid-attr-value",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute values are valid"
+              },
+              {
+                "id": "aria-errormessage",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+              },
+              {
+                "id": "aria-level",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "aria-level values are valid"
+              }
+            ],
+            "none": [],
+            "impact": null,
+            "html": "<article aria-label=\"Lesson content\"><div class=\"article-viewer__content min-w-0\"><p>Learn semantic HTML, keyboard navigation, and accessible forms.</p></div></article>",
+            "target": [
+              "article"
             ]
           },
           {
@@ -4114,7 +4869,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" aria-atomic=\"true\"></div>",
+            "html": "<div class=\"fixed top-20 right-4 z-[9999] flex flex-col gap-2 pointer-events-none\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
             "target": [
               ".fixed"
             ]
@@ -4132,9 +4887,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<nav aria-label=\"Main navigation\" class=\"bg-white border-b sticky top-0 z-50\">",
+            "html": "<nav aria-label=\"Main navigation\">",
             "target": [
-              "nav"
+              "nav[aria-label=\"Main navigation\"]"
             ]
           },
           {
@@ -4186,6 +4941,24 @@
             "all": [],
             "none": [],
             "impact": null,
+            "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
+            "target": [
+              "#main-content"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
             "html": "<section aria-label=\"Course overview\" class=\"relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white overflow-hidden\">",
             "target": [
               ".from-blue-600"
@@ -4204,9 +4977,27 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<nav aria-label=\"Breadcrumb\">",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              "nav[aria-label=\"Breadcrumb\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
+            "target": [
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -4387,6 +5178,24 @@
             "html": "<div role=\"tabpanel\" id=\"_r_0_-panel-overview\" aria-labelledby=\"_r_0_-tab-overview\" tabindex=\"0\" class=\"outline-none\">",
             "target": [
               "#_r_0_-panel-overview"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "aria-valid-attr",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "ARIA attribute name is valid"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<article aria-label=\"Lesson content\"><div class=\"article-viewer__content min-w-0\"><p>Learn semantic HTML, keyboard navigation, and accessible forms.</p></div></article>",
+            "target": [
+              "article"
             ]
           },
           {
@@ -4696,24 +5505,6 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button type=\"button\" class=\"group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70\">",
-            "target": [
-              ".group"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "button-has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "critical",
-                "message": "Element has inner text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
             "html": "<button class=\"inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md px-6 py-3 text-lg w-full\" ...>",
             "target": [
               ".hover\\:bg-blue-700.px-6.py-3"
@@ -4834,13 +5625,6 @@
           {
             "any": [
               {
-                "id": "internal-link-present",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Valid skip link found"
-              },
-              {
                 "id": "header-present",
                 "data": null,
                 "relatedNodes": [
@@ -4853,25 +5637,25 @@
                   {
                     "html": "<h2 class=\"font-semibold text-gray-900 mb-4 text-lg\">This course includes:</h2>",
                     "target": [
-                      ".pt-6 > .mb-4"
+                      ".mb-4.text-lg"
                     ]
                   },
                   {
                     "html": "<h2 class=\"text-3xl font-bold text-gray-900 mb-6\">About this course</h2>",
                     "target": [
-                      ".space-y-6 > .p-8.hover\\:shadow-lg.transition-shadow > .text-3xl"
+                      ".space-y-6 > .p-8.hover\\:shadow-lg.transition-shadow > .text-3xl.font-bold"
                     ]
                   },
                   {
-                    "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1\">EduMind Accessibility Team</h3>",
+                    "html": "<h2 class=\"font-semibold text-lg text-gray-900 mb-1\">Instructor: EduMind Accessibility Team</h2>",
                     "target": [
-                      ".mb-1"
+                      ".flex-1 > .mb-1.text-lg"
                     ]
                   },
                   {
-                    "html": "<h3 class=\"font-semibold text-gray-900 mb-6 text-lg\">Course Stats</h3>",
+                    "html": "<h2 class=\"font-semibold text-gray-900 mb-1 text-lg\">Course Stats</h2>",
                     "target": [
-                      ".hover\\:shadow-lg.transition-shadow.rounded-xl > h3"
+                      ".hover\\:shadow-lg.transition-shadow.rounded-xl > .mb-1.text-lg"
                     ]
                   },
                   {
@@ -4901,7 +5685,7 @@
                 "data": null,
                 "relatedNodes": [
                   {
-                    "html": "<main id=\"main-content\" tabindex=\"-1\" class=\"flex-1 flex flex-col\">",
+                    "html": "<main id=\"main-content\" aria-label=\"Main content\" tabindex=\"-1\" class=\"scroll-mt-16 flex-1 flex flex-col focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-blue-600\">",
                     "target": [
                       "#main-content"
                     ]
@@ -5162,32 +5946,7 @@
             "impact": null,
             "html": "<h2 class=\"font-semibold text-gray-900 mb-4 text-lg\">This course includes:</h2>",
             "target": [
-              ".pt-6 > .mb-4"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "color-contrast",
-                "data": {
-                  "fgColor": "#4b5563",
-                  "bgColor": "#ffffff",
-                  "contrastRatio": 7.55,
-                  "fontSize": "10.5pt (14px)",
-                  "fontWeight": "normal",
-                  "expectedContrastRatio": "4.5:1"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has sufficient color contrast of 7.55"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<ul class=\"space-y-3 text-sm text-gray-600\">",
-            "target": [
-              ".pt-6 > .space-y-3"
+              ".mb-4.text-lg"
             ]
           },
           {
@@ -5362,7 +6121,7 @@
             "impact": null,
             "html": "<h2 class=\"text-3xl font-bold text-gray-900 mb-6\">About this course</h2>",
             "target": [
-              ".space-y-6 > .p-8.hover\\:shadow-lg.transition-shadow > .text-3xl"
+              ".space-y-6 > .p-8.hover\\:shadow-lg.transition-shadow > .text-3xl.font-bold"
             ]
           },
           {
@@ -5410,7 +6169,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xl flex-shrink-0\">E</div>",
+            "html": "<div aria-hidden=\"true\" class=\"w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xl flex-shrink-0\">E</div>",
             "target": [
               ".bg-blue-600.text-xl.w-16"
             ]
@@ -5435,9 +6194,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<h3 class=\"font-semibold text-lg text-gray-900 mb-1\">EduMind Accessibility Team</h3>",
+            "html": "<h2 class=\"font-semibold text-lg text-gray-900 mb-1\">Instructor: EduMind Accessibility Team</h2>",
             "target": [
-              ".mb-1"
+              ".flex-1 > .mb-1.text-lg"
             ]
           },
           {
@@ -5462,7 +6221,7 @@
             "impact": null,
             "html": "<span class=\"font-semibold text-gray-900\">25</span>",
             "target": [
-              ".gap-1\\.5.flex.items-center:nth-child(1) > .font-semibold.text-gray-900"
+              ".gap-1\\.5:nth-child(1) > .contents[aria-hidden=\"true\"] > .font-semibold.text-gray-900"
             ]
           },
           {
@@ -5487,7 +6246,7 @@
             "impact": null,
             "html": "<span class=\"text-xs tracking-wide text-gray-500\">students</span>",
             "target": [
-              ".gap-1\\.5.flex.items-center:nth-child(1) > .tracking-wide.text-xs.text-gray-500"
+              ".gap-1\\.5:nth-child(1) > .contents[aria-hidden=\"true\"] > .tracking-wide.text-xs.text-gray-500"
             ]
           },
           {
@@ -5512,7 +6271,7 @@
             "impact": null,
             "html": "<span class=\"font-semibold text-gray-900\">1</span>",
             "target": [
-              ".gap-1\\.5.flex.items-center:nth-child(2) > .font-semibold.text-gray-900"
+              ".gap-1\\.5:nth-child(2) > .contents[aria-hidden=\"true\"] > .font-semibold.text-gray-900"
             ]
           },
           {
@@ -5537,7 +6296,7 @@
             "impact": null,
             "html": "<span class=\"text-xs tracking-wide text-gray-500\">courses</span>",
             "target": [
-              ".gap-1\\.5.flex.items-center:nth-child(2) > .tracking-wide.text-xs.text-gray-500"
+              ".gap-1\\.5:nth-child(2) > .contents[aria-hidden=\"true\"] > .tracking-wide.text-xs.text-gray-500"
             ]
           },
           {
@@ -5562,7 +6321,7 @@
             "impact": null,
             "html": "<span class=\"font-semibold text-gray-900\">4.8</span>",
             "target": [
-              ".gap-1\\.5.flex.items-center:nth-child(3) > .font-semibold.text-gray-900"
+              ".gap-1\\.5:nth-child(3) > .contents[aria-hidden=\"true\"] > .font-semibold.text-gray-900"
             ]
           },
           {
@@ -5587,7 +6346,7 @@
             "impact": null,
             "html": "<span class=\"text-xs text-gray-500\">(0 reviews)</span>",
             "target": [
-              ".gap-1\\.5.flex.items-center:nth-child(3) > .text-xs.text-gray-500"
+              ".gap-1\\.5:nth-child(3) > .contents[aria-hidden=\"true\"] > .text-xs.text-gray-500"
             ]
           },
           {
@@ -5610,9 +6369,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<h3 class=\"font-semibold text-gray-900 mb-6 text-lg\">Course Stats</h3>",
+            "html": "<h2 class=\"font-semibold text-gray-900 mb-1 text-lg\">Course Stats</h2>",
             "target": [
-              ".hover\\:shadow-lg.transition-shadow.rounded-xl > h3"
+              ".hover\\:shadow-lg.transition-shadow.rounded-xl > .mb-1.text-lg"
             ]
           },
           {
@@ -5635,9 +6394,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"font-semibold text-gray-900\">25</p>",
+            "html": "<span class=\"block font-semibold text-gray-900\">25</span>",
             "target": [
-              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600.gap-2.flex:nth-child(1) > div > p:nth-child(1)"
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(1) > .contents[aria-hidden=\"true\"] > span > .block.font-semibold.text-gray-900"
             ]
           },
           {
@@ -5660,9 +6419,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"text-sm\">Students</p>",
+            "html": "<span class=\"block text-sm\">Students</span>",
             "target": [
-              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600.gap-2.flex:nth-child(1) > div > p:nth-child(2)"
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(1) > .contents[aria-hidden=\"true\"] > span > .block.text-sm"
             ]
           },
           {
@@ -5685,9 +6444,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"font-semibold text-gray-900\">2h</p>",
+            "html": "<span class=\"block font-semibold text-gray-900\">2h</span>",
             "target": [
-              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600.gap-2.flex:nth-child(2) > div > p:nth-child(1)"
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(2) > .contents[aria-hidden=\"true\"] > span > .block.font-semibold.text-gray-900"
             ]
           },
           {
@@ -5710,9 +6469,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"text-sm\">Duration</p>",
+            "html": "<span class=\"block text-sm\">Duration</span>",
             "target": [
-              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600.gap-2.flex:nth-child(2) > div > p:nth-child(2)"
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(2) > .contents[aria-hidden=\"true\"] > span > .block.text-sm"
             ]
           },
           {
@@ -5735,9 +6494,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"font-semibold text-gray-900\">0</p>",
+            "html": "<span class=\"block font-semibold text-gray-900\">0</span>",
             "target": [
-              ".text-gray-600.gap-2.flex:nth-child(3) > div > p:nth-child(1)"
+              ".text-gray-600:nth-child(3) > .contents[aria-hidden=\"true\"] > span > .block.font-semibold.text-gray-900"
             ]
           },
           {
@@ -5760,9 +6519,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"text-sm\">Lessons</p>",
+            "html": "<span class=\"block text-sm\">Lessons</span>",
             "target": [
-              ".text-gray-600.gap-2.flex:nth-child(3) > div > p:nth-child(2)"
+              ".text-gray-600:nth-child(3) > .contents[aria-hidden=\"true\"] > span > .block.text-sm"
             ]
           },
           {
@@ -5785,9 +6544,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"font-semibold text-gray-900\">4.8</p>",
+            "html": "<span class=\"block font-semibold text-gray-900\">4.8</span>",
             "target": [
-              ".text-gray-600.gap-2.flex:nth-child(4) > div > p:nth-child(1)"
+              ".text-gray-600:nth-child(4) > .contents[aria-hidden=\"true\"] > span > .block.font-semibold.text-gray-900"
             ]
           },
           {
@@ -5810,9 +6569,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<p class=\"text-sm\">Rating</p>",
+            "html": "<span class=\"block text-sm\">Rating</span>",
             "target": [
-              ".text-gray-600.gap-2.flex:nth-child(4) > div > p:nth-child(2)"
+              ".text-gray-600:nth-child(4) > .contents[aria-hidden=\"true\"] > span > .block.text-sm"
             ]
           },
           {
@@ -6010,9 +6769,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
+            "html": "<span>Help Center</span>",
             "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
+              ".space-y-1\\.5.sm\\:space-y-2 > li:nth-child(1) > span"
             ]
           },
           {
@@ -6035,9 +6794,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
+            "html": "<span>Contact Us</span>",
             "target": [
-              "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
+              "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > span"
             ]
           },
           {
@@ -6060,9 +6819,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
+            "html": "<span>FAQ</span>",
             "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
+              ".space-y-1\\.5.sm\\:space-y-2 > li:nth-child(3) > span"
             ]
           },
           {
@@ -6135,9 +6894,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
+            "html": "<span>Privacy Policy</span>",
             "target": [
-              "section[aria-labelledby=\"footer-legal\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
+              "section[aria-labelledby=\"footer-legal\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > span"
             ]
           },
           {
@@ -6334,6 +7093,24 @@
             "any": [
               {
                 "id": "duplicate-id-aria",
+                "data": "review-list-heading",
+                "relatedNodes": [],
+                "impact": "critical",
+                "message": "Document has no elements referenced with ARIA or labels that share the same id attribute"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<h3 id=\"review-list-heading\" class=\"sr-only\">Course review list</h3>",
+            "target": [
+              "#review-list-heading"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "duplicate-id-aria",
                 "data": "footer-courses",
                 "relatedNodes": [],
                 "impact": "critical",
@@ -6508,7 +7285,7 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
+            "html": "<a href=\"/courses/pa11y-accessibility-fixture#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
             "target": [
               ".focus\\:not-sr-only"
             ]
@@ -6563,6 +7340,32 @@
             "html": "<a class=\"transition-colors text-blue-600 font-medium\" href=\"/courses\">Browse Courses</a>",
             "target": [
               ".font-medium.transition-colors[href$=\"courses\"]"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "has-visible-text",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element has text that is visible to screen readers"
+              }
+            ],
+            "all": [],
+            "none": [
+              {
+                "id": "focusable-no-name",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "Element is not in tab order or has accessible text"
+              }
+            ],
+            "impact": null,
+            "html": "<a class=\"group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70\" href=\"/courses\">",
+            "target": [
+              ".group"
             ]
           },
           {
@@ -6664,120 +7467,16 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
-            "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
-            "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
             "html": "<a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a>",
             "target": [
               "a[href$=\"terms\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "has-visible-text",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element has text that is visible to screen readers"
-              }
-            ],
-            "all": [],
-            "none": [
-              {
-                "id": "focusable-no-name",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element is not in tab order or has accessible text"
-              }
-            ],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-legal\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
             ]
           }
         ]
       },
       {
         "id": "list",
-        "impact": "serious",
+        "impact": null,
         "tags": [
           "cat.structure",
           "wcag2a",
@@ -6791,6 +7490,60 @@
         "help": "<ul> and <ol> must only directly contain <li>, <script> or <template> elements",
         "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/list?application=playwright",
         "nodes": [
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "only-listitems",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List element only has direct children that are allowed inside <li> elements"
+              }
+            ],
+            "impact": null,
+            "html": "<ul class=\"space-y-3 text-sm text-gray-600\">",
+            "target": [
+              ".pt-6 > .space-y-3"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "only-listitems",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List element only has direct children that are allowed inside <li> elements"
+              }
+            ],
+            "impact": null,
+            "html": "<ul class=\"mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600\">",
+            "target": [
+              ".mt-2"
+            ]
+          },
+          {
+            "any": [],
+            "all": [],
+            "none": [
+              {
+                "id": "only-listitems",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List element only has direct children that are allowed inside <li> elements"
+              }
+            ],
+            "impact": null,
+            "html": "<ul class=\"grid grid-cols-2 md:grid-cols-4 gap-4 \">",
+            "target": [
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid"
+            ]
+          },
           {
             "any": [],
             "all": [],
@@ -6822,7 +7575,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a href=\"#\" class=\"hover:text-blue-600\">Help Center</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">FAQ</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><span>Help Center</span></li><li><span>Contact Us</span></li><li><span>FAQ</span></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2"
             ]
@@ -6840,7 +7593,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a></li><li><a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a></li><li><span>Privacy Policy</span></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-legal\"] > .space-y-1\\.5.sm\\:space-y-2"
             ]
@@ -6930,6 +7683,132 @@
             "all": [],
             "none": [],
             "impact": null,
+            "html": "<li class=\"flex items-center gap-1.5\">",
+            "target": [
+              ".gap-1\\.5:nth-child(1)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<li class=\"flex items-center gap-1.5\">",
+            "target": [
+              ".gap-1\\.5:nth-child(2)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<li class=\"flex items-center gap-1.5\">",
+            "target": [
+              ".gap-1\\.5:nth-child(3)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<li class=\"flex items-center gap-2 text-gray-600\">",
+            "target": [
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(1)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<li class=\"flex items-center gap-2 text-gray-600\">",
+            "target": [
+              "aside > .hover\\:shadow-lg.transition-shadow.rounded-xl > .md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(2)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<li class=\"flex items-center gap-2 text-gray-600\">",
+            "target": [
+              ".md\\:grid-cols-4.grid-cols-2.grid > .text-gray-600:nth-child(3)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
+            "html": "<li class=\"flex items-center gap-2 text-gray-600\">",
+            "target": [
+              ".text-gray-600:nth-child(4)"
+            ]
+          },
+          {
+            "any": [
+              {
+                "id": "listitem",
+                "data": null,
+                "relatedNodes": [],
+                "impact": "serious",
+                "message": "List item has a <ul>, <ol> or role=\"list\" parent element"
+              }
+            ],
+            "all": [],
+            "none": [],
+            "impact": null,
             "html": "<li><a class=\"hover:text-blue-600\" href=\"/courses\">Browse All</a></li>",
             "target": [
               "section[aria-labelledby=\"footer-courses\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(1)"
@@ -6984,7 +7863,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Help Center</a></li>",
+            "html": "<li><span>Help Center</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(1)"
             ]
@@ -7002,7 +7881,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a></li>",
+            "html": "<li><span>Contact Us</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2)"
             ]
@@ -7020,7 +7899,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">FAQ</a></li>",
+            "html": "<li><span>FAQ</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(3)"
             ]
@@ -7056,7 +7935,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a></li>",
+            "html": "<li><span>Privacy Policy</span></li>",
             "target": [
               "section[aria-labelledby=\"footer-legal\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2)"
             ]
@@ -7167,27 +8046,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button type=\"button\" class=\"group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70\">",
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
             "target": [
-              ".group"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "no-focusable-content",
-                "data": null,
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Element does not have focusable descendants"
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
-            "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -7352,9 +8213,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<div class=\"flex items-center gap-1 \" role=\"img\" aria-label=\"4.8 out of 5 stars\">",
+            "html": "<div class=\"flex items-center gap-2\" role=\"img\" aria-label=\"4.8 out of 5 stars from 0 reviews\">",
             "target": [
-              "div[aria-label=\"4.8 out of 5 stars\"]"
+              ".gap-2.flex[role=\"img\"]"
             ]
           },
           {
@@ -7405,7 +8266,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
+            "html": "<a href=\"/courses/pa11y-accessibility-fixture#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400\">Skip to main content</a>",
             "target": [
               ".focus\\:not-sr-only"
             ]
@@ -7576,7 +8437,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<button type=\"button\" class=\"group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70\">",
+            "html": "<a class=\"group inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70\" href=\"/courses\">",
             "target": [
               ".group"
             ]
@@ -7852,93 +8713,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Help Center</a>",
-            "target": [
-              "li:nth-child(1) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Contact Us</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-support\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">FAQ</a>",
-            "target": [
-              "li:nth-child(3) > .hover\\:text-blue-600[href=\"#\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
             "html": "<a class=\"hover:text-blue-600\" href=\"/terms\">Terms of Service</a>",
             "target": [
               "a[href$=\"terms\"]"
-            ]
-          },
-          {
-            "any": [
-              {
-                "id": "target-offset",
-                "data": {
-                  "closestOffset": 24,
-                  "minOffset": 24
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "Target has sufficient space from its closest neighbors. Safe clickable space has a diameter of 24px which is at least 24px."
-              }
-            ],
-            "all": [],
-            "none": [],
-            "impact": null,
-            "html": "<a href=\"#\" class=\"hover:text-blue-600\">Privacy Policy</a>",
-            "target": [
-              "section[aria-labelledby=\"footer-legal\"] > .space-y-1\\.5.sm\\:space-y-2 > li:nth-child(2) > .hover\\:text-blue-600[href=\"#\"]"
             ]
           }
         ]
@@ -7983,9 +8760,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<span class=\"hidden sm:inline\">Back to Courses</span>",
+            "html": "<span>Back to Courses</span>",
             "target": [
-              ".sm\\:inline"
+              ".group > span"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -8083,9 +8860,9 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<span class=\"text-lg font-semibold\">4.8</span>",
+            "html": "<span aria-hidden=\"true\" class=\"text-lg font-semibold\">4.8</span>",
             "target": [
-              ".gap-2.flex.items-center:nth-child(1) > .text-lg.font-semibold"
+              ".text-lg.font-semibold[aria-hidden=\"true\"]"
             ],
             "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
           },
@@ -8108,7 +8885,7 @@
             "all": [],
             "none": [],
             "impact": "serious",
-            "html": "<span class=\"text-blue-200\">(0 reviews)</span>",
+            "html": "<span aria-hidden=\"true\" class=\"text-blue-200\">(0 reviews)</span>",
             "target": [
               ".text-blue-200"
             ],
@@ -8217,47 +8994,7 @@
         ]
       }
     ],
-    "violations": [
-      {
-        "id": "list",
-        "impact": "serious",
-        "tags": [
-          "cat.structure",
-          "wcag2a",
-          "wcag131",
-          "EN-301-549",
-          "EN-9.1.3.1",
-          "RGAAv4",
-          "RGAA-9.3.1"
-        ],
-        "description": "Ensure that lists are structured correctly",
-        "help": "<ul> and <ol> must only directly contain <li>, <script> or <template> elements",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/list?application=playwright",
-        "nodes": [
-          {
-            "any": [],
-            "all": [],
-            "none": [
-              {
-                "id": "only-listitems",
-                "data": {
-                  "values": "#text"
-                },
-                "relatedNodes": [],
-                "impact": "serious",
-                "message": "List element has direct children that are not allowed: #text"
-              }
-            ],
-            "impact": "serious",
-            "html": "<ul class=\"space-y-3 text-sm text-gray-600\">",
-            "target": [
-              ".pt-6 > .space-y-3"
-            ],
-            "failureSummary": "Fix all of the following:\n  List element has direct children that are not allowed: #text"
-          }
-        ]
-      }
-    ]
+    "violations": []
   },
   "keyboard": {
     "sequence": [
@@ -8268,9 +9005,12 @@
         "name": "Skip to main content",
         "hidden": false,
         "disabled": false,
-        "focusVisible": true
+        "focusVisible": true,
+        "focusIndicatorChanged": true
       }
     ],
-    "issues": []
+    "issues": [
+      "No focus-induced indicator (decorative shadows ignored): a[tabindex=\"0\"]:nth-of-type(1)"
+    ]
   }
 }

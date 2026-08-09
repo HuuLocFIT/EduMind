@@ -52,7 +52,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
   return (
     <article
-      className={`group relative flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm motion-safe:hover:shadow-xl motion-safe:hover:-translate-y-1 motion-safe:transition-all motion-safe:duration-300 transform-gpu z-0 focus-within:ring-2 focus-within:ring-blue-500 ${className}`}
+      className={`group relative flex flex-col h-full bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm motion-safe:hover:shadow-xl motion-safe:hover:-translate-y-1 motion-safe:transition-all motion-safe:duration-300 transform-gpu z-0 focus-within:ring-2 focus-within:ring-blue-500 ${className}`}
     >
       {/* Course Thumbnail */}
       <div className="relative h-44 sm:h-48 lg:h-52 bg-gray-200 overflow-hidden rounded-t-2xl">

@@ -149,6 +149,23 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       }
     }, [playing, showSettings, resetControlsTimer]);
 
+    // ── Reset transient playback state when the lesson's video source changes
+    // (no `key` remount at the call site anymore, so the same DOM <video>
+    // element persists across lessons and only needs its own state reset) ──
+
+    useEffect(() => {
+      setPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setBufferedEnd(0);
+      setIsBuffering(false);
+      setIsQualitySwitching(false);
+      setShowSettings(false);
+      setPlaybackToast(null);
+      setPlaybackToastVisible(false);
+      pendingSeekRef.current = null;
+    }, [src720p, src480p, fallbackSrc]);
+
     // ── Fullscreen sync ───────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -470,6 +487,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const seekValuetext = `${formatTime(currentTime)} of ${formatTime(duration)}`;
 
     return (
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- custom keyboard-accessible player widget; role="group" groups video+controls, handleKeyDown implements the documented arrow/space/m shortcuts
       <div
         ref={containerRef}
         role="group"
@@ -477,6 +495,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         className={`relative mx-auto w-full bg-black aspect-video max-h-[calc(100vh-180px)] xl:max-h-[calc(100vh-220px)] select-none outline-none group ${
           controlsVisible ? 'cursor-default' : 'cursor-none'
         }`}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- custom keyboard-accessible player widget; role="group" groups video+controls, tabIndex enables the documented arrow/space/m shortcuts
         tabIndex={0}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -485,6 +504,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         onKeyDown={handleKeyDown}
       >
         {/* ── Video element ── */}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- captions are added as a child <track> once captionBlobUrl loads (see below); component supports captionSrc prop */}
         <video
           ref={videoEl}
           src={currentSrc ?? undefined}

@@ -53,7 +53,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn(), prefetchQuery: vi.fn() }),
 }));
 
 vi.mock('../../../services/course.service', () => ({
@@ -208,17 +208,17 @@ const installMediaPrototypes = () => {
   Object.defineProperty(window.HTMLMediaElement.prototype, 'duration', {
     configurable: true,
     get: () => 100,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'volume', {
     configurable: true,
     get: () => 1,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'muted', {
     configurable: true,
     get: () => false,
-    set: () => {},
+    set: () => undefined,
   });
   Object.defineProperty(window.HTMLMediaElement.prototype, 'buffered', {
     configurable: true,
@@ -285,8 +285,8 @@ const renderPage = async () => {
 };
 
 const settlePage = async () => {
-  await act(async () => {});
-  await act(async () => {});
+  await act(async () => undefined);
+  await act(async () => undefined);
 };
 
 const advanceTimersAndFlush = async (ms: number) => {
@@ -354,6 +354,14 @@ describe('CoursePlayer accessibility', () => {
     const collapsedToggle = screen.getByRole('button', { name: /Practice/ });
     expect(collapsedToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('button', { name: /Knowledge check/ })).not.toBeInTheDocument();
+  });
+
+  it('announces the resulting section state when an accordion is toggled', async () => {
+    renderSidebar({ expandedSectionIds: [10] });
+
+    await userEvent.click(screen.getByRole('button', { name: /Introduction/ }));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Introduction collapsed');
   });
 
   it('renders mobile curriculum as a modal, traps focus, and closes on Escape', async () => {
@@ -573,14 +581,24 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     );
   });
 
-  it('renders an inline transcript when articleContent exists', async () => {
-    const { container } = await renderPage();
+  it('renders transcript actions without showing transcript text until requested', async () => {
+    const user = userEvent.setup();
+    await renderPage();
 
     expect(screen.getByRole('heading', { name: 'Transcript' })).toBeInTheDocument();
-    expect(screen.getByText('This is the video transcript.')).toBeInTheDocument();
+    expect(screen.queryByText('This is the video transcript.')).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole('button', { name: /Transcript Available for reference/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.getByRole('button', { name: 'Download transcript for Watch the video' }),
     ).toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('region', { name: 'Transcript content' })).toBeInTheDocument();
+    expect(screen.getByText('This is the video transcript.')).toBeInTheDocument();
   });
 
   it('renders a transcript placeholder without falsely claiming captions exist', async () => {

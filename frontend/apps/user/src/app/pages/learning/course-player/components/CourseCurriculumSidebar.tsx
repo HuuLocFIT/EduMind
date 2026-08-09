@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { LessonResponse, SectionResponse } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
 import {
@@ -27,6 +27,13 @@ interface CourseCurriculumSidebarProps {
   onClose: () => void;
   activeLessonRef: React.RefObject<HTMLButtonElement | null>;
   sidebarScrollRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * True while course/curriculum data is still loading. Renders a skeleton
+   * section list in place of the real header/lessons — the panel itself
+   * (fixed w-80) stays mounted so it doesn't pop in/out separately from the
+   * rest of the page shell.
+   */
+  loading?: boolean;
 }
 
 const contentTypeLabel = (lesson: LessonResponse) => {
@@ -54,9 +61,16 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
   onClose,
   activeLessonRef,
   sidebarScrollRef,
+  loading = false,
 }) => {
   const drawerRef = useFocusTrap(!isDesktop && isOpen, onClose);
   const visible = isDesktop || isOpen;
+  const [sectionAnnouncement, setSectionAnnouncement] = useState('');
+
+  const handleToggleSection = (section: SectionResponse, isExpanded: boolean) => {
+    onToggleSection(section.id);
+    setSectionAnnouncement(`${section.title} ${isExpanded ? 'collapsed' : 'expanded'}`);
+  };
 
   // Keep the controlled ID in the DOM while excluding the closed drawer from
   // the accessibility tree and tab order.
@@ -84,7 +98,47 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
         style={{ top: '57px' }}
       >
         <nav aria-labelledby="course-content-title" className="h-full">
+          <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {sectionAnnouncement}
+          </p>
           <div ref={sidebarScrollRef} className="h-full overflow-y-auto pb-20">
+            {loading ? (
+              <div aria-hidden="true">
+                <div className="p-4 border-b bg-gray-50 animate-pulse">
+                  <div className="h-5 w-40 bg-gray-200 rounded" />
+                  <div className="h-4 w-44 bg-gray-200 rounded mt-2" />
+                </div>
+                <div className="p-2 space-y-4 animate-pulse">
+                  {Array.from({ length: 3 }, (_, s) => (
+                    <div key={s} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="px-3 py-2 bg-gray-100 flex items-center justify-between">
+                        <div className="flex flex-col gap-1">
+                          <div className="h-3 w-32 bg-gray-200 rounded" />
+                          <div className="h-2.5 w-20 bg-gray-200 rounded" />
+                        </div>
+                        <div className="w-4 h-4 bg-gray-200 rounded" />
+                      </div>
+                      <div className="mt-1 px-1 pb-2 pt-1">
+                        {Array.from({ length: 3 }, (_, l) => (
+                          <div key={l} className="p-3 rounded-lg mb-1 border-2 border-transparent">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200" />
+                              <div className="flex-1 min-w-0">
+                                <div className="h-4 w-full bg-gray-200 rounded" />
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="h-3 w-16 bg-gray-200 rounded" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="p-4 border-b bg-gray-50">
               <h2 id="course-content-title" className="font-semibold text-gray-900">
                 Course Content
@@ -112,7 +166,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                         <button
                           id={toggleId}
                           type="button"
-                          onClick={() => onToggleSection(section.id)}
+                          onClick={() => handleToggleSection(section, isExpanded)}
                           className="w-full flex items-center justify-between px-3 py-2 bg-gray-100 hover:bg-gray-200 transition-colors"
                           aria-expanded={isExpanded}
                           aria-controls={panelId}
@@ -121,7 +175,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                             <span className="text-xs font-semibold text-gray-800 uppercase tracking-wide">
                               {section.title}
                             </span>
-                            <span className="text-[11px] text-gray-500">
+                            <span className="text-[11px] text-gray-600">
                               {sectionLessons.length} lessons
                               {section.totalDurationMinutes ? ` • ${section.totalDurationMinutes} min` : ''}
                             </span>
@@ -153,6 +207,9 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                                   type="button"
                                   onClick={() => onSelectLesson(lesson)}
                                   aria-current={isCurrent ? 'step' : undefined}
+                                  aria-label={`${lesson.title}. ${contentTypeLabel(lesson)}${
+                                    isCompleted ? '. Completed' : ''
+                                  }`}
                                   data-testid="lesson-item"
                                   data-lesson-id={lesson.id}
                                   className={`w-full text-left p-3 rounded-lg mb-1 transition-colors border-2 ${
@@ -176,7 +233,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                                       <span className={`block font-medium text-sm line-clamp-2 ${isCurrent ? 'text-blue-600' : 'text-gray-900'}`}>
                                         {lesson.title}
                                       </span>
-                                      <span className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                      <span className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                                         {lesson.contentType === ContentType.VIDEO && <Video aria-hidden="true" className="w-3 h-3" />}
                                         {lesson.contentType === ContentType.ARTICLE && <FileText aria-hidden="true" className="w-3 h-3" />}
                                         {lesson.contentType === ContentType.QUIZ && <HelpCircle aria-hidden="true" className="w-3 h-3 text-purple-500" />}
@@ -207,6 +264,8 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                   );
                 })}
             </div>
+              </>
+            )}
           </div>
         </nav>
       </div>

@@ -82,7 +82,7 @@ export class DiscoverFlowPage {
     await addToCart.click();
     await this.page.waitForURL(/\/login(?:\?.*)?$/);
     await expect(
-      this.page.getByRole('heading', { level: 1, name: 'Welcome Back' }),
+      this.page.getByRole('heading', { level: 1, name: 'Sign In', exact: true }),
     ).toBeVisible();
   }
 }

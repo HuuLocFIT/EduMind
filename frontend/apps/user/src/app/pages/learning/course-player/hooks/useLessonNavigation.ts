@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { SetURLSearchParams } from 'react-router-dom';
+import { ContentType } from '@edumind/shared-constants';
 import type { LessonProgressResponse, LessonResponse } from '@edumind/shared-types';
 import type { LessonClickOptions } from '../course-player.types';
 import { getAdjacentLessons } from '../course-player.utils';
+import { prefetchLessonQuiz, prefetchLessonSummary } from '../../../../lib/prefetch';
 
 interface UseLessonNavigationOptions {
   courseSlug: string | undefined;
@@ -50,6 +53,7 @@ export function useLessonNavigation({
   onBeforeLessonChange,
 }: UseLessonNavigationOptions) {
   const [lessonAnnouncement, setLessonAnnouncement] = useState('');
+  const queryClient = useQueryClient();
 
   const { previous: previousLesson, next: nextLesson } = getAdjacentLessons(
     lessons,
@@ -63,6 +67,18 @@ export function useLessonNavigation({
     // current video and clears the progress-autosave interval — composed by
     // the page from the still-inline video/auto-advance orchestration.
     onBeforeLessonChange();
+
+    // Kick off the quiz fetch immediately, before QuizTakerContent even
+    // mounts, so a revisit within this session is a cache hit (no loading
+    // flash) and a first visit's request starts a beat earlier.
+    if (lesson.contentType === ContentType.QUIZ) {
+      prefetchLessonQuiz(queryClient, lesson.id);
+    } else if (
+      lesson.contentType === ContentType.ARTICLE ||
+      lesson.contentType === ContentType.VIDEO
+    ) {
+      prefetchLessonSummary(queryClient, lesson.id);
+    }
 
     pendingLessonFocusRef.current = options.focusContent ?? true;
     setCurrentLesson(lesson);
