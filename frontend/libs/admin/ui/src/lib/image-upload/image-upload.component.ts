@@ -8,7 +8,7 @@ import { CommonModule } from '@angular/common';
   template: `
     <div [class]="fullWidth ? 'w-full' : ''">
       @if (label) {
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label [for]="inputId" class="block text-sm font-medium text-gray-700 mb-1">
           {{ label }}
           @if (required) {
             <span class="text-red-400 ml-1">*</span>
@@ -71,6 +71,7 @@ import { CommonModule } from '@angular/common';
 
           <input
             #fileInput
+            [id]="inputId"
             type="file"
             class="hidden"
             [accept]="accept"
@@ -101,6 +102,7 @@ export class ImageUploadComponent {
   @Input() value: string | null = null;
   @Input() accept = 'image/png,image/jpeg,image/jpg,image/webp';
   @Input() maxSizeMB = 5;
+  @Input() inputId = `image-upload-${Math.random().toString(36).substring(7)}`;
 
   @Output() valueChange = new EventEmitter<string | null>();
   @Output() fileSelected = new EventEmitter<File>();
