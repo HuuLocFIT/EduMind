@@ -176,7 +176,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
            {/* Savings Text */}
            {course.discountPrice && course.discountPrice < course.price && (
-             <span className="text-xs font-bold text-red-600 mt-1 bg-red-50 px-2 py-0.5 rounded-sm w-fit">
+             <span className="text-xs font-bold text-red-700 mt-1 bg-red-50 px-2 py-0.5 rounded-sm w-fit">
                 Save {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(course.price - course.discountPrice)}
              </span>
            )}

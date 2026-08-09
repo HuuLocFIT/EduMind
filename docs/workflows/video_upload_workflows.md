@@ -60,7 +60,7 @@ graph TB
 
 - **Browser-to-Cloudinary Direct Upload**: The backend never proxies video bytes. It only issues signed upload parameters; the browser uploads directly to Cloudinary. This keeps VPS bandwidth and RAM usage near zero.
 - **Signed Upload Params**: Each upload is authorized via a backend-generated HMAC-SHA1 signature (Cloudinary upload preset + timestamp). Signatures expire; the frontend requests a fresh signature per upload. The response also includes `hlsEnabled` — a flag the frontend can use to anticipate whether HLS URLs will be returned.
-- **Chunked & Resumable**: Videos are split into 20 MB chunks using the `Content-Range` header. If a session is interrupted (network drop, page reload), the `bytesUploaded` cursor stored in localStorage allows resuming from the last confirmed chunk.
+- **Chunked & Resumable (within a session)**: Videos are split into 20 MB chunks using the `Content-Range` header. If a chunk fails or the network drops mid-session, the upload resumes from the last confirmed `bytesUploaded` offset using the same `uploadSessionId` — the `File` object is still held in memory. This does **not** survive a full page reload (see §3.4).
 - **On-Demand Quality Tiers**: After upload, `LessonController` computes two quality URLs at response time using Cloudinary on-demand transformations — `videoStreamUrl` (720p) and `video480pUrl` (480p). Cloudinary lazy-transcodes and caches them on first access. No server-side processing on the VPS.
 - **HLS Adaptive Streaming (Optional)**: When `VIDEO_HLS_ENABLED=true`, `hasHls` is set to `true` on confirm and `videoStreamUrl` instead returns a Cloudinary HLS URL (`sp_auto`). Off by default — MP4 quality tiers are used instead.
 - **Quality Selection (Not Error-Based Fallback)**: Students can actively switch between 720p and 480p. The `VideoPlayer` component saves the current playback position before switching and restores it after the new quality loads. The quality selector is only shown when both URLs are present.
@@ -128,7 +128,7 @@ sequenceDiagram
     end
 
     alt videoUploadStatus == UPLOADING (duplicate guard)
-        LessonSvc-->>Backend: 409 Conflict "already uploading"
+        LessonSvc-->>Backend: 400 Bad Request "already uploading"
         Backend-->>UploadSvc: Error (stale lock)
         UploadSvc->>Backend: POST /lessons/{id}/video/reset
         Backend->>LessonSvc: resetVideoUploadState()
@@ -137,7 +137,7 @@ sequenceDiagram
     end
 
     alt Active uploads ≥ 5 for this instructor (rate limit)
-        LessonSvc-->>Backend: 429 Too Many Requests
+        LessonSvc-->>Backend: 400 Bad Request
         Backend-->>UploadSvc: Error
         UploadSvc-->>Queue: status = FAILED
     end
@@ -147,7 +147,7 @@ sequenceDiagram
     Backend-->>UploadSvc: { cloudName, apiKey, signature, timestamp, folder, hlsEnabled }
 
     loop Chunks (20 MB each)
-        UploadSvc->>CldAPI: PUT /video/upload<br/>Content-Range: bytes {start}-{end}/{total}<br/>X-Unique-Upload-Id: {sessionId}
+        UploadSvc->>CldAPI: POST /video/upload<br/>Content-Range: bytes {start}-{end}/{total}<br/>X-Unique-Upload-Id: {sessionId}
         CldAPI-->>UploadSvc: 200 (partial) / 200 (final with metadata)
         UploadSvc->>Queue: update progress%, bytesUploaded
         Queue->>Queue: persist to localStorage (throttled 200 ms)
@@ -185,7 +185,7 @@ Chunk 8:  Content-Range: bytes 146800640-157286399/157286400  ← final chunk
           Response: { secure_url, public_id, duration, bytes, format }
 ```
 
-- **Session ID** (`X-Unique-Upload-Id`): UUID generated per upload session. Stored in `localStorage` alongside `bytesUploaded`. Allows resuming from the exact byte offset if the browser is closed and reopened.
+- **Session ID** (`X-Unique-Upload-Id`): UUID generated per upload session. Stored in `localStorage` alongside `bytesUploaded`. After a page reload, the queue restores the session ID and byte cursor from `localStorage`, but the browser cannot persist the `File` object itself. The teacher must re-select the original file before the upload can resume from that byte offset — see §3.4.
 - **Range mismatch**: If Cloudinary reports a different byte offset than expected (e.g., after a partial retry), the frontend detects this, clears the saved session, and **restarts the upload from byte 0** with a new `uploadSessionId`.
 
 ### 3.3 Retry & Error Handling
@@ -223,7 +223,9 @@ Teacher clicks Resume (or browser comes back online)
   └─→ X-Unique-Upload-Id: same uploadSessionId
 ```
 
-**Auto-pause/resume**: The store listens to `window.offline` and `window.online` events. All active uploads are paused on network loss and automatically resumed when connectivity is restored.
+**Auto-pause/resume (same session only)**: The store listens to `window.offline` and `window.online` events. All active uploads are paused on network loss and automatically resumed when connectivity is restored — this works because the `File` object is still held in memory for the duration of the page session.
+
+**Resume after a page reload requires re-selecting the file**: `localStorage` only persists `uploadSessionId`, `bytesUploaded`, `status`, and `progress` — never the `File` itself (`File` objects are not serializable). On rehydration, every restored job gets `file: null`, and a job that was `PAUSED` is shown the message "Page was refreshed. Please re-select the file to resume." Neither the manual Resume action nor the automatic `online` handler will attempt to resume a job with `file === null`. In practice: after a page reload, the queue restores the session ID and byte cursor, but the browser cannot persist the `File` object — the teacher must re-select the original file before the upload can resume.
 
 ### 3.5 Video Deletion
 
@@ -392,13 +394,13 @@ Manual "Mark Complete" button:
 | HLS streaming profile | `LessonController.buildStreamUrl()` | `sp_auto` |
 | 720p MP4 transform | `LessonController.buildStreamUrl()` | `q_auto,w_1280,h_720,c_limit` |
 | 480p MP4 transform | `LessonController.build480pUrl()` | `q_auto,w_854,h_480,c_limit` |
-| Max concurrent uploads per instructor (backend) | `LessonServiceImpl` | 5 |
+| Max concurrent uploads per instructor (backend) | `LessonServiceImpl` | 5 (hard-coded literal — not in `application.yml`/env) |
 | Max concurrent uploads (frontend queue) | `uploadQueue.store.ts` | `MAX_CONCURRENT = 2` |
 | Chunk size | `video-upload.service.ts` | 20 MB |
 | Max retries per chunk | `video-upload.service.ts` | 3 |
 | Retry backoff | `video-upload.service.ts` | 2s → 4s → 8s |
-| Stale upload cutoff | `StaleVideoUploadScheduler` | 2 hours |
-| Scheduler interval | `StaleVideoUploadScheduler` | Every 30 minutes |
+| Stale upload cutoff | `StaleVideoUploadScheduler` | 2 hours (hard-coded literal — not in `application.yml`/env) |
+| Scheduler interval | `StaleVideoUploadScheduler` | Every 30 minutes (hard-coded literal — not in `application.yml`/env) |
 | Max file size (frontend) | `VideoDropZone.tsx` | 2 GB |
 | Accepted formats | `VideoDropZone.tsx` | MP4, WebM, MOV |
 | Progress persistence | `uploadQueue.store.ts` | localStorage (merge strategy) |

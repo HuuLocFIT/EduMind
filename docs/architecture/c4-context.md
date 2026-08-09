@@ -22,13 +22,8 @@ flowchart TB
         OAuth["🔐 Google OAuth2<br/>Social Login"]
         Cloudinary["☁️ Cloudinary<br/>Media CDN"]
         Payment["💳 Payment Gateway<br/>PayPal / SePay"]
-    end
-
-    subgraph Planned["🚧 Planned Systems"]
-        AI["🤖 AI Service<br/>LLM / RAG / Recommendations<br/><i>PLANNED</i>"]
-        OpenAI["🧠 OpenAI API<br/>GPT Models<br/><i>PLANNED</i>"]
-        Gemini["💎 Google Gemini<br/>Gemini Models<br/><i>PLANNED</i>"]
-        VectorDB["📊 Vector Database<br/>Pinecone / Qdrant<br/><i>PLANNED</i>"]
+        Gemini["💎 Google Gemini<br/>Chat + Embeddings"]
+        Groq["⚡ Groq<br/>Whisper API"]
     end
 
     Student --> EduMind
@@ -39,17 +34,8 @@ flowchart TB
     EduMind --> OAuth
     EduMind --> Cloudinary
     EduMind --> Payment
-    EduMind -.->|Future| AI
-
-    AI -.-> OpenAI
-    AI -.-> Gemini
-    AI -.-> VectorDB
-
-    style AI fill:#fff3cd,stroke:#ffc107,stroke-dasharray: 5 5
-    style OpenAI fill:#fff3cd,stroke:#ffc107,stroke-dasharray: 5 5
-    style Gemini fill:#fff3cd,stroke:#ffc107,stroke-dasharray: 5 5
-    style VectorDB fill:#fff3cd,stroke:#ffc107,stroke-dasharray: 5 5
-    style Planned fill:#fffbe6,stroke:#ffc107
+    EduMind --> Gemini
+    EduMind --> Groq
 ```
 
 ---
@@ -72,10 +58,8 @@ flowchart TB
 | **Google OAuth2** | OpenID Connect | Provides social login for faster onboarding. | ✅ Active |
 | **Cloudinary** | Cloud Media CDN | Stores profile pictures, course thumbnails, and lesson videos. | ✅ Active |
 | **Payment Gateway** | PayPal / SePay | Processes course purchases and handles payouts to instructors. | ✅ Active |
-| **AI Service** | Internal Microservice | Orchestrates AI features (RAG, recommendations, content generation). | 🚧 **Planned** |
-| **OpenAI API** | GPT-4 / GPT-4o | External LLM provider for chat and content generation. | 🚧 **Planned** |
-| **Google Gemini** | Gemini Pro / Ultra | Alternative LLM provider (multi-modal capabilities). | 🚧 **Planned** |
-| **Vector Database** | Pinecone / Qdrant | Stores embeddings for RAG (Retrieval Augmented Generation). | 🚧 **Planned** |
+| **Google Gemini** | `gemini-2.5-flash-lite` (chat), `gemini-embedding-001` (embeddings) | Powers RAG chat, lesson summaries, and quiz generation via Spring AI. | ✅ Active |
+| **Groq Whisper API** | `whisper-large-v3-turbo` | Transcribes lesson audio/video into article content. | ✅ Active |
 
 ---
 
@@ -88,4 +72,4 @@ The EduMind Platform is an **AI-Powered Learning Management System (LMS)**. It p
 2.  **Teachers** apply for an instructor account, create course content (sections, lessons, quizzes), set pricing, and receive earnings from sales.
 3.  **Administrators** review teacher applications, manage user accounts, and ensure platform integrity.
 4.  The platform integrates with **external systems** for email delivery, social authentication, media hosting, and payment processing.
-5.  **(Planned)** The AI Service will provide intelligent features like course recommendations, learning assistance chatbots, and AI-generated content.
+5.  An **AI module** within the LMS Core Service provides a RAG-based chat assistant for learning support, automatic lesson summaries, AI-generated quizzes, and lecture transcription (audio/video and YouTube) — powered by Google Gemini and Groq Whisper.

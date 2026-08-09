@@ -536,6 +536,6 @@ management:
         include: health,info,metrics,gateway
   endpoint:
     health:
-      show-details: always
+      show-details: ${ACTUATOR_HEALTH_DETAILS:never}
     gateway:
       access: read-only

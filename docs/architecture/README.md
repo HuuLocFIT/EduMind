@@ -45,7 +45,7 @@ The [C4 Model](https://c4model.com/) provides a hierarchical way to visualize so
 
 1.  **Modular Monolith for LMS Core Service**
     *   **Why?** Minimizes deployment costs while enabling future microservice extraction.
-    *   **How?** Uses separate PostgreSQL schemas (`course`, `payment`, `gamification`).
+    *   **How?** Uses separate PostgreSQL schemas (active: `course`, `payment`, `ai`; reserved for future: `assessment`, `gamification`, `notification`).
 
 2.  **API Gateway as Single Entry Point**
     *   Centralizes routing, CORS, and rate limiting (Redis-backed).

@@ -460,11 +460,10 @@ High‑level examples (exact paths may vary by implementation):
   - `GET /courses/{id}` – course details
   - `POST /courses` – create course (teacher/admin)
   - `PUT /courses/{id}` – update course
-  - `PATCH /courses/{id}/publish` – publish/unpublish course
+  - `POST /courses/{id}/publish` – publish course
 
 - **Enrollment**
-  - `GET /me/enrollments` – current user enrollments
-  - `GET /courses/{id}/content` – course content for enrolled students
+  - `GET /enrollments/my-enrollments` – current user enrollments
 
 - **AI / Adaptive Learning**
   - `POST /ai/quizzes/generate` – instructor requests quiz generation for a lesson (async job, returns job ID)

@@ -2,7 +2,7 @@
 
 > **Status:** Active Development
 > **Monorepo Strategy:** [Nx](https://nx.dev)
-> **Engine:** Node.js v24+
+> **Engine:** Node.js 20 LTS
 
 Welcome to the **EduMind** frontend repository. This workspace follows a unified monorepo architecture, housing both the **React-based User Platform** and the **Angular-based Admin Console**, backed by shared TypeScript libraries.
 
@@ -133,18 +133,19 @@ PENDING → PROCESSING → COMPLETED / FAILED / DELAYED
 
 Floating AI Course Tutor panel for students. Sends questions + conversation history to a vector-search backed chat endpoint.
 
-- **Endpoint**: `GET /api/ai/chat/courses/{courseId}/stream` (SSE)
+- **Endpoint**: `POST /api/ai/chat/courses/{courseId}/stream` (SSE)
 - **Rate limit**: 20 questions/day per user; HTTP 429 shows "20 questions/day limit reached"
 - **SSE event types**:
   - `event: metadata` — JSON with source lessons and confidence tier (`HIGH`/`MEDIUM`/`GAP`)
   - `event: error` — JSON error message
   - `data: <token>` — streamed LLM token
+- **Knowledge-gap logging**: When a response is classified `GAP` (low retrieval confidence), the backend silently logs the question to `ai.knowledge_gap_questions` for later content-gap analysis — this is not surfaced anywhere in the UI
 - **Typewriter effect**: Tokens are buffered and flushed at 60 fps via `setInterval`
 - **Conversation history**: Last 4 turns sent to backend for context
 - **Source attribution**: Source lesson badges displayed per response with confidence tier color coding
 - **Markdown rendering**: `react-markdown` + `rehype-raw` + syntax highlighter with copy buttons
 - **Persistence**: Chat history persisted per course via Zustand (`useAiChatStore`)
-- **Cancellation**: `AbortController` signal passed to `chatStream()`; fallback to non-streaming API on network error
+- **Cancellation/fallback**: `AbortController` signal passed to `chatStream()`. On stream error, behavior depends on whether any chunk was already received: if none, it retries via the non-streaming `aiService.chat()`; if some were already streamed, it shows "Response may be incomplete. Please try again if needed." instead of retrying, to avoid a duplicate/conflicting answer. HTTP-status errors (429/401/403) and explicit `error` events never trigger the non-streaming fallback.
 
 ### 2. Video Transcription (`TranscriptionModal.tsx`)
 
@@ -155,7 +156,9 @@ Teachers can auto-transcribe video lessons. Supports Cloudinary-hosted videos an
   - Cloudinary: extracts MP3 audio via URL transformation
   - YouTube: tries auto-captions first (fast/free), falls back to audio download
 - **Rate limiting**: If Groq returns 429, job status becomes `DELAYED` — the UI shows "will retry automatically"
-- **On success**: Transcribed text is applied to the lesson's article content field, which triggers embedding + summary generation automatically on the backend
+- **On success**: Transcribed text is applied to the lesson's article content field, which triggers embedding + summary generation automatically on the backend; a WebVTT caption file is also generated and stored as `videoCaptionUrl`
+- **Captions in player**: `VideoPlayer.tsx` renders a native `<track kind="captions">` sourced from `videoCaptionUrl`, with a "CC" toggle button to show/hide captions
+- **Transcript card**: The course player shows an expandable transcript (from the lesson's article content) with a "Download" button that saves it as a `.txt` file
 - **Phases**: `config → processing → completed / failed`
 
 ### 3. Quiz Generation (`QuizGeneratorModal.tsx`)
@@ -163,7 +166,8 @@ Teachers can auto-transcribe video lessons. Supports Cloudinary-hosted videos an
 Teachers can generate multiple-choice quizzes from lesson content.
 
 - **Endpoint**: `POST /api/ai/quizzes/generate` (triggers async job)
-- **Configurable**: 1–20 questions via slider
+- **Configurable**: 1–50 questions via numeric input (default 5)
+- **Multi-lesson source**: For `QUIZ`-type lessons, a per-section checkbox picker lets the teacher select multiple source lessons to aggregate content from (`sourceLessonIds`); `VIDEO`/`ARTICLE` lessons always generate from their own content only
 - **Teacher view**: Correct answer highlighted + collapsible explanation per question
 - **Student view**: Correct answers and explanations hidden until after attempt submission
 - **History**: Previous quizzes for the lesson shown in an accordion
@@ -227,7 +231,7 @@ frontend/
 ## Getting Started
 
 ### Prerequisites
-- **Node.js**: v24.x
+- **Node.js**: 20.x (LTS)
 - **Package Manager**: npm
 
 ### Installation

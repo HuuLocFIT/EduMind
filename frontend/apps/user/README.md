@@ -389,69 +389,9 @@ All located in `src/app/services/*.service.ts`. Each function returns a typed Pr
 
 ## AI Features
 
-All AI operations use an **async job pattern**: submit → get `jobId` → poll `GET /api/ai/jobs/{id}` until `COMPLETED/FAILED`.
+The user app surfaces five AI features — RAG chat (SSE streaming), quiz generation (incl. multi-lesson sourcing), video transcription (caption + transcript download), lesson summaries, and lesson embeddings (backend-only, triggered automatically). All are driven by `ai.service.ts` and the components under `components/learning/` (`AiChatPanel`, `QuizGeneratorModal`, `QuizTakerModal`, `TranscriptionModal`, `LessonSummaryPanel`, `LessonTranscriptCard`).
 
-### 1. RAG Chat (SSE Streaming)
-
-```
-Teacher/Student on CoursePlayerPage
-  → opens AiChatPanel
-  → types question
-  → aiService.chatStream(courseId, { question }, callbacks)
-     → fetch POST /api/ai/chat-stream with ReadableStream
-     → parses SSE lines:
-         event: metadata  → source lessons + confidence tier
-         event: error     → display error
-         data: <token>    → append to typewriter buffer
-  → setInterval(16ms) drips buffer chars into displayed message
-  → AbortController signal cancels mid-stream
-```
-
-**Rate limit:** 20 questions/day/user. On HTTP 429, service rejects with "20 questions/day limit reached" message.
-
-**Confidence tiers:**
-- `HIGH` — direct match found
-- `MEDIUM` — partial match
-- `GAP` — no relevant content; logged as a knowledge gap in backend
-
-### 2. Quiz Generation
-
-```
-Teacher: QuizGeneratorModal
-  → aiService.generateQuiz(lessonId, { questionCount, difficulty })
-  → POST /api/ai/quiz/generate → 202 + jobId
-  → poll GET /api/ai/jobs/{jobId} every 2s
-  → COMPLETED → quiz stored in DB
-
-Student: QuizTakerModal
-  → aiService.getQuiz(lessonId) → questions WITHOUT correctIndex
-  → student submits answers
-  → aiService.submitQuizAttempt(lessonId, answers) → full answers + scoring
-```
-
-### 3. Transcription
-
-```
-Teacher: TranscriptionModal
-  → paste Cloudinary URL or YouTube URL
-  → aiService.transcribeLesson(lessonId, { sourceUrl })
-  → POST /api/ai/transcribe/lessons/{lessonId} → 202 + jobId
-  → poll job status (PENDING → PROCESSING → COMPLETED)
-  → on COMPLETED: lesson article is updated; embeddings + summary auto-generated
-  → on DELAYED (rate limit): backend scheduler retries automatically
-```
-
-### 4. Lesson Summary
-
-```
-LessonSummaryPanel mounts
-  → aiService.getLessonSummary(lessonId)
-  → GET /api/ai/lessons/{lessonId}/summary
-  → if null, trigger generation:
-      POST /api/ai/lessons/{lessonId}/summary/generate → 202 + jobId
-      poll until COMPLETED
-  → display { summaryText, keyPoints[], vocabulary[] }
-```
+For exact endpoint paths, request/response shapes, rate limits, and streaming/fallback behavior, see the **AI Features** section in [`frontend/README.md`](../../README.md) — that is the single source of truth for the AI API surface; it is kept in sync with `ai.service.ts` and `AiController.java` and is not duplicated here.
 
 ---
 

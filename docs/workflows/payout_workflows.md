@@ -403,29 +403,27 @@ sequenceDiagram
 
 ### SePay Payout Processing
 
+SePay has **no automatic payout/transfer API**. `SepayGateway.payout()` only validates the
+currency (VND/USD) and amount, then unconditionally returns `PENDING` with error code
+`MANUAL_PAYOUT_REQUIRED` — no external call is made. The service layer treats this as a signal
+to hand the payout off to an admin for manual bank transfer.
+
 ```mermaid
 sequenceDiagram
     participant Backend
-    participant SePay
     participant Database
 
-    Backend->>SePay: POST /api/transfer
-    Note over Backend,SePay: Bank account, amount (VND), currency
-    alt Payout Successful
-        SePay-->>Backend: Transfer Result (COMPLETED, transactionId)
-        Backend->>Database: Mark Payout (COMPLETED)
-        Backend->>Database: Store Gateway Transaction ID
-    else Payout Failed
-        SePay-->>Backend: Error Response
-        Backend->>Database: Mark Payout (FAILED)
-        Backend->>Database: Store Failure Reason
-    end
+    Backend->>Backend: SepayGateway.payout() — validate currency & amount only
+    Note over Backend: No transfer API call.<br/>Always returns PENDING / MANUAL_PAYOUT_REQUIRED
+    Backend->>Database: Mark Payout (AWAITING_MANUAL_PAYOUT)
+    Note over Database: Admin must transfer funds outside the system,<br/>then confirm via confirm-manual-payout endpoint
 ```
 
-**SePay Features:**
-- ✅ Fully implemented bank transfer payouts
-- ✅ VND conversion support
-- ✅ Error handling
+**SePay Payout Features:**
+- ❌ No automatic bank transfer payout API — `payout()` never calls SePay
+- ✅ Currency/amount validation (VND, USD)
+- ✅ Manual payout workflow: `AWAITING_MANUAL_PAYOUT` → admin transfers externally → `confirm-manual-payout` → `COMPLETED`
+- Note: SePay's QR/webhook integration (used for **payment collection**, not payouts) is separate — see Payment Workflows doc
 
 ---
 
@@ -695,14 +693,14 @@ sequenceDiagram
 **Aggregation Rules:**
 - Only AVAILABLE earnings are included
 - Earnings already in payouts are excluded
-- Multi-currency support (currency derived from first earning)
+- Single-currency-per-payout assumption (currency label derived from first earning, not validated)
 - Minimum threshold validation ($50 default)
 
 ---
 
-## 15. Multi-Currency Payout Flow
+## 15. Payout Currency Derivation (No Real Multi-Currency Handling)
 
-The system supports multi-currency payouts with automatic currency derivation.
+The system does **not** group or reconcile earnings by currency. Each payout's currency is simply copied from the first earning in the batch; if an instructor's available earnings ever spanned multiple currencies, they would be silently summed together into one `totalAmount` and mislabeled with a single currency — no conversion, grouping, or validation occurs.
 
 ```mermaid
 sequenceDiagram
@@ -719,9 +717,9 @@ sequenceDiagram
 ```
 
 **Currency Derivation (in `createPayout` and `scheduleMonthlyPayouts`):**
-- Uses the currency of the **first available earning** in the list
-- No currency grouping or aggregation is performed
-- All earnings in a payout are assumed to share the same currency
+- Uses the currency of the **first available earning** in the list (`availableEarnings.get(0).getCurrency()`)
+- No currency grouping (`Collectors.groupingBy`) or per-currency aggregation is performed
+- No validation/exception exists if earnings have mismatched currencies — the assumption that all earnings in a payout share the same currency is implicit and unenforced
 
 **Currency Derivation (in `getPayoutSummary`):**
 - **Primary**: Top currency from instructor's earnings via `findTopCurrencyByInstructorId`
@@ -794,7 +792,7 @@ sequenceDiagram
 ### Gateway Integration
 
 - **PayPal**: Fully implemented via PayPal Payouts SDK with OAuth, batch creation, status polling, and error handling
-- **SePay**: Fully implemented bank transfer payouts with VND conversion
+- **SePay**: No automatic payout API — `payout()` validates currency/amount then always returns `PENDING`/`MANUAL_PAYOUT_REQUIRED`, routing the payout to the manual bank-transfer workflow (`AWAITING_MANUAL_PAYOUT` → admin confirms)
 - Gateway selection based on payment method (PAYPAL → PayPal, BANK_TRANSFER → SePay)
 
 ---
@@ -855,12 +853,12 @@ payment:
 - ✅ Manual payout creation with all available earnings
 - ✅ Manual payout creation with specific earnings
 - ✅ Minimum threshold validation
-- ✅ Multi-currency payout creation
+- ✅ Payout creation with currency derived from first earning
 - ✅ Duplicate earnings prevention
 
 ### Payout Processing Tests
 
-- ✅ SePay payout processing
+- ✅ SePay payout routes to `AWAITING_MANUAL_PAYOUT` (no automatic transfer)
 - ✅ PayPal payout processing (batch creation, polling, error handling)
 - ✅ Earnings marked as PAID after success
 - ✅ Failed payout handling with retry count
@@ -878,7 +876,7 @@ payment:
 - ✅ Payout recipient update
 - ✅ Payout status transition guards
 - ✅ Payout summary calculation
-- ✅ Multi-currency summary
+- ✅ Payout summary currency fallback (top currency → most recent payout → USD default)
 
 ---
 
@@ -886,6 +884,7 @@ payment:
 
 1. **Encryption**: Payout recipient data not yet encrypted (security enhancement needed)
 2. **Notifications**: Email notifications not yet implemented
+3. **Currency handling**: No real multi-currency support — payout currency is derived from the first earning in the batch with no grouping or validation; mixed-currency earnings for one instructor would be silently summed and mislabeled (see [Section 15](#15-payout-currency-derivation-no-real-multi-currency-handling))
 
 ---
 

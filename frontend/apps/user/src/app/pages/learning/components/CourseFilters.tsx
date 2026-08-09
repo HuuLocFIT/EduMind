@@ -47,6 +47,7 @@ export const CourseFilters: React.FC<CourseFiltersProps> = ({
           >
             {tab.label}
             <span
+              aria-hidden="true"
               className={`text-xs px-1.5 py-0.5 rounded-full ${
                 activeFilter === tab.key ? 'bg-white/20' : 'bg-slate-200'
               }`}

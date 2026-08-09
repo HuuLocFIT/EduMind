@@ -330,18 +330,27 @@ Content-Type: application/json
 }
 ```
 
-**Response (Normal Login):**
+**Response (Normal Login):** `refreshToken` is set via an HTTP-only cookie, never in the response body.
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "refresh-token-here",
-  "tokenType": "Bearer",
-  "userId": 1,
-  "username": "johndoe",
-  "email": "john@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "roles": ["ROLE_STUDENT"]
+  "status": 200,
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "roles": ["ROLE_STUDENT"],
+      "isActive": true,
+      "isEmailVerified": true,
+      "is2faEnabled": false
+    }
+  }
 }
 ```
 
@@ -365,30 +374,32 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
+**Response:** same shape as normal login above (`ApiResponse<JwtResponse>`, `refreshToken` set via cookie).
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "refresh-token-here",
-  "tokenType": "Bearer",
-  "userId": 1,
-  "username": "johndoe",
-  "email": "john@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "roles": ["ROLE_STUDENT"]
+  "status": 200,
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "roles": ["ROLE_STUDENT"]
+    }
+  }
 }
 ```
 
 #### Refresh Token
 ```http
 POST /auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "refresh-token-here"
-}
 ```
+No request body — the refresh token is read from the `refreshToken` HTTP-only cookie (`@CookieValue(name = "refreshToken", required = false)`), not from the request body.
 
 **Response:**
 ```json
@@ -398,14 +409,15 @@ Content-Type: application/json
   "message": "Token refreshed successfully",
   "data": {
     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "new-refresh-token-here",
     "tokenType": "Bearer",
-    "userId": 1,
-    "username": "johndoe",
-    "email": "john@example.com",
-    "firstName": "John",
-    "lastName": "Doe",
-    "roles": ["ROLE_STUDENT"]
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "roles": ["ROLE_STUDENT"]
+    }
   }
 }
 ```

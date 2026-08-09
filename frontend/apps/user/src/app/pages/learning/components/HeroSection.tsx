@@ -52,7 +52,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg truncate">{mostRecentCourse.courseTitle}</h3>
+                    <h2 className="font-semibold text-lg truncate">{mostRecentCourse.courseTitle}</h2>
                     <p className="text-blue-200 text-sm">
                       {mostRecentCourse.completedLessons || 0} of {mostRecentCourse.totalLessons || 0} lessons completed
                     </p>
