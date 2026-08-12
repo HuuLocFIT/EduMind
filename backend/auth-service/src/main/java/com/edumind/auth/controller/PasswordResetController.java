@@ -50,7 +50,7 @@ public class PasswordResetController {
     @GetMapping("/validate-token")
     public ResponseEntity<?> validateToken(
             @RequestParam String token) {
-        logger.info("📥 GET /auth/password/validate-token - Token: {}", token);
+        logger.info("📥 GET /auth/password/validate-token");
 
         try {
             User user = passwordResetService.validateResetToken(token);
@@ -76,7 +76,7 @@ public class PasswordResetController {
     @PostMapping("/reset")
     public ResponseEntity<ApiResponse<String>> resetPassword(
             @Valid @RequestBody PasswordResetConfirmRequest request) {
-        logger.info("📥 POST /auth/password/reset - Token: {}", request.getToken());
+        logger.info("📥 POST /auth/password/reset");
 
         passwordResetService.resetPassword(
                 request.getToken(),

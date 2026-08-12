@@ -51,10 +51,7 @@ public class TwoFactorAuthController {
             @Valid @RequestBody TwoFactorVerifyRequest request) {
         logger.info("📥 POST /auth/2fa/verify");
 
-        TwoFactorStatusResponse response = twoFactorAuthService.verify2FA(
-                request.getCode(),
-                request.getSecret()
-        );
+        TwoFactorStatusResponse response = twoFactorAuthService.verify2FA(request.getCode());
 
         return ResponseEntity.ok(
                 ApiResponse.success("Two-factor authentication enabled successfully!", response)

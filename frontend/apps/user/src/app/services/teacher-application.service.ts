@@ -13,7 +13,7 @@ export const teacherApplicationService = {
   /**
    * Submit teacher application
    * POST /teacher-application/submit
-   * Access: STUDENT or GUEST
+   * Access: STUDENT
    */
   async submitApplication(
     data: TeacherApplicationRequest

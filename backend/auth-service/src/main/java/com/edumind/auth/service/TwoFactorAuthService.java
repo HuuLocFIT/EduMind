@@ -101,7 +101,7 @@ public class TwoFactorAuthService {
     }
 
     @Transactional
-    public TwoFactorStatusResponse verify2FA(String code, String secret) {
+    public TwoFactorStatusResponse verify2FA(String code) {
         logger.info("🔐 Verifying 2FA code");
 
         User user = getCurrentUser();
@@ -112,7 +112,13 @@ public class TwoFactorAuthService {
             throw new BadRequestException("2FA is already enabled");
         }
 
-        // Verify code against the secret
+        String encryptedSecret = user.getTwoFactorSecret();
+        if (encryptedSecret == null || encryptedSecret.isEmpty()) {
+            throw new BadRequestException("2FA setup has not been initiated");
+        }
+        String secret = encryptionService.decrypt(encryptedSecret);
+
+        // Verify code against the secret stored in the database
         if (!verifyCode(secret, code)) {
             rateLimitService.recordFailedAttempt(user.getId());
             logger.error("❌ Invalid TOTP code");

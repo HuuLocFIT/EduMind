@@ -87,24 +87,24 @@ public class PasswordResetService {
      * Validate password reset token
      */
     public User validateResetToken(String tokenString) {
-        logger.info("🔍 Validating password reset token: {}", tokenString);
+        logger.info("🔍 Validating password reset token");
 
         // Find token
         PasswordResetToken token = tokenRepository.findByToken(tokenString)
                 .orElseThrow(() -> {
-                    logger.error("❌ Invalid token: {}", tokenString);
+                    logger.error("❌ Invalid password reset token");
                     return new BadRequestException("Invalid password reset token");
                 });
 
         // Check if already used
         if (token.isUsed()) {
-            logger.warn("⚠️ Token already used: {}", tokenString);
+            logger.warn("⚠️ Password reset token already used");
             throw new BadRequestException("This password reset link has already been used");
         }
 
         // Check if expired
         if (token.isExpired()) {
-            logger.error("❌ Token expired: {}", tokenString);
+            logger.error("❌ Password reset token expired");
             throw new BadRequestException("Password reset link has expired. Please request a new one.");
         }
 
@@ -117,7 +117,7 @@ public class PasswordResetService {
      */
     @Transactional
     public void resetPassword(String tokenString, String newPassword, String confirmPassword) {
-        logger.info("🔐 Resetting password with token: {}", tokenString);
+        logger.info("🔐 Resetting password");
 
         // Validate passwords match
         if (!newPassword.equals(confirmPassword)) {

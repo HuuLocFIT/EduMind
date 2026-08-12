@@ -1,0 +1,28 @@
+# Production profile overrides.
+# Activated when SPRING_PROFILES_ACTIVE=prod. Values here are merged on top of
+# application.yml — only settings that must differ in production live here.
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+
+logging:
+  level:
+    root: INFO
+    com.edumind: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: OFF
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  cookie:
+    secure: ${COOKIE_SECURE:true}

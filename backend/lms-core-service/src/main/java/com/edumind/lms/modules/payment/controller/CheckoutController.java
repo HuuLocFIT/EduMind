@@ -80,7 +80,7 @@ public class CheckoutController {
             Authentication authentication) {
 
         Long userId = extractUserId(authentication);
-        log.info("User {} capturing payment for token {}", userId, token);
+        log.info("User {} capturing payment", userId);
 
         CheckoutResultResponse result = checkoutService.capturePayment(userId, token);
 

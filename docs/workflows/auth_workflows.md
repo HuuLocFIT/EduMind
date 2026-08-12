@@ -4,13 +4,15 @@
 
 | Role | Description | Access Level |
 |------|-------------|--------------|
-| **GUEST** | Unauthenticated visitor | Browse courses, view public info |
+| **Anonymous** | Unauthenticated visitor (no account, no session) | Browse courses, view public info |
 | **STUDENT** | Registered learner | Enroll, purchase, take courses, review |
 | **TEACHER_TRIAL** | Approved instructor in a time-limited evaluation period (30 days) | Limited course creation, trial period |
 | **TEACHER** | Verified instructor | Full course management, earnings, students |
 | **ADMIN** | System administrator | Full system access, user management |
 
-> While a teacher application is `PENDING`, the applicant keeps their existing role (`STUDENT`) — `TEACHER_TRIAL` is only granted after admin approval, and is added on top of `STUDENT` rather than replacing it. If the trial period expires without a manual admin upgrade, the account is disabled rather than auto-upgraded — see [Teacher Application Flow](#4-teacher-application-flow).
+> "Anonymous" above is a conceptual state, not a system role — it has no row in `roles` and is never assigned to a user. The `ROLE_GUEST` role that used to exist in the database was removed: no registration/login flow ever assigned it (`AuthService` always assigns `ROLE_STUDENT` to new accounts), so it was dead weight rather than a real "authenticated guest" tier.
+
+> While a teacher application is `PENDING`, the applicant keeps their existing role (`STUDENT`) — `TEACHER_TRIAL` is only granted after admin approval, and is added on top of `STUDENT` rather than replacing it. If the trial period expires without a manual admin upgrade, `TrialExpiryScheduler` automatically downgrades the account back to `STUDENT` (the account stays active) rather than auto-upgrading it to `TEACHER` — see [Teacher Application Flow](#4-teacher-application-flow).
 
 ## 1. Standard Login Flow
 
@@ -101,9 +103,11 @@ sequenceDiagram
     end
     
     User->>EmailService: Click Verification Link
-    EmailService->>Backend: GET /api/auth/verify-email?token=xxx
+    EmailService->>Frontend: Open /verify-email?token=xxx
+    Frontend->>Backend: GET /api/auth/verify-email?token=xxx
     Backend->>Database: Mark Email Verified
-    Backend->>User: Redirect to Login
+    Backend-->>Frontend: Email Verification Successful
+    Frontend->>User: Show Result and Login Link
 ```
 
 ## 4. Teacher Application Flow
@@ -145,9 +149,10 @@ sequenceDiagram
         Backend->>Student: Full Teacher Access Granted
     else Trial expires unattended
         Note over Backend: TrialExpiryScheduler (daily cron, 00:00)
-        Backend->>Database: trialEndDate passed → isActive=false
-        Backend->>Student: Notification: Trial expired, account disabled
-        Note over Backend: No automatic role change — requires admin action to reactivate/upgrade
+        Backend->>Database: trialEndDate passed → remove ROLE_TEACHER_TRIAL, add ROLE_STUDENT
+        Backend->>Database: Set isTrial=false, clear trialStartDate/trialEndDate
+        Backend->>Student: Notification: Trial expired, downgraded to Student
+        Note over Backend: Account stays active — re-applying starts a new application, not an automatic reinstatement
     end
 ```
 
@@ -175,11 +180,19 @@ sequenceDiagram
     
     User->>EmailService: Click Reset Link
     EmailService->>Frontend: Open Reset Page with Token
-    User->>Frontend: Enter New Password
-    Frontend->>Backend: POST /api/auth/password/reset
-    Backend->>Database: Update Password Hash
-    Backend-->>Frontend: Password Reset Successful
-    Frontend->>User: Redirect to Login
+    Frontend->>Backend: GET /api/auth/password/validate-token?token=xxx
+    Backend->>Database: Check Token Exists, Unused, and Unexpired
+    alt Token Valid
+        Backend-->>Frontend: Token Valid
+        User->>Frontend: Enter New Password
+        Frontend->>Backend: POST /api/auth/password/reset
+        Backend->>Database: Update Password Hash and Invalidate Reset Tokens
+        Backend-->>Frontend: Password Reset Successful
+        Frontend->>User: Redirect to Login
+    else Token Invalid or Expired
+        Backend-->>Frontend: 400 Bad Request
+        Frontend->>User: Show Invalid or Expired Link
+    end
 ```
 
 ## 6. Refresh Token Flow
@@ -337,9 +350,9 @@ graph TD
         Q[Content Moderation]
     end
     
-    GUEST --> A
-    GUEST --> B
-    GUEST --> C
+    Anonymous --> A
+    Anonymous --> B
+    Anonymous --> C
     
     STUDENT --> D
     STUDENT --> E
