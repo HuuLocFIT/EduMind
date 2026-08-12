@@ -4,8 +4,14 @@ Single entry point for all client traffic into the EduMind platform. Built on Sp
 
 **Port:** 8080 (default, `API_GATEWAY_PORT`)
 
+## Prerequisites
+
+- **JDK 21** — pinned by `<java.version>21</java.version>` in [`backend/pom.xml`](../pom.xml) and by CI (`java-version: '21'` in `.github/workflows/backend-ci.yml`). On JDK 23+ `mvn test` fails while initializing Mockito's inline mock maker (`Could not initialize inline Byte Buddy mock maker` / `Could not self-attach to current VM`) — that is a JDK/agent problem, **not** a broken route or Spring context. Check `java -version` before reporting a test failure. If you must stay on a newer JDK, `mvn test -DargLine="-Djdk.attach.allowAttachSelf=true"` works around it (verified on JDK 23), but 21 is the supported baseline.
+- **Maven 3.9+** (or the `mvnw` wrapper), **Redis**, and a running **discovery-service** (Eureka) — see [Local Run](#local-run).
+
 ## Table of Contents
 
+- [Prerequisites](#prerequisites)
 - [Responsibilities](#responsibilities)
 - [Architecture](#architecture)
 - [Route Matrix](#route-matrix)
@@ -27,7 +33,7 @@ The gateway currently does:
 - **Path rewriting** — `RewritePath` rewrites external API paths to internal service paths. For most routes this simply strips the `/api` prefix (`/api/auth/login` → `/auth/login`); the two OAuth2 routes remap to Spring Security's fixed `/oauth2/authorization/**` and `/login/oauth2/**` paths instead
 - **Rate limiting** — Redis-backed, per-IP, configured per route group (see [Rate Limiting](#rate-limiting))
 - **CORS** — global CORS policy driven by `CORS_ALLOWED_ORIGINS`
-- **Request/response logging** — `LoggingFilter` logs method, path, response status
+- **Request/response logging** — `LoggingFilter` logs method + path on the way in, and response status plus the terminating reactive signal (`onComplete` / `onError` / `cancel`) on the way out via `doFinally`. Status is logged as `unknown` when the response was never committed (e.g. the chain errored before a status was set)
 - **Error formatting** — `GlobalExceptionHandler` (`ErrorWebExceptionHandler`) formats exceptions that aren't already handled elsewhere in the chain. It only special-cases `ResponseStatusException` (uses its status/reason); everything else becomes a generic `500`. It does **not** specifically detect "route not found" or "upstream unavailable" as distinct cases. `429` from `RequestRateLimiter` and error responses proxied from downstream services are not guaranteed to go through this handler or share its JSON schema
 
 The gateway does **not** currently do:
@@ -48,7 +54,9 @@ Request flow: `LoggingFilter` (logs) → CORS → route match → `RequestRateLi
 
 ## Route Matrix
 
-Source of truth: [`src/main/resources/application.yml`](src/main/resources/application.yml). Routes are evaluated top-to-bottom; more specific paths must be declared **before** broader catch-alls that share a prefix.
+Source of truth: [`src/main/resources/application.yml`](src/main/resources/application.yml), under `spring.cloud.gateway.server.webflux.routes`. Routes are evaluated top-to-bottom; more specific paths must be declared **before** broader catch-alls that share a prefix.
+
+This table is the **complete** set of routes the gateway serves. Eureka's discovery locator (`spring.cloud.gateway.server.webflux.discovery.locator.enabled`) is deliberately set to `false` — see [Rate Limiting](#rate-limiting) for why. Verify at runtime with `curl http://localhost:8080/actuator/gateway/routes`: every route id there should appear below, and none should be named after a service id (`auth-service`, `lms-core-service`, `api-gateway`).
 
 ### AUTH-SERVICE
 
@@ -100,13 +108,19 @@ Source of truth: [`src/main/resources/application.yml`](src/main/resources/appli
 
 ### Adding a route
 
-1. Add the route block under `spring.cloud.gateway.routes` in `application.yml`, placing it above any existing route whose path prefix overlaps.
-2. Ensure the target service is registered with Eureka.
-3. Restart the gateway.
+1. Add the route block under `spring.cloud.gateway.server.webflux.routes` in `application.yml`, placing it above any existing route whose path prefix overlaps.
+2. Give it a `RequestRateLimiter` filter — there is no global limit to fall back on.
+3. Ensure the target service is registered with Eureka.
+4. Restart the gateway.
+
+> **Config prefix:** since Spring Cloud Gateway 4.3.0 (Spring Cloud `2025.0.0`, pinned in [`backend/pom.xml`](../pom.xml)) the legacy `spring.cloud.gateway.*` prefix is deprecated in favour of `spring.cloud.gateway.server.webflux.*`, and the `spring-cloud-starter-gateway` artifact in favour of `spring-cloud-starter-gateway-server-webflux`. This module uses both new forms. Keep new config under `server.webflux` — the deprecated prefix goes away in the next major release, and route definitions bound to it would be silently dropped rather than failing loudly.
 
 ## Rate Limiting
 
-There is **no single global rate limit** — each route declares its own `RequestRateLimiter` filter with its own Redis bucket (see the matrix above). Values in use today: 10/20, 15/30, 20/40, and 50/100 (webhook only).
+There is **no single global rate limit** — each declared route carries its own `RequestRateLimiter` filter with its own Redis bucket (see the matrix above). Values in use today: 10/20, 15/30, 20/40, and 50/100 (webhook only). Because there is no fallback limit, **any route reaching the gateway without that filter is unthrottled** — which is why the two exceptions below matter.
+
+- The two OAuth2 routes (`/api/auth/oauth2/**`, `/api/auth/login/oauth2/**`) carry no rate limiter by design — they are browser redirects to/from the identity provider.
+- **Discovery locator is disabled** (`spring.cloud.gateway.server.webflux.discovery.locator.enabled: false`). With it enabled, Spring Cloud Gateway auto-creates a `/{lower-case-service-id}/**` route for every Eureka registrant — here `/auth-service/**`, `/lms-core-service/**`, and `/api-gateway/**` (the gateway registers itself, so that last one loops back to itself). Those generated routes carry **no** `RequestRateLimiter`, so `POST /auth-service/auth/login` would reach the login endpoint outside the 10/20 bucket declared on `/api/auth/**` — a brute-force / credential-stuffing path around the documented limits, plus a second URL shape bypassing the `/api/**` convention. It does **not** bypass authentication (the gateway never validated JWTs anyway; downstream services do). Leave it `false` and declare routes explicitly.
 
 - **Key resolver**: per-IP (`RateLimiterConfig.ipKeyResolver`, `src/main/java/com/edumind/gateway/config/RateLimiterConfig.java`) — falls back to `"unknown"` if the remote address can't be resolved.
 - **Backend**: Redis (`spring.data.redis.*`), token-bucket semantics via Spring Cloud Gateway's `redis-rate-limiter`.
@@ -118,7 +132,7 @@ To change a route's limit, edit its `redis-rate-limiter.replenishRate` / `burstC
 
 ## CORS
 
-Configured globally in `application.yml` under `spring.cloud.gateway.globalcors`:
+Configured globally in `application.yml` under `spring.cloud.gateway.server.webflux.globalcors`:
 
 ```yaml
 globalcors:
@@ -208,10 +222,12 @@ Known gaps if you're taking this to production:
 ## Testing
 
 ```bash
-mvn test
+mvn test    # requires JDK 21 — see Prerequisites
 ```
 
 There is currently one test: `ApiGatewayApplicationTests` (context-load only — verifies the Spring context starts). There are no route-matching, rate-limit, or filter integration tests yet.
+
+If `mvn test` fails with `Could not initialize inline Byte Buddy mock maker` / `Could not self-attach to current VM`, you're on the wrong JDK (23+) — nothing is wrong with the routes or the Spring context. Switch to JDK 21 (what CI uses), or work around it with `mvn test -DargLine="-Djdk.attach.allowAttachSelf=true"`.
 
 ## Troubleshooting
 

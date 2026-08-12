@@ -16,10 +16,11 @@
 	<description>Spring Cloud Gateway for routing and filtering</description>
 
 	<dependencies>
-		<!-- Gateway -->
+		<!-- Gateway (spring-cloud-starter-gateway was deprecated in Spring Cloud Gateway 4.3.0
+		     and is removed in the next major release — use the server-webflux starter) -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-gateway</artifactId>
+			<artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
 		</dependency>
 
 		<!-- Eureka Client -->

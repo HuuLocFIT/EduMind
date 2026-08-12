@@ -504,7 +504,7 @@ mvn test -pl lms-core-service -Dtest=CheckoutServiceTest
 
 [`.github/workflows/backend-ci.yml`](../.github/workflows/backend-ci.yml) runs `mvn test` for the whole backend reactor on every PR/push touching `backend/**`, and publishes JUnit results (not coverage) as a GitHub check via `dorny/test-reporter`. There is currently no static analysis, formatting, or dependency/security scan step in this pipeline — this section will be updated if one is added, rather than describing tooling that doesn't run yet.
 
-For a walkthrough of testing patterns used in this codebase (Testcontainers setup, base test classes, mocking conventions), see **[UPDATED_TESTING_GUIDE.md](UPDATED_TESTING_GUIDE.md)** — it reflects the current Testcontainers-based approach. `TESTING_GUIDE.md` predates that migration and is kept for history only.
+For the testing patterns used in this codebase (Testcontainers setup, base test classes, and mocking conventions), see **[TESTING_GUIDE.md](TESTING_GUIDE.md)**. This is the canonical backend testing guide.
 
 ## 📐 Coding Conventions
 
@@ -549,7 +549,7 @@ A running list of gaps and edge cases in the current implementation that are wor
 | :--- | :--- |
 | [API.md](API.md) | Per-endpoint reference: method, path, role, response shape |
 | [DOCKER.md](DOCKER.md) | Docker Compose file variants, healthchecks, volumes |
-| [UPDATED_TESTING_GUIDE.md](UPDATED_TESTING_GUIDE.md) | Testing patterns and Testcontainers setup used in this codebase |
+| [TESTING_GUIDE.md](TESTING_GUIDE.md) | Canonical testing patterns and Testcontainers setup used in this codebase |
 | [docs/architecture/](../docs/architecture/README.md) | C4-model diagrams (context, container, component) |
 | [docs/workflows/ai_workflows.md](../docs/workflows/ai_workflows.md) | AI architecture, workflows, transcription, provider data handling, and operational limits |
 | [docs/production-operations.md](../docs/production-operations.md) | Deployment, migrations, secrets, prod checklist |

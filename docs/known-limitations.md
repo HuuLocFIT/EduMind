@@ -13,7 +13,6 @@ Current operational gaps and edge cases that affect deployment or maintenance. S
 ## Testing & CI
 
 - No coverage tool (JaCoCo or otherwise) is wired into any `pom.xml` or the CI workflow — CI (`backend-ci.yml`) runs `mvn test` and publishes JUnit XML results via `dorny/test-reporter`, with no test-count or coverage percentage generated. Don't quote coverage numbers for this project until a coverage tool is actually added to the pipeline.
-- `backend/TESTING_GUIDE.md` is a stale, generic guide (H2-based examples) that predates the project's move to Testcontainers + real Postgres/pgvector for repository and integration tests. `backend/UPDATED_TESTING_GUIDE.md` reflects the current Testcontainers-based setup — prefer it.
 
 ## Production hardening
 
