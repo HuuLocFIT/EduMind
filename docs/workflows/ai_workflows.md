@@ -42,7 +42,7 @@ graph TB
     end
 
     subgraph Groq["Groq Whisper API"]
-        GroqAPI["whisper-large-v3-turbo<br>25MB limit, 28,800s/day free"]
+        GroqAPI["whisper-large-v3-turbo<br>25 MB application limit"]
     end
 
     subgraph SourceResolvers["Transcription Source Resolvers"]
@@ -160,9 +160,9 @@ stateDiagram-v2
 
 ## 3. Workflow 1 — Auto-Transcription (Groq Whisper)
 
-Teachers upload a lesson video to Cloudinary (or, less commonly, paste a YouTube URL — see [Appendix A](#appendix-a--historical-strategy-youtube-extraction)) and select the spoken language (`vi` or `en`, default `en`). The system extracts a transcript, writes it into the lesson's `articleContent`, generates a WebVTT caption file from Groq's per-segment timestamps, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
+Teachers upload a lesson video to Cloudinary (or, less commonly, paste a YouTube URL — see [Appendix A](#appendix-a--historical-strategy-youtube-extraction)) and select the spoken language. The request accepts only `en` or `vi`; omitting `language` uses `en`. Bean validation rejects any other value before a transcription job is created. The system extracts a transcript, writes it into the lesson's `articleContent`, generates a WebVTT caption file from Groq's per-segment timestamps, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
 
-**Why Groq instead of local Whisper**: The VPS has ~600 MB RAM left after the Spring Boot stack. Whisper medium needs 2 GB; Whisper base needs ~500 MB and is unstable under load. Groq API is free (28,800 s audio/day), ~10× faster than local inference, and consumes ≈ 0 MB VPS RAM.
+**Why Groq instead of local Whisper**: the target VPS has approximately 600 MB of RAM available after the Spring Boot services are running. Hosting Whisper locally was therefore not operationally viable: the medium model needs roughly 2 GB of memory, while even the base model needs around 500 MB and leaves too little headroom for stable application traffic. Groq-hosted Whisper avoids that VPS memory cost and, in project testing, completed transcription substantially faster than local inference. This was the deciding trade-off: depend on an external provider so the existing low-memory deployment can support transcription reliably. Provider pricing, quotas, retention, and service limits remain external dependencies and may change independently of this repository.
 
 **Why Cloudinary upload-first is the current production path**: an earlier iteration let teachers paste an arbitrary YouTube URL and relied on `yt-dlp` to fetch captions or audio server-side. On the VPS this hits YouTube's anti-bot/IP-reputation blocking and `yt-dlp` can fail silently or time out. The reliable path teachers actually use in production is: upload the video file to Cloudinary via the existing signed chunked-upload pipeline (see [`docs/workflows/video_upload_workflows.md`](./video_upload_workflows.md)), then transcribe from the resulting `res.cloudinary.com` URL. The code still fully supports YouTube URLs — the `TranscriptionSourceResolver` strategy pattern and `yt-dlp` integration are unmodified and reachable through the same endpoint — but that path is now the fallback/historical option, documented in the appendix.
 
@@ -273,6 +273,8 @@ Response: {
 ```
 
 `response_format=verbose_json` is requested specifically to get per-segment timestamps — the plain `text` field alone would not be enough to build captions.
+
+The API validates `language` as `en` or `vi`. A missing value defaults to `en`; unsupported values return a request-validation error and are not submitted to Groq.
 
 **HTTP 429 handling**: The `RestClient` status handler detects `429 Too Many Requests` and throws `GroqRateLimitException`. The async processor catches it, sets `status=DELAYED`, and stores `nextRetryAt = now + 60s`.
 
@@ -964,7 +966,21 @@ The RAG chat SSE stream is consumed by `chatStream()` in [`ai.service.ts`](../..
 
 ## 8. Cross-Cutting Concerns
 
-### 8.1 ACL Enforcement Matrix
+### 8.1 External provider data and privacy
+
+AI features are optional at startup, but enabling and invoking them sends application data to external providers:
+
+| Feature | Provider | Data submitted |
+|---------|----------|----------------|
+| RAG chat | Google Gemini | Current student question, recent question/answer history, matched lesson chunks, and a confidence hint |
+| Summaries and quizzes | Google Gemini | Lesson title and lesson content, truncated by the prompt builder |
+| Transcription | Groq | Extracted audio bytes, selected model, response format, and `en`/`vi` language code |
+
+The application does not intentionally add profile fields such as name, email, or username to these requests. However, lesson content, questions, conversation history, and audio are free-form inputs and may themselves contain personal or confidential data. There is currently no automatic PII detection or redaction before submission. Deployments must account for provider retention, data-residency, access-control, and contractual requirements.
+
+Internal numeric user IDs are used locally for authorization and rate-limit accounting; they are not added to provider prompts by the current implementation.
+
+### 8.2 ACL Enforcement Matrix
 
 | Feature | Endpoint | Instructor | Enrolled Student | Notes |
 |---------|----------|:----------:|:----------------:|-------|
@@ -983,7 +999,7 @@ The RAG chat SSE stream is consumed by `chatStream()` in [`ai.service.ts`](../..
 
 All ACL checks use cross-module API interfaces (`LessonQueryService`, `EnrollmentQueryService`, `CourseQueryService`) — no direct imports of other modules' repositories.
 
-### 8.2 Thread Pool Configuration
+### 8.3 Thread Pool Configuration
 
 ```yaml
 # application.yml — AI async executors
@@ -1007,7 +1023,7 @@ WebMvcConfig:
   timeout: 300_000ms                     # 5 minutes max SSE connection
 ```
 
-### 8.3 Gemini Configuration
+### 8.4 Gemini Configuration
 
 ```yaml
 # application.yml
@@ -1027,7 +1043,7 @@ spring:
       max-attempts: 1                    # No auto-retry; processors handle failures
 ```
 
-### 8.4 Groq Configuration
+### 8.5 Groq Configuration
 
 ```yaml
 # application.yml

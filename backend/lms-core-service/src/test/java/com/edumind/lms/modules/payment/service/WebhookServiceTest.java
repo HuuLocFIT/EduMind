@@ -321,8 +321,31 @@ class WebhookServiceTest {
             boolean result = webhookService.verifyPayPalSignature(
                     request, transmissionId, transmissionTime, signature, certUrl, authAlgo, null);
 
-            // Then - should allow in development (returns true with warning)
-            assertThat(result).isTrue();
+            // Then - fail closed when required signature headers are missing
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        @DisplayName("Should reject PayPal webhook when webhook ID is not configured")
+        void testVerifyPayPalSignature_MissingWebhookId() {
+            WebhookPayloadRequest request = WebhookPayloadRequest.builder()
+                    .orderNumber(orderNumber)
+                    .status("SUCCESS")
+                    .build();
+
+            org.springframework.test.util.ReflectionTestUtils.setField(
+                    webhookService, "paypalWebhookId", "");
+
+            boolean result = webhookService.verifyPayPalSignature(
+                    request,
+                    "transmission-id-123",
+                    "2026-01-15T10:00:00Z",
+                    "signature-abc123",
+                    "https://api.paypal.com/v1/certs/cert.pem",
+                    "SHA256withRSA",
+                    null);
+
+            assertThat(result).isFalse();
         }
 
         @Test

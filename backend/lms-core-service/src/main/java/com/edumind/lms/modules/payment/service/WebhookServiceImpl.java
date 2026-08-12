@@ -75,6 +75,9 @@ public class WebhookServiceImpl implements WebhookService {
     @Value("${payment.paypal.webhook-id:}")
     private String paypalWebhookId;
 
+    @Value("${payment.paypal.allow-unsigned-webhooks:false}")
+    private boolean allowUnsignedPayPalWebhooks;
+
     // ==================== Main Handler ====================
 
     @Override
@@ -191,10 +194,6 @@ public class WebhookServiceImpl implements WebhookService {
             String authAlgo,
             HttpServletRequest httpRequest) {
 
-        // If PAYPAL_WEBHOOK_ID isn't configured, we cannot verify real signatures.
-        // Policy (aligned with integration tests):
-        // - If NO signature headers are provided, treat as dev mode and allow (200 OK).
-        // - If signature headers ARE provided, reject (400) because we cannot verify.
         boolean hasAnySignatureHeader =
                 (signature != null && !signature.isBlank())
                         || (transmissionId != null && !transmissionId.isBlank())
@@ -202,21 +201,20 @@ public class WebhookServiceImpl implements WebhookService {
                         || (certUrl != null && !certUrl.isBlank())
                         || (authAlgo != null && !authAlgo.isBlank());
 
-        if (paypalWebhookId == null || paypalWebhookId.isEmpty()) {
-            if (!hasAnySignatureHeader) {
-                log.warn("PayPal webhook verification skipped - no webhook ID configured and no signature headers provided (dev mode).");
-                return true;
-            }
-            log.warn("Rejecting PayPal webhook - signature headers provided but PAYPAL_WEBHOOK_ID is not configured.");
+        if (allowUnsignedPayPalWebhooks && !hasAnySignatureHeader) {
+            log.warn("PayPal webhook signature verification is disabled by explicit configuration. Do not enable this outside automated tests.");
+            return true;
+        }
+
+        if (paypalWebhookId == null || paypalWebhookId.isBlank()) {
+            log.error("Rejecting PayPal webhook because PAYPAL_WEBHOOK_ID is not configured.");
             return false;
         }
 
-        // If webhook ID is configured but signature itself is missing, allow (dev fallback).
-        // Production should always provide signature headers.
         if (signature == null || signature.isBlank()) {
-            log.warn("PayPal signature not provided for order {} - allowing (dev fallback).",
+            log.warn("Rejecting PayPal webhook without a signature for order {}.",
                     request.getOrderNumber());
-            return true;
+            return false;
         }
 
         // Validate required headers
@@ -260,8 +258,8 @@ public class WebhookServiceImpl implements WebhookService {
 
         // Check if PayPal is configured
         if (payPalProperties == null) {
-            log.warn("PayPal properties not configured - skipping webhook verification");
-            return true;
+            log.error("PayPal properties are not configured - rejecting webhook");
+            return false;
         }
 
         String verifyUrl = payPalProperties.getBaseUrl() + "/v1/notifications/verify-webhook-signature";
