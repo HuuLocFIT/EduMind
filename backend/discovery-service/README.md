@@ -1,350 +1,136 @@
-# Discovery Service (Eureka Server)
+# Discovery Service
 
-Service Discovery server for EduMind Platform - A Eureka-based service registry that enables automatic service registration and discovery in a microservices architecture.
+The Discovery Service is the Eureka Server used as the service registry for the EduMind backend. The current implementation runs as **one standalone Eureka node** and provides registration and instance lookup for `auth-service`, `lms-core-service`, and `api-gateway`.
 
-## Table of Contents
+> This document describes what is currently implemented in the repository. The registry and dashboard require HTTP Basic authentication. Eureka clustering and TLS are not configured.
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Eureka Dashboard](#eureka-dashboard)
-- [Service Registry](#service-registry)
-- [Monitoring](#monitoring)
-- [Troubleshooting](#troubleshooting)
-- [Deployment](#deployment)
-- [Best Practices](#best-practices)
-- [Docker Guide](../DOCKER.md)
+## Technology and default addresses
 
+| Component | Value |
+|---|---|
+| Java | 21 |
+| Spring Boot | 3.5.6 |
+| Spring Cloud | 2025.0.0 |
+| Eureka | `spring-cloud-starter-netflix-eureka-server` |
+| Security | `spring-boot-starter-security` (HTTP Basic) |
+| Actuator | Health, info, and metrics |
+| Port | `8761` |
+| Dashboard | `http://localhost:8761` (login required) |
+| Registry API | `http://localhost:8761/eureka/apps` (login required) |
 
-## Overview
+The parent POM at `backend/pom.xml` manages these versions. This module does not declare separate Spring Boot or Spring Cloud versions.
 
-The Discovery Service is a Spring Cloud Netflix Eureka Server that acts as a service registry for all microservices in the EduMind Platform. It provides:
+## Role in the system
 
-- **Service Registration** - Microservices register themselves with Eureka
-- **Service Discovery** - Services can discover and communicate with each other
-- **Health Monitoring** - Tracks health status of registered services
-- **Load Balancing** - Enables client-side load balancing across service instances
-- **Web Dashboard** - User-friendly web interface for monitoring services
-
-**Technology Stack:**
-- Spring Cloud Netflix Eureka Server 2025.0.0
-- Spring Boot 3.5.6
-- Spring Boot Actuator (Health & Metrics)
-- Java 21
-
-**Port:** 8761 (default, configurable)
-
-**Dashboard URL:** http://localhost:8761
-
-## Architecture
-
-```
-┌────────────────────────────────────────────────────────────┐
-│              Eureka Discovery Service                      │
-│                   (Port: 8761)                             │
-│                                                            │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Service Registry                                  │    │
-│  │  • Maintains list of registered services           │    │
-│  │  • Tracks service health status                    │    │
-│  │  • Stores service metadata                         │    │
-│  └────────────────────────────────────────────────────┘    │
-│                                                            │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  REST API                                          │    │
-│  │  • /eureka/apps - Service registry                 │    │
-│  │  • /eureka/apps/{service-name} - Service details   │    │
-│  └────────────────────────────────────────────────────┘    │
-│                                                            │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Web Dashboard                                     │    │
-│  │  • Service list and status                         │    │
-│  │  • Health monitoring                               │    │
-│  │  • Instance details                                │    │
-│  └────────────────────────────────────────────────────┘    │
-└───────────────────────┬────────────────────────────────────┘
-                        │
-        ┌───────────────┼───────────────┐
-        │               │               │
-        │ Register      │ Query         │ Heartbeat
-        │               │               │
-┌───────▼──────┐  ┌─────▼───────┐  ┌────▼───────┐
-│ Auth Service │  │ API Gateway │  │ Other      │
-│ (Port: 8081) │  │ (Port: 8080)│  │ Services   │
-│              │  │             │  │            │
-│ • Registers  │  │ • Discovers │  │ • Register │
-│ • Sends      │  │ • Routes    │  │ • Discover │
-│   heartbeat  │  │   requests  │  │            │
-└──────────────┘  └─────────────┘  └────────────┘
+```text
+                         discovery-service :8761
+                              Eureka Server
+                                    │
+             ┌──────────────────────┼──────────────────────┐
+             │                      │                      │
+             ▼                      ▼                      ▼
+      auth-service :8081   lms-core-service :8083   api-gateway :8080
+         AUTH-SERVICE          LMS-CORE-SERVICE          API-GATEWAY
 ```
 
-### Service Registration Flow
+All three services set `register-with-eureka: true` and `fetch-registry: true`, reach the registry through `EUREKA_DEFAULT_ZONE`, and authenticate with an `Authorization` header supplied by the shared `eureka-client-security` module. The API Gateway uses `lb://AUTH-SERVICE` and `lb://LMS-CORE-SERVICE` URIs for registry-backed instance lookup and client-side load balancing.
 
-1. **Service Starts** → Connects to Eureka Server
-2. **Registration** → Service sends registration request to Eureka
-3. **Registry Update** → Eureka adds service to registry
-4. **Heartbeat** → Service sends periodic heartbeat (every 30s)
-5. **Health Check** → Eureka monitors service health
-6. **Discovery** → Other services query Eureka for service instances
+The Gateway's automatic discovery locator is **intentionally disabled**. The Gateway uses only explicitly configured `lb://...` routes; Eureka does not create additional `/{service-id}/**` routes.
 
-### Service Discovery Flow
+Runtime flow:
 
-1. **Client Request** → API Gateway needs to route to Auth Service
-2. **Query Eureka** → API Gateway queries Eureka for AUTH-SERVICE instances
-3. **Get Instances** → Eureka returns list of available instances
-4. **Load Balance** → API Gateway selects instance (round-robin)
-5. **Route Request** → API Gateway routes request to selected instance
+1. A client service starts and registers its instance with Eureka, authenticating with an `Authorization` header.
+2. The client periodically renews its lease through heartbeats.
+3. Eureka stores the registry and makes it available to other clients.
+4. The Gateway resolves an instance from the registry for an `lb://...` route.
+5. An instance whose lease expires may be removed during an eviction cycle.
 
-## Features
+With the current configuration, Eureka Server does not actively poll each service's health endpoint. Registry state primarily comes from registration, heartbeat/lease renewal, and the status supplied by the Eureka client.
 
-### ✅ Core Features
+### Registration and lease lifecycle
 
-- **Service Registration**
-  - Automatic service registration on startup
-  - Service metadata storage (host, port, health status)
-  - Multiple instance support for same service
+The following behavior is provided by Spring Cloud Netflix Eureka rather than custom application code:
 
-- **Service Discovery**
-  - RESTful API for service lookup
-  - Real-time service availability
-  - Health-aware service discovery
+1. On startup, a Eureka client sends its application name, instance ID, host, port, status, and metadata to the server.
+2. The client periodically sends heartbeats to renew its lease. The Eureka client defaults are normally a 30-second renewal interval and a 90-second lease duration unless a client overrides them.
+3. Other Eureka clients periodically fetch the registry and keep a local cache.
+4. When a client shuts down cleanly, it attempts to cancel its registration.
+5. If a client disappears without deregistering and its lease expires, the server can remove it during the next eviction cycle.
 
-- **Health Monitoring**
-  - Automatic health check tracking
-  - Service instance status (UP, DOWN, OUT_OF_SERVICE)
-  - Automatic eviction of unhealthy instances
+The server eviction interval controls how often Eureka looks for expired leases. It does not replace the lease settings owned by each client.
 
-- **Web Dashboard**
-  - User-friendly web interface
-  - Real-time service status
-  - Service instance details
-  - System status overview
+### Instance statuses
 
-- **High Availability**
-  - Support for Eureka cluster (peer-to-peer replication)
-  - Self-preservation mode (protects against network partitions)
-  - Automatic failover
+Eureka instances may expose these standard statuses:
 
-### 🔧 Technical Features
+| Status | Meaning |
+|---|---|
+| `UP` | Available for discovery |
+| `DOWN` | Not available |
+| `STARTING` | Starting and not yet fully available |
+| `OUT_OF_SERVICE` | Intentionally removed from service |
+| `UNKNOWN` | No recognized status is available |
 
-- **RESTful API**
-  - Standard Eureka REST API
-  - Service registration endpoints
-  - Service discovery endpoints
-  - Health check endpoints
+## Security
 
-- **Heartbeat Mechanism**
-  - Services send heartbeat every 30 seconds
-  - Automatic eviction if heartbeat missed (90 seconds)
-  - Configurable heartbeat interval
+`src/main/java/com/edumind/discovery/config/SecurityConfig.java` defines a single filter chain:
 
-- **Self-Preservation**
-  - Protects registry during network partitions
-  - Prevents accidental service eviction
-  - Configurable threshold (default: 85%)
+- `/actuator/health` and `/actuator/health/**` are open, because the container health check calls them without credentials. The response body carries only `{"status":"UP"}` unless the caller authenticates.
+- Every other path — the dashboard at `/`, `/eureka/**`, and the remaining Actuator endpoints — requires HTTP Basic authentication.
+- CSRF is disabled for `/eureka/**` so that client registration (`POST`), renewal (`PUT`), and cancellation (`DELETE`) work; those calls carry no CSRF token.
 
-- **Eviction**
-  - Automatic removal of unhealthy services
-  - Configurable eviction interval (default: 60 seconds)
-  - Manual eviction via dashboard
+Credentials come from `EUREKA_USERNAME` / `EUREKA_PASSWORD`. The default profile falls back to `eureka` / `eureka` for local development; the `prod` profile declares the same properties **without defaults**, so the application fails to start when the variables are missing.
 
-- **Security** (Production)
-  - HTTP Basic Authentication support
-  - HTTPS/TLS support
-  - IP whitelisting
+Eureka clients do **not** put the credentials in the zone URL. `backend/eureka-client-security` auto-configures them to send an `Authorization` header instead, built from `EUREKA_USERNAME` / `EUREKA_PASSWORD`:
 
-### 📊 Monitoring Features
-
-- **Actuator Endpoints**
-  - Health checks
-  - Metrics collection
-  - Service information
-
-- **Logging**
-  - Structured logging
-  - Service registration events
-  - Health check events
-  - Log rotation (10MB per file, 30 days retention)
-
-## Prerequisites
-
-Before setting up the Discovery Service, ensure you have:
-
-### Required Software
-
-- **Java 21** or higher
-  ```bash
-  java -version
-  # Should show: openjdk version "21" or higher
-  ```
-
-- **Maven 3.6+**
-  ```bash
-  mvn -version
-  # Should show: Apache Maven 3.6.x or higher
-  ```
-
-### Network Requirements
-
-- **Port 8761** must be available (or configure custom port)
-- **Firewall** should allow incoming connections on port 8761
-- **Network connectivity** between Eureka and all microservices
-
-### Optional
-
-- **Reverse Proxy** (Nginx, Apache) for production
-- **Load Balancer** for high availability setup
-- **SSL Certificate** for HTTPS in production
-
-## Quick Start
-
-### Step 1: Build the Service
-
-```bash
-# From backend/discovery-service directory
-mvn clean package
+```text
+EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/   # no credentials
+EUREKA_USERNAME=<user>
+EUREKA_PASSWORD=<password>
 ```
 
-### Step 2: Start the Service
+That keeps passwords containing `@`, `:`, `/`, `#`, or `%` from corrupting URI parsing, and keeps them out of `docker inspect` and log output. See that module's README for how it hooks into Spring Cloud while preserving TLS.
 
-```bash
-# Run with Maven
-mvn spring-boot:run
+The credentials travel in cleartext because TLS is not configured. Keep the registry on the internal Docker network; `docker-compose.prod.yml` does not publish port 8761 to the host.
 
-# Or run JAR file
-java -jar target/service-discovery-1.0.0-SNAPSHOT.jar
-```
+## Current configuration
 
-### Step 3: Verify
-
-```bash
-# Check health endpoint
-curl http://localhost:8761/actuator/health
-
-# Check Eureka dashboard
-# Open http://localhost:8761 in browser
-```
-
-**Expected Output:**
-- Service running on port 8761
-- Eureka dashboard accessible
-- No services registered yet (will appear when other services start)
-
-### Step 4: Start Other Services
-
-After Discovery Service is running, start other services:
-
-```bash
-# Terminal 2: Start Auth Service
-cd backend/auth-service
-mvn spring-boot:run
-
-# Terminal 3: Start API Gateway
-cd backend/api-gateway
-mvn spring-boot:run
-```
-
-**Check Dashboard:**
-- Open http://localhost:8761
-- You should see:
-  - **AUTH-SERVICE** registered
-  - **API-GATEWAY** registered
-
-## Configuration
-
-### Environment Variables
-
-The Discovery Service can be configured using environment variables:
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `DISCOVERY_SERVER_PORT` | Server port | `8761` | No |
-| `EUREKA_HOSTNAME` | Eureka server hostname | `localhost` | No |
-
-### Application Configuration
-
-The main configuration file is `src/main/resources/application.yml`:
-
-#### Server Configuration
+`src/main/resources/application.yml` — the full file:
 
 ```yaml
 server:
   port: ${DISCOVERY_SERVER_PORT:8761}
-```
+  shutdown: graceful
 
-#### Eureka Server Configuration
+spring:
+  application:
+    name: service-discovery
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  security:
+    user:
+      name: ${EUREKA_USERNAME:eureka}
+      password: ${EUREKA_PASSWORD:eureka}
 
-```yaml
 eureka:
   instance:
     hostname: ${EUREKA_HOSTNAME:localhost}
   client:
-    register-with-eureka: false  # Eureka server doesn't register itself
-    fetch-registry: false        # Eureka server doesn't fetch registry
+    register-with-eureka: false
+    fetch-registry: false
     service-url:
       defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
   server:
-    enable-self-preservation: false  # Disable in development
-    eviction-interval-timer-in-ms: 5000  # Evict unhealthy instances every 5 seconds
-```
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 5000
 
-**Configuration Options:**
-
-- **`register-with-eureka: false`**
-  - Eureka server doesn't need to register itself
-  - Set to `true` only in Eureka cluster setup
-
-- **`fetch-registry: false`**
-  - Eureka server doesn't need to fetch registry from peers
-  - Set to `true` only in Eureka cluster setup
-
-- **`enable-self-preservation: false`**
-  - Disables self-preservation mode
-  - Recommended for development
-  - Set to `true` in production for high availability
-
-- **`eviction-interval-timer-in-ms: 5000`**
-  - How often to evict unhealthy instances (in milliseconds)
-  - Default: 60000 (60 seconds)
-  - Lower value = faster eviction, higher load
-
-#### Self-Preservation Mode
-
-Self-preservation protects the registry during network partitions:
-
-```yaml
-eureka:
-  server:
-    enable-self-preservation: true
-    renewal-percent-threshold: 0.85  # 85% threshold
-```
-
-**How it works:**
-- If less than 85% of services send heartbeats, Eureka enters self-preservation mode
-- Services are NOT evicted even if heartbeats are missed
-- Prevents accidental service removal during network issues
-
-#### Logging Configuration
-
-```yaml
 logging:
   level:
     root: INFO
     com.edumind: DEBUG
     com.netflix.eureka: INFO
     com.netflix.discovery: INFO
-  file:
-    name: logs/service-discovery.log
-    max-size: 10MB
-    max-history: 30
-```
 
-#### Actuator Configuration
-
-```yaml
 management:
   endpoints:
     web:
@@ -352,774 +138,448 @@ management:
         include: health,info,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
 ```
 
-### Eureka Cluster Configuration (High Availability)
+Appenders, log patterns, and rotation are owned by `logback-spring.xml`; `application.yml` sets levels only.
 
-For production, configure Eureka cluster with peer-to-peer replication:
+`src/main/resources/application-prod.yml` — applied when `SPRING_PROFILES_ACTIVE=prod`:
 
-**Node 1 (`application-peer1.yml`):**
-```yaml
-eureka:
-  instance:
-    hostname: eureka1.example.com
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://eureka2.example.com:8761/eureka/
-```
-
-**Node 2 (`application-peer2.yml`):**
-```yaml
-eureka:
-  instance:
-    hostname: eureka2.example.com
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://eureka1.example.com:8761/eureka/
-```
-
-**Benefits:**
-- High availability (if one node fails, other continues)
-- Automatic replication between nodes
-- No single point of failure
-
-### Security Configuration (Production)
-
-**HTTP Basic Authentication:**
 ```yaml
 spring:
   security:
     user:
-      name: admin
-      password: ${EUREKA_PASSWORD:changeme}
+      name: ${EUREKA_USERNAME}
+      password: ${EUREKA_PASSWORD}
+
+eureka:
+  server:
+    enable-self-preservation: true
+    renewal-percent-threshold: 0.85
+    eviction-interval-timer-in-ms: 60000
+
+logging:
+  level:
+    com.edumind: INFO
 ```
 
-**HTTPS Configuration:**
-```yaml
-server:
-  ssl:
-    enabled: true
-    key-store: classpath:keystore.p12
-    key-store-password: ${SSL_KEYSTORE_PASSWORD}
-    key-store-type: PKCS12
-    key-alias: eureka
-```
+### Environment variables
 
-## Eureka Dashboard
+| Variable | Default | Purpose |
+|---|---:|---|
+| `DISCOVERY_SERVER_PORT` | `8761` | HTTP port used by this service. The Dockerfile's `EXPOSE` and health check follow this variable, and both Compose files use it on each side of the port mapping. |
+| `EUREKA_HOSTNAME` | `localhost` | Hostname used in the Eureka server configuration |
+| `EUREKA_USERNAME` | `eureka` (none under `prod`) | HTTP Basic user for the registry and dashboard |
+| `EUREKA_PASSWORD` | `eureka` (none under `prod`) | HTTP Basic password |
+| `SPRING_PROFILES_ACTIVE` | Empty | Set to `prod` to apply `application-prod.yml` |
+| `JAVA_OPTS` | Empty | JVM options accepted by the Docker image |
+| `DISCOVERY_JAVA_OPTS` | `-XX:MaxRAMPercentage=75.0` | Compose-level value passed into the container as `JAVA_OPTS` |
 
-### Accessing the Dashboard
+`EUREKA_DEFAULT_ZONE` is not a Discovery Service setting. Eureka clients use it to locate this server, and it carries no credentials:
 
-Open your browser and navigate to:
-```
-http://localhost:8761
-```
+- Native execution: `http://localhost:8761/eureka/`
+- Docker Compose: `http://discovery-service:${DISCOVERY_SERVER_PORT}/eureka/`
 
-### Dashboard Overview
+Clients read `EUREKA_USERNAME` / `EUREKA_PASSWORD` separately and send them as a header.
 
-The Eureka dashboard provides a web interface to monitor registered services:
+### Current standalone behavior
 
-**Main Page Shows:**
-- **System Status** - Current status of Eureka server
-- **DS Replicas** - List of Eureka server replicas (for cluster)
-- **Instances currently registered with Eureka** - List of all registered services
+- The server does not register itself with Eureka.
+- The server does not fetch a registry from peers.
+- Under the default profile, self-preservation is disabled and the eviction task runs every five seconds. This is the scan interval, not the client lease timeout.
+- Under the `prod` profile, self-preservation is enabled, the renewal threshold is `0.85`, and the eviction task runs every sixty seconds.
+- Shutdown is graceful: in-flight requests get up to twenty seconds to finish after `SIGTERM`.
 
-### Service Information
+## Running locally
 
-For each registered service, the dashboard displays:
+Java 21 and Maven are required. The repository includes Maven Wrapper, so a system-wide Maven installation is optional.
 
-- **Application Name** - Service name (e.g., AUTH-SERVICE)
-- **Status** - Service status (UP, DOWN, OUT_OF_SERVICE)
-- **Availability Zones** - Zone information (for multi-zone deployments)
-- **Instance Count** - Number of instances for this service
-
-### Service Instance Details
-
-Click on a service name to view instance details:
-
-- **Instance ID** - Unique identifier for the instance
-- **Status** - Current health status
-- **Host Name** - Server hostname
-- **IP Address** - Instance IP address
-- **Port** - Service port number
-- **Secure Port** - HTTPS port (if configured)
-- **Home Page URL** - Service home page
-- **Status Page URL** - Health check endpoint
-- **Health Check URL** - Health check endpoint
-- **Metadata** - Custom metadata
-
-### Dashboard Features
-
-1. **Refresh** - Manually refresh the service list
-2. **Filter** - Filter services by name
-3. **Last N minutes** - View services updated in last N minutes
-4. **Status** - View services by status (UP, DOWN, etc.)
-
-## Service Registry
-
-### REST API Endpoints
-
-Eureka provides a RESTful API for service registration and discovery:
-
-#### Get All Applications
+Run from the module directory:
 
 ```bash
-GET /eureka/apps
+cd backend/discovery-service
+./mvnw spring-boot:run
 ```
 
-**Response:**
-```xml
-<applications>
-  <versions__delta>1</versions__delta>
-  <apps__hashcode>UP_1_</apps__hashcode>
-  <application>
-    <name>AUTH-SERVICE</name>
-    <instance>
-      <instanceId>auth-service:8081</instanceId>
-      <hostName>localhost</hostName>
-      <app>AUTH-SERVICE</app>
-      <ipAddr>127.0.0.1</ipAddr>
-      <status>UP</status>
-      <port enabled="true">8081</port>
-      <securePort enabled="false">8443</securePort>
-    </instance>
-  </application>
-</applications>
-```
-
-#### Get Specific Application
+Alternatively, build and run the JAR:
 
 ```bash
-GET /eureka/apps/{app-name}
+cd backend/discovery-service
+./mvnw clean package
+java -jar target/service-discovery-1.0.0-SNAPSHOT.jar
 ```
 
-**Example:**
-```bash
-curl http://localhost:8761/eureka/apps/AUTH-SERVICE
-```
+You may use `mvn` instead of `./mvnw` if a compatible Maven version is installed.
 
-#### Get Application Instance
+Verify the service:
 
 ```bash
-GET /eureka/apps/{app-name}/{instance-id}
-```
-
-**Example:**
-```bash
-curl http://localhost:8761/eureka/apps/AUTH-SERVICE/auth-service:8081
-```
-
-#### Register Service Instance
-
-```bash
-POST /eureka/apps/{app-name}
-Content-Type: application/json
-
-{
-  "instance": {
-    "instanceId": "auth-service:8081",
-    "hostName": "localhost",
-    "app": "AUTH-SERVICE",
-    "ipAddr": "127.0.0.1",
-    "status": "UP",
-    "port": {
-      "$": 8081,
-      "@enabled": "true"
-    },
-    "securePort": {
-      "$": 8443,
-      "@enabled": "false"
-    },
-    "healthCheckUrl": "http://localhost:8081/actuator/health",
-    "statusPageUrl": "http://localhost:8081/actuator/info",
-    "homePageUrl": "http://localhost:8081/"
-  }
-}
-```
-
-#### Send Heartbeat
-
-```bash
-PUT /eureka/apps/{app-name}/{instance-id}
-```
-
-**Example:**
-```bash
-curl -X PUT http://localhost:8761/eureka/apps/AUTH-SERVICE/auth-service:8081
-```
-
-#### Cancel Registration
-
-```bash
-DELETE /eureka/apps/{app-name}/{instance-id}
-```
-
-**Example:**
-```bash
-curl -X DELETE http://localhost:8761/eureka/apps/AUTH-SERVICE/auth-service:8081
-```
-
-### Service Registration Process
-
-1. **Service Startup** → Service connects to Eureka
-2. **Registration Request** → Service sends POST to `/eureka/apps/{app-name}`
-3. **Registry Update** → Eureka adds service to registry
-4. **Heartbeat** → Service sends PUT every 30 seconds
-5. **Health Monitoring** → Eureka tracks service health
-6. **Eviction** → If heartbeat missed for 90 seconds, service is evicted
-
-### Service Discovery Process
-
-1. **Client Query** → Client queries `/eureka/apps/{app-name}`
-2. **Get Instances** → Eureka returns list of available instances
-3. **Filter Healthy** → Client filters to only UP instances
-4. **Load Balance** → Client selects instance (round-robin, random, etc.)
-5. **Make Request** → Client makes request to selected instance
-
-### Heartbeat Mechanism
-
-- **Interval**: Services send heartbeat every 30 seconds
-- **Timeout**: If heartbeat not received for 90 seconds, service is marked DOWN
-- **Eviction**: Unhealthy services are evicted after timeout period
-- **Renewal**: Each heartbeat renews the service lease
-
-### Service Status
-
-Services can have the following statuses:
-
-- **UP** - Service is healthy and available
-- **DOWN** - Service is not responding
-- **STARTING** - Service is starting up
-- **OUT_OF_SERVICE** - Service is manually taken out of service
-- **UNKNOWN** - Status is unknown
-
-## Monitoring
-
-### Health Checks
-
-The Discovery Service exposes health endpoints via Spring Boot Actuator:
-
-```bash
-# Basic health check
 curl http://localhost:8761/actuator/health
-
-# Response
-{
-  "status": "UP"
-}
+curl -u eureka:eureka -H 'Accept: application/json' http://localhost:8761/eureka/apps
 ```
 
-**Health Endpoints:**
-- `/actuator/health` - Overall health status
-- `/actuator/health/liveness` - Kubernetes liveness probe
-- `/actuator/health/readiness` - Kubernetes readiness probe
+The dashboard is available at `http://localhost:8761` and prompts for the same credentials. The registry may be empty until the other backend services start.
 
-### Metrics
+For native backend execution, use this recommended startup order:
 
-View available metrics:
+1. `discovery-service`
+2. `auth-service` and `lms-core-service`
+3. `api-gateway`
+
+The databases and Redis must also be running as described in `backend/README.md`.
+
+## Eureka dashboard
+
+Open `http://localhost:8761` after the service starts and sign in with `EUREKA_USERNAME` / `EUREKA_PASSWORD`. The dashboard is supplied by the Eureka Server dependency; this repository does not implement a custom dashboard.
+
+The main page provides:
+
+- General Eureka environment and server information.
+- Registered applications grouped by application name.
+- Instance count and status.
+- Hostname, instance ID, and service URL information.
+- Replica information. With the current standalone configuration, no peer replica is expected.
+
+For a normal full-backend run, the registered application list should eventually include:
+
+- `AUTH-SERVICE`
+- `LMS-CORE-SERVICE`
+- `API-GATEWAY`
+
+Registration is asynchronous. A service may take a short time to appear after its process reports that it has started. Refresh the dashboard or query `/eureka/apps` before concluding that registration failed.
+
+## Running with Docker Compose
+
+The module Dockerfile requires `backend/` as its build context because it copies the parent POM, every module POM, and the sources of `common-lib` and `discovery-service` from the Maven reactor.
+
+Recommended commands:
 
 ```bash
-# List all metrics
-curl http://localhost:8761/actuator/metrics
-
-# Specific metric
-curl http://localhost:8761/actuator/metrics/jvm.memory.used
+cd backend
+docker compose up -d --build discovery-service
+docker compose ps discovery-service
+docker compose logs -f discovery-service
 ```
 
-**Key Metrics:**
-- `jvm.memory.used` - JVM memory usage
-- `jvm.gc.pause` - Garbage collection pauses
-- `process.cpu.usage` - CPU usage
-- `http.server.requests` - HTTP request metrics
+Build the image directly:
 
-### Logging
-
-**Log Location:** `logs/discovery-service.log`
-
-**View Logs:**
 ```bash
-# Real-time logs
+cd backend
+docker build \
+  -f discovery-service/Dockerfile \
+  -t edumind/discovery-service:latest \
+  .
+```
+
+Do not run `docker build .` from `backend/discovery-service`; that context does not contain the parent POM and module POMs copied by the Dockerfile.
+
+The current image:
+
+- Builds the JAR with Maven 3.9 and Eclipse Temurin 21.
+- Runs on `eclipse-temurin:21-jre-alpine`.
+- Runs as a non-root user.
+- Installs `wget` for the container health check.
+- Defaults `DISCOVERY_SERVER_PORT` to `8761` and uses it for `EXPOSE` and for the health check URL.
+- Calls `/actuator/health` every 30 seconds for its health check.
+- Accepts JVM options through `JAVA_OPTS`.
+
+`docker-compose.yml` publishes `${DISCOVERY_SERVER_PORT:-8761}` on both sides of the mapping, sets `EUREKA_HOSTNAME=discovery-service`, passes the Basic credentials, mounts the `discovery-logs` volume at `/app/logs`, limits the container to 512 MB, and connects the service to `edumind-network`.
+
+`docker-compose.prod.yml` additionally sets `SPRING_PROFILES_ACTIVE=prod`, requires `EUREKA_USERNAME` and `EUREKA_PASSWORD` (Compose refuses to start without them), and **does not publish port 8761 to the host** — the registry is reachable only from `edumind-network`. To open the dashboard against a production deployment, use an SSH tunnel or `docker compose exec`.
+
+### Running the image without Compose
+
+After building the image from the `backend/` context, it can be run directly:
+
+```bash
+docker run --rm \
+  --name edumind-discovery-service \
+  -p 8761:8761 \
+  -e DISCOVERY_SERVER_PORT=8761 \
+  -e EUREKA_HOSTNAME=localhost \
+  -e EUREKA_USERNAME=eureka \
+  -e EUREKA_PASSWORD=eureka \
+  edumind/discovery-service:latest
+```
+
+When other services run in separate containers, put them on the same Docker network and use a hostname resolvable from those containers. The Compose setup already provides this wiring.
+
+## Actuator and monitoring
+
+The following endpoints are exposed:
+
+| Endpoint | Authentication | Purpose |
+|---|---|---|
+| `/actuator/health` | None | Overall health; used by the Dockerfile and Docker Compose |
+| `/actuator/info` | Basic | Application information when an info contributor supplies it |
+| `/actuator/metrics` | Basic | Available Micrometer metrics |
+| `/actuator/metrics/{name}` | Basic | Details for one metric |
+
+Examples:
+
+```bash
+curl http://localhost:8761/actuator/health
+curl -u eureka:eureka http://localhost:8761/actuator/health
+curl -u eureka:eureka http://localhost:8761/actuator/metrics
+curl -u eureka:eureka http://localhost:8761/actuator/metrics/jvm.memory.used
+```
+
+Useful metrics commonly supplied by Spring Boot and the JVM include:
+
+| Metric | Purpose |
+|---|---|
+| `jvm.memory.used` | JVM memory consumption |
+| `jvm.gc.pause` | Garbage collection pause measurements |
+| `process.cpu.usage` | Process CPU usage |
+| `http.server.requests` | HTTP server request timing and counts |
+
+Always query `/actuator/metrics` first because the exact metric set depends on the active runtime instrumentation and whether a metric has been observed.
+
+`management.endpoint.health.show-details` is set to `when-authorized`. An unauthenticated call returns the status only; component details require Basic credentials.
+
+The repository does not explicitly enable `management.endpoint.health.probes.enabled`. The current documentation and deployment therefore rely only on `/actuator/health` and do not assume `/actuator/health/liveness` or `/actuator/health/readiness` is always available outside Kubernetes.
+
+## Logging
+
+`logback-spring.xml` is the single source of truth for appenders and rotation:
+
+- The root logger writes at `INFO` level.
+- The `com.edumind` package writes at `DEBUG` level, lowered to `INFO` under the `prod` profile.
+- The active log file is `logs/discovery-service.log`.
+- Logs rotate daily and when a file reaches 10 MB.
+- Thirty days of history are retained.
+
+```bash
 tail -f logs/discovery-service.log
-
-# Search for errors
 grep -i error logs/discovery-service.log
-
-# Last 100 lines
 tail -n 100 logs/discovery-service.log
 ```
 
-**Log Format:**
-```
-2025-01-20 10:30:00.123 INFO  [main] DiscoveryServiceApplication - 🚀 Starting Discovery Service (Eureka Server)...
-2025-01-20 10:30:05.456 INFO  [main] DiscoveryServiceApplication - ✅ Service Discovery started successfully on port 8761
-```
+Inside a container the path is `/app/logs`, backed by the `discovery-logs` volume in both Compose files, so history survives a container replacement:
 
-### Service Registration Events
-
-Monitor service registration in logs:
-
-```
-INFO  c.n.e.registry.AbstractInstanceRegistry - Registered instance AUTH-SERVICE/auth-service:8081 with status UP
-INFO  c.n.e.registry.AbstractInstanceRegistry - Renewed instance AUTH-SERVICE/auth-service:8081
-INFO  c.n.e.registry.AbstractInstanceRegistry - Cancelled instance AUTH-SERVICE/auth-service:8081
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Discovery Service fails to start - Port already in use
-
-**Error:**
-```
-Port 8761 is already in use
-```
-
-**Solution:**
 ```bash
-# Find process using port
-lsof -i :8761  # macOS/Linux
-netstat -ano | findstr :8761  # Windows
-
-# Kill process
-kill -9 <PID>  # macOS/Linux
-taskkill /PID <PID> /F  # Windows
-
-# Or change port
-export DISCOVERY_SERVER_PORT=8762
+docker compose exec discovery-service tail -f /app/logs/discovery-service.log
 ```
 
-#### 2. Services not registering with Eureka
+Registration, renewal, and cancellation events originate from Eureka's own logger packages. `application.yml` already sets these two keys to `INFO`; to get verbose heartbeat diagnostics, **change the existing values** rather than adding duplicate keys:
 
-**Error:**
-```
-Services don't appear in Eureka dashboard
-```
-
-**Solution:**
-1. Verify Eureka is running: `curl http://localhost:8761/actuator/health`
-2. Check service configuration:
-   - `eureka.client.service-url.defaultZone` should point to Eureka
-   - `eureka.client.register-with-eureka` should be `true`
-3. Check service logs for registration errors
-4. Verify network connectivity between service and Eureka
-5. Check firewall rules
-
-#### 3. Services appear as DOWN in dashboard
-
-**Error:**
-```
-Service status shows DOWN in Eureka dashboard
-```
-
-**Solution:**
-1. Check if service is actually running
-2. Verify service health endpoint: `curl http://localhost:8081/actuator/health`
-3. Check service logs for errors
-4. Verify heartbeat is being sent (check logs)
-5. Check network connectivity
-6. Verify service configuration matches Eureka expectations
-
-#### 4. Services being evicted too quickly
-
-**Error:**
-```
-Services are removed from registry even though they're running
-```
-
-**Solution:**
-1. Increase eviction interval:
-   ```yaml
-   eureka:
-     server:
-       eviction-interval-timer-in-ms: 60000  # 60 seconds
-   ```
-2. Enable self-preservation mode:
-   ```yaml
-   eureka:
-     server:
-       enable-self-preservation: true
-   ```
-3. Check network latency between service and Eureka
-4. Verify heartbeat interval in service configuration
-
-#### 5. Cannot access Eureka dashboard
-
-**Error:**
-```
-Cannot connect to http://localhost:8761
-```
-
-**Solution:**
-1. Verify service is running: `ps aux | grep discovery`
-2. Check service logs for errors
-3. Verify port is correct: `netstat -an | grep 8761`
-4. Check firewall rules
-5. Try accessing via IP instead of localhost
-
-#### 6. Eureka cluster not replicating
-
-**Error:**
-```
-Eureka nodes in cluster not syncing
-```
-
-**Solution:**
-1. Verify `register-with-eureka: true` on all nodes
-2. Verify `fetch-registry: true` on all nodes
-3. Check `service-url.defaultZone` points to peer nodes
-4. Verify network connectivity between nodes
-5. Check logs for replication errors
-
-### Debugging Tips
-
-#### Enable Debug Logging
-
-Add to `application.yml`:
 ```yaml
 logging:
   level:
     com.netflix.eureka: DEBUG
     com.netflix.discovery: DEBUG
-    com.edumind: DEBUG
 ```
 
-#### Check Service Registry
+Use verbose logging only while diagnosing a problem because registry and heartbeat activity can produce substantial output.
 
-```bash
-# View all registered services
-curl http://localhost:8761/eureka/apps
+## Eureka REST API
 
-# View specific service
-curl http://localhost:8761/eureka/apps/AUTH-SERVICE
+The standard Eureka Server endpoints are supplied by the dependency and all require Basic authentication:
 
-# View service instance
-curl http://localhost:8761/eureka/apps/AUTH-SERVICE/auth-service:8081
+```text
+GET    /eureka/apps
+GET    /eureka/apps/{app-name}
+GET    /eureka/apps/{app-name}/{instance-id}
+POST   /eureka/apps/{app-name}
+PUT    /eureka/apps/{app-name}/{instance-id}
+DELETE /eureka/apps/{app-name}/{instance-id}
 ```
 
-#### Monitor Service Heartbeats
+Eureka supports both XML and JSON representations. Send an `Accept: application/json` header when JSON output is preferred.
 
-Watch logs for heartbeat renewals:
+### Get all applications
+
+Query the registry:
+
 ```bash
-tail -f logs/discovery-service.log | grep "Renewed"
+curl -u eureka:eureka -H 'Accept: application/json' \
+  http://localhost:8761/eureka/apps
 ```
 
-#### Test Service Registration
+### Get one application
 
-Manually register a service:
 ```bash
-curl -X POST http://localhost:8761/eureka/apps/AUTH-SERVICE \
-  -H "Content-Type: application/json" \
+curl -u eureka:eureka -H 'Accept: application/json' \
+  http://localhost:8761/eureka/apps/AUTH-SERVICE
+
+curl -u eureka:eureka -H 'Accept: application/json' \
+  http://localhost:8761/eureka/apps/LMS-CORE-SERVICE
+```
+
+Application names are conventionally uppercase in Eureka registry queries.
+
+### Get one instance
+
+```bash
+curl -u eureka:eureka -H 'Accept: application/json' \
+  http://localhost:8761/eureka/apps/AUTH-SERVICE/auth-service:8081
+```
+
+The actual instance ID is controlled by the client configuration. Check the application response or dashboard instead of assuming it when multiple instances or custom IDs are used.
+
+### Register an instance
+
+Registration is normally performed by the Spring Eureka client. The underlying endpoint accepts a request shaped like this:
+
+```bash
+curl -u eureka:eureka -X POST http://localhost:8761/eureka/apps/EXAMPLE-SERVICE \
+  -H 'Content-Type: application/json' \
   -d '{
     "instance": {
-      "instanceId": "test-instance",
+      "instanceId": "example-service:8090",
       "hostName": "localhost",
-      "app": "AUTH-SERVICE",
+      "app": "EXAMPLE-SERVICE",
       "ipAddr": "127.0.0.1",
       "status": "UP",
-      "port": {"$": 8081, "@enabled": "true"}
+      "port": {"$": 8090, "@enabled": true},
+      "securePort": {"$": 8443, "@enabled": false},
+      "homePageUrl": "http://localhost:8090/",
+      "statusPageUrl": "http://localhost:8090/actuator/info",
+      "healthCheckUrl": "http://localhost:8090/actuator/health"
     }
   }'
 ```
 
-#### Check Network Connectivity
+### Renew or cancel an instance
 
 ```bash
-# Test connectivity from service to Eureka
-curl http://localhost:8761/eureka/
+# Renew the lease
+curl -u eureka:eureka -X PUT \
+  http://localhost:8761/eureka/apps/EXAMPLE-SERVICE/example-service:8090
 
-# Test from service machine
-telnet eureka-host 8761
-
-# Check DNS resolution
-nslookup eureka-host
+# Cancel the registration
+curl -u eureka:eureka -X DELETE \
+  http://localhost:8761/eureka/apps/EXAMPLE-SERVICE/example-service:8090
 ```
 
-#### View Eureka Server Status
+During normal operation, Spring Eureka clients handle registration, heartbeat, and deregistration automatically. Manual registration with `curl` is unnecessary.
+
+## Troubleshooting
+
+### A request returns 401
+
+Only `/actuator/health` is open. Everything else needs `-u $EUREKA_USERNAME:$EUREKA_PASSWORD`. If a client cannot register, check that the client received `EUREKA_USERNAME` / `EUREKA_PASSWORD` and that they match the server's values — the client logs `Eureka client authenticates as '<user>' via an Authorization header` at startup when the module is active. Credentials do **not** belong in `EUREKA_DEFAULT_ZONE` any more.
+
+### Startup fails with an unresolved placeholder for `EUREKA_USERNAME`
+
+The `prod` profile deliberately has no default credentials. Supply `EUREKA_USERNAME` and `EUREKA_PASSWORD`, or run without `SPRING_PROFILES_ACTIVE=prod` for local development.
+
+### Port already in use
 
 ```bash
-# Check server status
-curl http://localhost:8761/actuator/health
-
-# View server info
-curl http://localhost:8761/actuator/info
+lsof -i :8761
+DISCOVERY_SERVER_PORT=8762 ./mvnw spring-boot:run
 ```
 
-## Deployment
-
-### Building the Service
+When the port changes, native clients must also receive the matching URL:
 
 ```bash
-# Build JAR file
+export EUREKA_DEFAULT_ZONE=http://localhost:8762/eureka/
+```
+
+Under Docker Compose, setting `DISCOVERY_SERVER_PORT` in `.env` is enough: the mapping, the health check, and the clients' zone URLs all derive from it.
+
+### A service does not appear in the registry
+
+1. Check Eureka: `curl http://localhost:8761/actuator/health`.
+2. Check the client's `EUREKA_DEFAULT_ZONE`, plus its `EUREKA_USERNAME` / `EUREKA_PASSWORD`.
+3. Confirm that the client has `register-with-eureka: true`.
+4. Check network and DNS resolution. Compose clients must use `discovery-service`, not `localhost` from inside the client container.
+5. Inspect both the Discovery Service and client logs. A `401` in the client log points at mismatched credentials rather than at connectivity.
+
+For Docker Compose, verify connectivity from the client container rather than from the host. `localhost:8761` inside a client container refers to that client container, not the Discovery Service container.
+
+### A service appears as `DOWN`
+
+1. Confirm that the target process is still running.
+2. Query the target service's own `/actuator/health` endpoint.
+3. Inspect the status and URLs registered in `/eureka/apps/{app-name}`.
+4. Check heartbeat and registration errors in the client logs.
+5. Confirm that the registered host or IP is reachable from its consumers.
+
+### The Gateway returns 503 for an `lb://...` route
+
+Check whether the corresponding application has an `UP` instance:
+
+```bash
+curl -u eureka:eureka -H 'Accept: application/json' \
+  http://localhost:8761/eureka/apps/AUTH-SERVICE
+```
+
+If the registry is empty, investigate the target service before changing the Gateway route.
+
+Also confirm that the requested route targets the same application ID shown in Eureka. The Gateway currently expects `AUTH-SERVICE` and `LMS-CORE-SERVICE`.
+
+### An instance is removed from the registry
+
+Under the default profile, self-preservation is disabled and the eviction task runs frequently. Check client-to-Eureka connectivity and heartbeat/lease renewal first. Do not interpret `eviction-interval-timer-in-ms: 5000` as every instance expiring after five seconds.
+
+If intermittent network conditions cause unwanted eviction, changing only the scan interval may hide the symptom without addressing the lease or connectivity problem. Review the client renewal and lease-duration settings together with the server policy, and use the `prod` profile, which enables self-preservation.
+
+### The dashboard is unavailable
+
+1. Check the process or container status.
+2. Query `http://localhost:8761/actuator/health`.
+3. Confirm the published port with `docker compose ps discovery-service` when using Compose. Under `docker-compose.prod.yml` no host port is published at all — that is intentional.
+4. Inspect `logs/discovery-service.log` or `docker compose logs discovery-service`.
+5. If `DISCOVERY_SERVER_PORT` was changed, use that port; the startup log reports the port the server actually bound to.
+
+### Docker build cannot find POM files
+
+Build from `backend/`, not `backend/discovery-service/`:
+
+```bash
+cd backend
+docker build -f discovery-service/Dockerfile -t edumind/discovery-service:latest .
+```
+
+### Module tests
+
+```bash
 cd backend/discovery-service
-mvn clean package
-
-# JAR location
-# target/service-discovery-1.0.0-SNAPSHOT.jar
+./mvnw test
 ```
 
-### Running as JAR
+`SecurityConfigIntegrationTests` starts the server on a random port and asserts the access rules: health open and detail-free for anonymous callers, details for authenticated ones, `401` for the registry / dashboard / metrics / `DELETE` without credentials, `200` with them, wrong passwords rejected, and authenticated registration not blocked by CSRF. `DiscoveryServiceApplicationTests` remains a context smoke test.
+
+The client-side counterpart lives in `backend/eureka-client-security`:
 
 ```bash
-# Set environment variables
-export DISCOVERY_SERVER_PORT=8761
-export EUREKA_HOSTNAME=localhost
-
-# Run JAR
-java -jar target/service-discovery-1.0.0-SNAPSHOT.jar
+cd backend/eureka-client-security
+../discovery-service/mvnw test
 ```
 
-### Docker Deployment
+There are still no tests for heartbeat/lease behavior or eviction.
 
-**Dockerfile Example:**
-```dockerfile
-FROM openjdk:21-jdk-slim
+## Known limitations
 
-WORKDIR /app
+The repository does **not** currently implement:
 
-COPY target/service-discovery-1.0.0-SNAPSHOT.jar app.jar
+- Eureka clustering or peer-to-peer replication.
+- High availability or failover between registry nodes.
+- TLS/HTTPS or a keystore. Basic credentials therefore travel in cleartext and must stay on a trusted network.
+- Per-client credentials or credential rotation: every service shares one username and password.
+- An IP allowlist for the dashboard or registry API.
+- Kubernetes manifests specifically for the Discovery Service.
+- A Prometheus registry/exporter.
+- Tests for heartbeat, lease renewal, or eviction behavior.
 
-EXPOSE 8761
+Do not run multiple replicas with the current configuration and treat them as a Eureka cluster: each replica would maintain an independent registry. Before exposing this service outside a trusted network, TLS and peer configuration must be designed and implemented.
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
+## Related files
 
-**Build and Run:**
-```bash
-# Build image
-docker build -t discovery-service:1.0.0 .
-
-# Run container
-docker run -d \
-  -p 8761:8761 \
-  -e DISCOVERY_SERVER_PORT=8761 \
-  -e EUREKA_HOSTNAME=localhost \
-  --name discovery-service \
-  discovery-service:1.0.0
-```
-
-### Kubernetes Deployment
-
-**Deployment YAML:**
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: discovery-service
-spec:
-  replicas: 2  # For high availability
-  selector:
-    matchLabels:
-      app: discovery-service
-  template:
-    metadata:
-      labels:
-        app: discovery-service
-    spec:
-      containers:
-      - name: discovery-service
-        image: discovery-service:1.0.0
-        ports:
-        - containerPort: 8761
-        env:
-        - name: DISCOVERY_SERVER_PORT
-          value: "8761"
-        - name: EUREKA_HOSTNAME
-          value: "discovery-service"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health/liveness
-            port: 8761
-          initialDelaySeconds: 60
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 8761
-          initialDelaySeconds: 30
-          periodSeconds: 5
-```
-
-**Service YAML:**
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: discovery-service
-spec:
-  selector:
-    app: discovery-service
-  ports:
-  - port: 8761
-    targetPort: 8761
-  type: ClusterIP
-```
-
-### Production Considerations
-
-#### High Availability
-
-- **Eureka Cluster**: Deploy at least 2 Eureka nodes
-- **Load Balancer**: Use load balancer in front of Eureka cluster
-- **Health Checks**: Configure health checks for automatic failover
-- **Graceful Shutdown**: Allow time for services to deregister
-
-#### Performance
-
-- **JVM Tuning**: Configure appropriate heap size
-  ```bash
-  java -Xms512m -Xmx1024m -jar service-discovery.jar
-  ```
-- **Connection Pooling**: Tune connection pool sizes
-- **Eviction Interval**: Adjust based on network conditions
-
-#### Security
-
-- **HTTPS/TLS**: Enable SSL/TLS in production
-- **Authentication**: Enable HTTP Basic Authentication
-- **Network Security**: Restrict access to Eureka endpoints
-- **IP Whitelisting**: Allow only trusted services to register
-
-#### Monitoring
-
-- **Metrics**: Export metrics to Prometheus/Grafana
-- **Logging**: Centralized logging (ELK Stack, CloudWatch)
-- **Alerts**: Set up alerts for service registration failures
-- **Dashboard**: Monitor Eureka dashboard regularly
-
-## Best Practices
-
-### Configuration
-
-1. **Use Environment Variables**
-   - Never hardcode configuration values
-   - Use environment variables for all settings
-   - Use secrets management in production
-
-2. **Enable Self-Preservation in Production**
-   ```yaml
-   eureka:
-     server:
-       enable-self-preservation: true
-       renewal-percent-threshold: 0.85
-   ```
-
-3. **Configure Appropriate Eviction Interval**
-   ```yaml
-   eureka:
-     server:
-       eviction-interval-timer-in-ms: 60000  # 60 seconds
-   ```
-
-### High Availability
-
-1. **Deploy Eureka Cluster**
-   - Minimum 2 nodes for high availability
-   - Use odd number of nodes (3, 5) for better consensus
-   - Deploy across multiple availability zones
-
-2. **Peer-to-Peer Replication**
-   - Configure all nodes to register with each other
-   - Ensure all nodes can communicate
-   - Monitor replication status
-
-3. **Load Balancer**
-   - Use load balancer in front of Eureka cluster
-   - Configure health checks
-   - Enable session affinity if needed
-
-### Service Registration
-
-1. **Service Naming**
-   - Use consistent naming convention (UPPERCASE)
-   - Example: `AUTH-SERVICE`, `API-GATEWAY`
-   - Match service name in all configurations
-
-2. **Instance ID**
-   - Use unique instance IDs
-   - Format: `{service-name}:{port}`
-   - Include hostname or IP for uniqueness
-
-3. **Health Checks**
-   - Configure proper health check endpoints
-   - Ensure health checks are fast (< 1 second)
-   - Return proper HTTP status codes
-
-### Monitoring
-
-1. **Dashboard Monitoring**
-   - Regularly check Eureka dashboard
-   - Monitor service registration/deregistration
-   - Watch for services going DOWN
-
-2. **Log Monitoring**
-   - Monitor registration events
-   - Track heartbeat renewals
-   - Alert on eviction events
-
-3. **Metrics Collection**
-   - Track number of registered services
-   - Monitor registration/deregistration rates
-   - Track eviction events
-
-### Security
-
-1. **Authentication**
-   - Enable HTTP Basic Authentication
-   - Use strong passwords
-   - Rotate credentials regularly
-
-2. **Network Security**
-   - Restrict access to Eureka endpoints
-   - Use firewall rules
-   - Enable HTTPS/TLS
-
-3. **Service Validation**
-   - Validate service registration requests
-   - Reject unauthorized services
-   - Monitor for suspicious activity
-
-### Performance
-
-1. **Resource Allocation**
-   - Allocate sufficient memory (minimum 512MB)
-   - Monitor CPU and memory usage
-   - Scale horizontally if needed
-
-2. **Eviction Tuning**
-   - Balance between fast eviction and stability
-   - Consider network latency
-   - Monitor eviction rates
-
-3. **Connection Management**
-   - Tune connection pool sizes
-   - Monitor connection usage
-   - Handle connection failures gracefully
-
-### Troubleshooting
-
-1. **Logging**
-   - Enable appropriate log levels
-   - Use structured logging
-   - Include correlation IDs
-
-2. **Health Checks**
-   - Implement comprehensive health checks
-   - Check dependencies
-   - Return meaningful status
-
-3. **Documentation**
-   - Document all configuration options
-   - Keep deployment guides updated
-   - Document troubleshooting procedures
-
----
-
-**Last Updated:** 2025-01-20  
-**Version:** 1.0.0-SNAPSHOT  
-**Maintainers:** EduMind Development Team
-
+| File | Role |
+|---|---|
+| `pom.xml` | Eureka Server, Actuator, Security, and test dependencies |
+| `src/main/java/com/edumind/discovery/DiscoveryServiceApplication.java` | Spring Boot entrypoint and `@EnableEurekaServer` |
+| `src/main/java/com/edumind/discovery/config/SecurityConfig.java` | HTTP Basic filter chain for the registry, dashboard, and Actuator |
+| `src/main/resources/application.yml` | Port, Eureka, security, logging levels, and Actuator exposure |
+| `src/main/resources/application-prod.yml` | Production overrides: required credentials, self-preservation, eviction policy |
+| `src/main/resources/logback-spring.xml` | Console/file appenders and log rotation |
+| `src/test/java/com/edumind/discovery/DiscoveryServiceApplicationTests.java` | Context smoke test |
+| `src/test/java/com/edumind/discovery/SecurityConfigIntegrationTests.java` | Access-rule tests for the registry, dashboard, and Actuator |
+| `Dockerfile` | Multi-stage container build and health check |
+| `../docker-compose.yml` | Local container wiring |
+| `../docker-compose.prod.yml` | Deployment using prebuilt images |
+| `../eureka-client-security/` | Client-side auto-configuration that sends the Basic credentials as a header |
+| `../DOCKER.md` | Shared backend Docker guide |

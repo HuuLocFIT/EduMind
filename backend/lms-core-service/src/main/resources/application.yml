@@ -72,6 +72,8 @@ spring:
 eureka:
   client:
     service-url:
+      # URL không chứa credentials. Eureka Server yêu cầu HTTP Basic, và
+      # eureka-client-security tự gắn header Authorization từ edumind.eureka.security.*
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
@@ -202,3 +204,13 @@ payment:
     schedule-day: ${PAYMENT_PAYOUT_SCHEDULE_DAY:1}  # Day of month to process payouts (1-31)
     schedule-hour: ${PAYMENT_PAYOUT_SCHEDULE_HOUR:2}  # Hour of day to process payouts (0-23)
     max-retries: ${PAYMENT_PAYOUT_MAX_RETRIES:3}  # Maximum retry attempts for failed payouts
+
+# Credentials gửi tới Eureka Server dưới dạng header Authorization (xem module eureka-client-security).
+# Bỏ trống username thì client chạy như cũ, không xác thực.
+# Giá trị mặc định eureka/eureka chỉ dành cho môi trường dev; profile prod
+# (application-prod.yml) bắt buộc EUREKA_USERNAME/EUREKA_PASSWORD, thiếu là fail khi khởi động.
+edumind:
+  eureka:
+    security:
+      username: ${EUREKA_USERNAME:eureka}
+      password: ${EUREKA_PASSWORD:eureka}

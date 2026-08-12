@@ -13,6 +13,7 @@ COPY api-gateway/pom.xml /app/api-gateway/pom.xml
 COPY auth-service/pom.xml /app/auth-service/pom.xml
 COPY common-lib/pom.xml /app/common-lib/pom.xml
 COPY discovery-service/pom.xml /app/discovery-service/pom.xml
+COPY eureka-client-security/pom.xml /app/eureka-client-security/pom.xml
 COPY lms-core-service/pom.xml /app/lms-core-service/pom.xml
 
 # Resolve dependencies Offline
@@ -21,6 +22,7 @@ RUN mvn dependency:go-offline -B -pl auth-service -am
 
 # Copy source code ONLY for the modules we are building (and its dependencies)
 COPY common-lib/src /app/common-lib/src
+COPY eureka-client-security/src /app/eureka-client-security/src
 COPY auth-service/src /app/auth-service/src
 
 # Build application (skip tests to build faster)
