@@ -1,0 +1,20 @@
+# Production overrides. Activate with SPRING_PROFILES_ACTIVE=prod.
+spring:
+  security:
+    user:
+      # No defaults on purpose: startup fails fast when credentials are not supplied.
+      name: ${EUREKA_USERNAME}
+      password: ${EUREKA_PASSWORD}
+
+eureka:
+  server:
+    # Keep instances in the registry when heartbeats drop network-wide instead of
+    # evicting healthy services during a partition.
+    enable-self-preservation: true
+    renewal-percent-threshold: 0.85
+    # Eureka default scan interval; paired with the clients' 30s renewal / 90s lease.
+    eviction-interval-timer-in-ms: 60000
+
+logging:
+  level:
+    com.edumind: INFO

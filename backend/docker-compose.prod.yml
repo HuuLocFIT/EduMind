@@ -7,19 +7,32 @@ services:
   discovery-service:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-huulocfit}/edumind-discovery-service:${IMAGE_TAG:-latest}
     container_name: edumind-discovery-service
-    ports:
-      - "${DISCOVERY_SERVER_PORT:-8761}:8761"
+    # No host port mapping on purpose: the registry is only reachable from
+    # edumind-network. Use `docker compose exec` or an SSH tunnel to open the dashboard.
+    expose:
+      - "${DISCOVERY_SERVER_PORT:-8761}"
     environment:
+      - SPRING_PROFILES_ACTIVE=prod
       - DISCOVERY_SERVER_PORT=${DISCOVERY_SERVER_PORT:-8761}
       - EUREKA_HOSTNAME=discovery-service
+      # Required — the prod profile has no default credentials.
+      - EUREKA_USERNAME=${EUREKA_USERNAME:?EUREKA_USERNAME is required}
+      - EUREKA_PASSWORD=${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      - JAVA_OPTS=${DISCOVERY_JAVA_OPTS:--XX:MaxRAMPercentage=75.0}
+    volumes:
+      - discovery-logs:/app/logs
     networks:
       - edumind-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${DISCOVERY_SERVER_PORT:-8761}/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     restart: unless-stopped
 
   # PostgreSQL for Auth Service
@@ -96,7 +109,9 @@ services:
       - AUTH_DB_USERNAME=${AUTH_DB_USERNAME:-postgres}
       - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:-postgres}
       - AUTH_DB_DRIVER=org.postgresql.Driver
-      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:${DISCOVERY_SERVER_PORT:-8761}/eureka/
+      - EUREKA_USERNAME=${EUREKA_USERNAME:?EUREKA_USERNAME is required}
+      - EUREKA_PASSWORD=${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-900000}
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
@@ -148,7 +163,9 @@ services:
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - LMS_CORE_SERVICE_ENCRYPTION_KEY=${LMS_CORE_SERVICE_ENCRYPTION_KEY}
-      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:${DISCOVERY_SERVER_PORT:-8761}/eureka/
+      - EUREKA_USERNAME=${EUREKA_USERNAME:?EUREKA_USERNAME is required}
+      - EUREKA_PASSWORD=${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
       - FRONTEND_URL=${FRONTEND_URL}
       - GATEWAY_URL=${GATEWAY_URL}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -181,7 +198,9 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - REDIS_TIMEOUT=${REDIS_TIMEOUT:-60000ms}
-      - EUREKA_DEFAULT_ZONE=http://discovery-service:8761/eureka/
+      - EUREKA_DEFAULT_ZONE=http://discovery-service:${DISCOVERY_SERVER_PORT:-8761}/eureka/
+      - EUREKA_USERNAME=${EUREKA_USERNAME:?EUREKA_USERNAME is required}
+      - EUREKA_PASSWORD=${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
       - ADMIN_URL=${ADMIN_URL}
       - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
@@ -202,6 +221,8 @@ services:
     restart: unless-stopped
 
 volumes:
+  discovery-logs:
+    driver: local
   postgres-auth-data:
     driver: local
   postgres-lms-core-data:

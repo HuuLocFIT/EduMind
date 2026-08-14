@@ -245,7 +245,8 @@ Legend: **Required** means the application configuration has no default value. F
 | `LMS_CORE_DB_USERNAME` | No | `postgres` | No | Database user |
 | `LMS_CORE_DB_PASSWORD` | Yes | — | Yes | Database password |
 | `LMS_CORE_DB_DRIVER` | No | `org.postgresql.Driver` | No | JDBC driver |
-| `EUREKA_DEFAULT_ZONE` | No | `http://localhost:8761/eureka/` | No | Eureka registry URL |
+| `EUREKA_DEFAULT_ZONE` | No | `http://localhost:8761/eureka/` | No | Eureka registry URL, no credentials |
+| `EUREKA_USERNAME` / `EUREKA_PASSWORD` | No | `eureka` / `eureka` | Yes | Registry credentials, sent as an `Authorization` header |
 | `JWT_SECRET` | Yes | — | Yes | Shared HS256 verification secret |
 | `JWT_EXPIRATION` | No | `900000` | No | Token lifetime metadata in milliseconds |
 | `APP_BASE_URL` | No | `http://localhost:8080` | No | Public gateway/base URL |

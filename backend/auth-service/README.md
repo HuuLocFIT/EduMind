@@ -132,6 +132,8 @@ export JWT_REFRESH_EXPIRATION="604800000"  # 7 days in milliseconds
 
 # Eureka Discovery Service
 export EUREKA_DEFAULT_ZONE="http://localhost:8761/eureka/"
+export EUREKA_USERNAME="eureka"    # registry is protected by HTTP Basic
+export EUREKA_PASSWORD="eureka"
 
 # Email Configuration (Gmail SMTP)
 export MAIL_HOST="smtp.gmail.com"
@@ -1189,7 +1191,7 @@ com.netflix.discovery.shared.transport.TransportException: Cannot execute reques
 **Solution:**
 - Ensure Eureka Discovery Service is running on port 8761
 - Check `EUREKA_DEFAULT_ZONE` environment variable
-- Verify network connectivity: `curl http://localhost:8761/eureka/`
+- Verify network connectivity: `curl -u eureka:eureka http://localhost:8761/eureka/apps` (a `401` means wrong credentials, not a network problem)
 
 #### 3. JWT token validation fails
 

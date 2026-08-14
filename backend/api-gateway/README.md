@@ -153,7 +153,8 @@ Allowed origins are controlled **only** by `CORS_ALLOWED_ORIGINS` (comma-separat
 | Variable | Description | Default |
 |---|---|---|
 | `API_GATEWAY_PORT` | Server port | `8080` |
-| `EUREKA_DEFAULT_ZONE` | Eureka server URL | `http://localhost:8761/eureka/` |
+| `EUREKA_DEFAULT_ZONE` | Eureka server URL, no credentials | `http://localhost:8761/eureka/` |
+| `EUREKA_USERNAME` / `EUREKA_PASSWORD` | Registry credentials, sent as an `Authorization` header | `eureka` / `eureka` |
 | `REDIS_HOST` | Redis host | `localhost` |
 | `REDIS_PORT` | Redis port | `6379` |
 | `REDIS_PASSWORD` | Redis password | (empty) |
@@ -186,7 +187,7 @@ Verify:
 ```bash
 curl http://localhost:8080/actuator/health              # gateway itself
 curl http://localhost:8080/actuator/gateway/routes       # confirm routes loaded
-curl http://localhost:8761/eureka/apps                   # confirm AUTH-SERVICE registered
+curl -u eureka:eureka http://localhost:8761/eureka/apps  # confirm AUTH-SERVICE registered
 ```
 
 There is no `/api/auth/health` endpoint — `auth-service` doesn't expose one, and the gateway doesn't route `/api/actuator/**`. Use the checks above to confirm routing/registration instead of guessing at an endpoint.
@@ -238,7 +239,7 @@ kill -9 <PID>
 # or: export API_GATEWAY_PORT=8081
 ```
 
-**Cannot connect to Eureka** — verify it's up (`curl http://localhost:8761/eureka/apps`), check `EUREKA_DEFAULT_ZONE`.
+**Cannot connect to Eureka** — verify it's up (`curl -u eureka:eureka http://localhost:8761/eureka/apps`), check `EUREKA_DEFAULT_ZONE`, including the credentials it carries. A `401` means the credentials do not match the registry.
 
 **Cannot connect to Redis** — `docker compose ps redis`, `redis-cli ping`, check `REDIS_HOST`/`REDIS_PORT`.
 

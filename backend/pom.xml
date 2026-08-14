@@ -43,6 +43,7 @@
         <module>api-gateway</module>
         <module>auth-service</module>
         <module>common-lib</module>
+        <module>eureka-client-security</module>
         <module>lms-core-service</module>
     </modules>
 
