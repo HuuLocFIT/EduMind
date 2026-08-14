@@ -4,6 +4,7 @@ import { map, Observable } from 'rxjs';
 import { REFUND_ENDPOINTS } from '@edumind/shared-utils';
 import {
   RefundResponseSchema,
+  RefundPagedResponseSchema,
   ConfirmManualRefundRequestSchema,
   type RefundResponse,
   type PagedResponse,
@@ -30,10 +31,11 @@ export class AdminRefundService {
     if (params.sortBy) httpParams = httpParams.set('sortBy', params.sortBy);
     if (params.sortOrder) httpParams = httpParams.set('sortOrder', params.sortOrder);
 
-    return this.http.get<PagedResponse<RefundResponse>>(
-      `${this.API_URL}${REFUND_ENDPOINTS.ADMIN_PENDING}`,
-      { params: httpParams }
-    );
+    return this.http
+      .get<PagedResponse<RefundResponse>>(`${this.API_URL}${REFUND_ENDPOINTS.ADMIN_PENDING}`, {
+        params: httpParams,
+      })
+      .pipe(map((response) => RefundPagedResponseSchema.parse(response)));
   }
 
   approveRefund(refundId: number, notes?: string): Observable<RefundResponse> {

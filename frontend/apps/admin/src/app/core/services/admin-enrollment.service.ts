@@ -1,12 +1,16 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { ADMIN_ENDPOINTS } from '@edumind/shared-utils';
 import {
-  EnrollmentReportPagedResponse,
-  EnrollmentReportStats,
-  ReviewReportRequest,
+  AdminMessageResponseSchema,
+  EnrollmentReportPagedResponseSchema,
+  EnrollmentReportStatsSchema,
+  type AdminMessageResponse,
+  type EnrollmentReportPagedResponse,
+  type EnrollmentReportStats,
+  type ReviewReportRequest,
 } from '@edumind/shared-types';
 import { environment } from '../../../environments/environment';
 
@@ -33,35 +37,40 @@ export class AdminEnrollmentService {
       httpParams = httpParams.set('size', params.size.toString());
     }
 
-    return this.http.get<EnrollmentReportPagedResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORTS}`,
-      { params: httpParams }
-    );
+    return this.http
+      .get<EnrollmentReportPagedResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORTS}`, {
+        params: httpParams,
+      })
+      .pipe(map((response) => EnrollmentReportPagedResponseSchema.parse(response)));
   }
 
   getReportStats(): Observable<EnrollmentReportStats> {
-    return this.http.get<EnrollmentReportStats>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_STATS}`
-    );
+    return this.http
+      .get<EnrollmentReportStats>(`${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_STATS}`)
+      .pipe(map((response) => EnrollmentReportStatsSchema.parse(response)));
   }
 
-  approveReport(reportId: number, adminNotes?: string): Observable<unknown> {
+  approveReport(reportId: number, adminNotes?: string): Observable<AdminMessageResponse> {
     const payload: ReviewReportRequest = {
       adminNotes: adminNotes || undefined,
     };
-    return this.http.post(
-      `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_APPROVE(reportId)}`,
-      payload
-    );
+    return this.http
+      .post<AdminMessageResponse>(
+        `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_APPROVE(reportId)}`,
+        payload
+      )
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 
-  rejectReport(reportId: number, adminNotes: string): Observable<unknown> {
+  rejectReport(reportId: number, adminNotes: string): Observable<AdminMessageResponse> {
     const payload: ReviewReportRequest = {
       adminNotes,
     };
-    return this.http.post(
-      `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_REJECT(reportId)}`,
-      payload
-    );
+    return this.http
+      .post<AdminMessageResponse>(
+        `${this.API_URL}${ADMIN_ENDPOINTS.ENROLLMENT_REPORT_REJECT(reportId)}`,
+        payload
+      )
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 }

@@ -12,6 +12,7 @@ import {
 import { AdminDashboardService } from '../../core/services/admin-dashboard.service';
 import { AdminUserService } from '../../core/services/admin-user.service';
 import { AdminEnrollmentService } from '../../core/services/admin-enrollment.service';
+import { TeacherApplicationService } from '../../core/services/teacher-application.service';
 import {
   DashboardStats,
   EnrollmentReportResponse,
@@ -70,6 +71,7 @@ export class DashboardComponent implements OnInit {
   private dashboardService = inject(AdminDashboardService);
   private adminUserService = inject(AdminUserService);
   private adminEnrollmentService = inject(AdminEnrollmentService);
+  private teacherApplicationService = inject(TeacherApplicationService);
 
   // ── Utilities ────────────────────────────────────────────────────────────
   private async = injectAsyncState();
@@ -220,7 +222,7 @@ export class DashboardComponent implements OnInit {
         stats: this.dashboardService.getDashboardStats(),
         students: this.adminUserService.getUsersByRole('ROLE_STUDENT', { page: 0, size: 1 }),
         teachers: this.adminUserService.getUsersByRole('ROLE_TEACHER', { page: 0, size: 1 }),
-        pendingApps: this.adminUserService.getApplications({ status: 'PENDING', page: 0, size: 1 }),
+        pendingApps: this.teacherApplicationService.getApplications({ status: 'PENDING', page: 0, size: 1 }),
         pendingReports: this.adminEnrollmentService.getReports({ status: 'PENDING', page: 0, size: 5 }),
       }),
       {

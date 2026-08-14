@@ -31,7 +31,7 @@ export class MainLayoutComponent {
   readonly ADMIN_ROUTES = ADMIN_ROUTES;
 
   navItems: NavItem[] = [
-    { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { label: 'Dashboard', path: ADMIN_ROUTES.DASHBOARD, icon: 'dashboard' },
     {
       label: 'Teachers',
       icon: 'people',
@@ -40,7 +40,7 @@ export class MainLayoutComponent {
         { label: 'Trial Teachers', path: ADMIN_ROUTES.TRIAL_TEACHERS, icon: 'schedule' },
       ],
     },
-    { label: 'Students', path: '/students', icon: 'school' },
+    { label: 'Students', path: ADMIN_ROUTES.STUDENTS, icon: 'school' },
     { label: 'Courses', path: ADMIN_ROUTES.COURSES, icon: 'book' },
     { label: 'Categories', path: ADMIN_ROUTES.CATEGORIES, icon: 'category' },
     {

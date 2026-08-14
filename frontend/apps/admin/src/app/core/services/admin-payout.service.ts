@@ -4,6 +4,7 @@ import { map, Observable } from 'rxjs';
 import { PAYOUT_ENDPOINTS } from '@edumind/shared-utils';
 import {
   PayoutResponseSchema,
+  PayoutPagedResponseSchema,
   ConfirmManualPayoutRequestSchema,
   type PayoutResponse,
   type CreatePayoutRequest,
@@ -33,10 +34,11 @@ export class AdminPayoutService {
     if (params.sortBy) httpParams = httpParams.set('sortBy', params.sortBy);
     if (params.sortOrder) httpParams = httpParams.set('sortOrder', params.sortOrder);
 
-    return this.http.get<PagedResponse<PayoutResponse>>(
-      `${this.API_URL}${PAYOUT_ENDPOINTS.ADMIN_PENDING}`,
-      { params: httpParams }
-    );
+    return this.http
+      .get<PagedResponse<PayoutResponse>>(`${this.API_URL}${PAYOUT_ENDPOINTS.ADMIN_PENDING}`, {
+        params: httpParams,
+      })
+      .pipe(map((response) => PayoutPagedResponseSchema.parse(response)));
   }
 
   getAllPayouts(params: PayoutQueryParams = {}): Observable<PagedResponse<PayoutResponse>> {
@@ -47,10 +49,11 @@ export class AdminPayoutService {
     if (params.sortOrder) httpParams = httpParams.set('sortOrder', params.sortOrder);
     if (params.status) httpParams = httpParams.set('status', params.status);
 
-    return this.http.get<PagedResponse<PayoutResponse>>(
-      `${this.API_URL}${PAYOUT_ENDPOINTS.ADMIN_ALL}`,
-      { params: httpParams }
-    );
+    return this.http
+      .get<PagedResponse<PayoutResponse>>(`${this.API_URL}${PAYOUT_ENDPOINTS.ADMIN_ALL}`, {
+        params: httpParams,
+      })
+      .pipe(map((response) => PayoutPagedResponseSchema.parse(response)));
   }
 
   createPayout(data: CreatePayoutRequest): Observable<PayoutResponse> {

@@ -4,7 +4,6 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
@@ -30,7 +29,7 @@ describe('AuthService', () => {
       // This is a workaround for Vitest compatibility
       try {
         TestBed.resetTestingModule();
-      } catch (e) {
+      } catch {
         // Ignore if already reset
       }
     }

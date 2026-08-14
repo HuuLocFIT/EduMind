@@ -1,21 +1,19 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import {
   ADMIN_ENDPOINTS,
 } from '@edumind/shared-utils';
 import {
-  AdminCreateUserRequest,
-  AdminMessageResponse,
-  AdminUpdateUserRoleRequest,
-  AdminUserListResponse,
-  ReviewApplicationRequest,
-  TeacherApplicationDetailResponse,
-  TeacherApplicationListResponse,
-  TrialTeachersResponse,
-  UpgradeTrialRequest,
-  UserRoleStats,
+  AdminMessageResponseSchema,
+  AdminUserListResponseSchema,
+  UserRoleStatsSchema,
+  type AdminCreateUserRequest,
+  type AdminMessageResponse,
+  type AdminUpdateUserRoleRequest,
+  type AdminUserListResponse,
+  type UserRoleStats,
 } from '@edumind/shared-types';
 import { environment } from '../../../environments/environment';
 
@@ -27,24 +25,22 @@ export class AdminUserService {
   private readonly http = inject(HttpClient);
 
   createTeacher(payload: AdminCreateUserRequest): Observable<AdminMessageResponse> {
-    return this.http.post<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USER_CREATE_TEACHER}`,
-      payload
-    );
+    return this.http
+      .post<AdminMessageResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USER_CREATE_TEACHER}`, payload)
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 
   createAdmin(payload: AdminCreateUserRequest): Observable<AdminMessageResponse> {
-    return this.http.post<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USER_CREATE_ADMIN}`,
-      payload
-    );
+    return this.http
+      .post<AdminMessageResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USER_CREATE_ADMIN}`, payload)
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 
   getUsers(options?: { page?: number; size?: number; sortBy?: string }): Observable<AdminUserListResponse> {
     const params = this.buildPaginationParams(options);
-    return this.http.get<AdminUserListResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USERS}`, {
-      params,
-    });
+    return this.http
+      .get<AdminUserListResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USERS}`, { params })
+      .pipe(map((response) => AdminUserListResponseSchema.parse(response)));
   }
 
   getUsersByRole(
@@ -58,98 +54,43 @@ export class AdminUserService {
     if (options?.search) {
       params = params.set('search', options.search);
     }
-    return this.http.get<AdminUserListResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USERS_BY_ROLE(roleName)}`,
-      { params }
-    );
+    return this.http
+      .get<AdminUserListResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USERS_BY_ROLE(roleName)}`, {
+        params,
+      })
+      .pipe(map((response) => AdminUserListResponseSchema.parse(response)));
   }
 
   updateUserRoles(
     userId: number,
     payload: AdminUpdateUserRoleRequest
   ): Observable<AdminMessageResponse> {
-    return this.http.put<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USER_UPDATE_ROLES(userId)}`,
-      payload
-    );
+    return this.http
+      .put<AdminMessageResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USER_UPDATE_ROLES(userId)}`, payload)
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 
   toggleUserStatus(userId: number, enabled: boolean): Observable<AdminMessageResponse> {
     const params = new HttpParams().set('enabled', String(enabled));
-    return this.http.patch<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USER_TOGGLE_STATUS(userId)}`,
-      {},
-      { params }
-    );
+    return this.http
+      .patch<AdminMessageResponse>(
+        `${this.API_URL}${ADMIN_ENDPOINTS.USER_TOGGLE_STATUS(userId)}`,
+        {},
+        { params }
+      )
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 
   deleteUser(userId: number): Observable<AdminMessageResponse> {
-    return this.http.delete<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USER_DELETE(userId)}`
-    );
+    return this.http
+      .delete<AdminMessageResponse>(`${this.API_URL}${ADMIN_ENDPOINTS.USER_DELETE(userId)}`)
+      .pipe(map((response) => AdminMessageResponseSchema.parse(response)));
   }
 
   getUserRoleStats(roleName: string): Observable<UserRoleStats> {
-    return this.http.get<UserRoleStats>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.USER_ROLE_STATS(roleName)}`
-    );
-  }
-
-  getApplications(options?: {
-    status?: string | null;
-    page?: number;
-    size?: number;
-    sortBy?: string;
-  }): Observable<TeacherApplicationListResponse> {
-    let params = this.buildPaginationParams(options);
-    if (options?.status) {
-      params = params.set('status', options.status);
-    }
-    if (options?.sortBy) {
-      params = params.set('sortBy', options.sortBy);
-    }
-
-    return this.http.get<TeacherApplicationListResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.APPLICATIONS}`,
-      { params }
-    );
-  }
-
-  getApplicationById(id: number): Observable<TeacherApplicationDetailResponse> {
-    return this.http.get<TeacherApplicationDetailResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.APPLICATION_DETAIL(id)}`
-    );
-  }
-
-  reviewApplication(
-    id: number,
-    payload: ReviewApplicationRequest
-  ): Observable<AdminMessageResponse> {
-    return this.http.post<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.APPLICATION_REVIEW(id)}`,
-      payload
-    );
-  }
-
-  getTrialTeachers(options?: {
-    page?: number;
-    size?: number;
-  }): Observable<TrialTeachersResponse> {
-    const params = this.buildPaginationParams(options);
-    return this.http.get<TrialTeachersResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.TRIAL_TEACHERS}`,
-      { params }
-    );
-  }
-
-  upgradeTrialToFull(
-    userId: number,
-    payload?: UpgradeTrialRequest
-  ): Observable<AdminMessageResponse> {
-    return this.http.post<AdminMessageResponse>(
-      `${this.API_URL}${ADMIN_ENDPOINTS.TRIAL_TEACHER_UPGRADE(userId)}`,
-      payload ?? {}
-    );
+    return this.http
+      .get<UserRoleStats>(`${this.API_URL}${ADMIN_ENDPOINTS.USER_ROLE_STATS(roleName)}`)
+      .pipe(map((response) => UserRoleStatsSchema.parse(response)));
   }
 
   private buildPaginationParams(options?: {
