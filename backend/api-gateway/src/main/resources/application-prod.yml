@@ -2,6 +2,18 @@
 # Activated when SPRING_PROFILES_ACTIVE=prod. Values here are merged on top of
 # application.yml — only settings that must differ in production live here.
 
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
 edumind:
   eureka:
     security:

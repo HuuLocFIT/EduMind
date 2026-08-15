@@ -456,6 +456,10 @@ npx nx test admin src/app/core/services/auth.service.spec.ts
 
 Only **5 spec files** exist in the entire app, all within the auth slice: `auth.interceptor.spec.ts`, `auth.service.spec.ts`, `auth.guard.spec.ts`, `guest.guard.spec.ts`, `login.component.spec.ts`. There is currently **no test coverage** for categories, courses, students, teachers, enrollment-reports, payments, the dashboard, or their backing services. The patterns below describe how the existing auth tests are structured — they are the convention to follow when adding tests elsewhere, not evidence that coverage is broad today.
 
+### End-to-End & Accessibility
+
+Cross-app Playwright E2E and accessibility (axe-core/pa11y) suites live at `frontend/e2e/` — its page-objects cover both the admin and user apps. See the **Testing & Quality** section of [`../../README.md`](../../README.md).
+
 ### Patterns
 
 **Service tests** — use `TestBed.configureTestingModule()` with `HttpClientTestingModule` and `HttpTestingController`:

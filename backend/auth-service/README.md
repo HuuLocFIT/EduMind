@@ -34,22 +34,22 @@ Auth Service is a Spring Boot microservice that handles:
 
 ## Features
 
-- ✅ **JWT-based Authentication** - Secure token-based authentication
-- ✅ **OAuth2 Integration** - Google OAuth2 login
-- ✅ **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes and backup codes
-- ✅ **Email Verification** - Email verification on registration
-- ✅ **Password Reset** - Secure password reset via email
-- ✅ **Role-Based Access Control (RBAC)** - Admin, Teacher, Student roles
-- ✅ **Admin User Management** - Create, update, delete, enable/disable users with pagination
-- ✅ **Admin Role Management** - Assign and update user roles
-- ✅ **Admin Application Review** - Review, approve, or reject teacher applications
-- ✅ **Trial Teacher Management** - View trial teachers and upgrade to full teachers
-- ✅ **User Filtering & Search** - Filter users by role with pagination support
-- ✅ **Teacher Application System** - Teachers can apply and get approved by admins
-- ✅ **Trial System** - Trial period management for teachers (30-day trial)
-- ✅ **File Upload** - Profile picture and document upload via Cloudinary
-- ✅ **Service Discovery** - Integrated with Eureka Discovery Service
-- ✅ **Database Migrations** - Flyway for version-controlled database schema
+- **JWT-based Authentication** - Secure token-based authentication
+- **OAuth2 Integration** - Google OAuth2 login
+- **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes and backup codes
+- **Email Verification** - Email verification on registration
+- **Password Reset** - Secure password reset via email
+- **Role-Based Access Control (RBAC)** - Admin, Teacher, Student roles
+- **Admin User Management** - Create, update, delete, enable/disable users with pagination
+- **Admin Role Management** - Assign and update user roles
+- **Admin Application Review** - Review, approve, or reject teacher applications
+- **Trial Teacher Management** - View trial teachers and upgrade to full teachers
+- **User Filtering & Search** - Filter users by role with pagination support
+- **Teacher Application System** - Teachers can apply and get approved by admins
+- **Trial System** - Trial period management for teachers (30-day trial)
+- **File Upload** - Profile picture and document upload via Cloudinary
+- **Service Discovery** - Integrated with Eureka Discovery Service
+- **Database Migrations** - Flyway for version-controlled database schema
 
 ## Prerequisites
 
@@ -146,7 +146,7 @@ export MAIL_ENABLED="true"
 # Google OAuth2 Configuration
 export GOOGLE_CLIENT_ID="your-google-client-id"
 export GOOGLE_CLIENT_SECRET="your-google-client-secret"
-export GOOGLE_REDIRECT_URI="{baseUrl}/api/auth/login/oauth2/code/google" 
+export GOOGLE_REDIRECT_URI="{baseUrl}/api/auth/login/oauth2/code/google"
 
 # Cloudinary Configuration (for file uploads)
 export CLOUDINARY_CLOUD_NAME="your-cloud-name"
@@ -240,10 +240,10 @@ mvn flyway:info
 ### Prerequisites Check
 
 Before starting, ensure:
-1. ✅ PostgreSQL is running and accessible
-2. ✅ Eureka Discovery Service is running on port 8761
-3. ✅ All required environment variables are set
-4. ✅ Database `edumind_auth` exists
+1. PostgreSQL is running and accessible
+2. Eureka Discovery Service is running on port 8761
+3. All required environment variables are set
+4. Database `edumind_auth` exists
 
 ### Start the Service
 
@@ -272,8 +272,8 @@ Run the `AuthServiceApplication.java` main class from your IDE.
 
 1. **Check Logs**: You should see:
    ```
-   🚀 Starting Auth Service...
-   ✅ Auth Service started successfully on port 8081
+   Starting Auth Service...
+   Auth Service started successfully on port 8081
    ```
 
 2. **Check Health Endpoint**:
@@ -1163,7 +1163,7 @@ The service includes demo users for testing (inserted via migration `V6__Insert_
 | Teacher | `teacher@edumind.com` | `password123` | Teacher account |
 | Student | `student@edumind.com` | `password123` | Student account |
 
-**⚠️ Warning**: These are demo accounts. Change passwords in production!
+**Warning**: These are demo accounts. Change passwords in production!
 
 ## Troubleshooting
 

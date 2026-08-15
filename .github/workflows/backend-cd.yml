@@ -11,8 +11,29 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/edumind
 
 jobs:
+  test:
+    name: Test production candidate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run backend test suite
+        working-directory: ./backend
+        run: mvn test -B --no-transfer-progress
+
   build-and-push:
     name: Build & Push Docker Images
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,37 +93,45 @@ jobs:
     steps:
       - name: SSH deploy
         uses: appleboy/ssh-action@v1
+        env:
+          DEPLOY_IMAGE_TAG: ${{ github.sha }}
+          DEPLOY_REPOSITORY_OWNER: ${{ github.repository_owner }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: DEPLOY_IMAGE_TAG,DEPLOY_REPOSITORY_OWNER
           script: |
-            set -e
+            set -eu
             cd ${{ secrets.VPS_DEPLOY_PATH }}
 
-            export IMAGE_TAG=${GITHUB_SHA::7}
+            export IMAGE_TAG="$(printf '%s' "$DEPLOY_IMAGE_TAG" | cut -c1-7)"
+            export GITHUB_REPOSITORY_OWNER="$DEPLOY_REPOSITORY_OWNER"
+            test -n "$IMAGE_TAG"
 
             # Authenticate to GHCR on VPS
             echo "${{ secrets.GHCR_TOKEN }}" | \
               docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
             # Pull all new images
-            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml config --quiet
+            docker compose -f docker-compose.prod.yml pull
 
             # Phase 1: restart discovery-service first (Eureka registry)
-            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml \
-              up -d --no-deps discovery-service
-
-            # Wait for Eureka to be ready before dependent services start
-            sleep 30
+            docker compose -f docker-compose.prod.yml \
+              up -d --no-deps --wait --wait-timeout 120 discovery-service
 
             # Phase 2: restart auth-service and lms-core-service in parallel
-            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml \
-              up -d --no-deps auth-service lms-core-service
+            docker compose -f docker-compose.prod.yml \
+              up -d --no-deps --wait --wait-timeout 240 auth-service lms-core-service
 
             # Phase 3: restart api-gateway last (depends on auth-service)
-            IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml \
-              up -d --no-deps api-gateway
+            docker compose -f docker-compose.prod.yml \
+              up -d --no-deps --wait --wait-timeout 120 api-gateway
+
+            # Verify the public entry point after all services are healthy.
+            docker compose -f docker-compose.prod.yml exec -T api-gateway \
+              sh -c 'wget --quiet --spider "http://localhost:${API_GATEWAY_PORT:-8080}/actuator/health"'
 
             # Remove dangling images to reclaim disk space
             docker image prune -f

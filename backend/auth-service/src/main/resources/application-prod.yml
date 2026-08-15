@@ -3,6 +3,8 @@
 # application.yml — only settings that must differ in production live here.
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   jpa:
     show-sql: false
     properties:
@@ -26,6 +28,9 @@ management:
 app:
   cookie:
     secure: ${COOKIE_SECURE:true}
+
+server:
+  shutdown: graceful
 
 edumind:
   eureka:

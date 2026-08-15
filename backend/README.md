@@ -1,4 +1,4 @@
-# 🧠 EduMind Platform - Backend
+# EduMind Platform - Backend
 
 > **Architecture:** Microservices + Modular Monolith
 > **Framework:** Spring Boot 3.5.6 + Spring Cloud 2025.0.0
@@ -8,7 +8,7 @@ Welcome to the **EduMind** backend repository. This project implements a scalabl
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 The recommended way to run the backend locally is **Docker Compose** (builds every service from source, no local JDK/Maven required except for editing code).
 
@@ -19,7 +19,7 @@ cd backend
 cp .env.example .env
 ```
 
-`.env.example` lists the platform variables used by the services. Before starting, replace the database passwords and fill in `JWT_SECRET`, separate `AUTH_SERVICE_ENCRYPTION_KEY` and `LMS_CORE_SERVICE_ENCRYPTION_KEY` values, plus the Cloudinary settings required by Auth and LMS Core startup. OAuth, mail, AI, and real payment credentials are feature-specific. See [Key Generation](#-development-utilities) below.
+`.env.example` lists the platform variables used by the services. Before starting, replace the database passwords and fill in `JWT_SECRET`, separate `AUTH_SERVICE_ENCRYPTION_KEY` and `LMS_CORE_SERVICE_ENCRYPTION_KEY` values, plus the Cloudinary settings required by Auth and LMS Core startup. OAuth, mail, AI, and real payment credentials are feature-specific. See [Key Generation](#development-utilities) below.
 
 ### 2. Start the minimum needed to run LMS Core
 
@@ -46,7 +46,7 @@ docker compose logs -f lms-core-service      # tail logs for one service
 docker compose logs -f                       # tail logs for everything that's running
 ```
 
-### Full stack (all 7 services)
+### Full stack (7 containers)
 
 ```bash
 docker compose up -d
@@ -91,7 +91,7 @@ Start order when running natively: `discovery-service` → `auth-service` → `l
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 All configuration is env-var driven — `.env.example` is the source of truth for every variable each service reads (via `application.yml`). `docker compose` reads `.env` automatically; for native runs, export the same variables into your shell or use `direnv`/`.envrc`.
 
@@ -102,10 +102,10 @@ All configuration is env-var driven — `.env.example` is the source of truth fo
 | Variable | Required | Default | Sensitive | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
 | `AUTH_DB_URL` / `LMS_CORE_DB_URL` | Yes | Local default (`localhost:5432`/`5433`) | No | PostgreSQL JDBC URL per service |
-| `AUTH_DB_PASSWORD` / `LMS_CORE_DB_PASSWORD` | Yes | None | **Yes** | Database credential |
+| `AUTH_DB_PASSWORD` / `LMS_CORE_DB_PASSWORD` | Yes | None | **Yes** | Database credential; production Compose fails before startup if either is missing |
 | `JWT_SECRET` | Yes | None | **Yes** | Signs/validates JWTs across services |
 | `AUTH_SERVICE_ENCRYPTION_KEY` / `LMS_CORE_SERVICE_ENCRYPTION_KEY` | Yes | None | **Yes** | AES/GCM key for `EncryptionService` (per-service, not shared) |
-| `SPRING_PROFILES_ACTIVE` | No | Empty (dev) | No | Activates a matching profile where present. Currently only `auth-service` commits `application-prod.yml`; other services require deployment-time production overrides. |
+| `SPRING_PROFILES_ACTIVE` | No | Empty (dev) | No | Activates a matching profile for native runs. Production Compose forces `prod` for all four applications. |
 | `COOKIE_SECURE` | Production: Yes | `false` | No | Must be `true` in production — refresh-token cookie requires HTTPS |
 | `COOKIE_SAME_SITE` | No | `Lax` | No | Refresh-token cookie SameSite policy |
 | `FRONTEND_URL` / `GATEWAY_URL` / `ADMIN_URL` | Yes | `localhost:3000` / `:8080` / `:4200` | No | Used for CORS, OAuth redirects, email links |
@@ -148,11 +148,11 @@ All configuration is env-var driven — `.env.example` is the source of truth fo
 
 Full, current values live in [`.env.example`](.env.example) — treat this section as a map of *what each variable does and why it's required*, not a copy to keep in sync manually.
 
-`docker-compose.prod.yml` additionally reads `GITHUB_REPOSITORY_OWNER` and `IMAGE_TAG` to select GHCR images. Use an immutable release or commit tag in production instead of relying on `latest`.
+`docker-compose.prod.yml` requires `GITHUB_REPOSITORY_OWNER` and `IMAGE_TAG` to select GHCR images. `IMAGE_TAG` must be an immutable release or commit tag; the production file does not fall back to `latest`.
 
 ---
 
-## 🛠 Technology Stack
+## Technology Stack
 
 We use a modern Java ecosystem designed for enterprise-grade scalability.
 
@@ -173,7 +173,7 @@ We use a modern Java ecosystem designed for enterprise-grade scalability.
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 > For C4-model diagrams (context, container, component levels), see [docs/architecture/README.md](../docs/architecture/README.md). This section covers the reasoning behind the structure, not a full diagram set.
 
@@ -247,26 +247,26 @@ For deeper per-service internals, see the per-service READMEs (`lms-core-service
 
 The backend uses two PostgreSQL databases plus Redis:
 
-- **Auth DB (`postgres-auth`, port 5432)**  
-  - Database: `edumind_auth`  
-  - Schema: `public`  
+- **Auth DB (`postgres-auth`, port 5432)**
+  - Database: `edumind_auth`
+  - Schema: `public`
   - Purpose: users, roles, user-role mappings, refresh tokens, verification tokens, password reset tokens.
 
-- **LMS Core DB (`postgres-lms-core`, port 5433)**  
-  - Database: `edumind_core`  
+- **LMS Core DB (`postgres-lms-core`, port 5433)**
+  - Database: `edumind_core`
   - Schemas:
     - `course`: courses, sections, lessons, enrollments, categories, reviews, wishlists
     - `payment`: cart items, orders, order items, invoices, earnings, payouts, refunds, platform config
     - `ai` **(active)**: AI job logs, lesson embeddings, lesson summaries, generated quizzes, quiz attempts, AI rate limits
     - `assessment`, `gamification`, `notification` **(reserved only)**: schemas exist from the initial migration but have no corresponding Java modules/entities yet — not implemented
 
-- **Redis (`redis`, port 6379)**  
-  - Rate limiting for API Gateway (IP-based).  
+- **Redis (`redis`, port 6379)**
+  - Rate limiting for API Gateway (IP-based).
   - Ready for future caching use cases.
 
-- **pgvector (PostgreSQL extension)**  
+- **pgvector (PostgreSQL extension)**
   - Lives **inside the LMS Core database** (`edumind_core`, port 5433) — not a separate/external vector database or service.
-  - Used in `ai.lesson_embeddings` for semantic search / RAG.  
+  - Used in `ai.lesson_embeddings` for semantic search / RAG.
   - Vectors stored as `vector(768)` with ivfflat index (`vector_cosine_ops`).
 
 ### Service Responsibilities
@@ -347,25 +347,25 @@ Full implementation detail — source resolution, caption generation, retry/exec
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 
 ```text
 backend/
-├── api-gateway/            # 🚪 System Entry Point (Routing, Rate Limiting)
-├── auth-service/           # 🔐 Identity & Access Management
-├── discovery-service/      # 🗺️ Service Registry (Eureka)
-├── lms-core-service/       # 🧠 Core Business Logic (Modular Monolith)
-├── common-lib/             # 📚 Shared Code (DTOs, Exceptions, Utils)
-├── scripts/                # 🛠️ Utility Scripts (Key generation, etc)
-├── docker-compose.yml      # 🐳 Infrastructure (Postgres, Redis)
-└── pom.xml                 # 📄 Parent POM
+├── api-gateway/            # System Entry Point (Routing, Rate Limiting)
+├── auth-service/           # Identity & Access Management
+├── discovery-service/      # Service Registry (Eureka)
+├── lms-core-service/       # Core Business Logic (Modular Monolith)
+├── common-lib/             # Shared Code (DTOs, Exceptions, Utils)
+├── scripts/                # Utility Scripts (Key generation, etc)
+├── docker-compose.yml      # Infrastructure (Postgres, Redis)
+└── pom.xml                 # Parent POM
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
-See [Quick Start](#-quick-start) above for the fastest path. This section covers prerequisites and details not needed for the happy path.
+See [Quick Start](#quick-start) above for the fastest path. This section covers prerequisites and details not needed for the happy path.
 
 ### Prerequisites
 
@@ -383,15 +383,16 @@ For more Docker Compose detail (build vs. prebuilt-image files, healthchecks, vo
 
 ```bash
 cd backend
-IMAGE_TAG=<short-sha> docker compose -f docker-compose.prod.yml up -d
+GITHUB_REPOSITORY_OWNER=<owner> IMAGE_TAG=<short-sha> \
+  docker compose -f docker-compose.prod.yml up -d --wait
 # runs prebuilt GHCR images (ghcr.io/<owner>/edumind-<service>:<tag>) instead of building from source
 ```
 
-Production deployment steps, the configuration checklist (mock-gateway guard, missing prod profiles, actuator exposure, graceful shutdown, DB password fallback), migration policy, deployment verification, secrets policy, rate-limit behavior, and temp-file/upload handling are documented in **[docs/production-operations.md](../docs/production-operations.md)** — read it before a real deployment.
+Production deployment steps, the configuration checklist (mock-gateway guard, actuator exposure on discovery-service/api-gateway), migration policy, deployment verification, secrets policy, rate-limit behavior, and temp-file/upload handling are documented in **[docs/production-operations.md](../docs/production-operations.md)** — read it before a real deployment.
 
 ---
 
-## 🔒 Security & Standards
+## Security & Standards
 
 - **Authentication**: Stateless JWT Authentication.
 - **Authorization**: Role-Based Access Control (RBAC).
@@ -403,7 +404,7 @@ Production deployment steps, the configuration checklist (mock-gateway guard, mi
 
 ---
 
-## 🛠 Development Utilities
+## Development Utilities
 
 ### Key Generation
 Generate secure keys for JWT and Encryption (never use these in prod):
@@ -428,7 +429,7 @@ Connection errors usually mean `.env` isn't loaded (`source ../.env`), Docker co
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 All requests should be routed through the **API Gateway** ([http://localhost:8080](http://localhost:8080)) — see [Direct service URLs vs. the Gateway](#direct-service-urls-vs-the-gateway). Route groups by domain and owning service:
 
@@ -459,7 +460,7 @@ There is no OpenAPI/Swagger UI yet — `API.md` is hand-maintained against the c
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### What's actually covered
 
@@ -502,11 +503,11 @@ mvn test -pl lms-core-service -Dtest=CheckoutServiceTest
 
 ### CI
 
-[`.github/workflows/backend-ci.yml`](../.github/workflows/backend-ci.yml) runs `mvn test` for the whole backend reactor on every PR/push touching `backend/**`, and publishes JUnit results (not coverage) as a GitHub check via `dorny/test-reporter`. There is currently no static analysis, formatting, or dependency/security scan step in this pipeline — this section will be updated if one is added, rather than describing tooling that doesn't run yet.
+[`.github/workflows/backend-ci.yml`](../.github/workflows/backend-ci.yml) runs `mvn test` for the whole backend reactor on pull requests and non-`main` pushes touching `backend/**`, then publishes JUnit results (not coverage). Pushes to `main` use `backend-cd.yml`, which runs the same backend test suite before building images or deploying. There is currently no static analysis, formatting, or dependency/security scan step.
 
 For the testing patterns used in this codebase (Testcontainers setup, base test classes, and mocking conventions), see **[TESTING_GUIDE.md](TESTING_GUIDE.md)**. This is the canonical backend testing guide.
 
-## 📐 Coding Conventions
+## Coding Conventions
 
 - Follow the standard Spring layering: **Controller → Service → Repository → Entity**.
 - Use DTOs for request/response, never expose JPA entities directly over the wire.
@@ -517,7 +518,7 @@ For deeper backend implementation details, see the per-service READMEs (especial
 
 ---
 
-## 💳 Payments
+## Payments
 
 Three gateways exist behind a common `PaymentGateway` interface, selected by `PAYMENT_GATEWAY` and gated individually by `PAYMENT_{MOCK,PAYPAL,SEPAY}_ENABLED` (see [Payment configuration](#payment-configuration) above). All three are **implemented**, not planned — they differ in how much of the flow is automated end-to-end:
 
@@ -537,13 +538,13 @@ Deeper, flow-level detail (sequence diagrams, state machines) lives in [docs/wor
 
 ---
 
-## ⚠️ Known Limitations
+## Known Limitations
 
 A running list of gaps and edge cases in the current implementation that are worth knowing before you build on top of them or deploy — payment webhook trust-boundary caveats, in-memory state that doesn't survive a restart, the checkout idempotency race window, and the state of test/CI tooling. See **[docs/known-limitations.md](../docs/known-limitations.md)**.
 
 ---
 
-## 📖 Related Documentation
+## Related Documentation
 
 | Doc | Covers |
 | :--- | :--- |

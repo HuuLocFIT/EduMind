@@ -21,6 +21,7 @@ Part of the Nx v22 monorepo at `frontend/`. Run commands from the `frontend/` ro
 - [Teacher Portal](#teacher-portal)
 - [Forms](#forms)
 - [Testing](#testing)
+- [Error Monitoring](#error-monitoring)
 - [Path Aliases](#path-aliases)
 - [Key Conventions](#key-conventions)
 
@@ -291,7 +292,7 @@ Component → useQuery/useMutation → Service → apiClient → Backend (via AP
 4. apiClient response interceptor: validates JwtResponseSchema
 5. authStore: sets user, accessToken, isAuthenticated = true
 6. Zustand persist: saves to auth-storage (localStorage)
-7. User navigates to protected route → ProtectedRoute reads isAuthenticated ✓
+7. User navigates to protected route → ProtectedRoute reads isAuthenticated
 
 Token expiry:
 8. Request fails with 401 + ERR_2002
@@ -543,6 +544,16 @@ npm run test:user:coverage               # Coverage report
 # Single file
 nx test user -- apps/user/src/app/services/auth.service.test.ts
 ```
+
+### End-to-End & Accessibility
+
+Cross-app Playwright E2E and accessibility (axe-core/pa11y) suites live at `frontend/e2e/`, not inside this app — see the **Testing & Quality** section of [`frontend/README.md`](../../README.md) and [`frontend/e2e/ACCESSIBILITY_TESTING.md`](../../e2e/ACCESSIBILITY_TESTING.md).
+
+---
+
+## Error Monitoring
+
+Sentry (`@sentry/react`) is initialized in `main.tsx` before the app mounts, capturing uncaught errors and route-level tracing. DSN is read from `VITE_SENTRY_DSN_USER` — left unset in development, which disables reporting.
 
 ---
 

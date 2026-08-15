@@ -8,8 +8,9 @@ Deployment, migration, secrets, and runtime-behavior reference for running the b
 
 ```bash
 cd backend
-IMAGE_TAG=<short-sha> docker compose -f docker-compose.prod.yml up -d
-# IMAGE_TAG defaults to "latest" if not set
+GITHUB_REPOSITORY_OWNER=<owner> IMAGE_TAG=<short-sha> \
+  docker compose -f docker-compose.prod.yml up -d --wait
+# Both image selector variables are required; mutable "latest" is rejected.
 # Images: ghcr.io/<owner>/edumind-{discovery-service,auth-service,lms-core-service,api-gateway}:<tag>
 ```
 
@@ -18,18 +19,19 @@ Differences from the local compose file:
 - Every service (including the two Postgres containers and Redis) has a `healthcheck`, and app services `depends_on` their dependencies with `condition: service_healthy`.
 - `postgres-auth-data`, `postgres-lms-core-data`, and `redis-data` are named Docker volumes, so data survives container restarts/recreation.
 - `.env` still supplies secrets (`JWT_SECRET`, `GEMINI_API_KEY`, `GROQ_API_KEY`, Cloudinary/OAuth/mail credentials, etc.) — never bake secrets into the image.
+- Databases, Redis, Auth, and LMS Core bind only to `127.0.0.1`; only the Gateway is intended as a public application entry point.
+- All four Java applications run with `SPRING_PROFILES_ACTIVE=prod`.
 
 ## ⚠️ Production configuration checklist
 
-Gaps or defaults in the current codebase that **must** be addressed before a real production deployment — this is a checklist of what to verify/change, not a description of what's already handled.
+Production checks that still require an operator decision or deployment-specific configuration:
 
-- **Never run the mock payment gateway in production.** `PAYMENT_GATEWAY` defaults to `mock` and `PAYMENT_MOCK_ENABLED` defaults to `true` (`lms-core-service/src/main/resources/application.yml`) with **no code-level guard** preventing mock in production — you must explicitly set `PAYMENT_GATEWAY=paypal` (or `sepay`) and `PAYMENT_MOCK_ENABLED=false` via env vars.
-- **Set `SPRING_PROFILES_ACTIVE=prod` on `auth-service`.** It has an `application-prod.yml` that quiets `org.hibernate.SQL` from `DEBUG`→`INFO` and hides actuator details (`show-details: never`). **`lms-core-service`, `api-gateway`, and `discovery-service` have no `application-prod.yml` at all** — `lms-core-service` in particular still ships `org.hibernate.SQL: DEBUG` / `BasicBinder: TRACE` and `management.endpoint.health.show-details: always` regardless of profile. Until a prod profile is added for these services, override the equivalent properties via env vars / a mounted config at deploy time.
+- **Choose a real payment gateway.** Production Compose requires `PAYMENT_GATEWAY` and forces `PAYMENT_MOCK_ENABLED=false`; set the selected PayPal or SePay credentials and enable that gateway explicitly.
+- **Production profiles are enforced.** All four Java applications have `application-prod.yml`; production Compose activates them. LMS Core suppresses SQL/binder debug logs, health details are hidden, and graceful shutdown is enabled with a 30-second shutdown phase.
 - **`/actuator/metrics` already requires `ROLE_ADMIN`** on `auth-service` and `lms-core-service` (enforced in each service's `SecurityConfig`) — only `/actuator/health` and `/actuator/info` are public. **`discovery-service` and `api-gateway` have no such restriction** on `/actuator/**` — treat their actuator endpoints as internal-network-only (don't expose them publicly) until access control is added.
 - **Readiness/liveness**: use `/actuator/health` per service as both probes for now — there's no separate readiness/liveness split configured (no Kubernetes-specific health groups). `docker-compose.prod.yml` already wires `healthcheck` + `depends_on: condition: service_healthy` for orchestration-level readiness.
-- **Graceful shutdown is not configured anywhere in the codebase** (no `server.shutdown` / `spring.lifecycle.timeout-per-shutdown-phase` in any `application.yml`). In-flight requests can be cut off on redeploy/restart — add `server.shutdown: graceful` and a `spring.lifecycle.timeout-per-shutdown-phase` before relying on rolling deploys without dropped requests.
 - **Log collection**: services log to `logs/<service>.log` locally (rolling, 10MB/30 files) — this is not sufficient in production. Ship container stdout/stderr (or the log files) to a centralized collector (e.g. your platform's log driver, Loki, CloudWatch) rather than relying on tailing files on the container filesystem.
-- **Docker Compose has a hardcoded weak DB password fallback**: `docker-compose.yml` / `docker-compose.prod.yml` default `POSTGRES_PASSWORD`/`AUTH_DB_PASSWORD`/`LMS_CORE_DB_PASSWORD` to `postgres` if the env var is unset (`${AUTH_DB_PASSWORD:-postgres}`). Always set real `AUTH_DB_PASSWORD` / `LMS_CORE_DB_PASSWORD` in production — do not rely on the fallback.
+- **Production secrets fail fast.** Production Compose rejects missing DB passwords, JWT/encryption secrets, public URLs, image owner, and immutable image tag. The development Compose file intentionally retains local defaults and must not be used for production.
 
 ## Database migration policy
 
@@ -41,8 +43,8 @@ Gaps or defaults in the current codebase that **must** be addressed before a rea
 ## Deployment verification checklist
 
 After deploying a new version, verify in order:
-1. `curl --fail http://<host>:<port>/actuator/health` returns `200` for every service (`discovery-service:8761`, `auth-service:8081`, `lms-core-service:8083`, `api-gateway:8080`).
-2. New service instances appear in the Eureka dashboard (`http://<discovery-host>:8761`).
+1. `curl --fail http://<public-host>:8080/actuator/health` returns `200` for `api-gateway` — this is the only service reachable from outside the VPS. For `discovery-service`, `auth-service`, and `lms-core-service` (bound to `127.0.0.1` or not published at all), run the check from the VPS itself, e.g. `docker compose -f docker-compose.prod.yml exec <service> wget -qO- http://localhost:<port>/actuator/health`.
+2. New service instances appear in the Eureka dashboard — open via SSH tunnel or `docker compose exec discovery-service ...` since it has no published port (`http://<discovery-host>:8761`).
 3. `flyway:info` (or the equivalent startup log) shows no pending/failed migrations.
 4. A real request through the Gateway succeeds end-to-end (e.g. `GET /api/courses` returns `200` with an `ApiResponse` payload).
 5. Logs show no repeated connection errors to Postgres/Redis/Eureka in the minutes after startup.

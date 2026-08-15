@@ -1,5 +1,10 @@
 # Production overrides. Activate with SPRING_PROFILES_ACTIVE=prod.
+server:
+  shutdown: graceful
+
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   security:
     user:
       # No defaults on purpose: startup fails fast when credentials are not supplied.
