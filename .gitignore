@@ -2,6 +2,11 @@
 /target/
 !.mvn/wrapper/maven-wrapper.jar
 
+# Logs
+**/logs/
+*.log
+*.log.*
+
 # Playwright E2E
 frontend/e2e/playwright-report/
 frontend/e2e/test-results/
@@ -115,9 +120,6 @@ local.properties
 # Compiled class file
 *.class
 
-# Log file
-*.log
-
 # BlueJ files
 *.ctxt
 
@@ -212,3 +214,17 @@ README.html
 *.iml
 .idea
 .exercism
+
+# AI
+/.agent
+/.cursor
+
+# Plans
+/plans
+
+#Tests
+/test-a11y
+
+# Docs
+/docs/interview-architecture
+/docs/interview-frontend
