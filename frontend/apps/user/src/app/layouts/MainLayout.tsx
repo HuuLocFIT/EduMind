@@ -232,11 +232,11 @@ export const MainLayout: React.FC = () => {
                           className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
                           onKeyDown={handleMenuKeyDown}
                         >
-                          <div className="px-4 py-2 border-b">
-                            <p className="font-semibold text-gray-900">
+                          <div className="px-4 py-2 border-b min-w-0">
+                            <p className="font-semibold text-gray-900 break-words">
                               {user?.firstName} {user?.lastName}
                             </p>
-                            <p className="text-sm text-gray-600">{user?.email}</p>
+                            <p className="text-sm text-gray-600 break-all">{user?.email}</p>
                           </div>
 
                           <button

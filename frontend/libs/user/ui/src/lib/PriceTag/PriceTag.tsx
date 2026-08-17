@@ -54,11 +54,9 @@ export const PriceTag: React.FC<PriceTagProps> = ({
             <span className="sr-only">Original price: </span>
             {formatPrice(originalPrice)}
           </span>
-          <span
-            className="text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded"
-            aria-label={`You save ${discount}%`}
-          >
-            -{discount}%
+          <span className="text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded">
+            <span className="sr-only">You save {discount}%</span>
+            <span aria-hidden="true">-{discount}%</span>
           </span>
         </>
       )}

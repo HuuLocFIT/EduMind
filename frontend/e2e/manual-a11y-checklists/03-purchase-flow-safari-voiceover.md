@@ -42,25 +42,25 @@ Lượt **đầy đủ** (toàn bộ bảng bên dưới) bắt buộc chạy í
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0 | P0 | 2.4.2 | `VO + F2` ×2 tại trang Cart | Page title mô tả đúng trang Cart | | | |
-| A1 | P0 | 1.3.1 | Mở Cart page, Rotor → Headings | Có `Heading level 1`; số lượng item được đọc tự nhiên (vd "3 items in cart") | | | |
-| A2 | P0 | 1.3.1 | Duyệt danh sách item bằng `VO + Right Arrow` | Cart item đọc như list (item 1 of N...); tên khoá học/giá không bị lặp thừa | | | |
-| A3 | P0 | 4.1.2, 2.4.4 | Duyệt tới nút Remove của 1 item | Tên nút chứa **tên khoá học cụ thể** (vd "Remove Advanced React from cart"), không chỉ "Remove" | | | |
+| A0 | P0 | 2.4.2 | `VO + F2` ×2 tại trang Cart | Page title mô tả đúng trang Cart | Pass| | |
+| A1 | P0 | 1.3.1 | Mở Cart page, Rotor → Headings | Có `Heading level 1`; số lượng item được đọc tự nhiên (vd "3 items in cart") | Pass| | |
+| A2 | P0 | 1.3.1 | Duyệt danh sách item bằng `VO + Right Arrow` | Cart item đọc như list (item 1 of N...); tên khoá học/giá không bị lặp thừa | Pass| | |
+| A3 | P0 | 4.1.2, 2.4.4 | Duyệt tới nút Remove của 1 item | Tên nút chứa **tên khoá học cụ thể** (vd "Remove Advanced React from cart"), không chỉ "Remove" | Pass| | |
 | A4 | P0 | 4.1.3, 2.4.3 | Kích hoạt Remove | Có announce item đã xoá + tổng tiền mới; focus chuyển tới item kế tiếp hoặc heading cart/empty-state | | | |
-| A5 | P0 | 1.3.1, 2.4.4 | Xoá hết item về cart rỗng | Empty state có heading + link "Browse Courses" đọc rõ | | | |
-| A6 | P0 | 4.1.2, 2.4.3 | Mở cart drawer (từ icon giỏ hàng trên header hoặc sau Add to Cart) | Drawer là dialog có tên; focus vào trong drawer ngay khi mở | | | |
-| A7 | P0 | 2.4.3 | Trong drawer, nhấn `Escape` | Drawer đóng; focus quay lại đúng nút/icon đã mở nó | | | |
-| A8 | P0 | 2.1.2 | Trong drawer, thử `VO + Right Arrow` liên tục | Focus không thoát ra nội dung nền phía sau | | | |
-| A9 | P0 | 1.3.1 | Duyệt giá gốc/giảm giá/tổng trong cart | Có label rõ ràng, đọc dễ hiểu, không lẫn số cũ/mới | | | |
+| A5 | P0 | 1.3.1, 2.4.4 | Xoá hết item về cart rỗng | Empty state có heading + link "Browse Courses" đọc rõ | Pass| | |
+| A6 | P0 | 4.1.2, 2.4.3 | Mở cart drawer (từ icon giỏ hàng trên header hoặc sau Add to Cart) | Drawer là dialog có tên; focus vào trong drawer ngay khi mở | Pass| | |
+| A7 | P0 | 2.4.3 | Trong drawer, nhấn `Escape` | Drawer đóng; focus quay lại đúng nút/icon đã mở nó | Pass| | |
+| A8 | P0 | 2.1.2 | Trong drawer, thử `VO + Right Arrow` liên tục | Focus không thoát ra nội dung nền phía sau | Pass| | |
+| A9 | P0 | 1.3.1 | Duyệt giá gốc/giảm giá/tổng trong cart | Có label rõ ràng, đọc dễ hiểu, không lẫn số cũ/mới | Pass| | |
 | A10 | C | 4.1.2, 3.3.1 | Nếu CTA Checkout đang disabled | Lý do disabled được đọc rõ (không chỉ im lặng vô hiệu hoá) | | | |
-| A11 | C | 4.1.2, 2.4.3 | Nếu Remove có dialog xác nhận | Dialog có tên, focus vào trong, `Escape` huỷ được, focus quay lại nút Remove sau khi huỷ | | | |
-| A12 | P0 | 4.1.3 | Giả lập lỗi khi cập nhật cart (chặn request trong Network) | Lỗi đọc được như alert, có action retry tiếp cận được bằng bàn phím — không chỉ toast thoáng qua | | | |
+| A11 | C | 4.1.2, 2.4.3 | Nếu Remove có dialog xác nhận | Dialog có tên, focus vào trong, `Escape` huỷ được, focus quay lại nút Remove sau khi huỷ | Pass| | |
+| A12 | P0 | 4.1.3 | Giả lập lỗi khi xoá item/clear cart (chặn `DELETE /api/cart/items/{courseId}` hoặc `DELETE /api/cart` trong Network) | Lỗi được announce qua alert/live region **không cần focus di chuyển tới** (không bắt buộc nút Retry riêng — nút Remove/Clear gốc vẫn bấm lại được ngay là đủ); nút đó phải trở lại trạng thái bấm được (không kẹt loading/disabled) sau khi fail | | | |
 
 ## B. CheckoutPage
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| B0 | P0 | 2.4.2 | `VO + F2` ×2 tại Checkout | Page title mô tả đúng bước Checkout | | | |
+| B0 | P0 | 2.4.2 | `VO + F2` ×2 tại Checkout | Page title mô tả đúng bước Checkout | Pass| | |
 | B1 | P0 | 1.3.1 | Mở Checkout, Rotor → Headings | `Heading level 1` cho trang; `Heading level 2` cho Order Summary và Payment Method | | | |
 | B2 | P0 | 1.3.1 | Duyệt Order Summary | Đọc như list/description có cấu trúc, không phải một khối text dài không ngắt | | | |
 | B3 | P0 | 1.3.1, 4.1.2 | Duyệt Total | Có label rõ, đơn vị tiền tệ đọc chuẩn (vd "Total: 499,000 Vietnamese dong" hoặc tương đương) | | | |

@@ -72,8 +72,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
               </span>
             )}
             <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {course.durationHours ?? 0}h
+              <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+              <span className="sr-only">{`${course.durationHours ?? 0} hours`}</span>
+              <span aria-hidden="true">{course.durationHours ?? 0}h</span>
             </span>
           </div>
         </div>
@@ -219,8 +220,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             </span>
           )}
           <span className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            {course.durationHours ?? 0}h
+            <Clock className="w-4 h-4" aria-hidden="true" />
+            <span className="sr-only">{`${course.durationHours ?? 0} hours`}</span>
+            <span aria-hidden="true">{course.durationHours ?? 0}h</span>
           </span>
         </div>
 

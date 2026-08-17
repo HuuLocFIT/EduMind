@@ -154,7 +154,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           {/* Duration */}
           <div className="flex items-center gap-1.5" title="Duration">
              <Clock className="w-4 h-4 text-gray-400" aria-hidden="true" />
-             <span>{course.durationHours || 0}h</span>
+             <span className="sr-only">{`${course.durationHours || 0} hours`}</span>
+             <span aria-hidden="true">{course.durationHours || 0}h</span>
           </div>
         </div>
       </a>
