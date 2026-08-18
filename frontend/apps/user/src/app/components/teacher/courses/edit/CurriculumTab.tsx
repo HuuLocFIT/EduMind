@@ -224,6 +224,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         description: formData.description || undefined,
         contentType: formData.contentType as any,
         articleContent: formData.articleContent || undefined,
+        resources: formData.resources,
         isPreview: formData.isPreview,
         isMandatory: formData.isMandatory,
         // videoUrl and videoDuration are managed via the video upload flow, not lesson CRUD
@@ -449,6 +450,7 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
       <LessonModal
         isOpen={lessonModal.isOpen}
         onClose={lessonModal.close}
+        courseId={courseId}
         editingLesson={editingLesson}
         onSave={handleSaveLesson}
         saving={saving || refreshingLessonId !== null}

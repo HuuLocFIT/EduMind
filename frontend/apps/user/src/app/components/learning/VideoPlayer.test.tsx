@@ -324,4 +324,46 @@ describe('VideoPlayer accessibility', () => {
     expect(container.querySelector('track')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Captions' })).not.toBeInTheDocument();
   });
+
+  describe('settings menu keyboard interaction', () => {
+    it('moves focus into the menu on open, navigates items with Arrow keys, and closes with Escape returning focus to the trigger', () => {
+      installMediaMocks();
+      render(<VideoPlayer src720p={VIDEO_SRC} src480p="https://example.com/video-480p.mp4" />);
+
+      const settingsBtn = screen.getByRole('button', { name: 'Settings' });
+      expect(settingsBtn).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(settingsBtn);
+      expect(settingsBtn).toHaveAttribute('aria-expanded', 'true');
+
+      const menu = screen.getByRole('menu', { name: 'Playback settings' });
+      const items = Array.from(menu.querySelectorAll('button'));
+      const normalIndex = items.indexOf(screen.getByRole('menuitemradio', { name: 'Normal' }));
+      expect(document.activeElement).toBe(items[normalIndex]); // "Normal" speed is checked initially
+
+      keyDown(menu, 'ArrowDown');
+      expect(document.activeElement).toBe(items[normalIndex + 1]);
+      keyDown(menu, 'ArrowUp');
+      expect(document.activeElement).toBe(items[normalIndex]);
+      keyDown(menu, 'ArrowUp');
+      expect(document.activeElement).toBe(items[normalIndex - 1]);
+
+      keyDown(menu, 'Escape');
+      expect(screen.queryByRole('menu', { name: 'Playback settings' })).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(settingsBtn);
+      expect(settingsBtn).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('closes and refocuses the trigger after selecting a speed or quality option', () => {
+      installMediaMocks();
+      render(<VideoPlayer src720p={VIDEO_SRC} src480p="https://example.com/video-480p.mp4" />);
+
+      const settingsBtn = screen.getByRole('button', { name: 'Settings' });
+      fireEvent.click(settingsBtn);
+      fireEvent.click(screen.getByRole('menuitemradio', { name: '2x' }));
+
+      expect(screen.queryByRole('menu', { name: 'Playback settings' })).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(settingsBtn);
+    });
+  });
 });

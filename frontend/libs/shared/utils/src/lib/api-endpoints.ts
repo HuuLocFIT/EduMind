@@ -164,6 +164,9 @@ export const TEACHER_PORTAL_ENDPOINTS = {
   LESSON_VIDEO_DELETE: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video`,
   LESSON_VIDEO_RESET: (lessonId: string | number) => `${API_BASE_PATH}/lessons/${lessonId}/video/reset`,
 
+  // Lesson Resource Upload
+  LESSON_RESOURCE_DELETE: `${API_BASE_PATH}/lessons/resource-uploads`,
+
   // Course Students (enrollments)
   COURSE_STUDENTS: (courseId: string | number) => `${API_BASE_PATH}/enrollments/courses/${courseId}`,
   

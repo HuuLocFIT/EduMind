@@ -72,4 +72,9 @@ public interface LessonService {
      * Reset stuck upload state so a new upload can start (TEACHER)
      */
     void resetVideoUploadState(Long lessonId, Long instructorId);
+
+    /**
+     * Delete an uploaded resource file from Cloudinary (TEACHER, course-scoped)
+     */
+    void deleteResourceUpload(Long courseId, String url, Long instructorId);
 }

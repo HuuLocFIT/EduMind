@@ -7,6 +7,8 @@ export interface LessonNavigationProps {
   hasNext: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  previousLessonTitle?: string;
+  nextLessonTitle?: string;
   className?: string;
 }
 
@@ -26,8 +28,21 @@ export const LessonNavigation: React.FC<LessonNavigationProps> = ({
   hasNext,
   onPrevious,
   onNext,
+  previousLessonTitle,
+  nextLessonTitle,
   className,
 }) => {
+  const previousLabel = hasPrevious
+    ? previousLessonTitle
+      ? `Previous Lesson: ${previousLessonTitle}`
+      : 'Previous Lesson'
+    : 'Previous Lesson, unavailable, this is the first lesson';
+  const nextLabel = hasNext
+    ? nextLessonTitle
+      ? `Next Lesson: ${nextLessonTitle}`
+      : 'Next Lesson'
+    : 'Next Lesson, unavailable, this is the last lesson';
+
   return (
     <div
       className={`sticky bottom-0 z-30 border-t border-gray-200 bg-gray-50 backdrop-blur-sm ${className ?? ''}`}
@@ -37,26 +52,36 @@ export const LessonNavigation: React.FC<LessonNavigationProps> = ({
           variant="primary"
           onClick={onPrevious}
           disabled={!hasPrevious}
+          aria-label={previousLabel}
           className={`justify-self-start w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center ${
             !hasPrevious ? '!opacity-100 !bg-gray-600 !text-white' : ''
           }`}
         >
-          <ChevronLeft className="w-5 h-5 mr-2" />
-          <span className="sm:hidden">Previous</span>
-          <span className="hidden sm:inline">Previous Lesson</span>
+          <ChevronLeft className="w-5 h-5 mr-2" aria-hidden="true" />
+          <span aria-hidden="true" className="sm:hidden">
+            Previous
+          </span>
+          <span aria-hidden="true" className="hidden sm:inline">
+            Previous Lesson
+          </span>
         </Button>
 
         <Button
           variant="primary"
           onClick={onNext}
           disabled={!hasNext}
+          aria-label={nextLabel}
           className={`justify-self-end w-32 sm:w-44 md:w-52 h-11 sm:h-12 justify-center ${
             !hasNext ? '!opacity-100 !bg-gray-600 !text-white' : ''
           }`}
         >
-          <span className="sm:hidden">Next</span>
-          <span className="hidden sm:inline">Next Lesson</span>
-          <ChevronRight className="w-5 h-5 ml-2" />
+          <span aria-hidden="true" className="sm:hidden">
+            Next
+          </span>
+          <span aria-hidden="true" className="hidden sm:inline">
+            Next Lesson
+          </span>
+          <ChevronRight className="w-5 h-5 ml-2" aria-hidden="true" />
         </Button>
       </div>
     </div>

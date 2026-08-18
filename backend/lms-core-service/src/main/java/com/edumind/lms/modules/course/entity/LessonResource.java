@@ -11,4 +11,5 @@ public class LessonResource {
     private String title;
     private String url;
     private String type; // PDF, DOC, ZIP, etc.
+    private Long size; // bytes
 }

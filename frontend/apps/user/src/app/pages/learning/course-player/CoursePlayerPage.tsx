@@ -396,6 +396,8 @@ export const CoursePlayerPage: React.FC = () => {
             hasNext={!loading && !!navigation.nextLesson}
             onPrevious={navigation.navigatePrevious}
             onNext={navigation.navigateNext}
+            previousLessonTitle={navigation.previousLesson?.title}
+            nextLessonTitle={navigation.nextLesson?.title}
           />
         </div>
 

@@ -12,6 +12,7 @@ import {
   Film,
 } from "lucide-react";
 import { ProgressBar, Button } from "@edumind/user-ui";
+import { formatFileSize } from "@edumind/shared-utils";
 import { useUploadQueueStore } from "../../../../stores/uploadQueue.store.js";
 import { videoUploadService } from "../../../../services/video-upload.service.js";
 
@@ -26,13 +27,6 @@ interface VideoDropZoneProps {
   currentUploadStatus: string;
   onVideoReady?: () => void;
   onVideoRemoved?: () => void;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
-  return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
 export const VideoDropZone: React.FC<VideoDropZoneProps> = ({

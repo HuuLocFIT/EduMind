@@ -8,6 +8,7 @@ export const LessonResourceSchema = z.object({
   title: z.string().min(1, "Resource title is required"),
   url: z.string().url("Invalid resource URL"),
   type: z.string().min(1, "Resource type is required"),
+  size: z.number().int().nonnegative().optional().nullable(),
 });
 
 export const ReorderLessonsRequestSchema = z.object({

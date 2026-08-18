@@ -54,63 +54,64 @@ Lượt **đầy đủ** (toàn bộ bảng bên dưới) bắt buộc chạy í
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0 | P0 | 2.4.2 | `VO + F2` ×2 tại My Learning | Page title mô tả đúng trang | | | |
-| A1 | P0 | 1.3.1 | Mở My Learning, Rotor → Headings | Có đúng một `Heading level 1` | | | |
-| A2 | P0 | 4.1.2, 2.1.1 | Duyệt tab list (All/Active/Completed) | Tab list có accessible label; đổi tab bằng `Left/Right Arrow` (không cần Tab) | | | |
-| A3 | P0 | 2.1.1 | Dùng `Home`/`End` trong tab list | Nhảy tới tab đầu/cuối đúng | | | |
-| A4 | P0 | 4.1.3 | Đổi tab | VoiceOver announce tên filter mới + số lượng course tương ứng | | | |
-| A5 | P0 | 1.3.1, 2.4.4 | Duyệt enrollment cards | Đọc như list; nút "Continue Learning" có tên chứa **tên khóa học** | | | |
-| A6 | P0 | 4.1.2 | Duyệt progress bar của 1 course | Có label + giá trị đọc được (vd "65% complete"), không chỉ thanh màu im lặng | | | |
-| A7 | P0 | 1.4.1 | So sánh course completed vs in-progress | Trạng thái phân biệt được qua text/label khi đọc, không chỉ màu | | | |
-| A8 | P0 | 4.1.3 | Chuyển sang tab rỗng (vd Completed khi chưa hoàn thành course nào) | Empty state đổi theo đúng tab và được announce | | | |
-| A9 | P0 | 2.1.1 | Kích hoạt Continue Learning bằng `Enter` | Điều hướng đúng vào Course Player của đúng khóa học | | | |
-| A10 | P0 | 4.1.3 | Trong lúc loading | Skeleton **không** bị VoiceOver đọc như nội dung thật; có text loading cho screen reader | | | |
-| A11 | P0 | 4.1.3, 3.3.3 | Giả lập API error (chặn request) | Lỗi đọc như alert; nút Retry có tên rõ và bấm được bằng bàn phím | | | |
-| A12 | C | 3.3.2, 4.1.3 | Nếu có search/sort trong My Learning | Có label thật; kết quả thay đổi được announce đúng một lần | | | |
+| A0 | P0 | 2.4.2 | `VO + F2` ×2 tại My Learning | Page title mô tả đúng trang | Pass| | |
+| A1 | P0 | 1.3.1 | Mở My Learning, Rotor → Headings | Có đúng một `Heading level 1` | Pass| | |
+| A2 | P0 | 4.1.2, 2.1.1 | Duyệt tab list (All/Active/Completed) | Tab list có accessible label; đổi tab bằng `Left/Right Arrow` (không cần Tab) | Pass| | |
+| A3 | P0 | 2.1.1 | Dùng `Home`/`End` trong tab list | Nhảy tới tab đầu/cuối đúng | Pass| | |
+| A4 | P0 | 4.1.3 | Đổi tab | VoiceOver announce tên filter mới + số lượng course tương ứng | Pass| | |
+| A5 | P0 | 1.3.1, 2.4.4 | Duyệt enrollment cards | Đọc như list; nút "Continue Learning" có tên chứa **tên khóa học** | Pass| | |
+| A6 | P0 | 4.1.2 | Duyệt progress bar của 1 course | Có label + giá trị đọc được (vd "65% complete"), không chỉ thanh màu im lặng | Pass| | |
+| A7 | P0 | 1.4.1 | So sánh course completed vs in-progress | Trạng thái phân biệt được qua text/label khi đọc, không chỉ màu | Pass| | |
+| A8 | P0 | 4.1.3 | Chuyển sang tab rỗng (vd Completed khi chưa hoàn thành course nào) | Empty state đổi theo đúng tab và được announce | Pass| | |
+| A9 | P0 | 2.1.1 | Kích hoạt Continue Learning bằng `Enter` | Điều hướng đúng vào Course Player của đúng khóa học | Pass| | |
+| A10 | P0 | 4.1.3 | Trong lúc loading | Skeleton **không** bị VoiceOver đọc như nội dung thật; có text loading cho screen reader | Pass| | |
+| A11 | P0 | 4.1.3, 3.3.3 | Giả lập API error (chặn request) | Lỗi đọc như alert; nút Retry có tên rõ và bấm được bằng bàn phím | Pass| | |
+| A12 | C | 3.3.2, 4.1.3 | Nếu có search/sort trong My Learning | Có label thật; kết quả thay đổi được announce đúng một lần | N/A| | Trang này không có search/sort|
 
 ## B. CoursePlayerPage — cấu trúc & điều hướng
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| B0 | P0 | 2.4.2 | `VO + F2` ×2 trong Course Player, rồi đổi lesson và lặp lại | Page title phản ánh khóa học/bài học hiện tại và **cập nhật khi đổi lesson** | | | |
-| B1 | P0 | 1.3.1 | Mở Course Player, Rotor → Headings | `Heading level 1` là tên khóa học; tên lesson hiện tại ở cấp heading kế tiếp | | | |
-| B2 | P0 | 1.3.1, 4.1.2 | Duyệt sidebar curriculum | Là navigation/region có label rõ (vd "Course curriculum") | | | |
-| B3 | P0 | 4.1.2 | Kích hoạt 1 section bằng `VO + Space` | `aria-expanded` đổi và được announce đúng trạng thái | | | |
-| B4 | P0 | 1.3.1, 4.1.2 | Duyệt lesson list trong section | Đọc như list; lesson hiện tại có đánh dấu "current step" khi đọc (`aria-current`) | | | |
-| B5 | P0 | 1.4.1 | Duyệt lesson đã completed | Có text alternative báo đã hoàn thành, không chỉ icon/màu | | | |
-| B6 | P0 | 1.4.1, 4.1.2 | Duyệt lesson đang khoá (locked) | Nếu không focusable — bị Rotor bỏ qua hợp lý; nếu focusable — có giải thích lý do khoá khi đọc | | | |
-| B7 | P0 | 2.4.3, 4.1.3 | Chọn 1 lesson khác bằng `VO + Space`/Enter | Focus chuyển tới heading/nội dung lesson mới; có announce đã đổi lesson | | | |
-| B8 | P0 | 4.1.2, 2.4.3 | Mở sidebar trên mobile viewport | Hoạt động như drawer/dialog nếu che nội dung; `Escape` đóng được; focus quay lại nút toggle | | | |
-| B9 | P0 | 2.1.2 | Trong mobile drawer, duyệt liên tục | Không có keyboard trap ngoài ý muốn (focus không bị kẹt không thoát được khi cần) | | | |
-| B10 | P0 | 4.1.2 | Duyệt nút Exit player / toggle sidebar | Tên nút rõ ràng, không chỉ icon vô danh | | | |
-| B11 | P0 | 4.1.2, 2.4.3 | `[LOCAL]` Giả lập access-error (khoá học suspended/dropped) | Modal lỗi quản lý focus đúng (focus vào trong modal) và có recovery action | | | |
-| B12 | P0 | 2.4.4, 4.1.2 | Duyệt nút Previous/Next lesson | Tên nút nêu được sẽ đi tới đâu (không chỉ "Next"); trạng thái disabled ở lesson đầu/cuối được đọc rõ | | | |
-| B13 | C | 2.4.4, 4.1.2 | Nếu lesson có tài liệu đính kèm (resources) | Mỗi link nêu rõ tên tài liệu + định dạng/kích thước; tải được bằng bàn phím | | | |
+| B0 | P0 | 2.4.2 | `VO + F2` ×2 trong Course Player, rồi đổi lesson và lặp lại | Page title phản ánh khóa học/bài học hiện tại và **cập nhật khi đổi lesson** | Pass| | |
+| B1 | P0 | 1.3.1 | Mở Course Player, Rotor → Headings | `Heading level 1` là tên khóa học; tên lesson hiện tại ở cấp heading kế tiếp | Pass    | | |
+| B2 | P0 | 1.3.1, 4.1.2 | Duyệt sidebar curriculum | Là navigation/region có label rõ (vd "Course curriculum") | Pass| | |
+| B3 | P0 | 4.1.2 | Kích hoạt 1 section bằng `VO + Space` | `aria-expanded` đổi và được announce đúng trạng thái | Pass| | |
+| B4 | P0 | 1.3.1, 4.1.2 | Duyệt lesson list trong section | Đọc như list; lesson hiện tại có đánh dấu "current step" khi đọc (`aria-current`) | Pass| | |
+| B5 | P0 | 1.4.1 | Duyệt lesson đã completed | Có text alternative báo đã hoàn thành, không chỉ icon/màu | Pass| | |
+| B6 | P0 | 1.4.1, 4.1.2 | Duyệt lesson đang khoá (locked) | Nếu không focusable — bị Rotor bỏ qua hợp lý; nếu focusable — có giải thích lý do khoá khi đọc | N/A| | Course Player chỉ truy cập được sau khi enroll; sidebar (CourseCurriculumSidebar.tsx) không có khái niệm locked lesson|
+| B7 | P0 | 2.4.3, 4.1.3 | Chọn 1 lesson khác bằng `VO + Space`/Enter | Focus chuyển tới heading/nội dung lesson mới; có announce đã đổi lesson | Pass| | |
+| B8 | P0 | 4.1.2, 2.4.3 | Mở sidebar trên mobile viewport | Hoạt động như drawer/dialog nếu che nội dung; `Escape` đóng được; focus quay lại nút toggle | Pass| | |
+| B9 | P0 | 2.1.2 | Trong sidebar drawer đã mở ở B8 (chưa bấm Escape/đóng), Tab/Shift+Tab liên tục qua hết các item | Focus trap là **chủ đích** (không thoát ra ngoài drawer khi che nội dung) nhưng phải cycle được: tới cuối danh sách Tab quay lại đầu, Shift+Tab từ đầu quay lại cuối; nút Close/toggle luôn nằm trong vòng lặp và Tab tới được — không có điểm nào bị kẹt cứng (dead-end) mà không Tab tiếp/lùi được | Pass| | |
+| B9b | P0 | 2.1.2, 4.1.2 | Cùng drawer đã mở ở B8, dùng VO cursor (swipe Left/Right) thay vì Tab để duyệt hết item | VO swipe không thoát khỏi drawer ra nội dung phía sau bị che (không leak); nếu VO cursor tới cuối, swipe tiếp không bị treo — quay lại đầu hoặc dừng ở nút Close hợp lý | Pass| | |
+| B10 | P0 | 4.1.2 | Duyệt nút Exit player / toggle sidebar | Tên nút rõ ràng, không chỉ icon vô danh | Pass| | |
+| B11 | P0 | 4.1.2, 2.4.3 | `[LOCAL]` Giả lập access-error (khoá học suspended/dropped) | Modal lỗi quản lý focus đúng (focus vào trong modal) và có recovery action | Pass| | |
+| B12 | P0 | 2.4.4, 4.1.2 | Duyệt nút Previous/Next lesson | Tên nút nêu được sẽ đi tới đâu (không chỉ "Next"); trạng thái disabled ở lesson đầu/cuối được đọc rõ | Pass | | |
+| B13 | C | 2.4.4, 4.1.2 | Nếu lesson có tài liệu đính kèm (resources) | Mỗi link nêu rõ tên tài liệu + định dạng/kích thước; tải được bằng bàn phím | Pass| | |
 
 ## C. CoursePlayerPage — video & media
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| C1 | P0 | 2.1.1, 4.1.2 | Vào video lesson, dùng Tab tới video controls | Có đủ control thao tác được bằng bàn phím: play/pause, seek, volume, mute, playback speed, quality, captions, settings, fullscreen, elapsed time — mỗi control có accessible name | | | |
-| C2 | P0 | 1.2.2 | Bật caption (CC) trên video có caption test | Caption hiển thị đúng nội dung; track được đọc là "English captions" theo metadata hiện tại (ghi nhận limitation nếu khóa học không phải tiếng Anh) | | | |
-| C3 | C | 1.2.2 | Video không có `videoCaptionUrl` hoặc VTT lỗi | Không claim có caption — chấp nhận là limitation đã biết, không phải bug mới | | | |
-| C4 | P0 | 1.2.2, 1.3.1 | Kiểm tra transcript | Nếu có `articleContent` → hiển thị transcript đọc được; nếu không có → placeholder rõ ràng ("A transcript is not available for this video.") | | | |
-| C5 | P0 | 1.4.2 | Vào lesson video | Không tự động phát có âm thanh khi vào trang (no autoplay with sound) | | | |
-| C6 | P0 | 4.1.2 | Duyệt tới thanh seek và thanh volume bằng `VO + Command + J` | Được đọc là slider có giá trị hiện tại (vd "Seek video, 35 percent"); `Left/Right Arrow` thay đổi được giá trị | | | |
-| C7 | P0 | 4.1.2, 2.1.2 | Mở menu Settings (chất lượng 720p/480p, tốc độ phát) | Menu có semantics đúng, điều hướng bằng Arrow/Enter, `Escape` đóng và focus quay lại nút Settings | | | |
-| C8 | P0 | 2.1.2, 2.4.3 | Vào fullscreen bằng bàn phím rồi thoát bằng `Escape` | Vào/ra được hoàn toàn bằng bàn phím; sau khi thoát, focus quay lại control hợp lý, không bị mất về đầu trang | | | |
-| C9 | P0 | 2.1.1 | Kiểm tra phím tắt của player (Space, mũi tên, F, M nếu có) | Không xung đột với phím VoiceOver; nếu có xung đột, vẫn còn cách thao tác bằng control có focus | | | |
+| C1 | P0 | 2.1.1, 4.1.2 | Vào video lesson, dùng Tab tới video controls | Có đủ control thao tác được bằng bàn phím: play/pause, seek, volume, mute, playback speed, quality, captions, settings, fullscreen, elapsed time — mỗi control có accessible name | Pass| | |
+| C2 | P0 | 1.2.2 | Bật caption (CC) trên video có caption test | Caption hiển thị đúng nội dung; track được đọc là "English captions" theo metadata hiện tại (ghi nhận limitation nếu khóa học không phải tiếng Anh) | Pass| | |
+| C3 | C | 1.2.2 | Video không có `videoCaptionUrl` hoặc VTT lỗi | Không claim có caption — chấp nhận là limitation đã biết, không phải bug mới | Pass| | Test với VTT malformed (200 OK, nội dung sai): caption vẫn đọc được — browser tự bỏ qua cue lỗi, không phải case "claim sai" |
+| C4 | P0 | 1.2.2, 1.3.1 | Kiểm tra transcript | Nếu có `articleContent` → hiển thị transcript đọc được; nếu không có → placeholder rõ ràng ("A transcript is not available for this video.") | Pass| | |
+| C5 | P0 | 1.4.2 | Vào lesson video | Không tự động phát có âm thanh khi vào trang (no autoplay with sound) | Pass| | |
+| C6 | P0 | 4.1.2 | Duyệt tới thanh seek và thanh volume bằng `VO + Command + J` | Được đọc là slider có giá trị hiện tại (vd "Seek video, 35 percent"); `Left/Right Arrow` thay đổi được giá trị | Pass| | |
+| C7 | P0 | 4.1.2, 2.1.2 | Mở menu Settings (chất lượng 720p/480p, tốc độ phát) | Menu có semantics đúng, điều hướng bằng Arrow/Enter, `Escape` đóng và focus quay lại nút Settings | Pass| | |
+| C8 | P0 | 2.1.2, 2.4.3 | Vào fullscreen bằng bàn phím rồi thoát bằng `Escape` | Vào/ra được hoàn toàn bằng bàn phím; sau khi thoát, focus quay lại control hợp lý, không bị mất về đầu trang | Pass| | **Known limitation (accepted)**: VO còn đọc thêm window title sau khi thoát — hành vi modal-dismissal của WebKit, xác nhận bằng minimal repro không dùng code app, không phải bug, không có API web nào chặn được. |
+| C9 | P0 | 2.1.1 | Kiểm tra phím tắt của player (Space, mũi tên, F, M nếu có) | Không xung đột với phím VoiceOver; nếu có xung đột, vẫn còn cách thao tác bằng control có focus | Pass| | |
 
 ## D. CoursePlayerPage — nội dung, quiz & progress
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D1 | P0 | 1.3.1 | Vào text/article lesson | Heading/list/code structure giữ nguyên ngữ nghĩa sau khi render Markdown/HTML | | | |
+| D1 | P0 | 1.3.1 | Vào text/article lesson | Heading/list/code structure giữ nguyên ngữ nghĩa sau khi render Markdown/HTML | Pass| | |
 | D2 | C | 1.3.1 | Nếu lesson có code block | Có ngữ cảnh/ngôn ngữ code được đọc hợp lý (không đọc như văn bản thường vô nghĩa) | | | |
 | D3 | P0 | 4.1.2 | Kích hoạt "Mark complete" | Có trạng thái loading/disabled; tên nút ổn định trong lúc xử lý | | | |
 | D4 | P0 | 4.1.3 | Sau khi complete | Có announce hoàn thành + progress mới; **không** double-submit khi bấm thêm lần nữa hoặc Enter lặp | | | |
 | D5 | P0 | 4.1.3, 2.2.1 | Nếu có auto-advance sang lesson kế | Có báo trước bằng text/announce (không tự chuyển đột ngột); **huỷ được bằng bàn phím**; đếm ngược không bị đọc lặp mỗi giây | | | |
-| D6 | P0 | 1.3.1, 4.1.2 | Vào quiz lesson | Câu hỏi dùng fieldset/legend; đáp án dùng radio; chọn được bằng Arrow keys; chỉ chọn được 1 đáp án/câu (giới hạn hiện tại) | | | |
+| D6 | P0 | 1.3.1, 4.1.2 | Vào quiz lesson | Câu hỏi dùng fieldset/legend; đáp án dùng radio; chọn được bằng Arrow keys; chỉ chọn được 1 đáp án/câu (giới hạn hiện tại) | Pass| | |
 | D7 | P0 | 4.1.3, 3.3.1 | Nộp quiz | Kết quả được announce rõ (đúng/sai, điểm số); nếu chưa trả lời hết thì lỗi được đọc và focus tới câu còn thiếu | | | |
 | D8 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **lưu progress video** (chặn request autosave) | Lỗi hiển thị không chỉ dạng toast thoáng qua — có state/retry mà VoiceOver tiếp cận được, nêu rõ đang retry cho bài nào | | | |
 | D9 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **reconcile sau khi complete** (chặn request enrollment/progress) | Đây là recovery path khác D8 — thông báo và action retry phải phân biệt được, không lẫn với lỗi lưu progress | | | |
