@@ -680,9 +680,9 @@ export const MainLayout: React.FC = () => {
                   </span>
                 </li>
                 <li>
-                  <span>
+                  <a href="mailto:support@edumind.com" className="hover:text-blue-600">
                     Contact Us
-                  </span>
+                  </a>
                 </li>
                 <li>
                   <span>

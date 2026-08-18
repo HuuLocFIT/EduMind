@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartDrawer } from './CartDrawer';
+import { DIALOG_EXIT_MS, FOCUS_SETTLE_MS } from '../../hooks/useRemovalAnnouncement';
 import { useCart, useRemoveFromCart } from '../../hooks/useCart';
 import { useCartStore } from '../../stores/cart.store';
 import { USER_ROUTES } from '@edumind/shared-utils';
@@ -19,14 +20,15 @@ vi.mock('../../stores/cart.store');
 // Mock child components to isolate Drawer logic
 vi.mock('./CartItem', () => ({
   CartItem: ({ item, onRemove }: any) => (
-    <div data-testid={`cart-item-${item.courseId}`}>
+    <div data-cart-item data-testid={`cart-item-${item.courseId}`}>
       {item.courseTitle}
-      <button onClick={() => onRemove(item.courseId)}>Remove</button>
+      <button onClick={() => onRemove(item.courseId)}>Remove {item.courseTitle}</button>
     </div>
   ),
 }));
 
 const mockShowError = vi.fn();
+const mockShowToast = vi.fn();
 vi.mock('@edumind/user-ui', () => ({
   Button: ({ children, onClick, rightIcon, disabled }: any) => (
     <button onClick={onClick} disabled={disabled}>
@@ -34,7 +36,7 @@ vi.mock('@edumind/user-ui', () => ({
     </button>
   ),
   Loading: () => <div>Loading...</div>,
-  useToast: () => ({ error: mockShowError }),
+  useToast: () => ({ error: mockShowError, showToast: mockShowToast }),
   ConfirmDialog: ({ isOpen, onConfirm, title }: any) => isOpen ? <div role="dialog" aria-label={title}><button onClick={onConfirm}>Confirm removal</button></div> : null,
 }));
 
@@ -154,11 +156,58 @@ describe('CartDrawer', () => {
 
     render(<CartDrawer {...defaultProps} />);
 
-    const removeBtn = screen.getByText('Remove');
+    const removeBtn = screen.getByText('Remove React Course');
     await user.click(removeBtn);
     await user.click(screen.getByText('Confirm removal'));
 
     expect(mockRemoveMutate).toHaveBeenCalledWith(1, expect.any(Object));
+  });
+
+  it('announces the removal only after focus has already moved', () => {
+    // Same VoiceOver constraint as CartPage: a live-region update that lands in
+    // the same tick as a focus move is discarded by WebKit.
+    vi.useFakeTimers();
+    try {
+      const items = [
+        { courseId: 1, courseTitle: 'React Course', effectivePrice: 100 },
+        { courseId: 2, courseTitle: 'Java Course', effectivePrice: 50 },
+      ];
+      (useCart as any).mockReturnValue({
+        data: { items, totalAmount: 150, currency: 'USD' },
+        isLoading: false,
+      });
+
+      const { rerender } = render(<CartDrawer {...defaultProps} />);
+      fireEvent.click(screen.getByText('Remove React Course'));
+      fireEvent.click(screen.getByText('Confirm removal'));
+
+      act(() => mockRemoveMutate.mock.calls[0][1].onSuccess());
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'React Course removed from cart. New total: $50.00 USD.',
+        { variant: 'success', silent: true },
+      );
+
+      (useCart as any).mockReturnValue({
+        data: { items: [items[1]], totalAmount: 50, currency: 'USD' },
+        isLoading: false,
+      });
+      rerender(<CartDrawer {...defaultProps} />);
+
+      const removalStatus = screen.getByRole('status');
+      const successor = screen.getByText('Remove Java Course');
+
+      act(() => vi.advanceTimersByTime(DIALOG_EXIT_MS));
+      expect(successor).toHaveFocus();
+      expect(removalStatus).toHaveTextContent('');
+
+      act(() => vi.advanceTimersByTime(FOCUS_SETTLE_MS));
+      expect(removalStatus).toHaveTextContent(
+        'React Course removed from cart. New total: $50.00 USD.',
+      );
+      expect(successor).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('handles checkout navigation', async () => {

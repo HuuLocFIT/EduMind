@@ -719,8 +719,8 @@ describe('CheckoutPage', () => {
 
       await user.click(screen.getByRole('button', { name: /Complete Order/i }));
 
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveTextContent('Select a payment method');
+      const alert = screen.getByText(/Select a payment method/);
+      expect(alert).toHaveAttribute('role', 'status');
       expect(screen.getByRole('heading', { name: 'Unable to place order' })).toHaveFocus();
       expect(mockCheckoutMutate).not.toHaveBeenCalled();
     });
@@ -761,7 +761,7 @@ describe('CheckoutPage', () => {
 
       const heading = screen.getByRole('heading', { level: 1, name: 'Checkout Error' });
       await waitFor(() => expect(heading).toHaveFocus());
-      expect(screen.getByRole('alert')).toHaveTextContent('valid course');
+      expect(screen.getByText(/valid course/)).toHaveAttribute('role', 'status');
       expect(screen.getByRole('button', { name: 'Return to Courses' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /(?:Place|Complete) Order/i })).not.toBeInTheDocument();
       expect(useDirectCheckoutPreview).toHaveBeenCalledWith(0, false);

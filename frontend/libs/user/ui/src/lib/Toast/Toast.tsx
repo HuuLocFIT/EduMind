@@ -10,6 +10,13 @@ export interface ToastProps {
   title?: string;
   message: string;
   duration?: number;
+  /**
+   * Hide the toast text from assistive technology. `ToastContainer` is itself a
+   * `role="status" aria-live="polite"` region, so a caller that already owns a
+   * dedicated live region for the same sentence would otherwise have it
+   * announced twice. Silent toasts stay a purely visual confirmation.
+   */
+  silent?: boolean;
   onClose: (id: string) => void;
 }
 
@@ -42,6 +49,7 @@ export const Toast: React.FC<ToastProps> = ({
   title,
   message,
   duration = 5000,
+  silent = false,
   onClose,
 }) => {
   const config = variantConfig[variant];
@@ -65,7 +73,7 @@ export const Toast: React.FC<ToastProps> = ({
         "animate-in slide-in-from-right duration-300",
         config.containerClass
       )}
-      role={variant === "error" ? "alert" : undefined}
+      role={!silent && variant === "error" ? "alert" : undefined}
     >
       <div className="p-4 flex items-start gap-3">
         <Icon
@@ -73,7 +81,7 @@ export const Toast: React.FC<ToastProps> = ({
           className={clsx("w-5 h-5 flex-shrink-0 mt-0.5", config.iconClass)}
         />
 
-        <div className="flex-1 min-w-0 text-white">
+        <div className="flex-1 min-w-0 text-white" aria-hidden={silent || undefined}>
           {title && <h4 className="text-sm font-semibold mb-1">{title}</h4>}
           <p className="text-sm">{message}</p>
         </div>

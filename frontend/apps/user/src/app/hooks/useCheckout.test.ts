@@ -16,19 +16,19 @@ describe('useCheckout helpers', () => {
       const now = new Date('2024-01-15T10:00:00Z').getTime();
       vi.setSystemTime(now);
 
-      // Order created 5 minutes ago (should have 25 minutes = 1500 seconds remaining)
+      // Order created 5 minutes ago (should have 10 minutes = 600 seconds remaining)
       const orderCreatedAt = new Date('2024-01-15T09:55:00Z');
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
-      expect(remaining).toBe(25 * 60); // 1500 seconds
+      expect(remaining).toBe(10 * 60); // 600 seconds
     });
 
     it('returns 0 for expired order', () => {
       const now = new Date('2024-01-15T10:00:00Z').getTime();
       vi.setSystemTime(now);
 
-      // Order created 35 minutes ago (expired)
-      const orderCreatedAt = new Date('2024-01-15T09:25:00Z');
+      // Order created 20 minutes ago (expired)
+      const orderCreatedAt = new Date('2024-01-15T09:40:00Z');
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
       expect(remaining).toBe(0);
@@ -38,43 +38,43 @@ describe('useCheckout helpers', () => {
       const now = new Date('2024-01-15T10:00:00Z').getTime();
       vi.setSystemTime(now);
 
-      // Order created 10 minutes ago
-      const orderCreatedAt = new Date('2024-01-15T09:50:00Z');
+      // Order created 5 minutes ago
+      const orderCreatedAt = new Date('2024-01-15T09:55:00Z');
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
-      expect(remaining).toBe(20 * 60); // 1200 seconds
+      expect(remaining).toBe(10 * 60); // 600 seconds
     });
 
     it('handles ISO string input', () => {
       const now = new Date('2024-01-15T10:00:00Z').getTime();
       vi.setSystemTime(now);
 
-      // Order created 10 minutes ago as ISO string
-      const orderCreatedAt = '2024-01-15T09:50:00Z';
+      // Order created 5 minutes ago as ISO string
+      const orderCreatedAt = '2024-01-15T09:55:00Z';
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
-      expect(remaining).toBe(20 * 60); // 1200 seconds
+      expect(remaining).toBe(10 * 60); // 600 seconds
     });
 
-    it('calculates based on 30-minute expiration', () => {
+    it('calculates based on 15-minute expiration', () => {
       const now = new Date('2024-01-15T10:00:00Z').getTime();
       vi.setSystemTime(now);
 
-      // Order created exactly 30 minutes ago (just expired)
-      const orderCreatedAt = new Date('2024-01-15T09:30:00Z');
+      // Order created exactly 15 minutes ago (just expired)
+      const orderCreatedAt = new Date('2024-01-15T09:45:00Z');
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
       expect(remaining).toBe(0);
     });
 
-    it('returns full 30 minutes for order created just now', () => {
+    it('returns full 15 minutes for order created just now', () => {
       const now = new Date('2024-01-15T10:00:00Z').getTime();
       vi.setSystemTime(now);
 
       const orderCreatedAt = new Date('2024-01-15T10:00:00Z');
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
-      expect(remaining).toBe(30 * 60); // 1800 seconds
+      expect(remaining).toBe(15 * 60); // 900 seconds
     });
 
     it('returns correct value for order created 1 second ago', () => {
@@ -84,7 +84,7 @@ describe('useCheckout helpers', () => {
       const orderCreatedAt = new Date('2024-01-15T10:00:00.000Z');
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
-      expect(remaining).toBe(30 * 60 - 1); // 1799 seconds
+      expect(remaining).toBe(15 * 60 - 1); // 899 seconds
     });
 
     it('never returns negative values', () => {
@@ -103,11 +103,11 @@ describe('useCheckout helpers', () => {
       const now = new Date('2024-01-15T10:00:00+07:00').getTime();
       vi.setSystemTime(now);
 
-      // Order created 15 minutes ago in same timezone
-      const orderCreatedAt = '2024-01-15T09:45:00+07:00';
+      // Order created 5 minutes ago in same timezone
+      const orderCreatedAt = '2024-01-15T09:55:00+07:00';
       const remaining = calculateTimeRemaining(orderCreatedAt);
 
-      expect(remaining).toBe(15 * 60); // 900 seconds
+      expect(remaining).toBe(10 * 60); // 600 seconds
     });
   });
 

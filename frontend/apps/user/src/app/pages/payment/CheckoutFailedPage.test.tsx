@@ -164,7 +164,7 @@ describe('CheckoutFailedPage', () => {
       render(<CheckoutFailedPage />);
 
       expect(screen.getByText('Manual Refund Required')).toBeInTheDocument();
-      expect(screen.getByText(/refund requires manual processing/i)).toBeInTheDocument();
+      expect(screen.getByText(/requires manual refund processing/i)).toBeInTheDocument();
     });
 
     it('returns correct message for ORDER_EXPIRED', () => {
@@ -290,7 +290,7 @@ describe('CheckoutFailedPage', () => {
       render(<CheckoutFailedPage />);
 
       expect(screen.getByRole('heading', { name: 'Refund status' })).toBeInTheDocument();
-      expect(screen.getByText(/awaiting manual review/i)).toBeInTheDocument();
+      expect(screen.getByText(/flagged for manual refund handling/i)).toBeInTheDocument();
     });
 
     it('shows possible reasons for payment failures with showReasons=true', () => {

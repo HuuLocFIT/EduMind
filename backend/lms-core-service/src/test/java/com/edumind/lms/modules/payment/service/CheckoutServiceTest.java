@@ -114,6 +114,9 @@ class CheckoutServiceTest {
     @Mock
     private com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties payPalGatewayProperties;
 
+    @Mock
+    private com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties sepayGatewayProperties;
+
     @InjectMocks
     private CheckoutServiceImpl checkoutService;
 

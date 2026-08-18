@@ -21,6 +21,7 @@ import com.edumind.lms.modules.payment.repository.OrderItemRepository;
 import com.edumind.lms.modules.payment.repository.OrderRepository;
 import com.edumind.lms.modules.payment.event.OrderCancelledEvent;
 import com.edumind.lms.modules.payment.event.OrderCreatedEvent;
+import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
 import com.edumind.lms.shared.client.UserClient;
 import com.edumind.lms.shared.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class OrderServiceImpl implements OrderService {
     private final EnrollmentQueryService enrollmentQueryService;
     private final UserClient userClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final SepayGatewayProperties sepayGatewayProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -329,8 +331,9 @@ public class OrderServiceImpl implements OrderService {
         order.setCurrency("USD");
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        // Set a reasonable expiration window for payment (e.g., 30 minutes)
-        order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+        // Payment window matches SePay's QR/pending-payment TTL so an order never
+        // stays "active" longer than the QR code that can actually complete it.
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(sepayGatewayProperties.getQrExpireMinutes()));
 
         // Audit: client metadata
         order.setIpAddress(request.getIpAddress());
@@ -411,7 +414,7 @@ public class OrderServiceImpl implements OrderService {
         order.setCurrency("USD");
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(sepayGatewayProperties.getQrExpireMinutes()));
 
         // Audit: client metadata
         order.setIpAddress(request.getIpAddress());

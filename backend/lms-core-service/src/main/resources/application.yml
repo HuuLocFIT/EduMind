@@ -188,6 +188,7 @@ payment:
     bank-code: ${SEPAY_BANK_CODE:}
     bank-account: ${SEPAY_BANK_ACCOUNT:}
     account-name: ${SEPAY_ACCOUNT_NAME:}
+    bank-name: ${SEPAY_BANK_NAME:}  # Human-readable bank name (e.g. "MB Bank"); falls back to bank-code
     qr-expire-minutes: 15
     template: compact2
 

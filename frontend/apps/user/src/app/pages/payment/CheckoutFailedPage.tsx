@@ -24,7 +24,7 @@ const FAILURE_CONTENT: Record<string, FailureContent> = {
   PAYMENT_NOT_TRACKED: { title: "Payment Not Found", message: "We couldn't track your payment. If you completed the transfer, please contact support." },
   PAYMENT_EXPIRED: { title: "Payment Expired", message: "The payment session has expired. Please start a new checkout." },
   CONCURRENT_PROCESSING: { title: "Payment Processing", message: "Your payment is being processed. Please wait a moment and check your order status." },
-  MANUAL_REFUND_REQUIRED: { title: "Manual Refund Required", message: "Your refund requires manual processing. Our support team will contact you within 24–48 hours." },
+  MANUAL_REFUND_REQUIRED: { title: "Manual Refund Required", message: "Your order requires manual refund processing. Our support team will contact you within 24–48 hours to arrange the transfer." },
   ORDER_EXPIRED: { title: "Order Expired", message: "This order has expired. Please start a new checkout." },
   RETRY_LIMIT_EXCEEDED: { title: "Maximum Attempts Reached", message: "You have exceeded the maximum number of payment attempts for this order. Please start a new order." },
   INVALID_ORDER_STATUS: { title: "Order Cannot Be Processed", message: "This order cannot be processed in its current state. Please contact support if you need assistance." },
@@ -122,9 +122,9 @@ export const CheckoutFailedPage: React.FC = () => {
               <p className="text-sm text-orange-950"><strong>Refund issued.</strong> It may take 3–5 business days to appear, depending on your payment provider.</p>
             ) : (
               <ol className="text-sm text-orange-950 list-decimal pl-5 space-y-1">
-                <li><strong>Now:</strong> Your refund request is awaiting manual review.</li>
-                <li><strong>Within 24–48 hours:</strong> Support will email you with an update.</li>
-                <li><strong>After approval:</strong> Your payment provider will return the funds.</li>
+                <li><strong>Now:</strong> Your order has been flagged for manual refund handling by our support team.</li>
+                <li><strong>Within 24–48 hours:</strong> Support will contact you to confirm your refund details.</li>
+                <li><strong>After confirmation:</strong> Our team will manually transfer the refund to your account.</li>
               </ol>
             )}
           </section>

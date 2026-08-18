@@ -5,6 +5,7 @@ import { Button, ConfirmDialog, Loading, useToast } from "@edumind/user-ui";
 import { useCart, useRemoveFromCart } from "../../hooks/useCart";
 import { useCartStore } from "../../stores/cart.store";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useRemovalAnnouncement } from "../../hooks/useRemovalAnnouncement";
 import { CartItem } from "./CartItem";
 import { USER_ROUTES } from "@edumind/shared-utils";
 
@@ -15,17 +16,17 @@ interface CartDrawerProps {
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { error: showError } = useToast();
+  const { error: showError, showToast } = useToast();
   const { data: cart, isLoading } = useCart();
   const removeFromCart = useRemoveFromCart();
   const { setCart, pendingRemovals } = useCartStore();
-  const [announcement, setAnnouncement] = React.useState("");
-  const [pendingRemovalFocus, setPendingRemovalFocus] = React.useState<{ courseId: number; index: number } | null>(null);
   const [coursePendingRemoval, setCoursePendingRemoval] = React.useState<number | null>(null);
   const drawerHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
-  const announcementTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const focusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const items = useMemo(() => cart?.items || [], [cart?.items]);
+  const totalAmount = cart?.totalAmount || 0;
+  const currency = cart?.currency || "USD";
 
   // Sync server data to local store
   useEffect(() => {
@@ -38,6 +39,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   // deactivation, suspension does not restore focus to the navigation.
   const drawerRef = useFocusTrap(isOpen, onClose, coursePendingRemoval !== null);
 
+  const { announcement, scheduleRemovalFeedback } = useRemovalAnnouncement({
+    items,
+    getFocusRoot: () => drawerRef.current,
+    fallbackRefs: [emptyHeadingRef, drawerHeadingRef],
+  });
+
   // Prevent body scroll when drawer is open
   useEffect(() => {
     if (isOpen) {
@@ -47,8 +54,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     }
     return () => {
       document.body.style.overflow = "";
-      if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
-      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
     };
   }, [isOpen]);
 
@@ -69,15 +74,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
       onSuccess: () => {
         setCoursePendingRemoval(null);
         const message = `${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`;
-        setAnnouncement("");
-        if (announcementTimerRef.current) clearTimeout(announcementTimerRef.current);
-        // Headless UI keeps the dialog and the background inert during its
-        // 300 ms exit transition. Announce only once that transition is over.
-        announcementTimerRef.current = setTimeout(() => {
-          setAnnouncement(message);
-          announcementTimerRef.current = null;
-        }, 350);
-        setPendingRemovalFocus({ courseId, index: removedIndex });
+        // Visual-only confirmation; the drawer's own live region below owns the
+        // screen-reader announcement so it is not read twice.
+        showToast(message, { variant: "success", silent: true });
+
+        // Focus move and announcement are sequenced inside the hook — they must
+        // never land in the same tick or VoiceOver drops the announcement.
+        scheduleRemovalFeedback({ courseId, index: removedIndex, message });
       },
       onError: (error: Error) => showError(error.message || `Failed to remove ${removedItem.courseTitle}`),
     });
@@ -88,28 +91,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     navigate(USER_ROUTES.CART);
   };
 
-  const items = useMemo(() => cart?.items || [], [cart?.items]);
-  const totalAmount = cart?.totalAmount || 0;
-  const currency = cart?.currency || "USD";
-
   // Check for unavailable items
   const unavailableItems = items.filter((item) => item.isAvailable === false);
   const hasUnavailableItems = unavailableItems.length > 0;
-
-  useEffect(() => {
-    if (!pendingRemovalFocus || items.some((item) => item.courseId === pendingRemovalFocus.courseId)) return;
-
-    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
-    focusTimerRef.current = setTimeout(() => {
-      const remaining = drawerRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
-      const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
-      const target = remaining?.[targetIndex];
-      const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || drawerHeadingRef.current;
-      focusTarget?.focus({ preventScroll: true });
-      focusTimerRef.current = null;
-    }, 350);
-    setPendingRemovalFocus(null);
-  }, [drawerRef, items, pendingRemovalFocus]);
 
   if (!isOpen) return null;
 

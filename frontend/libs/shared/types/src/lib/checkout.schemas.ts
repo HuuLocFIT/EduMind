@@ -128,6 +128,13 @@ export const CheckoutResultResponseSchema = z.object({
   localAmount: z.number().nullable().optional(),
   localCurrency: z.string().nullable().optional(),
 
+  // Bank transfer info (SePay QR - accessible alternative to the QR image)
+  bankCode: z.string().nullable().optional(),
+  bankName: z.string().nullable().optional(),
+  bankAccount: z.string().nullable().optional(),
+  accountName: z.string().nullable().optional(),
+  transferContent: z.string().nullable().optional(),
+
   // Transaction info
   transactionNumber: z.string().nullable().optional(),
   gatewayTransactionId: z.string().nullable().optional(),

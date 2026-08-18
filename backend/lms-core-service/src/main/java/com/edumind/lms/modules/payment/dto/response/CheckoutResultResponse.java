@@ -33,6 +33,14 @@ public class CheckoutResultResponse {
     private BigDecimal localAmount;
     private String localCurrency;
 
+    // Bank transfer info (SePay QR) - accessible text alternative to the QR image,
+    // so a user who cannot scan it can still complete the transfer manually.
+    private String bankCode;
+    private String bankName;
+    private String bankAccount;
+    private String accountName;
+    private String transferContent;
+
     // Transaction info (if payment processed)
     private String transactionNumber;
     private String gatewayTransactionId;

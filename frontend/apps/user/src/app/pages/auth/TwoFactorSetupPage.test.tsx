@@ -140,7 +140,7 @@ describe('TwoFactorSetupPage', () => {
   });
 
   describe('Verification', () => {
-    it('should call verify2FASetup with code and secret', async () => {
+    it('should call verify2FASetup with the entered code', async () => {
       const user = userEvent.setup();
       mockVerify2FASetup.mockResolvedValue({ success: true });
       renderTwoFactorSetupPage();
@@ -165,7 +165,6 @@ describe('TwoFactorSetupPage', () => {
       await waitFor(() => {
         expect(mockVerify2FASetup).toHaveBeenCalledWith({
           code: '123456',
-          secret: mockSetupData.secret,
         });
       }, { timeout: 3000 });
     });

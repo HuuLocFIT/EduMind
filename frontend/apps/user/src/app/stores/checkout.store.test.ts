@@ -82,11 +82,20 @@ describe('checkout.store', () => {
   it('should reset store', () => {
     useCheckoutStore.getState().setPaymentMethod(PaymentMethod.PAYPAL);
     useCheckoutStore.getState().setStep('success');
-    
+    useCheckoutStore.getState().setResult({ orderNumber: 'ORD-123' });
+
     useCheckoutStore.getState().reset();
-    
+
     const state = useCheckoutStore.getState();
-    expect(state.selectedPaymentMethod).toBeNull();
     expect(state.currentStep).toBe('cart');
+    expect(state.orderNumber).toBeNull();
+  });
+
+  it('should preserve selected payment method across reset (avoid redundant re-selection)', () => {
+    useCheckoutStore.getState().setPaymentMethod(PaymentMethod.SEPAY);
+
+    useCheckoutStore.getState().reset();
+
+    expect(useCheckoutStore.getState().selectedPaymentMethod).toBe(PaymentMethod.SEPAY);
   });
 });

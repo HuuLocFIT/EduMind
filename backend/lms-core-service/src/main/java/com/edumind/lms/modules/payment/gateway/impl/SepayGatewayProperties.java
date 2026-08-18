@@ -18,6 +18,10 @@ import java.math.BigDecimal;
  * - bankCode: Bank code (e.g., MB, VCB, TCB)
  * - bankAccount: Bank account number for receiving payments
  * - accountName: Account holder name displayed in QR code
+ *
+ * Optional but strongly recommended:
+ * - bankName: Human-readable bank name for the text (screen-reader accessible)
+ *   alternative to the QR image
  */
 @Data
 @Component
@@ -42,6 +46,10 @@ public class SepayGatewayProperties {
 
     @NotBlank(message = "Account holder name is required")
     private String accountName;
+
+    // Human-readable bank name shown to users who cannot scan the QR code
+    // (e.g. "MB Bank"). Falls back to bankCode when blank.
+    private String bankName;
 
     // Optional settings
     @Min(value = 1, message = "QR expiration must be at least 1 minute")

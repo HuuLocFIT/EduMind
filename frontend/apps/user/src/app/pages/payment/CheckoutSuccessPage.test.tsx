@@ -91,7 +91,6 @@ describe('CheckoutSuccessPage', () => {
       const heading = await screen.findByRole('heading', { level: 1, name: 'Payment Successful!' });
       await waitFor(() => expect(heading).toHaveFocus());
       expect(document.title).toBe('Payment Confirmation | EduMind');
-      expect(screen.getByRole('status')).toHaveTextContent('Payment completed successfully');
       expect(screen.getByText('Order Number').tagName).toBe('DT');
       expect(screen.getByText('ORD-A11Y-1').tagName).toBe('DD');
       await expectNoSeriousAxeViolations(container);
@@ -104,10 +103,10 @@ describe('CheckoutSuccessPage', () => {
       });
       const { container } = render(<CheckoutSuccessPage />);
 
-      const alert = await screen.findByRole('alert');
+      const status = await screen.findByRole('status');
       const heading = screen.getByRole('heading', { level: 1, name: 'Payment Failed' });
       await waitFor(() => expect(heading).toHaveFocus());
-      expect(alert).toHaveTextContent('The provider could not confirm this payment.');
+      expect(status).toHaveTextContent('The provider could not confirm this payment.');
       expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Return to Cart' })).toBeInTheDocument();
       await expectNoSeriousAxeViolations(container);

@@ -5,6 +5,8 @@ export interface ToastOptions {
   variant?: ToastProps["variant"];
   title?: string;
   duration?: number;
+  /** See `ToastProps.silent` — suppress the screen-reader announcement. */
+  silent?: boolean;
 }
 
 export interface ToastContextType {
@@ -42,6 +44,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
       variant: options?.variant || "info",
       title: options?.title,
       duration: options?.duration || 5000,
+      silent: options?.silent,
       onClose: (id: string) => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       },

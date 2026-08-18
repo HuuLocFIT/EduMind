@@ -76,7 +76,7 @@ describe('SepayQrPage', () => {
 
     (calculateTimeRemaining as any).mockImplementation((createdAt: string | Date) => {
       const createdTime = typeof createdAt === 'string' ? new Date(createdAt).getTime() : createdAt.getTime();
-      const expiresAt = createdTime + 30 * 60 * 1000;
+      const expiresAt = createdTime + 15 * 60 * 1000;
       return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
     });
   });
@@ -91,6 +91,15 @@ describe('SepayQrPage', () => {
     mockSearchParams.set('orderNumber', 'ORD-2024-001');
     mockSearchParams.set('amount', '1250000');
     mockSearchParams.set('currency', 'VND');
+  };
+
+  // Bank transfer details: the accessible alternative to the aria-hidden QR image.
+  const setupTransferParams = () => {
+    mockSearchParams.set('bankCode', 'MB');
+    mockSearchParams.set('bankName', 'MB Bank');
+    mockSearchParams.set('bankAccount', '1234567890');
+    mockSearchParams.set('accountName', 'EDUMIND CO');
+    mockSearchParams.set('transferContent', 'EDUMIND ORD-2024-001');
   };
 
   describe('invalid params', () => {
@@ -143,8 +152,8 @@ describe('SepayQrPage', () => {
       render(<SepayQrPage />);
 
       expect(screen.getByText('Time remaining:')).toBeInTheDocument();
-      // Initial time should be 30:00
-      expect(screen.getByText('30:00')).toBeInTheDocument();
+      // Initial time should be 15:00
+      expect(screen.getByText('15:00')).toBeInTheDocument();
     });
 
     it('displays amount and currency', () => {
@@ -160,7 +169,7 @@ describe('SepayQrPage', () => {
 
       expect(screen.getByText('Order:')).toBeInTheDocument();
       expect(screen.getByText('ORD-2024-001')).toBeInTheDocument();
-      expect(screen.getByTestId('icon-copy')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Copy order number' })).toBeInTheDocument();
     });
 
     it('shows payment instructions', () => {
@@ -181,6 +190,135 @@ describe('SepayQrPage', () => {
     });
   });
 
+  describe('accessible alternative to the QR image (WCAG 1.1.1)', () => {
+    beforeEach(() => {
+      setupValidParams();
+    });
+
+    it('renders the bank transfer details as readable text', () => {
+      setupTransferParams();
+      render(<SepayQrPage />);
+
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Bank transfer details' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Bank')).toBeInTheDocument();
+      expect(screen.getByText('MB Bank')).toBeInTheDocument();
+      expect(screen.getByText('Account number')).toBeInTheDocument();
+      expect(screen.getByText('1234567890')).toBeInTheDocument();
+      expect(screen.getByText('Beneficiary')).toBeInTheDocument();
+      expect(screen.getByText('EDUMIND CO')).toBeInTheDocument();
+      expect(screen.getByText('Transfer content')).toBeInTheDocument();
+      expect(screen.getByText('EDUMIND ORD-2024-001')).toBeInTheDocument();
+    });
+
+    it('falls back to the bank code when no display bank name is provided', () => {
+      setupTransferParams();
+      mockSearchParams.delete('bankName');
+      render(<SepayQrPage />);
+
+      expect(screen.getByText('MB')).toBeInTheDocument();
+    });
+
+    it('explains the recovery path when transfer details are unavailable', () => {
+      render(<SepayQrPage />);
+
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Bank transfer details' })
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Bank transfer details are unavailable/i)).toBeInTheDocument();
+      expect(screen.getByText(/contact\s+support/i)).toBeInTheDocument();
+    });
+
+    it('gives every transfer field a labelled copy button', () => {
+      setupTransferParams();
+      render(<SepayQrPage />);
+
+      ['bank name', 'account number', 'beneficiary name', 'transfer content', 'amount', 'order number'].forEach(
+        (label) => {
+          expect(screen.getByRole('button', { name: `Copy ${label}` })).toBeInTheDocument();
+        }
+      );
+    });
+
+    it('copies the account number and announces the result', () => {
+      setupTransferParams();
+      render(<SepayQrPage />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Copy account number' }));
+
+      expect(mockWriteText).toHaveBeenCalledWith('1234567890');
+      const announcement = screen.getByText('account number copied');
+      expect(announcement).toHaveClass('sr-only');
+      expect(announcement.closest('[role="status"]')).not.toBeNull();
+    });
+
+    it('clears the copy announcement so a repeated copy is announced again', () => {
+      render(<SepayQrPage />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Copy order number' }));
+      expect(screen.getByText('order number copied')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(2500);
+      });
+
+      expect(screen.queryByText('order number copied')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('status and timing announcements', () => {
+    beforeEach(() => {
+      setupValidParams();
+    });
+
+    it('exposes the waiting indicator as a status region', () => {
+      render(<SepayQrPage />);
+
+      const waiting = screen.getByText(/Waiting for payment confirmation/i);
+      expect(waiting.closest('[role="status"]')).not.toBeNull();
+    });
+
+    it('announces an accessible warning under the expiry threshold', () => {
+      (calculateTimeRemaining as any).mockReturnValue(59);
+      (usePaymentStatus as any).mockReturnValue({
+        data: { createdAt: new Date().toISOString(), orderStatus: 'PENDING' },
+        isError: false,
+      });
+
+      render(<SepayQrPage />);
+
+      const warnings = screen.getAllByText(/Less than 1 minute remaining/i);
+      const announcer = warnings.find((el) => el.closest('[role="status"]'));
+      expect(announcer).toBeDefined();
+
+      // The sr-only announcer's own attributes must stay fixed - only its text may
+      // change - otherwise Safari/VoiceOver double-announces (attribute + text
+      // mutation on the same live-region node counted as two separate events).
+      expect(announcer!.closest('[role="status"]')).toHaveClass('sr-only');
+
+      // The visually styled banner must carry no live-region semantics of its own,
+      // so toggling its class/visibility never triggers a second announcement.
+      const banner = warnings.find((el) => el !== announcer);
+      expect(banner).toBeDefined();
+      expect(banner!.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(banner!.closest('[role="status"]')).toBeNull();
+    });
+
+    it('does not warn while there is plenty of time left', () => {
+      render(<SepayQrPage />);
+
+      expect(screen.queryByText(/Less than 1 minute remaining/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps the ticking countdown out of every live region (avoids per-second chatter)', () => {
+      render(<SepayQrPage />);
+
+      const timer = screen.getByText('15:00');
+      expect(timer.closest('[role="status"], [aria-live]')).toBeNull();
+    });
+  });
+
   describe('timer synchronization', () => {
     beforeEach(() => {
       setupValidParams();
@@ -189,20 +327,20 @@ describe('SepayQrPage', () => {
     it('uses fallback timer initially', () => {
       render(<SepayQrPage />);
 
-      // Initial time is 30 minutes (1800 seconds)
-      expect(screen.getByText('30:00')).toBeInTheDocument();
+      // Initial time is 15 minutes (900 seconds)
+      expect(screen.getByText('15:00')).toBeInTheDocument();
     });
 
     it('decrements timer every second', () => {
       render(<SepayQrPage />);
 
-      expect(screen.getByText('30:00')).toBeInTheDocument();
+      expect(screen.getByText('15:00')).toBeInTheDocument();
 
       act(() => {
         vi.advanceTimersByTime(1000);
       });
 
-      expect(screen.getByText('29:59')).toBeInTheDocument();
+      expect(screen.getByText('14:59')).toBeInTheDocument();
     });
 
     it('syncs with backend createdAt on first poll response', () => {
@@ -245,6 +383,24 @@ describe('SepayQrPage', () => {
 
       expect(screen.getByText('QR Code Expired')).toBeInTheDocument();
     });
+
+    it('moves focus to the expired heading so the state change is announced', () => {
+      (calculateTimeRemaining as any).mockReturnValue(2);
+      const createdAt = new Date().toISOString();
+      (usePaymentStatus as any).mockReturnValue({
+        data: { createdAt, orderStatus: 'PENDING' },
+        isError: false,
+      });
+
+      render(<SepayQrPage />);
+
+      (calculateTimeRemaining as any).mockReturnValue(0);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText('QR Code Expired')).toHaveFocus();
+    });
   });
 
   describe('status polling', () => {
@@ -252,7 +408,7 @@ describe('SepayQrPage', () => {
       setupValidParams();
     });
 
-    it('transitions to success state on COMPLETED status', () => {
+    it('navigates to the success page immediately on COMPLETED status, with no intermediate screen or delay', () => {
       (usePaymentStatus as any).mockReturnValue({
         data: {
           success: true,
@@ -264,29 +420,10 @@ describe('SepayQrPage', () => {
 
       render(<SepayQrPage />);
 
-      expect(screen.getByText('Payment Received!')).toBeInTheDocument();
-      expect(screen.getByTestId('icon-check-circle')).toBeInTheDocument();
-    });
-
-    it('auto-redirects to success page after success', () => {
-      (usePaymentStatus as any).mockReturnValue({
-        data: {
-          success: true,
-          orderStatus: 'COMPLETED',
-          orderNumber: 'ORD-2024-001',
-        },
-        isError: false,
-      });
-
-      render(<SepayQrPage />);
-
-      expect(screen.getByText('Payment Received!')).toBeInTheDocument();
-
-      // Wait for redirect timeout (2 seconds)
-      act(() => {
-        vi.advanceTimersByTime(2000);
-      });
-
+      // Instant redirect (SC 2.2.1 G110 technique): no perceivable "Payment
+      // Received!" screen, no timer to advance, no focus to manage here -
+      // CheckoutSuccessPage owns the confirmation UI and its own focus.
+      expect(screen.queryByText('Payment Received!')).not.toBeInTheDocument();
       expect(mockNavigate).toHaveBeenCalledWith(
         expect.stringContaining(USER_ROUTES.CHECKOUT_SUCCESS)
       );
@@ -440,7 +577,7 @@ describe('SepayQrPage', () => {
       setupValidParams();
     });
 
-    it('renders success confirmation', () => {
+    it('navigates to the success page immediately, with no intermediate confirmation UI', () => {
       (usePaymentStatus as any).mockReturnValue({
         data: {
           success: true,
@@ -452,25 +589,10 @@ describe('SepayQrPage', () => {
 
       render(<SepayQrPage />);
 
-      expect(screen.getByText('Payment Received!')).toBeInTheDocument();
-      expect(screen.getByText(/payment has been confirmed/i)).toBeInTheDocument();
-    });
-
-    it('shows loading indicator during redirect', () => {
-      (usePaymentStatus as any).mockReturnValue({
-        data: {
-          success: true,
-          orderStatus: 'COMPLETED',
-          orderNumber: 'ORD-SUCCESS',
-        },
-        isError: false,
-      });
-
-      render(<SepayQrPage />);
-
-      expect(screen.getByText('Payment Received!')).toBeInTheDocument();
-      expect(screen.getByTestId('loading')).toBeInTheDocument();
-      expect(screen.getByText(/Redirecting to order details/i)).toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.stringContaining(USER_ROUTES.CHECKOUT_SUCCESS)
+      );
+      expect(screen.queryByText('Payment Received!')).not.toBeInTheDocument();
     });
   });
 
@@ -509,7 +631,8 @@ describe('SepayQrPage', () => {
         vi.advanceTimersByTime(2500);
       });
 
-      expect(screen.getByTestId('icon-copy')).toBeInTheDocument();
+      expect(screen.queryByTestId('icon-check')).not.toBeInTheDocument();
+      expect(screen.getAllByTestId('icon-copy').length).toBeGreaterThan(0);
     });
 
     it('handles cancel payment', () => {
@@ -554,7 +677,7 @@ describe('SepayQrPage', () => {
     it('shows blue color when more than 60 seconds remaining', () => {
       render(<SepayQrPage />);
 
-      const timerElement = screen.getByText('30:00');
+      const timerElement = screen.getByText('15:00');
       expect(timerElement).toHaveClass('text-blue-600');
     });
   });
