@@ -8,7 +8,15 @@ export function ScrollToTop() {
   const navigate = useNavigate();
   const { success, error, warning, info } = useToast();
   const routeId = `${location.pathname}${location.search}${location.hash}`;
+  // Search params are also used to mirror in-page state into the URL (the
+  // course player's `?lesson=`, browse filters, pagination) — those are not
+  // navigations. Only pathname/hash decide whether the destination page
+  // changed, and therefore whether route-level focus and <title> handling
+  // apply; a search-only change must not pull focus off whatever the page
+  // itself just focused.
+  const navigationId = `${location.pathname}${location.hash}`;
   const prevRouteIdRef = useRef<string | null>(null);
+  const prevNavigationIdRef = useRef<string | null>(null);
   const lastFocusedHeadingRef = useRef<HTMLElement | null>(null);
   const latestContextRef = useRef({ location, navigate, success, error, warning, info });
 
@@ -32,14 +40,14 @@ export function ScrollToTop() {
   useEffect(() => {
     if (prevRouteIdRef.current === null || prevRouteIdRef.current === routeId) {
       prevRouteIdRef.current = routeId;
+      prevNavigationIdRef.current = navigationId;
       return;
     }
 
+    const isNavigation = prevNavigationIdRef.current !== navigationId;
     prevRouteIdRef.current = routeId;
+    prevNavigationIdRef.current = navigationId;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    // Do not leave the previous page title exposed while a lazy destination
-    // is rendering its skeleton.
-    document.title = "EduMind";
 
     let observer: MutationObserver | undefined;
     let fallbackTimer: number | undefined;
@@ -94,6 +102,21 @@ export function ScrollToTop() {
         );
       }, 0);
     };
+
+    // Same page, only its query params changed. Scrolling to top (above) and
+    // delivering a route notification that rode along on `location.state` are
+    // still correct; touching focus or the document title is not — the page
+    // owns both while it stays mounted.
+    if (!isNavigation) {
+      announceRouteNotification();
+      return () => {
+        if (notificationTimer !== undefined) window.clearTimeout(notificationTimer);
+      };
+    }
+
+    // Do not leave the previous page title exposed while a lazy destination
+    // is rendering its skeleton.
+    document.title = "EduMind";
 
     const focusPageHeading = () => {
       // An open modal owns initial focus and focus restoration. Do not let
@@ -159,7 +182,9 @@ export function ScrollToTop() {
       if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
       if (notificationTimer !== undefined) window.clearTimeout(notificationTimer);
     };
-  }, [routeId]);
+    // navigationId is a substring of routeId, so it can never change on its
+    // own — it is listed only to satisfy exhaustive-deps.
+  }, [routeId, navigationId]);
 
   return null;
 }

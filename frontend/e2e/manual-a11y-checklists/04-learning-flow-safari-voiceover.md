@@ -36,7 +36,7 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 
 ## Core pass (~15 phút) — dùng khi retest nhanh sau mỗi vòng fix
 
-`A1 · A2 · A4 · A6 · B1 · B4 · B7 · B8 · C1 · C2 · C6 · D3 · D4 · D6 · T2 · T3 · T8 · W3 · W4 · H2 · H4`
+`A1 · A2 · A4 · A6 · B1 · B4 · B7 · B8 · C1 · C2 · C6 · D3 · D4 · D6 · T2 · T3 · T8 · W3 · W4 · H2 · H4a · H4b`
 
 Lượt **đầy đủ** (toàn bộ bảng bên dưới) bắt buộc chạy ít nhất một lần trước khi cập nhật README dự án. Xem [00-summary.md](00-summary.md) mục 6.
 
@@ -113,8 +113,8 @@ Lượt **đầy đủ** (toàn bộ bảng bên dưới) bắt buộc chạy í
 | D5 | P0 | 4.1.3, 2.2.1 | Nếu có auto-advance sang lesson kế | Có báo trước bằng text/announce (không tự chuyển đột ngột); **huỷ được bằng bàn phím**; đếm ngược không bị đọc lặp mỗi giây | Pass| | |
 | D6 | P0 | 1.3.1, 4.1.2 | Vào quiz lesson | Câu hỏi dùng fieldset/legend; đáp án dùng radio; chọn được bằng Arrow keys; chỉ chọn được 1 đáp án/câu (giới hạn hiện tại) | Pass| | |
 | D7 | P0 | 4.1.3, 3.3.1 | Nộp quiz | Kết quả được announce rõ (đúng/sai, điểm số); nếu chưa trả lời hết thì lỗi được đọc và focus tới câu còn thiếu | Pass| | |
-| D8 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **lưu progress video** (chặn request autosave) | Lỗi hiển thị không chỉ dạng toast thoáng qua — có state/retry mà VoiceOver tiếp cận được, nêu rõ đang retry cho bài nào | | | |
-| D9 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **reconcile sau khi complete** (chặn request enrollment/progress) | Đây là recovery path khác D8 — thông báo và action retry phải phân biệt được, không lẫn với lỗi lưu progress | | | |
+| D8 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **lưu progress video** (chặn request autosave) | Lỗi hiển thị không chỉ dạng toast thoáng qua — có state/retry mà VoiceOver tiếp cận được, nêu rõ đang retry cho bài nào | Pass| | |
+| D9 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **reconcile sau khi complete** (chặn request enrollment/progress) | Đây là recovery path khác D8 — thông báo và action retry phải phân biệt được, không lẫn với lỗi lưu progress | Pass| | |
 | D10 | P0 | 4.1.2, 2.4.3 | Hoàn thành lesson cuối → dialog hoàn thành khóa học | Dialog có accessible name, focus vào trong khi mở, `Escape` đóng được, focus quay lại nội dung hợp lý; next action đọc rõ | Pass| | |
 
 ## E. AI Tutor overlay (trong Course Player)
@@ -123,54 +123,55 @@ Lượt **đầy đủ** (toàn bộ bảng bên dưới) bắt buộc chạy í
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| T1 | P0 | 4.1.2 | Duyệt tới nút pill "AI Tutor" bằng `VO + Right Arrow` | Có accessible name rõ; trạng thái đóng/mở được đọc (`aria-expanded`) | | | |
-| T2 | P0 | 4.1.2, 2.4.3 | Mở panel bằng `VO + Space` | Panel là dialog có tên; focus chuyển vào trong panel ngay khi mở | | | |
-| T3 | P0 | 2.4.3 | Nhấn `Escape` khi panel mở | Panel đóng; focus quay lại đúng nút pill đã mở nó | | | |
-| T4 | P0 | 2.1.2 | Trong panel, Tab và `VO + Right Arrow` liên tục | Không thoát ra nội dung nền khi panel là modal; không keyboard trap không thoát được | | | |
-| T5 | P0 | 4.1.2 | Trên mobile viewport, duyệt qua vùng backdrop phía sau panel | Backdrop (nút đóng phủ toàn màn hình) không tạo item lạ gây nhầm lẫn khi duyệt bằng VO cursor | | | |
-| T6 | P0 | 3.3.2, 4.1.2 | Duyệt tới ô nhập câu hỏi | Có label thật (không chỉ placeholder); nút Send có accessible name | | | |
-| T7 | P0 | 4.1.3 | Gửi câu hỏi, nghe lúc đang chờ | Trạng thái "đang trả lời" được announce (loading/`aria-busy`), không im lặng | | | |
-| T8 | P0 | 4.1.3 | Nghe trong lúc câu trả lời **stream về từng token** | Câu trả lời **không** bị đọc lặp lại toàn bộ mỗi lần thêm token; ưu tiên announce một lần khi stream xong | | | |
-| T9 | P0 | 4.1.3 | Sau khi stream kết thúc | Người dùng biết câu trả lời đã hoàn tất và đọc lại được toàn bộ bằng `VO + Right Arrow` | | | |
-| T10 | P0 | 2.4.4 | Duyệt tới citation link tới lesson nguồn | Tên link nêu rõ lesson được trích dẫn, không chỉ "[1]" hay "Source" | | | |
-| T11 | P0 | 1.3.1 | Duyệt lịch sử hội thoại | Phân biệt được câu hỏi của mình và câu trả lời của AI khi nghe (không lẫn thành một khối) | | | |
-| T12 | C | 4.1.2, 4.1.3 | Nếu có nút Stop/Cancel khi đang stream | Bấm được bằng bàn phím; huỷ xong có announce | | | |
-| T13 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi AI (chặn request SSE) | Lỗi đọc được như alert, có action retry tiếp cận được | | | |
+| T1 | P0 | 4.1.2 | Duyệt tới nút pill "AI Tutor" bằng `VO + Right Arrow` | Có accessible name rõ; trạng thái đóng/mở được đọc (`aria-expanded`) | Pass| | |
+| T2 | P0 | 4.1.2, 2.4.3 | Mở panel bằng `VO + Space` | Panel là dialog có tên; focus chuyển vào trong panel ngay khi mở | Pass| | |
+| T3 | P0 | 2.4.3 | Nhấn `Escape` khi panel mở | Panel đóng; focus quay lại đúng nút pill đã mở nó | Pass| | |
+| T4 | P0 | 2.1.2 | Trong panel, Tab và `VO + Right Arrow` liên tục | Không thoát ra nội dung nền khi panel là modal; không keyboard trap không thoát được | Pass| | |
+| T5 | P0 | 4.1.2 | Trên mobile viewport, duyệt qua vùng backdrop phía sau panel | Backdrop (nút đóng phủ toàn màn hình) không tạo item lạ gây nhầm lẫn khi duyệt bằng VO cursor | Pass| | |
+| T6 | P0 | 3.3.2, 4.1.2 | Duyệt tới ô nhập câu hỏi | Có label thật (không chỉ placeholder); nút Send có accessible name | Pass| | |
+| T7 | P0 | 4.1.3 | Gửi câu hỏi, nghe lúc đang chờ | Trạng thái "đang trả lời" được announce (loading/`aria-busy`), không im lặng | Pass| | |
+| T8 | P0 | 4.1.3 | Nghe trong lúc câu trả lời **stream về từng token** | Câu trả lời **không** bị đọc lặp lại toàn bộ mỗi lần thêm token; ưu tiên announce một lần khi stream xong | Pass| | |
+| T9 | P0 | 4.1.3 | Sau khi stream kết thúc | Người dùng biết câu trả lời đã hoàn tất và đọc lại được toàn bộ bằng `VO + Right Arrow` | Pass| | |
+| T10 | P0 | 2.4.4 | Duyệt tới citation link tới lesson nguồn | Tên link nêu rõ lesson được trích dẫn, không chỉ "[1]" hay "Source" | N/A | | Sources hiện là `<span>` badge (AiChatPanel.tsx), không có `href`/role, không phải link theo chủ đích thiết kế — chưa có tính năng nhảy tới lesson nguồn. Không tính SC 2.4.4 (không áp dụng khi không phải link). Nếu sau này làm citation thành link/button điều hướng được, phải test lại theo tiêu chí này.|
+| T11 | P0 | 1.3.1 | Duyệt lịch sử hội thoại | Phân biệt được câu hỏi của mình và câu trả lời của AI khi nghe (không lẫn thành một khối) | Pass | | |
+| T12 | C | 4.1.2, 4.1.3 | Nếu có nút Stop/Cancel khi đang stream | Bấm được bằng bàn phím; huỷ xong có announce | N/A| | Không có support các nút stop/cancel|
+| T13 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi AI (chặn request SSE) | Lỗi đọc được như alert, có action retry tiếp cận được | Pass| | |
 
 ## F. WCAG 2.2 — tiêu chí mới (bắt buộc cho target 2.2 AA)
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| W1 | P0 | 2.5.7 Dragging Movements | Thanh **seek** và thanh **volume** của video player | Điều chỉnh được hoàn toàn bằng `Left/Right Arrow` khi có focus — không bắt buộc kéo chuột. Ghi rõ control dùng `<input type="range">` native hay custom | | | |
-| W2 | C | 2.5.7 | Nếu quiz/curriculum có thao tác kéo-thả (sắp xếp, kéo để đánh dấu) | Có phương án single-pointer/bàn phím tương đương | | | |
-| W3 | P0 | 2.5.8 Target Size (Min) | Đo các nút trong video controls (play, mute, CC, settings, fullscreen), nút pill AI Tutor, nút toggle sidebar, checkbox/radio quiz | ≥ 24×24 CSS px hoặc spacing đủ. Video control bar là chỗ dễ fail nhất — ghi số đo từng nút vào Ghi chú | | | |
-| W4 | P0 | 2.4.11 Focus Not Obscured (Min) | Tab qua Course Player khi đã cuộn xuống, và khi nút pill AI Tutor đang hiển thị (`position: fixed` góc dưới phải) | Element đang focus không bị nút pill, header player, hay control bar che khuất hoàn toàn — đặc biệt các control ở góc dưới phải nội dung | | | |
-| W5 | P0 | 2.4.11 | Mở AI Tutor panel rồi Tab qua nội dung lesson phía sau (nếu không phải modal) | Không có element nào nhận focus mà bị panel che hoàn toàn | | | |
-| W6 | P0 | 3.3.7 Redundant Entry | Làm quiz → rời lesson → quay lại | Không bắt nhập lại đáp án đã chọn trong cùng một lượt làm (hoặc nêu rõ là bắt đầu lượt mới) | | | |
-| W7 | P0 | 3.2.6 Consistent Help | So sánh vị trí lối vào trợ giúp (AI Tutor pill, link support) giữa My Learning và Course Player | Nếu có, ở cùng vị trí tương đối trên các trang trong flow | | | |
-| W8 | P0 | 2.2.1 Timing Adjustable | Auto-advance countdown và quiz timer (nếu có) | Có cách tắt/hoãn/kéo dài; không tự chuyển bài khi người dùng chưa kịp nghe hết | | | |
-| W9 | C | 1.4.13 Content on Hover or Focus | Tooltip trên video controls / badge trạng thái lesson | Dismissible bằng `Escape`, hoverable, persistent | | | |
+| W1 | P0 | 2.5.7 Dragging Movements | Thanh **seek** và thanh **volume** của video player | Điều chỉnh được hoàn toàn bằng `Left/Right Arrow` khi có focus — không bắt buộc kéo chuột. Ghi rõ control dùng `<input type="range">` native hay custom | Pass| | |
+| W2 | C | 2.5.7 | Nếu quiz/curriculum có thao tác kéo-thả (sắp xếp, kéo để đánh dấu) | Có phương án single-pointer/bàn phím tương đương | N/A| | Không có tính năng kéo-thả nào|
+| W3 | P0 | 2.5.8 Target Size (Min) | Đo các nút trong video controls (play, mute, CC, settings, fullscreen), nút pill AI Tutor, nút toggle sidebar, checkbox/radio quiz | ≥ 24×24 CSS px hoặc spacing đủ.| Pass| | Các nút đều đạt chuẩn|
+| W4 | P0 | 2.4.11 Focus Not Obscured (Min) | Tab qua Course Player khi đã cuộn xuống, và khi nút pill AI Tutor đang hiển thị (`position: fixed` góc dưới phải) | Element đang focus không bị nút pill, header player, hay control bar che khuất hoàn toàn — đặc biệt các control ở góc dưới phải nội dung | Pass| | |
+| W5 | P0 | 2.4.11 | Mở AI Tutor panel rồi Tab qua nội dung lesson phía sau (nếu không phải modal) | Không có element nào nhận focus mà bị panel che hoàn toàn | Pass| | Vì AI Tutor là dạng dialog nên mặc định dùng focus trap rồi|
+| W6 | P0 | 3.3.7 Redundant Entry | Làm quiz → rời lesson → quay lại | Không bắt nhập lại đáp án đã chọn trong cùng một lượt làm (hoặc nêu rõ là bắt đầu lượt mới) | Pass| | |
+| W7 | P0 | 3.2.6 Consistent Help | So sánh vị trí lối vào trợ giúp (AI Tutor pill, link support) giữa My Learning và Course Player | Nếu có, ở cùng vị trí tương đối trên các trang trong flow | Pass| | |
+| W8 | P0 | 2.2.1 Timing Adjustable | Auto-advance countdown và quiz timer (nếu có) | Có cách tắt/hoãn/kéo dài; không tự chuyển bài khi người dùng chưa kịp nghe hết | Pass| | Ở auto-advance countdown thì có support tắt auto chuyển bài, còn ở quiz thì không có timer (làm bao lâu cũng được)|
+| W9 | C | 1.4.13 Content on Hover or Focus | Tooltip trên video controls / badge trạng thái lesson | Dismissible bằng `Escape`, hoverable, persistent | N/A | | Video controls (`VideoPlayer.tsx`) và lesson status badge (`CourseCurriculumSidebar.tsx`) không có tooltip nào hiện lên khi hover/focus — trạng thái chỉ được truyền đạt qua `aria-label`/`sr-only` text, không phải nội dung phụ trội xuất hiện khi hover/focus. Không có Tooltip component nào tồn tại trong codebase (đã grep toàn bộ `apps/user` và `libs/user`). Vì không có "content on hover or focus" nên SC 1.4.13 không áp dụng. Nếu sau này thêm tooltip thật (vd. hiển thị % progress khi hover badge), phải test lại theo tiêu chí này.|
 
 ## G. Trải nghiệm tổng thể
 
 | # | Mức | WCAG SC | Nội dung cần xác nhận | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- |
-| G1 | P0 | 2.1.1 | Duyệt danh sách enrolled courses hoàn toàn bằng VoiceOver, không nhìn màn hình | | | |
-| G2 | P0 | 1.4.1 | Đổi tab, vào Course Player, xác định đúng lesson current/completed/locked chỉ qua nghe | | | |
-| G3 | P0 | 2.1.1 | Chuyển giữa ít nhất 2 lesson, điều khiển video, bật caption — tất cả bằng VoiceOver | | | |
-| G4 | P0 | 4.1.3 | Mark complete và nghe được progress update mới, không cần nhìn thanh progress | | | |
-| G5 | P0 | 4.1.3 | Không có announcement nào (đổi lesson, complete, progress, error, AI) bị đọc lặp 2 lần | | | |
-| G6 | P0 | 4.1.3 | Đổi lesson nhanh liên tiếp: announcement của lesson cũ không đọc chồng lên lesson mới | | | |
+| G1 | P0 | 2.1.1 | Duyệt danh sách enrolled courses hoàn toàn bằng VoiceOver, không nhìn màn hình | Pass| | |
+| G2 | P0 | 1.4.1 | Đổi tab, vào Course Player, xác định đúng lesson current/completed/locked chỉ qua nghe | Pass| | |
+| G3 | P0 | 2.1.1 | Chuyển giữa ít nhất 2 lesson, điều khiển video, bật caption — tất cả bằng VoiceOver | Pass| | |
+| G4 | P0 | 4.1.3 | Mark complete và nghe được progress update mới, không cần nhìn thanh progress | Pass| | |
+| G5 | P0 | 4.1.3 | Không có announcement nào (đổi lesson, complete, progress, error, AI) bị đọc lặp 2 lần | Pass| | |
+| G6 | P0 | 4.1.3 | Đổi lesson nhanh liên tiếp: announcement của lesson cũ không đọc chồng lên lesson mới | Pass| | |
 
 ## H. Keyboard-only nhanh
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| H1 | P0 | 2.4.3, 2.4.7 | Tab qua toàn bộ My Learning + Course Player | Focus order hợp lý, luôn thấy rõ focus indicator | | | |
-| H2 | P0 | 2.1.1 | Điều khiển video 100% bằng bàn phím (không chuột) | Play/pause/seek/volume/speed/quality/caption/fullscreen đều dùng được | | | |
-| H3 | P0 | 2.1.1 | Arrow/Home/End trong tab list và curriculum | Hoạt động đúng WAI-ARIA pattern | | | |
-| H4 | P0 | 2.1.2 | Tab liên tục ở sidebar mobile, quiz, modal lỗi, AI Tutor panel | Không có keyboard trap ở bất kỳ chỗ nào | | | |
-| H5 | P0 | 2.1.1 | Hoàn tất My Learning → Course Player → đổi lesson → Mark Complete chỉ bằng bàn phím | Toàn bộ journey hoàn tất không cần chuột | | | |
+| H1 | P0 | 2.4.3, 2.4.7 | Tab qua toàn bộ My Learning + Course Player | Focus order hợp lý, luôn thấy rõ focus indicator | Pass| | |
+| H2 | P0 | 2.1.1 | Điều khiển video 100% bằng bàn phím (không chuột) | Play/pause/seek/volume/speed/quality/caption/fullscreen đều dùng được | Pass| | |
+| H3 | P0 | 2.1.1 | Arrow/Home/End trong tab list và curriculum | Hoạt động đúng WAI-ARIA pattern | Pass| | |
+| H4a | P0 | 2.1.2 | Tab liên tục trong quiz (không phải dialog/drawer -> quiz là một lesson riêng thì đúng, còn quiz trong một lesson content type không phải QUIZ thì nó là dialog) | Không có keyboard trap — Tab/Shift+Tab ra khỏi vùng quiz bình thường, không bị kẹt | Pass| | |
+| H4b | P0 | 2.1.2 | Tab liên tục ở sidebar mobile, modal lỗi, AI Tutor panel (đều là dialog/drawer — trap là chủ đích, đã test chi tiết ở B9/T4/C7/D10) | Trap cycle đúng (không dead-end), Escape/nút Close vẫn thoát được — đây là **smoke check nhanh**, không phải re-test lại B9/T4/C7/D10 | Pass| | |
+| H5 | P0 | 2.1.1 | Hoàn tất My Learning → Course Player → đổi lesson → Mark Complete chỉ bằng bàn phím | Toàn bộ journey hoàn tất không cần chuột | Pass| | |
 
 ---
 

@@ -444,6 +444,36 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     },
   );
 
+  // The post-navigation focus effect leaves focus ON the lesson heading, and
+  // VoiceOver activates controls without moving DOM focus — so the next lesson
+  // switch would call .focus() on the element that is already activeElement.
+  // That is a no-op: no focus event, no AX focus notification, and VoiceOver
+  // re-reads the accessible name it had cached (the previous lesson's title).
+  // Keying the heading per lesson makes the focus target a fresh node, so
+  // focus always genuinely moves.
+  it('replaces the lesson heading node on a lesson switch so focus always moves', async () => {
+    await renderPage();
+    const firstHeading = screen.getByRole('heading', { level: 2, name: 'Watch the video' });
+    firstHeading.focus();
+    expect(firstHeading).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', { name: /Next Lesson/ }));
+
+    const secondHeading = await screen.findByRole('heading', { level: 2, name: 'Read the guide' });
+    expect(secondHeading).not.toBe(firstHeading);
+    expect(firstHeading).not.toBeInTheDocument();
+    await waitFor(() => expect(secondHeading).toHaveFocus());
+  });
+
+  it('keeps the document title on the current lesson after a lesson switch', async () => {
+    await renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /Next Lesson/ }));
+    await screen.findByRole('heading', { level: 2, name: 'Read the guide' });
+
+    await waitFor(() => expect(document.title).toContain('Read the guide'));
+  });
+
   it('keeps the Mark complete name stable, disabled and aria-busy while completing', async () => {
     let resolveComplete!: (value: LessonProgressResponse) => void;
     vi.mocked(lessonProgressService.completeLesson).mockReturnValue(

@@ -143,6 +143,7 @@ const UserMessageBubble = React.memo(function UserMessageBubble({
       className={`flex justify-end${isPairStart ? ' mt-3' : ''}`}
     >
       <div className="min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed shadow-sm bg-indigo-600 text-white rounded-br-sm">
+        <span className="sr-only">You: </span>
         <p className="whitespace-pre-wrap m-0">{content}</p>
       </div>
     </div>
@@ -159,6 +160,7 @@ const CompletedAiMessageBubble = React.memo(function CompletedAiMessageBubble({
     <div className="flex justify-start">
       {AiAvatar}
       <div className={aiBubbleClass}>
+        <span className="sr-only">AI: </span>
         <div className="text-gray-800 break-words w-full">
           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
             {msg.content}
@@ -186,6 +188,7 @@ function StreamingAiMessageBubble({
     <div className="flex justify-start">
       {AiAvatar}
       <div className={aiBubbleClass}>
+        <span className="sr-only">AI: </span>
         {isWaiting ? (
           <div className="flex items-center gap-1 py-1">
             <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce [animation-delay:-0.3s]" />
@@ -222,11 +225,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
   );
   const messages = storedMessages ?? [];
   const addMessage = useAiChatStore((state) => state.addMessage);
+  const removeLastMessage = useAiChatStore((state) => state.removeLastMessage);
   const updateLastAiMessage = useAiChatStore((state) => state.updateLastAiMessage);
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Announced once via aria-live when a stream finishes — screen reader users
+  // get a single "done" cue instead of being read every typewriter tick.
+  const [announcement, setAnnouncement] = useState('');
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
@@ -321,10 +328,30 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
     return pairs.slice(-4);
   };
 
-  const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+  // Retries resend the same question without re-adding a duplicate user bubble —
+  // lastFailedQuestion is only populated on a hard failure (see failWith below).
+  // Kept as state (not a ref) so its appearance can drive a focus-management effect.
+  const [lastFailedQuestion, setLastFailedQuestion] = useState<string | null>(null);
+  const retryButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // Sending disables the textarea/button, which blurs focus to <body> if either was
+  // focused when Enter/Send was pressed. Move focus back somewhere useful once the
+  // request settles: onto Retry when the request failed hard, otherwise back to the
+  // input — never leave focus stranded outside the panel.
+  const wasLoadingForFocusRef = useRef(false);
+  useEffect(() => {
+    const wasLoading = wasLoadingForFocusRef.current;
+    wasLoadingForFocusRef.current = isLoading;
+    if (!wasLoading || isLoading) return;
+
+    if (lastFailedQuestion) {
+      retryButtonRef.current?.focus();
+    } else if (!panelRef.current?.contains(document.activeElement)) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, lastFailedQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runChatRequest = (trimmed: string) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     if (typewriterIntervalRef.current) {
       clearInterval(typewriterIntervalRef.current);
@@ -333,14 +360,13 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
     targetTextRef.current = '';
     setStreamingDisplayText('');
 
-    const userMessage: AiChatMessage = { role: 'user', content: trimmed };
-    addMessage(courseId, userMessage);
     const aiPlaceholder: AiChatMessage = { role: 'ai', content: '' };
     addMessage(courseId, aiPlaceholder);
 
-    setInput('');
     setIsLoading(true);
     setError(null);
+    setAnnouncement('');
+    setLastFailedQuestion(null);
 
     let receivedChunks = false;
 
@@ -352,6 +378,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    // A hard failure drops the empty AI placeholder bubble (nothing was ever produced
+    // for it) and records the question so the Retry action can resend it.
+    const failWith = (message: string) => {
+      removeLastMessage(courseId);
+      setLastFailedQuestion(trimmed);
+      setError(message);
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    };
 
     aiService
       .chatStream(courseId, payload, {
@@ -388,28 +424,25 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
           if (err instanceof Response) {
             if (err.status === 429) {
-              setError('Daily question limit reached (20/day). Try again tomorrow.');
+              failWith('Daily question limit reached (20/day). Try again tomorrow.');
             } else if (err.status === 401) {
-              setError('Your session has expired. Please refresh the page and log in again.');
+              failWith('Your session has expired. Please refresh the page and log in again.');
             } else if (err.status === 403) {
-              setError("You don't have access to AI chat for this course.");
+              failWith("You don't have access to AI chat for this course.");
             } else {
-              setError('Something went wrong. Please try again.');
+              failWith('Something went wrong. Please try again.');
             }
-            setIsLoading(false);
-            abortControllerRef.current = null;
             return;
           }
 
           if (err instanceof SseStreamError) {
-            setError(err.message || 'Something went wrong. Please try again.');
-            setIsLoading(false);
-            abortControllerRef.current = null;
+            failWith(err.message || 'Something went wrong. Please try again.');
             return;
           }
 
           if (receivedChunks) {
             setError('Response may be incomplete. Please try again if needed.');
+            setAnnouncement('AI tutor response ended early and may be incomplete.');
             setIsLoading(false);
             abortControllerRef.current = null;
             return;
@@ -424,18 +457,18 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
                 sourceLessons: response.sourceLessons,
               }));
               setError(null);
+              setAnnouncement('AI tutor response ready.');
+              setIsLoading(false);
+              abortControllerRef.current = null;
             } catch (fallbackErr: unknown) {
               const status = (fallbackErr as { response?: { status?: number } })?.response?.status;
               if (status === 429) {
-                setError('Daily question limit reached (20/day). Try again tomorrow.');
+                failWith('Daily question limit reached (20/day). Try again tomorrow.');
               } else if (status === 403) {
-                setError("You don't have access to AI chat for this course.");
+                failWith("You don't have access to AI chat for this course.");
               } else {
-                setError('Something went wrong. Please try again.');
+                failWith('Something went wrong. Please try again.');
               }
-            } finally {
-              setIsLoading(false);
-              abortControllerRef.current = null;
             }
           })();
         },
@@ -449,12 +482,29 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
           targetTextRef.current = '';
           setStreamingDisplayText('');
           setIsLoading(false);
+          setAnnouncement('AI tutor response ready.');
           abortControllerRef.current = null;
         },
       })
       .catch(() => {
         // Errors handled in onError
       });
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
+
+    const userMessage: AiChatMessage = { role: 'user', content: trimmed };
+    addMessage(courseId, userMessage);
+    setInput('');
+    runChatRequest(trimmed);
+  };
+
+  const handleRetry = () => {
+    const trimmed = lastFailedQuestion;
+    if (!trimmed || isLoading) return;
+    runChatRequest(trimmed);
   };
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
@@ -567,7 +617,27 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
         <div ref={bottomRef} />
       </div>
 
-      {error && <p className="text-xs text-red-600 px-4 mb-2">{error}</p>}
+      {/* Announced once when a stream finishes — not wrapped around the streaming
+          bubble itself, so token-by-token updates are never read aloud. */}
+      <div aria-live="polite" role="status" className="sr-only">
+        {announcement}
+      </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 px-4 mb-2">
+          <p role={lastFailedQuestion ? 'alert' : undefined} className="text-xs text-red-600 m-0">{error}</p>
+          {lastFailedQuestion && (
+            <button
+              ref={retryButtonRef}
+              type="button"
+              onClick={handleRetry}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 underline flex-shrink-0"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Input */}
       <div className="flex items-end gap-2 px-4 py-3 border-t bg-white flex-shrink-0">
@@ -584,7 +654,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
             e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
           }}
           onKeyDown={handleKeyDown}
-          disabled={isLoading}
+          readOnly={isLoading}
         />
         <Button
           variant="primary"

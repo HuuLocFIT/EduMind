@@ -18,6 +18,44 @@ const PASS_THRESHOLD = 70;
 
 type Phase = "loading" | "no-quiz" | "taking" | "result";
 
+// Persists the working (unsubmitted) answers for an in-progress attempt in
+// sessionStorage, so leaving the lesson and coming back auto-populates the
+// learner's prior selections instead of forcing full re-entry (WCAG 3.3.7).
+// Scoped to the tab session (not localStorage) since that's a reasonable
+// boundary for "the same attempt"; cleared on submit/Try Again so a new
+// attempt never inherits a previous one's answers.
+const draftAnswersKey = (quizId: number) => `quiz-draft-answers:${quizId}`;
+
+const readDraftAnswers = (quizId: number, questionCount: number): number[] | null => {
+  try {
+    const raw = sessionStorage.getItem(draftAnswersKey(quizId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length === questionCount) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const saveDraftAnswers = (quizId: number, answers: number[]) => {
+  try {
+    sessionStorage.setItem(draftAnswersKey(quizId), JSON.stringify(answers));
+  } catch {
+    // Best-effort persistence only — ignore storage failures (e.g. private browsing).
+  }
+};
+
+const clearDraftAnswers = (quizId: number) => {
+  try {
+    sessionStorage.removeItem(draftAnswersKey(quizId));
+  } catch {
+    // Best-effort persistence only — ignore storage failures (e.g. private browsing).
+  }
+};
+
 interface QuizTakerContentProps {
   lesson: LessonResponse;
   onQuizPass?: () => void;
@@ -88,7 +126,8 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
           setPhase("result");
         } else {
           setAttempt(null);
-          setAnswers(new Array(quizData.questions.length).fill(-1));
+          const draft = readDraftAnswers(quizData.id, quizData.questions.length);
+          setAnswers(draft ?? new Array(quizData.questions.length).fill(-1));
           setPhase("taking");
         }
       }
@@ -105,7 +144,11 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
   }, [phase]);
 
   const handleAnswerChange = (qi: number, oi: number) => {
-    setAnswers(prev => prev.map((a, i) => i === qi ? oi : a));
+    setAnswers(prev => {
+      const next = prev.map((a, i) => i === qi ? oi : a);
+      if (quiz) saveDraftAnswers(quiz.id, next);
+      return next;
+    });
   };
 
   const handleSubmit = useCallback(async () => {
@@ -125,6 +168,7 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
     setSubmitting(true);
     try {
       const result = await aiService.submitAttempt({ lessonId: lesson.id, quizId: quiz.id, answers });
+      clearDraftAnswers(quiz.id);
       setAttempt(result);
       setPastAttempts((prev) => [result, ...prev]);
       setPhase("result");
@@ -147,6 +191,7 @@ export const QuizTakerContent: React.FC<QuizTakerContentProps> = ({ lesson, onQu
 
   const handleTryAgain = () => {
     if (!quiz) return;
+    clearDraftAnswers(quiz.id);
     setAnswers(new Array(quiz.questions.length).fill(-1));
     setAttempt(null);
     setPhase("taking");

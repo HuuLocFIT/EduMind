@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface AutoHeightTransitionProps {
   children: React.ReactNode;
@@ -28,6 +28,7 @@ export const AutoHeightTransition: React.FC<AutoHeightTransitionProps> = ({
   const innerRef = useRef<HTMLDivElement>(null);
   const lastHeightRef = useRef(0);
   const prevKeyRef = useRef(transitionKey);
+  const frameRef = useRef<number | null>(null);
   const [height, setHeight] = useState<number | "auto">("auto");
 
   useLayoutEffect(() => {
@@ -36,9 +37,11 @@ export const AutoHeightTransition: React.FC<AutoHeightTransitionProps> = ({
     const nextHeight = node.scrollHeight;
 
     if (prevKeyRef.current === transitionKey) {
-      // Same content identity — keep height in sync without animating
-      // (e.g. expanding an explanation panel within the same phase).
-      setHeight(nextHeight);
+      // The first committed render (including a cache-hit quiz revisit) must
+      // remain naturally sized. Freezing that render to a measured pixel
+      // height can leave Safari clipping content at 0px when its layout is
+      // finalized after this effect.
+      setHeight("auto");
       lastHeightRef.current = nextHeight;
       return;
     }
@@ -48,7 +51,7 @@ export const AutoHeightTransition: React.FC<AutoHeightTransitionProps> = ({
       "(prefers-reduced-motion: reduce)"
     ).matches;
     if (prefersReducedMotion) {
-      setHeight(nextHeight);
+      setHeight("auto");
       lastHeightRef.current = nextHeight;
       return;
     }
@@ -58,15 +61,43 @@ export const AutoHeightTransition: React.FC<AutoHeightTransitionProps> = ({
     // animate to the real height on the next frame so the browser has a
     // starting point to transition from.
     setHeight(lastHeightRef.current);
-    requestAnimationFrame(() => {
+    frameRef.current = requestAnimationFrame(() => {
       setHeight(nextHeight);
       lastHeightRef.current = nextHeight;
+      frameRef.current = null;
     });
+
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
   }, [transitionKey, children]);
+
+  // Content can finish laying out after the transition effect (notably in
+  // Safari and when React Query resolves from cache). Once the animation is
+  // over, release the fixed height so later layout changes cannot be clipped.
+  useEffect(() => {
+    const node = innerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      lastHeightRef.current = node.scrollHeight;
+      setHeight("auto");
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
       className={className}
+      onTransitionEnd={(event) => {
+        if (event.target === event.currentTarget && event.propertyName === "height") {
+          setHeight("auto");
+        }
+      }}
       style={{ height, overflow: "hidden", transition: "height 250ms ease" }}
     >
       <div ref={innerRef}>{children}</div>

@@ -19,7 +19,18 @@ export const QuizLessonContent: React.FC<QuizLessonContentProps> = ({
     <div className={`p-3 sm:p-6 pb-28 bg-white ${className ?? ''}`} data-testid="lesson-content">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h2 ref={lessonHeadingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900 mb-1">{lesson.title}</h2>
+          {/* key: see the comment on the same heading in StandardLessonContent
+              — a fresh node per lesson is what makes .focus() fire a real
+              focus event when focus was left on the previous lesson's
+              heading. */}
+          <h2
+            key={lesson.id}
+            ref={lessonHeadingRef}
+            tabIndex={-1}
+            className="text-2xl font-bold text-gray-900 mb-1"
+          >
+            {lesson.title}
+          </h2>
           {lesson.description && (
             <p className="text-gray-600">{lesson.description}</p>
           )}
