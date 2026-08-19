@@ -236,7 +236,7 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
               <>
                 <button
                   onClick={() => onPageChange(0)}
-                  className="w-10 h-10 rounded-lg transition-all hover:bg-gray-100 text-gray-700 font-medium"
+                  className="w-10 h-10 rounded-lg transition-all motion-reduce:transition-none hover:bg-gray-100 text-gray-700 font-medium"
                   aria-label="Go to page 1"
                 >
                   1
@@ -260,10 +260,10 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
                   <button
                     key={i}
                     onClick={() => onPageChange(i)}
-                    className={`w-10 h-10 rounded-lg transition-all font-medium ${
+                    className={`w-10 h-10 rounded-lg transition-all motion-reduce:transition-none font-medium ${
                       page === i
-                        ? "bg-blue-600 text-white shadow-md scale-105"
-                        : "hover:bg-gray-100 text-gray-700 hover:scale-105"
+                        ? "bg-blue-600 text-white shadow-md scale-105 motion-reduce:scale-100"
+                        : "hover:bg-gray-100 text-gray-700 hover:scale-105 motion-reduce:hover:scale-100"
                     }`}
                     aria-label={`Go to page ${i + 1}`}
                     aria-current={page === i ? "page" : undefined}

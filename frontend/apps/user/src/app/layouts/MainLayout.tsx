@@ -452,7 +452,7 @@ export const MainLayout: React.FC = () => {
                   <li>
                     <Link
                       to={USER_ROUTES.COURSES}
-                      className="text-gray-700 hover:text-blue-600"
+                      className="block w-full text-gray-700 hover:text-blue-600"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Browse Courses
@@ -464,7 +464,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.DASHBOARD}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Dashboard
@@ -473,7 +473,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.LEARNING}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           My Learning
@@ -482,7 +482,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.WISHLIST}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Wishlist
@@ -491,7 +491,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.CERTIFICATES}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Certificates
@@ -500,7 +500,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.ORDERS}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           My Orders
@@ -509,7 +509,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.REFUNDS}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           My Refunds
@@ -518,7 +518,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.PROFILE_SETTINGS}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Settings
@@ -535,7 +535,7 @@ export const MainLayout: React.FC = () => {
                             <li>
                               <Link
                                 to={USER_ROUTES.TEACHER_APPLICATION}
-                                className="flex items-center justify-between text-blue-600 font-medium"
+                                className="flex items-center justify-between w-full text-blue-600 font-medium"
                                 onClick={() => setMobileMenuOpen(false)}
                               >
                                 <div className="flex items-center gap-2">
@@ -548,7 +548,7 @@ export const MainLayout: React.FC = () => {
                             <li>
                               <Link
                                 to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-                                className="flex items-center justify-between text-gray-700 hover:text-blue-600"
+                                className="flex items-center justify-between w-full text-gray-700 hover:text-blue-600"
                                 onClick={() => setMobileMenuOpen(false)}
                               >
                                 <div className="flex items-center gap-2">
@@ -568,7 +568,7 @@ export const MainLayout: React.FC = () => {
                           <li>
                             <Link
                               to={TEACHER_ROUTES.DASHBOARD}
-                              className="flex items-center gap-2 text-green-600 font-medium"
+                              className="flex items-center gap-2 w-full text-green-600 font-medium"
                               onClick={() => setMobileMenuOpen(false)}
                             >
                               <GraduationCap className="w-5 h-5" />

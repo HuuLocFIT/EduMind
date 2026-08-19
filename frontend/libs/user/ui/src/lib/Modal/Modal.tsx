@@ -73,7 +73,7 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Backdrop — sibling to panel container as recommended by Headless UI */}
       <DialogBackdrop
         transition
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out data-[closed]:opacity-0"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out motion-reduce:transition-none data-[closed]:opacity-0"
         aria-hidden="true"
       />
 
@@ -86,7 +86,7 @@ export const Modal: React.FC<ModalProps> = ({
               // Keep the scale animation but never fade interactive content.
               // During an opacity transition, text and button colors composite
               // with the page and can temporarily fall below WCAG contrast.
-              "w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-transform duration-300 ease-out data-[closed]:scale-95",
+              "w-full transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-transform duration-300 ease-out motion-reduce:transition-none motion-reduce:data-[closed]:scale-100 data-[closed]:scale-95",
               "flex flex-col max-h-[calc(100vh-2rem)]",
               sizeStyles[size]
             )}

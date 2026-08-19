@@ -70,7 +70,7 @@ export const AiTutorOverlay: React.FC<AiTutorOverlayProps> = ({
         aria-label={isChatOpen ? 'Close AI Tutor' : 'Open AI Tutor'}
         aria-expanded={isChatOpen}
         aria-controls="ai-course-tutor-dialog"
-        className={`fixed bottom-20 right-4 z-50 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-indigo-700 [@media(max-height:32rem)]:absolute [@media(max-height:32rem)]:bottom-auto [@media(max-height:32rem)]:right-14 [@media(max-height:32rem)]:top-1 [@media(max-height:32rem)]:p-2.5 md:bottom-24 md:right-6 ${isChatOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${anchorToPlayerHeader ? 'xl:absolute xl:bottom-auto xl:right-4 xl:top-1/2 xl:-translate-y-1/2' : 'xl:right-[21rem]'}`}
+        className={`fixed bottom-20 right-4 z-50 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-indigo-700 [@media(max-height:32rem)]:absolute [@media(max-height:32rem)]:bottom-auto [@media(max-height:32rem)]:right-16 [@media(max-height:32rem)]:top-1 [@media(max-height:32rem)]:p-2.5 md:bottom-24 md:right-6 ${isChatOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${anchorToPlayerHeader ? 'xl:absolute xl:bottom-auto xl:right-4 xl:top-1/2 xl:-translate-y-1/2' : 'xl:right-[21rem]'}`}
       >
         {isChatOpen ? (
           <X aria-hidden="true" className="w-4 h-4" />

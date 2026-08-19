@@ -27,13 +27,15 @@ export const LessonResources: React.FC<LessonResourcesProps> = ({ resources, cla
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={accessibleLabel}
-                className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                className="text-blue-600 hover:text-blue-800 flex items-start gap-2"
               >
-                <FileText className="w-4 h-4" aria-hidden="true" />
-                <span aria-hidden="true">{resource.title}</span>
+                <FileText className="w-4 h-4 shrink-0 mt-1" aria-hidden="true" />
+                <span aria-hidden="true" className="min-w-0 break-words">
+                  {resource.title}
+                </span>
                 <span
                   aria-hidden="true"
-                  className="text-xs font-medium text-gray-500 bg-gray-100 rounded px-1.5 py-0.5"
+                  className="shrink-0 whitespace-nowrap self-start mt-0.5 text-xs font-medium text-gray-500 bg-gray-100 rounded px-1.5 py-0.5"
                 >
                   {resource.type.toUpperCase()}
                   {typeof resource.size === 'number' ? ` · ${formatFileSize(resource.size)}` : ''}

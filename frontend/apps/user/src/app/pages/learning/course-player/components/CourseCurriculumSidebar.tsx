@@ -115,11 +115,11 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
           <div ref={sidebarScrollRef} className="h-full min-h-0 overflow-y-auto overscroll-contain pb-4">
             {loading ? (
               <div aria-hidden="true">
-                <div className="p-4 border-b bg-gray-50 animate-pulse">
+                <div className="p-4 border-b bg-gray-50 animate-pulse motion-reduce:animate-none">
                   <div className="h-5 w-40 bg-gray-200 rounded" />
                   <div className="h-4 w-44 bg-gray-200 rounded mt-2" />
                 </div>
-                <div className="p-2 space-y-4 animate-pulse">
+                <div className="p-2 space-y-4 animate-pulse motion-reduce:animate-none">
                   {Array.from({ length: 3 }, (_, s) => (
                     <div key={s} className="border border-gray-200 rounded-lg overflow-hidden">
                       <div className="px-3 py-2 bg-gray-100 flex items-center justify-between">
@@ -205,7 +205,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                           </span>
                           <ChevronDown
                             aria-hidden="true"
-                            className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            className={`w-4 h-4 text-gray-600 transition-transform motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
                           />
                         </button>
                       </h3>

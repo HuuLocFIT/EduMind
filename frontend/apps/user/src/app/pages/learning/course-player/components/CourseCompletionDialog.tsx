@@ -27,14 +27,14 @@ export const CourseCompletionDialog: React.FC<CourseCompletionDialogProps> = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/70 px-4 py-6 backdrop-blur-sm sm:px-6">
+    <div className="fixed inset-0 z-[70] flex overflow-y-auto bg-slate-950/70 px-4 py-6 backdrop-blur-sm sm:px-6">
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="course-complete-heading"
         aria-describedby="course-complete-description"
-        className="relative isolate w-full max-w-3xl overflow-hidden rounded-3xl border border-white/60 bg-gradient-to-br from-slate-50 via-white to-blue-50 px-6 py-10 text-center shadow-2xl shadow-slate-950/30 sm:px-12 sm:py-12"
+        className="relative isolate m-auto w-full max-w-3xl overflow-hidden rounded-3xl border border-white/60 bg-gradient-to-br from-slate-50 via-white to-blue-50 px-6 py-10 text-center shadow-2xl shadow-slate-950/30 sm:px-12 sm:py-12"
       >
         <div aria-hidden="true" className="absolute -left-24 -top-24 -z-10 h-64 w-64 rounded-full bg-blue-200/50 blur-3xl" />
         <div aria-hidden="true" className="absolute -bottom-28 -right-20 -z-10 h-72 w-72 rounded-full bg-indigo-200/50 blur-3xl" />

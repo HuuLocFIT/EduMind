@@ -191,16 +191,16 @@ function StreamingAiMessageBubble({
         <span className="sr-only">AI: </span>
         {isWaiting ? (
           <div className="flex items-center gap-1 py-1">
-            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce [animation-delay:-0.3s]" />
-            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
-            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce" />
+            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce motion-reduce:animate-none [animation-delay:-0.3s]" />
+            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce motion-reduce:animate-none [animation-delay:-0.15s]" />
+            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce motion-reduce:animate-none" />
           </div>
         ) : (
           <div className="text-gray-800 break-words w-full">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
               {displayText}
             </ReactMarkdown>
-            <span className="inline-block w-[7px] h-[1em] ml-[1px] align-baseline bg-gray-400 animate-pulse" />
+            <span className="inline-block w-[7px] h-[1em] ml-[1px] align-baseline bg-gray-400 animate-pulse motion-reduce:animate-none" />
           </div>
         )}
         {sourceLessons && sourceLessons.length > 0 && (
@@ -668,7 +668,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
               Sending
             </>
           ) : (
