@@ -24,6 +24,7 @@ import {
 import { AppErrorBoundary } from "./components/RouteErrorBoundary";
 import { createLazyRoute } from "./components/LazyRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { CoursePlayerBoot } from "./pages/learning/course-player/CoursePlayerBoot";
 
 import {
   BrowseCoursesSkeleton,
@@ -31,7 +32,6 @@ import {
   CourseDetailSkeleton,
   DashboardSkeleton,
   MyLearningSkeleton,
-  CoursePlayerSkeleton,
   WishlistSkeleton,
   CertificatesSkeleton,
   ProfileSettingsSkeleton,
@@ -384,9 +384,11 @@ function AppContent() {
                 path={USER_ROUTES.LEARNING_COURSE}
                 element={
                   <SectionErrorBoundary section="course-player">
-                    <Suspense fallback={<CoursePlayerSkeleton />}>
-                      <CoursePlayerPage />
-                    </Suspense>
+                    <CoursePlayerBoot>
+                      <Suspense fallback={null}>
+                        <CoursePlayerPage />
+                      </Suspense>
+                    </CoursePlayerBoot>
                   </SectionErrorBoundary>
                 }
               />

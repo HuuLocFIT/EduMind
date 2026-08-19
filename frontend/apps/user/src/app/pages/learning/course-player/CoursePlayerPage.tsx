@@ -21,6 +21,7 @@ import { AutoAdvanceBanner } from './components/AutoAdvanceBanner';
 import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
 import { CourseLessonContent } from './components/CourseLessonContent';
+import { useCoursePlayerReadySignal } from './CoursePlayerBoot';
 import { findLessonProgress, htmlToPlainText } from './course-player.utils';
 import type { CompletionSource } from './course-player.types';
 import {
@@ -39,6 +40,7 @@ export const CoursePlayerPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const quizModal = useModal();
+  const signalReady = useCoursePlayerReadySignal();
 
   const AUTO_ADVANCE_SECONDS = 10;
 
@@ -66,6 +68,17 @@ export const CoursePlayerPage: React.FC = () => {
     confirmedCourseComplete,
     reconcileEnrollmentProgress,
   } = useCoursePlayerData({ courseSlug, currentLesson, searchParams, setSearchParams, setCurrentLesson });
+
+  // Tells CoursePlayerBoot (the Suspense-external skeleton owner) it can
+  // reveal this page and drop its own skeleton. Intentionally `!loading`
+  // alone — no `&& currentLesson` — so the accessError/CourseNotFound
+  // early-return branches below also get uncovered by the `hidden` toggle;
+  // gating on `currentLesson` too would leave Boot's skeleton stuck forever
+  // for those branches. This is a one-way latch (see CoursePlayerBoot.tsx),
+  // so it's safe to call on every render once loading clears.
+  useEffect(() => {
+    if (!loading) signalReady();
+  }, [loading, signalReady]);
 
   const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
@@ -236,7 +249,12 @@ export const CoursePlayerPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const pageMetadata = (
+  // Only rendered once loading clears: while `loading` is true this page is
+  // still mounted-but-hidden under CoursePlayerBoot, which is rendering its
+  // own SeoMetaTags-bearing skeleton — mounting both at once would hoist two
+  // <title> tags simultaneously (React 19 hoists head tags regardless of
+  // hidden DOM ancestors).
+  const pageMetadata = !loading ? (
     <SeoMetaTags
       title={currentLesson?.title ?? course?.title ?? 'Course Player'}
       description={
@@ -246,7 +264,7 @@ export const CoursePlayerPage: React.FC = () => {
       }
       noIndex
     />
-  );
+  ) : null;
 
   // Access error modal – shown when user is DROPPED/SUSPENDED or not properly enrolled
   if (accessError) {
