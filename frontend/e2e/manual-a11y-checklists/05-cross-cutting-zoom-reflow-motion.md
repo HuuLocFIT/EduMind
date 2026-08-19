@@ -49,11 +49,11 @@ Zoom trong Safari bằng `Cmd + "+"`. Reset về 100% bằng `Cmd + 0`. Ghi mứ
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A1 | P0 | 1.4.4 | Zoom 200% trên toàn bộ route ở danh sách trên | Mọi nội dung và chức năng vẫn dùng được; không mất text, không bị cắt chữ, không chồng chữ | | | |
-| A2 | P0 | 1.4.4 | Zoom 200% ở `/checkout` và Course Player | Nút Place Order / Mark complete / video controls vẫn bấm được, không bị đẩy ra ngoài màn hình | | | |
-| A3 | P0 | 1.4.4 | Zoom 200% khi đang mở cart drawer, mobile filter drawer, AI Tutor panel, modal lỗi | Dialog không bị tràn khỏi viewport; vẫn cuộn được tới nút đóng | | | |
-| A4 | P0 | 1.4.4 | Zoom 200% ở form Signup có nhiều lỗi hiển thị cùng lúc | Error message không đè lên field, vẫn đọc được đầy đủ | | | |
-| A5 | P0 | 1.4.4 | Zoom 200%, kiểm tra sticky header | Header không chiếm quá nhiều chiều cao đến mức che hết nội dung; vẫn cuộn tới được cuối trang | | | |
+| A1 | P0 | 1.4.4 | Zoom 200% trên toàn bộ route ở danh sách trên | Mọi nội dung và chức năng vẫn dùng được; không mất text, không bị cắt chữ, không chồng chữ | Pass| | |
+| A2 | P0 | 1.4.4 | Zoom 200% ở `/checkout` và Course Player | Nút Place Order / Mark complete / video controls vẫn bấm được, không bị đẩy ra ngoài màn hình | Pass| | |
+| A3 | P0 | 1.4.4 | Zoom 200% khi đang mở cart drawer, mobile filter drawer, AI Tutor panel, modal lỗi | Dialog không bị tràn khỏi viewport; vẫn cuộn được tới nút đóng | Pass| | |
+| A4 | P0 | 1.4.4 | Zoom 200% ở form Signup có nhiều lỗi hiển thị cùng lúc | Error message không đè lên field, vẫn đọc được đầy đủ | Pass| | |
+| A5 | P0 | 1.4.4 | Zoom 200%, kiểm tra sticky header | Header không chiếm quá nhiều chiều cao đến mức che hết nội dung; vẫn cuộn tới được cuối trang | Pass| | |
 
 ## B. Reflow (SC 1.4.10)
 
@@ -61,13 +61,13 @@ Dùng Responsive Design Mode (`Develop → Enter Responsive Design Mode`, bật 
 
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| B1 | P0 | 1.4.10 | Đặt 320×256, duyệt toàn bộ route trong danh sách | **Không có scroll ngang** ở bất kỳ route nào (trừ ngoại lệ hợp lệ: bảng dữ liệu lớn, code block — phải cuộn ngang trong chính khối đó, không phải cả trang) | | | |
-| B2 | P0 | 1.4.10 | 320px ở `/courses` | Filter, search, danh sách course, pagination đều dùng được | | | |
-| B3 | P0 | 1.4.10 | 320px ở `/checkout` và `/checkout/sepay-qr` | Order summary, payment method, QR code, countdown đều hiển thị đủ, không bị cắt | | | |
-| B4 | P0 | 1.4.10 | 320px trong Course Player | Video player, curriculum drawer, quiz, nút Mark complete đều thao tác được | | | |
-| B5 | P0 | 1.4.10 | 320px với các dialog/drawer đang mở | Nội dung dialog không bị tràn; nút đóng luôn tiếp cận được | | | |
+| B1 | P0 | 1.4.10 | Đặt 320×256, duyệt toàn bộ route trong danh sách | **Không có scroll ngang** ở bất kỳ route nào (trừ ngoại lệ hợp lệ: bảng dữ liệu lớn, code block — phải cuộn ngang trong chính khối đó, không phải cả trang) | Pass| | |
+| B2 | P0 | 1.4.10 | 320px ở `/courses` | Filter, search, danh sách course, pagination đều dùng được | Pass| | |
+| B3 | P0 | 1.4.10 | 320px ở `/checkout` và `/checkout/sepay-qr` | Order summary, payment method, QR code, countdown đều hiển thị đủ, không bị cắt | Pass| | |
+| B4 | P0 | 1.4.10 | 320px trong Course Player | Video player, curriculum drawer, quiz, nút Mark complete đều thao tác được | Pass| | |
+| B5 | P0 | 1.4.10 | 320px với các dialog/drawer đang mở | Nội dung dialog không bị tràn; nút đóng luôn tiếp cận được | Pass| | |
 | B6 | P0 | 1.3.4 | Xoay giữa portrait và landscape ở viewport nhỏ | Không khoá hướng màn hình; nội dung dùng được ở cả hai hướng | | | |
-| B7 | P0 | 1.4.10 | Ở 320px, kiểm tra nút pill AI Tutor và các phần tử `position: fixed` | Không che mất nội dung/nút quan trọng đến mức không thao tác được | | | |
+| B7 | P0 | 1.4.10 | Ở 320px, kiểm tra nút pill AI Tutor và các phần tử `position: fixed` | Không che mất nội dung/nút quan trọng đến mức không thao tác được | Pass| | |
 
 ## C. Text spacing (SC 1.4.12)
 
