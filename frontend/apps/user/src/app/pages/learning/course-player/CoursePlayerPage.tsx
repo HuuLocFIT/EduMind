@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useModal } from '@edumind/user-ui';
 import { LessonContentSkeleton } from '../../../components/route-skeletons/LessonContentSkeleton';
@@ -76,7 +76,13 @@ export const CoursePlayerPage: React.FC = () => {
   // gating on `currentLesson` too would leave Boot's skeleton stuck forever
   // for those branches. This is a one-way latch (see CoursePlayerBoot.tsx),
   // so it's safe to call on every render once loading clears.
-  useEffect(() => {
+  // useLayoutEffect (not useEffect): pageMetadata below is also gated on
+  // `!loading`, so the render where loading flips false already mounts this
+  // page's own <title> while Boot's skeleton (and its <title>) is still up.
+  // A layout effect flips `ready` synchronously before the browser paints,
+  // closing that window instead of leaving two hoisted <title>s visible for
+  // one passive-effect tick.
+  useLayoutEffect(() => {
     if (!loading) signalReady();
   }, [loading, signalReady]);
 

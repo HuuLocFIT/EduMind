@@ -14,7 +14,7 @@ import type { AccessError } from './course-player.types';
  * a known section. Does not mutate the input array.
  */
 export function sortCourseLessons(
-  sections: SectionResponse[],
+  sections: Pick<SectionResponse, 'id' | 'orderIndex'>[],
   lessons: LessonResponse[]
 ): LessonResponse[] {
   return [...lessons].sort((a, b) => {

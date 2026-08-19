@@ -144,6 +144,36 @@ export function useCoursePlayerData({
 
       setResolvedCourseId(numericCourseId);
 
+      // getCourseBySlug already returns sections with nested lessons
+      // (metadata-only: videoUrl/articleContent/resources are null). Use them
+      // to resolve the contentType hint one round trip earlier than the
+      // official resolve below, so the loading skeleton can pick the right
+      // shape before getCourseLessons/getCourseSections come back. Never used
+      // to set currentLesson itself.
+      const nestedLessons = courseData.sections?.flatMap((s) => s.lessons ?? []) ?? [];
+      if (nestedLessons.length > 0 && fetchVersion.isCurrent(version)) {
+        const hintSections = courseData.sections ?? [];
+        const sortedHintLessons = sortCourseLessons(hintSections, nestedLessons);
+        const hintLessonIdParam =
+          searchParamsRef.current.get('lesson') || searchParamsRef.current.get('lessonId');
+        const hintLastLessonId = localStorage.getItem(`course_${courseSlug}_last_lesson`);
+        const hintLesson = resolveInitialLesson(
+          sortedHintLessons,
+          hintLessonIdParam,
+          hintLastLessonId
+        );
+
+        if (hintLesson) {
+          setSearchParams(
+            { lesson: hintLesson.id.toString(), type: hintLesson.contentType },
+            { replace: true }
+          );
+          localStorage.setItem(`course_${courseSlug}_last_lesson`, hintLesson.id.toString());
+          localStorage.setItem(`course_${courseSlug}_last_lesson_type`, hintLesson.contentType);
+          localStorage.setItem(`lesson_${hintLesson.id}_type`, hintLesson.contentType);
+        }
+      }
+
       // Fetch sections and lessons with resolved numeric ID
       const [courseSections, courseLessons] = await Promise.all([
         sectionService.getCourseSections(numericCourseId),

@@ -25,5 +25,3 @@ export const CoursePlayerBoot: React.FC<{ children: React.ReactNode }> = ({ chil
     </CoursePlayerReadyContext.Provider>
   );
 };
-
-export default CoursePlayerBoot;

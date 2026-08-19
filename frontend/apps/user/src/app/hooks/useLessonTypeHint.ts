@@ -34,7 +34,7 @@ export function useLessonTypeHint(explicitType?: LessonTypeHint): LessonTypeHint
     }
     if (!typeFromStorage) {
       const pathname = location.pathname || (typeof window !== "undefined" ? window.location.pathname : "");
-      const match = pathname.match(/courses\/(\d+)/);
+      const match = pathname.match(/learning\/([^/?#]+)/);
       if (match && match[1]) {
         typeFromStorage = parseValidType(localStorage.getItem(`course_${match[1]}_last_lesson_type`));
       }
