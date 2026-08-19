@@ -539,21 +539,20 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       aria-modal="true"
       aria-labelledby="ai-course-tutor-title"
       aria-describedby="ai-course-tutor-description"
-      className="fixed bottom-20 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)]
-                 bg-white rounded-2xl shadow-2xl border flex flex-col md:bottom-24 md:right-[336px]"
+      className="fixed inset-x-0 bottom-0 top-16 z-50 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-none flex-col overflow-hidden border bg-white shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-6 sm:top-auto sm:h-[520px] sm:max-h-[calc(100dvh-6rem)] sm:w-96 sm:max-w-[calc(100vw-2rem)] sm:rounded-2xl md:right-[336px]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-full bg-indigo-50">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3 [@media(max-height:32rem)]:px-3 [@media(max-height:32rem)]:py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="shrink-0 rounded-full bg-indigo-50 p-2 [@media(max-height:32rem)]:p-1.5">
             <Sparkles aria-hidden="true" className="w-5 h-5 text-indigo-600" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 id="ai-course-tutor-title" className="font-semibold text-gray-900 flex items-center gap-2">
               AI Course Tutor
               <MessageCircle aria-hidden="true" className="w-4 h-4 text-gray-500" />
             </h3>
-            <p id="ai-course-tutor-description" className="text-xs text-gray-500">
+            <p id="ai-course-tutor-description" className="text-xs text-gray-500 [@media(max-height:32rem)]:sr-only">
               Ask questions about this course. Answers are based on the course lessons.
             </p>
           </div>
@@ -571,7 +570,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 bg-gray-50 flex flex-col gap-2"
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-gray-50 px-4 py-3 [@media(max-height:32rem)]:p-2"
       >
         {messages.length === 0 && !isLoading && (
           <p className="text-sm text-gray-500">
@@ -640,12 +639,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       )}
 
       {/* Input */}
-      <div className="flex items-end gap-2 px-4 py-3 border-t bg-white flex-shrink-0">
+      <div className="flex min-w-0 flex-shrink-0 items-end gap-2 border-t bg-white px-4 py-3 [@media(max-height:32rem)]:p-2">
         <textarea
           ref={inputRef}
           aria-label="Ask the AI Course Tutor a question"
-          rows={2}
-          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none overflow-y-auto min-h-[56px]"
+          rows={1}
+          className="min-h-11 min-w-0 max-h-24 flex-1 resize-none overflow-y-auto rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 [@media(max-height:32rem)]:max-h-12"
           placeholder="Type your question... (Enter to send, Shift+Enter for new line)"
           value={input}
           onChange={(e) => {
@@ -660,7 +659,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
           variant="primary"
           onClick={handleSend}
           disabled={isLoading || !input.trim()}
-          className="flex items-center gap-1 flex-shrink-0"
+          className="flex flex-shrink-0 items-center gap-1 [@media(max-height:32rem)]:px-3 [@media(max-height:32rem)]:py-2"
         >
           {isLoading ? (
             <>

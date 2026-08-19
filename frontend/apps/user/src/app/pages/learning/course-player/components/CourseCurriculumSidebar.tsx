@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { LessonResponse, SectionResponse } from '@edumind/shared-types';
 import { ContentType } from '@edumind/shared-constants';
 import {
@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Play,
   Video,
+  X,
 } from 'lucide-react';
 import { ProgressBar } from '@edumind/user-ui';
 import { useFocusTrap } from '../../../../hooks/useFocusTrap';
@@ -67,6 +68,18 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
   const visible = isDesktop || isOpen;
   const [sectionAnnouncement, setSectionAnnouncement] = useState('');
 
+  // The mobile curriculum is a modal drawer. Keep the page behind it fixed so
+  // short viewports have one predictable scroll container instead of nested
+  // page + curriculum scrolling.
+  useEffect(() => {
+    if (isDesktop || !isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isDesktop, isOpen]);
+
   const handleToggleSection = (section: SectionResponse, isExpanded: boolean) => {
     onToggleSection(section.id);
     setSectionAnnouncement(`${section.title} ${isExpanded ? 'collapsed' : 'expanded'}`);
@@ -80,8 +93,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
     <>
       {!isDesktop && (
         <div
-          className="fixed inset-x-0 bottom-0 bg-black/40 z-30 xl:hidden"
-          style={{ top: '57px' }}
+          className="fixed inset-x-0 bottom-0 top-16 z-30 bg-black/40 xl:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -94,14 +106,13 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
         aria-modal={!isDesktop ? true : undefined}
         aria-labelledby="course-content-title"
         data-testid="course-sidebar"
-        className="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 z-40 xl:translate-x-0"
-        style={{ top: '57px' }}
+        className="fixed bottom-0 right-0 top-16 z-40 h-[calc(100dvh-4rem)] min-h-0 w-full max-w-sm overflow-hidden border-l border-gray-200 bg-white xl:w-80 xl:max-w-none xl:translate-x-0"
       >
-        <nav aria-labelledby="course-content-title" className="h-full">
+        <nav aria-labelledby="course-content-title" className="h-full min-h-0">
           <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {sectionAnnouncement}
           </p>
-          <div ref={sidebarScrollRef} className="h-full overflow-y-auto pb-20">
+          <div ref={sidebarScrollRef} className="h-full min-h-0 overflow-y-auto overscroll-contain pb-4">
             {loading ? (
               <div aria-hidden="true">
                 <div className="p-4 border-b bg-gray-50 animate-pulse">
@@ -139,16 +150,28 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
               </div>
             ) : (
               <>
-            <div className="p-4 border-b bg-gray-50">
-              <h2 id="course-content-title" className="font-semibold text-gray-900">
-                Course Content
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {completedLessons} / {lessons.length} lessons completed
-              </p>
+            <div className="flex items-start justify-between gap-3 border-b bg-gray-50 p-4 [@media(max-height:32rem)]:p-2">
+              <div className="min-w-0">
+                <h2 id="course-content-title" className="font-semibold text-gray-900">
+                  Course Content
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  {completedLessons} / {lessons.length} lessons completed
+                </p>
+              </div>
+              {!isDesktop && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close course content"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <X aria-hidden="true" className="h-5 w-5" />
+                </button>
+              )}
             </div>
 
-            <div className="p-2 space-y-4">
+            <div className="space-y-4 p-2 [@media(max-height:32rem)]:space-y-2 [@media(max-height:32rem)]:p-1">
               {sections
                 .slice()
                 .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -212,7 +235,7 @@ export const CourseCurriculumSidebar: React.FC<CourseCurriculumSidebarProps> = (
                                   }`}
                                   data-testid="lesson-item"
                                   data-lesson-id={lesson.id}
-                                  className={`w-full text-left p-3 rounded-lg mb-1 transition-colors border-2 ${
+                                  className={`mb-1 w-full rounded-lg border-2 p-3 text-left transition-colors [@media(max-height:32rem)]:p-2 ${
                                     isCurrent
                                       ? 'bg-blue-50 border-blue-600'
                                       : 'border-transparent hover:bg-gray-50'

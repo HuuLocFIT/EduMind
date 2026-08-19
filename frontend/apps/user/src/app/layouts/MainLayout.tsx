@@ -229,7 +229,7 @@ export const MainLayout: React.FC = () => {
                           role="menu"
                           tabIndex={-1}
                           aria-label="User account options"
-                          className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+                          className="absolute right-0 mt-2 w-56 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain bg-white rounded-lg shadow-lg border border-gray-200 py-2"
                           onKeyDown={handleMenuKeyDown}
                         >
                           <div className="px-4 py-2 border-b min-w-0">
@@ -436,7 +436,11 @@ export const MainLayout: React.FC = () => {
 
             {/* Mobile Menu */}
             {mobileMenuOpen && (
-              <nav id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden py-4 border-t">
+              <nav
+                id="mobile-navigation"
+                aria-label="Mobile navigation"
+                className="md:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain py-4 border-t"
+              >
                 <ul className="flex flex-col gap-4">
                   <li>
                     <Link

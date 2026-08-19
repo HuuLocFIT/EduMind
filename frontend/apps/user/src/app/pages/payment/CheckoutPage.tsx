@@ -515,11 +515,11 @@ export const CheckoutPage: React.FC = () => {
           </div>
 
           {/* Main Content - Order Items & Payment Methods */}
-          <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
+          <div className="order-2 min-w-0 space-y-4 sm:space-y-6 lg:order-1 lg:col-span-2">
             {/* Payment Method Selection - Show before items on mobile for faster checkout */}
-            <Card className="p-4 sm:p-6">
+            <Card className="min-w-0 max-w-full overflow-hidden p-4 sm:p-6">
               <h2 id="payment-method-heading" className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Payment Method</h2>
-              <fieldset aria-labelledby="payment-method-heading">
+              <fieldset aria-labelledby="payment-method-heading" className="min-w-0 max-w-full">
               <div className="space-y-2 sm:space-y-3">
                 {PAYMENT_METHODS.map((method) => {
                   const Icon = method.icon;
@@ -528,7 +528,7 @@ export const CheckoutPage: React.FC = () => {
                   return (
                     <label
                       key={method.id}
-                      className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border-2 transition-all ${
+                      className={`box-border flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-lg border-2 p-3 transition-all sm:gap-4 sm:p-4 ${
                         isSelected
                           ? "border-blue-600 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300"

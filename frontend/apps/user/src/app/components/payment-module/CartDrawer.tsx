@@ -121,10 +121,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         role="dialog"
         aria-modal="true"
         aria-label={`Shopping Cart, ${items.length} ${items.length === 1 ? "item" : "items"}`}
-        className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col"
+        className="fixed right-0 top-0 z-50 flex h-dvh max-h-dvh w-full max-w-md flex-col overflow-hidden bg-white shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex shrink-0 items-center justify-between border-b p-4 [@media(max-height:32rem)]:py-2">
           <div className="flex items-center gap-2">
             <ShoppingCart aria-hidden="true" className="w-5 h-5 text-blue-600" />
             <h2 id="cart-drawer-title" ref={drawerHeadingRef} tabIndex={-1} className="text-lg font-semibold">Shopping Cart</h2>
@@ -144,7 +144,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [@media(max-height:32rem)]:p-2">
           {isLoading ? (
             <div className="flex items-center justify-center h-40">
               <Loading />
@@ -175,10 +175,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="border-t p-4 bg-gray-50">
+          <div className="shrink-0 border-t bg-gray-50 p-4 [@media(max-height:32rem)]:p-2">
             {/* Unavailable Items Warning */}
             {hasUnavailableItems && (
-              <div className="flex items-center gap-2 p-2 mb-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 [@media(max-height:32rem)]:mb-2 [@media(max-height:32rem)]:py-1">
                 <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                 <span className="text-xs text-amber-700">
                   {unavailableItems.length} {unavailableItems.length === 1 ? "item" : "items"} unavailable
@@ -190,22 +190,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
             {/* WebKit's text role makes the split visual spans one VoiceOver navigation stop. */}
             {/* eslint-disable jsx-a11y/aria-role */}
             <div
-              className="flex items-center justify-between mb-4"
+              className="mb-4 flex items-center justify-between [@media(max-height:32rem)]:mb-2"
               role="text"
               aria-label={`Total ${totalAmount.toFixed(2)} ${currency === "USD" ? "US dollars" : currency}`}
             >
               <span aria-hidden="true" className="text-gray-600">Total:</span>
-              <span aria-hidden="true" className="text-2xl font-bold text-gray-900">
+              <span aria-hidden="true" className="text-2xl font-bold text-gray-900 [@media(max-height:32rem)]:text-lg">
                 ${totalAmount.toFixed(2)} {currency}
               </span>
             </div>
             {/* eslint-enable jsx-a11y/aria-role */}
 
             {/* Actions */}
-            <div className="space-y-2">
+            <div className="space-y-2 [@media(max-height:32rem)]:grid [@media(max-height:32rem)]:grid-cols-2 [@media(max-height:32rem)]:gap-2 [@media(max-height:32rem)]:space-y-0">
               <Button
                 variant="primary"
-                className="w-full"
+                className={`w-full min-w-0 [@media(max-height:32rem)]:py-1.5 [@media(max-height:32rem)]:text-sm ${hasUnavailableItems ? "[@media(max-height:32rem)]:col-span-2" : ""}`}
                 onClick={handleCheckout}
                 disabled={hasUnavailableItems}
                 aria-describedby={hasUnavailableItems ? "cart-drawer-checkout-disabled-reason" : undefined}
@@ -213,10 +213,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
               >
                 {hasUnavailableItems ? "Remove unavailable items" : "Checkout"}
               </Button>
-              {hasUnavailableItems && <p id="cart-drawer-checkout-disabled-reason" className="text-xs text-amber-800">Checkout is unavailable until all unavailable courses are removed.</p>}
+              {hasUnavailableItems && <p id="cart-drawer-checkout-disabled-reason" className="text-xs text-amber-800 [@media(max-height:32rem)]:col-span-2">Checkout is unavailable until all unavailable courses are removed.</p>}
               <Button
                 variant="secondary"
-                className="w-full"
+                className={`w-full min-w-0 [@media(max-height:32rem)]:py-1.5 [@media(max-height:32rem)]:text-sm ${hasUnavailableItems ? "[@media(max-height:32rem)]:col-span-2" : ""}`}
                 onClick={handleViewCart}
               >
                 View Cart

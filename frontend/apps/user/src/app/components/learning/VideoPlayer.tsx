@@ -555,7 +555,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         ref={containerRef}
         role="group"
         aria-label="Video player"
-        className={`relative mx-auto w-full bg-black aspect-video max-h-[calc(100vh-180px)] xl:max-h-[calc(100vh-220px)] select-none outline-none group ${
+        className={`group relative mx-auto aspect-video w-full max-w-full bg-black max-h-[calc(100vh-180px)] [@media(max-height:32rem)]:max-h-[calc(100dvh-8rem)] select-none outline-none xl:max-h-[calc(100vh-220px)] ${
           controlsVisible ? 'cursor-default' : 'cursor-none'
         }`}
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- custom keyboard-accessible player widget; role="group" groups video+controls, tabIndex enables the documented arrow/space/m shortcuts
@@ -747,7 +747,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               <span
                 role="timer"
                 aria-label={`Elapsed time ${seekValuetext}`}
-                className="text-white text-xs tabular-nums whitespace-nowrap"
+                className="whitespace-nowrap text-xs tabular-nums text-white [@media(max-width:360px)_and_(max-height:32rem)]:sr-only"
               >
                 {formatTime(currentTime)}{' '}
                 <span className="text-white/50">/</span>{' '}

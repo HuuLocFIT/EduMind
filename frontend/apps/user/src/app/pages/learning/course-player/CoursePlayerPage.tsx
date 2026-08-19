@@ -307,7 +307,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col ${
+      className={`relative flex min-h-screen w-full max-w-full flex-col overflow-x-clip ${
         rootContentType === ContentType.VIDEO ? 'bg-gray-900' : 'bg-white'
       }`}
     >
@@ -326,6 +326,13 @@ export const CoursePlayerPage: React.FC = () => {
         onExit={() => navigate(USER_ROUTES.LEARNING)}
         onToggleSidebar={() => layout.setSidebarOpen(!layout.sidebarOpen)}
         loading={loading}
+        trailingAction={resolvedCourseId !== null ? (
+          <AiTutorOverlay
+            courseId={resolvedCourseId}
+            hidden={layout.sidebarOpen && !layout.isDesktop}
+            anchorToPlayerHeader
+          />
+        ) : null}
       />
 
       <div className="flex relative flex-1">
@@ -475,9 +482,6 @@ export const CoursePlayerPage: React.FC = () => {
           onQuizPass={handleQuizPass}
         />
       )}
-
-      {/* AI Course Tutor: floating pill + overlay panel */}
-      {resolvedCourseId !== null && <AiTutorOverlay courseId={resolvedCourseId} />}
 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {navigation.lessonAnnouncement}

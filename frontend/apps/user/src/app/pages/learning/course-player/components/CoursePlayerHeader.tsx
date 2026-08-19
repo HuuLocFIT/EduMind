@@ -16,6 +16,7 @@ export interface CoursePlayerHeaderProps {
    */
   loading?: boolean;
   className?: string;
+  trailingAction?: React.ReactNode;
 }
 
 export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
@@ -27,25 +28,26 @@ export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
   onToggleSidebar,
   loading = false,
   className,
+  trailingAction,
 }) => {
   return (
     <header
-      className={`bg-gray-800 border-b border-gray-700 sticky top-16 z-20 ${
+      className={`relative sticky top-16 z-20 border-b border-gray-700 bg-gray-800 [@media(max-height:32rem)]:static ${
         sidebarOpen ? 'xl:mr-80' : ''
       } ${className ?? ''}`}
     >
-      <div className="px-3 sm:px-4 py-3 grid grid-cols-[3rem_1fr_3rem] xl:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 xl:gap-4">
+      <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3 px-3 py-3 [@media(max-height:32rem)]:grid-cols-[2.5rem_1fr_2.5rem] [@media(max-height:32rem)]:gap-2 [@media(max-height:32rem)]:py-1 sm:px-4 xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:gap-4 xl:pr-40">
         <Button
           variant="secondary"
           onClick={onExit}
-          className="h-12 w-12 xl:h-auto xl:w-auto p-0 xl:px-4 xl:py-2 justify-center bg-gray-700 hover:bg-gray-600"
+          className="h-12 w-12 justify-center bg-gray-700 p-0 hover:bg-gray-600 [@media(max-height:32rem)]:h-10 [@media(max-height:32rem)]:w-10 xl:h-auto xl:w-auto xl:px-4 xl:py-2"
           aria-label="Exit course player and return to My Learning"
         >
           <ChevronLeft aria-hidden="true" className="w-5 h-5" />
           <span className="hidden xl:inline">Exit</span>
         </Button>
 
-        <h1 className="text-white font-semibold text-center xl:text-left truncate px-1 xl:px-0">
+        <h1 className="truncate px-1 text-center font-semibold text-white [@media(max-height:32rem)]:pr-12 [@media(max-height:32rem)]:text-sm xl:px-0 xl:text-left">
           {loading ? (
             <span
               className="inline-block h-5 xl:h-6 w-40 xl:w-64 max-w-full bg-gray-700 rounded animate-pulse align-middle"
@@ -60,7 +62,7 @@ export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
           ref={sidebarToggleRef}
           type="button"
           onClick={onToggleSidebar}
-          className="h-12 w-12 p-0 inline-flex xl:hidden items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gray-700 p-0 text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 [@media(max-height:32rem)]:h-10 [@media(max-height:32rem)]:w-10 xl:hidden"
           aria-label={sidebarOpen ? 'Close course content' : 'Open course content'}
           aria-expanded={sidebarOpen}
           aria-controls="course-curriculum-drawer"
@@ -92,6 +94,7 @@ export const CoursePlayerHeader: React.FC<CoursePlayerHeaderProps> = ({
           )}
         </div>
       </div>
+      {trailingAction}
     </header>
   );
 };
