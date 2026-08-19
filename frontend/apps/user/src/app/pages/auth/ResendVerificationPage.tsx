@@ -99,7 +99,7 @@ export const ResendVerificationPage = () => {
           <p className="text-sm text-gray-600 mb-6">
             Enter the email address you used to create your account.
           </p>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <Input
               label="Email Address"
               type="email"

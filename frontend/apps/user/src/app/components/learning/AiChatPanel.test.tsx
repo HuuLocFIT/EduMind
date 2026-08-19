@@ -43,7 +43,7 @@ describe('AiChatPanel announcements', () => {
     );
 
     render(<AiChatPanel courseId={7} onClose={vi.fn()} />);
-    const input = screen.getByRole('textbox', { name: 'Ask the AI Course Tutor a question' });
+    const input = screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' });
     await user.type(input, 'Why is the sky blue?');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(aiService.chatStream).toHaveBeenCalledOnce());
@@ -86,7 +86,7 @@ describe('AiChatPanel announcements', () => {
 
     render(<AiChatPanel courseId={8} onClose={vi.fn()} />);
     await user.type(
-      screen.getByRole('textbox', { name: 'Ask the AI Course Tutor a question' }),
+      screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' }),
       'Why is the sky blue?',
     );
     await user.click(screen.getByRole('button', { name: 'Send' }));
@@ -108,7 +108,7 @@ describe('AiChatPanel announcements', () => {
 
     render(<AiChatPanel courseId={9} onClose={vi.fn()} />);
     await user.type(
-      screen.getByRole('textbox', { name: 'Ask the AI Course Tutor a question' }),
+      screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' }),
       'Explain this lesson',
     );
     await user.click(screen.getByRole('button', { name: 'Send' }));

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, Button } from "@edumind/user-ui";
-import { XCircle, RefreshCw, ArrowLeft, HelpCircle, Ban, AlertTriangle, CreditCard } from "lucide-react";
+import { XCircle, RefreshCw, ArrowLeft, Ban, AlertTriangle, CreditCard } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { useCancelPayment } from "../../hooks/useCheckout";
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
@@ -149,13 +149,6 @@ export const CheckoutFailedPage: React.FC = () => {
             )}
           </div>
         </section>
-
-        <div className="mt-6 pt-6 border-t">
-          <a href="mailto:support@edumind.com" className="inline-flex items-center text-blue-700 underline hover:no-underline">
-            <HelpCircle aria-hidden="true" className="w-4 h-4 mr-1" />
-            Contact Support
-          </a>
-        </div>
         </Card>
       </main>
     </>

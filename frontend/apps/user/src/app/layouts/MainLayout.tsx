@@ -37,6 +37,13 @@ export const MainLayout: React.FC = () => {
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
+  // The course player renders its own full-height, viewport-fixed curriculum
+  // sidebar (top-16 to bottom-0). If the site footer renders below it, the
+  // fixed sidebar stays pinned over the footer as the page scrolls, visually
+  // burying it. Suppress the global footer for that route instead of fighting
+  // the sidebar's intentional fixed positioning.
+  const isCoursePlayerRoute = location.pathname.startsWith(`${USER_ROUTES.LEARNING}/`);
+
   const mainContentHref = `${location.pathname}${location.search}#main-content`;
   const handleSkipToMain = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -631,7 +638,8 @@ export const MainLayout: React.FC = () => {
       {/* Cart Drawer */}
       <CartDrawer isOpen={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
 
-      {/* Footer */}
+      {/* Footer — hidden on the course player route, see isCoursePlayerRoute above */}
+      {!isCoursePlayerRoute && (
       <footer aria-label="Site footer" className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-4 py-6 sm:py-8">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-6 sm:gap-8">
@@ -718,6 +726,7 @@ export const MainLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 };

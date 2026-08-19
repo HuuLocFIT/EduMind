@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle, HelpCircle } from "lucide-react";
 
 import {
   Button,
@@ -198,13 +198,14 @@ function ForgotPasswordPage() {
       </div>
 
       {/* Help Text */}
-      <p className="mt-6 text-center text-xs text-gray-500">
-        Having trouble? Contact{" "}
+      <p className="mt-6 flex items-center justify-center gap-1 text-xs text-gray-500">
+        <span>Having trouble?</span>
         <a
           href="mailto:support@edumind.com"
-          className="text-blue-600 hover:underline"
+          className="inline-flex items-center gap-1 text-blue-600 underline hover:text-blue-800 hover:no-underline"
         >
-          support@edumind.com
+          <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" />
+          Contact Support
         </a>
       </p>
     </div>

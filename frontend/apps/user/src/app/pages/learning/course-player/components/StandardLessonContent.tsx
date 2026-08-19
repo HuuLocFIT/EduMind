@@ -129,7 +129,7 @@ export const StandardLessonContent: React.FC<StandardLessonContentProps> = ({
             {/* AI Lesson Summary */}
             <LessonSummaryPanel lessonId={lesson.id} />
 
-            {/* AI Course Tutor is now accessed via floating button & overlay */}
+            {/* AI Tutor is now accessed via floating button & overlay */}
           </>
         )}
 

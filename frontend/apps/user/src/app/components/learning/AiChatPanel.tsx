@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -242,6 +242,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
   const prevIsLoadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Grows the textarea with its content up to max-h-24 since it's rows={1}
+  // and resize-none — the browser won't do this on its own.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  }, [input]);
 
   // Typewriter: targetTextRef accumulates raw SSE text; setInterval drips it into
   // streamingDisplayText so large backend chunks feel smooth.
@@ -549,7 +558,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
           </div>
           <div className="min-w-0">
             <h3 id="ai-course-tutor-title" className="font-semibold text-gray-900 flex items-center gap-2">
-              AI Course Tutor
+              AI Tutor
               <MessageCircle aria-hidden="true" className="w-4 h-4 text-gray-500" />
             </h3>
             <p id="ai-course-tutor-description" className="text-xs text-gray-500 [@media(max-height:32rem)]:sr-only">
@@ -560,7 +569,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
         <button
           type="button"
           onClick={handleCloseClick}
-          aria-label="Close AI Course Tutor"
+          aria-label="Close AI Tutor"
           className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
         >
           <X aria-hidden="true" className="w-4 h-4 text-gray-500" />
@@ -642,16 +651,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       <div className="flex min-w-0 flex-shrink-0 items-end gap-2 border-t bg-white px-4 py-3 [@media(max-height:32rem)]:p-2">
         <textarea
           ref={inputRef}
-          aria-label="Ask the AI Course Tutor a question"
+          aria-label="Ask the AI Tutor a question"
           rows={1}
-          className="min-h-11 min-w-0 max-h-24 flex-1 resize-none overflow-y-auto rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 [@media(max-height:32rem)]:max-h-12"
-          placeholder="Type your question... (Enter to send, Shift+Enter for new line)"
+          className="min-h-11 min-w-0 max-h-24 flex-1 resize-none overflow-y-auto rounded-md border border-gray-300 px-3 py-2 text-sm leading-6 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 [@media(max-height:32rem)]:max-h-12"
+          placeholder="Type your question..."
           value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            e.target.style.height = 'auto';
-            e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-          }}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           readOnly={isLoading}
         />
@@ -659,7 +664,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
           variant="primary"
           onClick={handleSend}
           disabled={isLoading || !input.trim()}
-          className="flex flex-shrink-0 items-center gap-1 [@media(max-height:32rem)]:px-3 [@media(max-height:32rem)]:py-2"
+          className="flex h-11 flex-shrink-0 items-center gap-1 [@media(max-height:32rem)]:px-3 [@media(max-height:32rem)]:py-2 [@media(max-height:32rem)]:h-auto"
         >
           {isLoading ? (
             <>
