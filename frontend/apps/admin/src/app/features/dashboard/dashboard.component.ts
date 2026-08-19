@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { NgApexchartsModule } from 'ng-apexcharts';
+import { NgApexchartsModule, type ApexOptions } from 'ng-apexcharts';
 import {
   AlertComponent,
   type BadgeVariant,
@@ -19,7 +19,6 @@ import {
   TeacherApplicationResponse,
 } from '@edumind/shared-types';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
-import type { ApexOptions } from 'apexcharts';
 import { GetInitialsPipe } from './get-initials.pipe';
 import { injectAsyncState, getStatusVariant } from '../../core/utils';
 
