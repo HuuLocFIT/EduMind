@@ -107,15 +107,15 @@ Lượt **đầy đủ** (toàn bộ bảng bên dưới) bắt buộc chạy í
 | # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | D1 | P0 | 1.3.1 | Vào text/article lesson | Heading/list/code structure giữ nguyên ngữ nghĩa sau khi render Markdown/HTML | Pass| | |
-| D2 | C | 1.3.1 | Nếu lesson có code block | Có ngữ cảnh/ngôn ngữ code được đọc hợp lý (không đọc như văn bản thường vô nghĩa) | | | |
-| D3 | P0 | 4.1.2 | Kích hoạt "Mark complete" | Có trạng thái loading/disabled; tên nút ổn định trong lúc xử lý | | | |
-| D4 | P0 | 4.1.3 | Sau khi complete | Có announce hoàn thành + progress mới; **không** double-submit khi bấm thêm lần nữa hoặc Enter lặp | | | |
-| D5 | P0 | 4.1.3, 2.2.1 | Nếu có auto-advance sang lesson kế | Có báo trước bằng text/announce (không tự chuyển đột ngột); **huỷ được bằng bàn phím**; đếm ngược không bị đọc lặp mỗi giây | | | |
+| D2 | C | 1.3.1 | Nếu lesson có code block | Có ngữ cảnh/ngôn ngữ code được đọc hợp lý (không đọc như văn bản thường vô nghĩa) | Pass| | |
+| D3 | P0 | 4.1.2 | Kích hoạt "Mark complete" | Có trạng thái loading/disabled; tên nút ổn định trong lúc xử lý | Pass| | |
+| D4 | P0 | 4.1.3 | Sau khi complete | Có announce hoàn thành + progress mới; **không** double-submit khi bấm thêm lần nữa hoặc Enter lặp | Pass| | |
+| D5 | P0 | 4.1.3, 2.2.1 | Nếu có auto-advance sang lesson kế | Có báo trước bằng text/announce (không tự chuyển đột ngột); **huỷ được bằng bàn phím**; đếm ngược không bị đọc lặp mỗi giây | Pass| | |
 | D6 | P0 | 1.3.1, 4.1.2 | Vào quiz lesson | Câu hỏi dùng fieldset/legend; đáp án dùng radio; chọn được bằng Arrow keys; chỉ chọn được 1 đáp án/câu (giới hạn hiện tại) | Pass| | |
-| D7 | P0 | 4.1.3, 3.3.1 | Nộp quiz | Kết quả được announce rõ (đúng/sai, điểm số); nếu chưa trả lời hết thì lỗi được đọc và focus tới câu còn thiếu | | | |
+| D7 | P0 | 4.1.3, 3.3.1 | Nộp quiz | Kết quả được announce rõ (đúng/sai, điểm số); nếu chưa trả lời hết thì lỗi được đọc và focus tới câu còn thiếu | Pass| | |
 | D8 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **lưu progress video** (chặn request autosave) | Lỗi hiển thị không chỉ dạng toast thoáng qua — có state/retry mà VoiceOver tiếp cận được, nêu rõ đang retry cho bài nào | | | |
 | D9 | P0 | 4.1.3, 3.3.3 | Giả lập lỗi **reconcile sau khi complete** (chặn request enrollment/progress) | Đây là recovery path khác D8 — thông báo và action retry phải phân biệt được, không lẫn với lỗi lưu progress | | | |
-| D10 | P0 | 4.1.2, 2.4.3 | Hoàn thành lesson cuối → dialog hoàn thành khóa học | Dialog có accessible name, focus vào trong khi mở, `Escape` đóng được, focus quay lại nội dung hợp lý; next action đọc rõ | | | |
+| D10 | P0 | 4.1.2, 2.4.3 | Hoàn thành lesson cuối → dialog hoàn thành khóa học | Dialog có accessible name, focus vào trong khi mở, `Escape` đóng được, focus quay lại nội dung hợp lý; next action đọc rõ | Pass| | |
 
 ## E. AI Tutor overlay (trong Course Player)
 

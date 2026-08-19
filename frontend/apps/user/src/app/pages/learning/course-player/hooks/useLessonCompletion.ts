@@ -35,6 +35,7 @@ interface UseLessonCompletionOptions {
    */
   onConfirmedCourseCompletion?: (complete: boolean) => void;
   reconcileEnrollmentProgress: (enrollmentId: number) => Promise<void>;
+  autoAdvanceDelaySeconds: number;
   startAutoAdvance: (nextLesson: LessonResponse) => void;
   clearAutoAdvance: () => void;
   stopAutosave: () => void;
@@ -58,6 +59,7 @@ export function useLessonCompletion({
   onProgressChange,
   onEnrollmentChange,
   reconcileEnrollmentProgress,
+  autoAdvanceDelaySeconds,
   startAutoAdvance,
   clearAutoAdvance,
   stopAutosave,
@@ -219,7 +221,11 @@ export function useLessonCompletion({
       const { progressPercentage } = calculateOptimisticCourseProgress(enrollment, lessons.length);
       const pct = progressPercentage ?? 0;
 
-      setCompletionAnnouncement(`${currentLesson.title} completed. Course progress is ${pct}%.`);
+      setCompletionAnnouncement(
+        nextLesson
+          ? `${currentLesson.title} completed. Course progress is ${pct}%. Moving to ${nextLesson.title} in ${autoAdvanceDelaySeconds} seconds. To remain on this lesson, activate Cancel auto-advance.`
+          : `${currentLesson.title} completed. Course progress is ${pct}%.`
+      );
 
       if (nextLesson) {
         startAutoAdvance(nextLesson);
@@ -289,6 +295,9 @@ export function useLessonCompletion({
     completionReconcileError,
     completionReconcileInFlight,
     completionAnnouncement,
+    announceAutoAdvanceCancelled: () => {
+      setCompletionAnnouncement('Auto-advance cancelled. Staying on the current lesson.');
+    },
     completeLesson,
     retryCompletionReconciliation,
   };

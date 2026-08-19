@@ -95,7 +95,7 @@
 /* Code blocks */
 .article-viewer__content [data-content-type="codeBlock"],
 .article-viewer__content pre {
-  background: #1e1e1e;
+  background: #0d1117;
   border-radius: 8px;
   margin: 1rem 0;
   max-width: 100%;
@@ -106,9 +106,50 @@
 }
 .article-viewer__content [data-content-type="codeBlock"] pre,
 .article-viewer__content pre {
-  color: #d4d4d4; font-size: 0.875rem; line-height: 1.6;
+  color: #e6edf3; font-size: 0.875rem; line-height: 1.6;
   padding: 1.25rem 1.5rem; overflow-x: auto; margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/*
+ * Syntax highlighting token colours (github-dark-default, background #0d1117).
+ *
+ * Article code blocks are highlighted once at save time by
+ * `article-code-highlight.ts`, which rewrites Shiki's inline `style="color:…"`
+ * to these classes so `ArticleViewer` never has to allow `style` through
+ * DOMPurify. Every colour below clears WCAG AA against the block background;
+ * a test in `article-code-highlight.test.ts` fails if the theme gains a colour
+ * that has no rule here.
+ */
+.article-viewer__content .shk-e6edf3 { color: #e6edf3; }
+.article-viewer__content .shk-8b949e { color: #8b949e; }
+.article-viewer__content .shk-ff7b72 { color: #ff7b72; }
+.article-viewer__content .shk-79c0ff { color: #79c0ff; }
+.article-viewer__content .shk-ffa657 { color: #ffa657; }
+.article-viewer__content .shk-d2a8ff { color: #d2a8ff; }
+.article-viewer__content .shk-7ee787 { color: #7ee787; }
+.article-viewer__content .shk-a5d6ff { color: #a5d6ff; }
+.article-viewer__content .shk-ffa198 { color: #ffa198; }
+.article-viewer__content .shk-f0f6fc { color: #f0f6fc; }
+/* Diff-only scope (markup.ignored); never emitted for ordinary source. */
+.article-viewer__content .shk-161b22 { color: #161b22; }
+
+.article-viewer__code-language {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #30363d;
+  border-radius: 0.5rem 0.5rem 0 0;
+  color: #e5e7eb;
+  background: #161b22;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.article-viewer__code-language + pre {
+  margin-top: 0;
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 
 .article-viewer__content pre code {

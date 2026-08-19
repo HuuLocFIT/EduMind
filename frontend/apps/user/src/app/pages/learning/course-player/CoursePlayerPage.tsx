@@ -40,7 +40,7 @@ export const CoursePlayerPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const quizModal = useModal();
 
-  const AUTO_ADVANCE_SECONDS = 5;
+  const AUTO_ADVANCE_SECONDS = 10;
 
   // Owned here (rather than inside useLessonNavigation) because
   // useCoursePlayerLayout also needs its value, and useLessonNavigation needs
@@ -130,7 +130,10 @@ export const CoursePlayerPage: React.FC = () => {
   const { autoAdvance, startAutoAdvance, clearAutoAdvance, cancelAutoAdvance } = useAutoAdvance({
     delaySeconds: AUTO_ADVANCE_SECONDS,
     onAdvance: (nextLesson, options) => navigation.selectLesson(nextLesson, options),
-    onCancelFocus: () => layout.focusLessonHeading(),
+    onCancelFocus: () => {
+      announceAutoAdvanceCancelled();
+      layout.focusLessonHeading();
+    },
     isDesktop: layout.isDesktop,
     resetKey: courseSlug,
   });
@@ -178,6 +181,7 @@ export const CoursePlayerPage: React.FC = () => {
     completionReconcileError,
     completionReconcileInFlight,
     completionAnnouncement,
+    announceAutoAdvanceCancelled,
     completeLesson,
   } = useLessonCompletion({
     currentLesson,
@@ -189,6 +193,7 @@ export const CoursePlayerPage: React.FC = () => {
     onProgressChange: setAllLessonProgress,
     onEnrollmentChange: setEnrollment,
     reconcileEnrollmentProgress,
+    autoAdvanceDelaySeconds: AUTO_ADVANCE_SECONDS,
     startAutoAdvance,
     clearAutoAdvance,
     stopAutosave,
@@ -318,6 +323,7 @@ export const CoursePlayerPage: React.FC = () => {
             <AutoAdvanceBanner
               nextLessonTitle={autoAdvance.nextLesson.title}
               secondsRemaining={autoAdvance.secondsRemaining}
+              announcement={completionAnnouncement}
               onGoNow={() => {
                 clearAutoAdvance();
                 navigation.selectLesson(autoAdvance.nextLesson, {
@@ -451,7 +457,9 @@ export const CoursePlayerPage: React.FC = () => {
 
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {navigation.lessonAnnouncement}
-        {completionAnnouncement}
+      </div>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {autoAdvance ? '' : completionAnnouncement}
       </div>
     </div>
   );

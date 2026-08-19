@@ -480,13 +480,13 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
 
   it('announces the completed lesson and reconciled percentage', async () => {
     vi.mocked(lessonProgressService.completeLesson).mockResolvedValue({} as any);
-    const { container } = await renderPage();
+    await renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
 
     await waitFor(() => {
-      expect(container.querySelector('.sr-only')).toHaveTextContent(
-        'Watch the video completed. Course progress is 33%.',
+      expect(screen.getByRole('button', { name: 'Go to next lesson now' })).toHaveAccessibleDescription(
+        /Watch the video completed\. Course progress is 33%\./,
       );
     });
   });
@@ -504,26 +504,54 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     expect(screen.queryByText(/Moving to/)).not.toBeInTheDocument();
 
     resolveComplete(completedProgress);
-    await waitFor(() => expect(screen.getByText(/Moving to Read the guide/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Lesson completed. Moving to Read the guide in 10 seconds.'),
+      ).toBeInTheDocument(),
+    );
   });
 
-  it('announces the 5-second auto-advance and supports cancel', async () => {
+  it('announces the 10-second auto-advance and supports cancel', async () => {
     vi.useFakeTimers();
     vi.mocked(lessonProgressService.completeLesson).mockResolvedValue({} as any);
-    const { container } = render(<CoursePlayerPage />);
+    render(<CoursePlayerPage />);
     await settlePage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
     await settlePage();
 
-    expect(
-      screen.getByText('Lesson completed. Moving to Read the guide in 5 seconds.'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Go to next lesson now' })).toBeInTheDocument();
+    const visualCountdown = screen.getByText(
+      'Lesson completed. Moving to Read the guide in 10 seconds.',
+    );
+    expect(visualCountdown).toBeInTheDocument();
+    expect(visualCountdown.closest('[aria-live]')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel auto-advance' }));
+    const completeAnnouncement = screen.getByText(
+      'Watch the video completed. Course progress is 33%. Moving to Read the guide in 10 seconds. To remain on this lesson, activate Cancel auto-advance.',
+    );
+    const goNowButton = screen.getByRole('button', { name: 'Go to next lesson now' });
+    expect(goNowButton).toHaveAttribute('aria-describedby', completeAnnouncement.id);
+
+    await advanceTimersAndFlush(16);
+    expect(goNowButton).toHaveFocus();
+
+    await advanceTimersAndFlush(1000);
+    expect(screen.getByText('Lesson completed. Moving to Read the guide in 9 seconds.')).toBeInTheDocument();
+    expect(completeAnnouncement).toHaveTextContent('Moving to Read the guide in 10 seconds.');
+
+    expect(goNowButton).toBeInTheDocument();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel auto-advance' });
+    cancelButton.focus();
+    // Keyboard activation of a native button dispatches a click with detail 0.
+    fireEvent.click(cancelButton, { detail: 0 });
+    await advanceTimersAndFlush(16);
     expect(screen.queryByText(/Moving to/)).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Watch the video' })).toBeInTheDocument();
+    expect(screen.getByText('Auto-advance cancelled. Staying on the current lesson.')).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Watch the video' })).toHaveFocus();
   });
 
   it('clears a stale auto-advance when the user manually navigates', async () => {
@@ -531,7 +559,11 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     await renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
-    await waitFor(() => expect(screen.getByText(/Moving to/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Lesson completed. Moving to Read the guide in 10 seconds.'),
+      ).toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /Next Lesson/ }));
     await waitFor(() =>
@@ -769,8 +801,9 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
 
     const heading = await screen.findByRole('heading', { name: 'Course completed' });
     await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(container.querySelector('.sr-only')).toHaveTextContent(
-      'Watch the video completed. Course progress is 100%.',
+    expect(screen.getByText('Watch the video completed. Course progress is 100%.')).toHaveAttribute(
+      'role',
+      'status',
     );
   });
 

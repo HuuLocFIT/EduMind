@@ -12,6 +12,7 @@ import type { LessonResponse, LessonResource } from "@edumind/shared-types";
 import { formatFileSize } from "@edumind/shared-utils";
 import { Modal, Button, Input, Textarea, FileUpload, useToast, type UploadedFile } from "@edumind/user-ui";
 import { RichTextEditor } from "../../../ui/RichTextEditor";
+import { highlightArticleCodeBlocks } from "../../../ui/article-code-highlight";
 import { VideoDropZone } from "./VideoDropZone";
 import { fileUploadService } from "../../../../services/file-upload.service";
 import { teacherCourseService } from "../../../../services/teacher-course.service";
@@ -70,6 +71,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
     resources: [],
   });
   const [uploadingResources, setUploadingResources] = useState(false);
+  const [highlighting, setHighlighting] = useState(false);
   const processedResourceFilesRef = useRef<Set<File>>(new Set());
 
   // Initialize form when modal opens or lesson changes
@@ -123,6 +125,27 @@ export const LessonModal: React.FC<LessonModalProps> = ({
       }
     } finally {
       setUploadingResources(false);
+    }
+  };
+
+  // Code blocks are syntax-highlighted once, here, so the student bundle never
+  // has to ship a highlighter and lesson code is coloured on first paint.
+  // A highlighter failure must not cost the teacher their edit, so the plain
+  // content is saved instead.
+  const handleSave = async () => {
+    if (highlighting) return;
+    if (!form.articleContent) {
+      onSave(form);
+      return;
+    }
+    setHighlighting(true);
+    try {
+      const articleContent = await highlightArticleCodeBlocks(form.articleContent);
+      onSave({ ...form, articleContent });
+    } catch {
+      onSave(form);
+    } finally {
+      setHighlighting(false);
     }
   };
 
@@ -364,8 +387,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           </Button>
           <Button
             variant="primary"
-            onClick={() => onSave(form)}
-            isLoading={saving}
+            onClick={handleSave}
+            isLoading={saving || highlighting}
             className="bg-green-600 hover:bg-green-700"
           >
             {editingLesson?.lesson ? "Update Lesson" : "Create Lesson"}

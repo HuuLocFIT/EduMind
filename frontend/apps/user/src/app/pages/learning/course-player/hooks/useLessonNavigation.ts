@@ -89,7 +89,12 @@ export function useLessonNavigation({
     const savedProgress = allLessonProgress.find((p) => p.lessonId === lesson.id);
     setVideoProgress(savedProgress?.watchPercentage ?? 0);
     setLessonHasQuiz(null);
-    setLessonAnnouncement(`Opened lesson: ${lesson.title}`);
+    // Moving focus to the new lesson heading already gives screen-reader
+    // users the navigation result. Only announce separately when the caller
+    // intentionally leaves focus where it is, avoiding a duplicate title.
+    setLessonAnnouncement(
+      pendingLessonFocusRef.current ? '' : `Opened lesson: ${lesson.title}`
+    );
     if (options.closeMobileSidebar) {
       setSidebarOpen(false);
     } else if (isCurrentLesson && pendingLessonFocusRef.current) {
