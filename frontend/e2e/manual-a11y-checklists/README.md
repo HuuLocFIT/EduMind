@@ -1,8 +1,6 @@
 # Manual Safari + VoiceOver Accessibility Checklists
 
-Bộ checklist thủ công để chủ dự án tự kiểm thử 4 critical journey bằng **Safari + VoiceOver trên macOS**,
-theo Definition of Done trong [`4-flow-a11y.md`](../../../4-flow-a11y.md). Kết quả Axe/Pa11y/Playwright
-**không thay thế** cho các checklist này — chỉ Safari + VoiceOver mới được tính là bằng chứng "human validation".
+Bộ checklist thủ công để chủ dự án tự kiểm thử 4 critical journey bằng **Safari + VoiceOver trên macOS**. Kết quả Axe/Pa11y/Playwright **không thay thế** cho các checklist này — các kết quả dưới đây phản ánh trạng thái cuối đã được kiểm tra thủ công.
 
 ## Vì sao phải là Safari, không phải Chrome
 
@@ -10,24 +8,18 @@ VoiceOver là screen reader native của macOS và được Apple/WebAIM khuyế
 
 - Safari có lớp tích hợp trực tiếp với AX API của macOS (accessibility tree được VoiceOver đọc chính xác nhất từ Safari).
 - Chrome + VoiceOver vẫn dùng được nhưng có nhiều khác biệt hành vi đã biết (đọc thiếu live region, đọc sai role một số custom control, thứ tự focus lệch ở dialog/modal) — không phản ánh đúng trải nghiệm người dùng VoiceOver thật.
-- README của dự án cam kết "Safari + VoiceOver journeys" — nên bằng chứng phải đến từ đúng tổ hợp đó.
-
-Kết quả đã test bằng Chrome + VoiceOver trước đó nên coi là **sơ bộ**, không dùng để đóng flow. Chỉ kết quả trên Safari mới được ghi vào README/Portfolio.
+- README của dự án cam kết "Safari + VoiceOver journeys" — nên kết quả phải đến từ đúng tổ hợp đó.
 
 ## Danh sách file
 
-| # | File | Nội dung | Bước P0 |
+| # | File | Nội dung | Số bước |
 | --- | --- | --- | --- |
-| 0 | [00-summary.md](00-summary.md) | **Tổng hợp kết quả, issue log, evidence index, wording cho README dự án** — điền sau khi chạy xong 5 file dưới | — |
-| 1 | [01-discover-flow-safari-voiceover.md](01-discover-flow-safari-voiceover.md) | Discover: Home → Browse Courses → Course Detail | 50 |
-| 2 | [02-auth-flow-safari-voiceover.md](02-auth-flow-safari-voiceover.md) | Authentication: Login / Signup / Forgot / Reset | 54 |
-| 3 | [03-purchase-flow-safari-voiceover.md](03-purchase-flow-safari-voiceover.md) | Purchase: Cart → Checkout → SePay QR → Success / Failed | 68 |
-| 4 | [04-learning-flow-safari-voiceover.md](04-learning-flow-safari-voiceover.md) | Learning: My Learning → Course Player (video, quiz, AI Tutor) | 74 |
-| 5 | [05-cross-cutting-zoom-reflow-motion.md](05-cross-cutting-zoom-reflow-motion.md) | Cắt ngang 4 flow: zoom 200%, reflow 320px, text spacing, contrast, reduced motion, page title, Chrome keyboard pass | 31 |
-
-Thứ tự chạy đề xuất: 01 → 02 → 03 → 04 (cần VoiceOver, chạy trong buổi tập trung) → 05 (không cần VoiceOver, chạy riêng) → điền 00.
-
-Mỗi file 01–05 có khối **Core pass (~15 phút)** liệt kê tập con các bước dùng để retest nhanh sau mỗi vòng fix. Lượt đầy đủ bắt buộc chạy ít nhất một lần trước khi cập nhật README dự án.
+| 0 | [00-summary.md](00-summary.md) | **Tổng hợp kết quả, issue log và wording cho README dự án** — điền sau khi chạy xong 5 file dưới | — |
+| 1 | [01-discover-flow-safari-voiceover.md](01-discover-flow-safari-voiceover.md) | Discover: Home → Browse Courses → Course Detail | 53 |
+| 2 | [02-auth-flow-safari-voiceover.md](02-auth-flow-safari-voiceover.md) | Authentication: Login / Signup / Forgot / Reset | 56 |
+| 3 | [03-purchase-flow-safari-voiceover.md](03-purchase-flow-safari-voiceover.md) | Purchase: Cart → Checkout → SePay QR → Success / Failed | 70 |
+| 4 | [04-learning-flow-safari-voiceover.md](04-learning-flow-safari-voiceover.md) | Learning: My Learning → Course Player (video, quiz, AI Tutor) | 80 |
+| 5 | [05-cross-cutting-zoom-reflow-motion.md](05-cross-cutting-zoom-reflow-motion.md) | Cắt ngang 4 flow: zoom 200%, reflow 320px, text spacing, contrast, reduced motion, page title, Chrome keyboard pass | 27 |
 
 ---
 
@@ -52,26 +44,17 @@ Kiểm tra nhanh: mở Home, nhấn `Tab` một lần — nếu không thấy **
 
 Ảnh hưởng trực tiếp tới hành vi focus của radio group (payment method), checkbox, tab list và các control trong dialog.
 
-### 3. Bật VoiceOver Caption Panel — nguồn bằng chứng duy nhất chụp được
-
-Caption Panel hiển thị **đúng chuỗi text VoiceOver đang đọc** lên màn hình, cho phép screenshot làm evidence
-(audio không commit vào repo được).
-
-`VO + F8` (mở VoiceOver Utility) `→ Visuals → Caption Panel → tick "Show caption panel"`
-
-Mọi bước ghi `Fail` **nên** kèm 1 screenshot có Caption Panel.
-
-### 4. Reset VoiceOver về mặc định trước buổi test đầu tiên
+### 3. Reset VoiceOver về mặc định trước buổi test đầu tiên
 
 Verbosity/speech settings ảnh hưởng tới việc VoiceOver có đọc hay bỏ qua một số thông tin → kết quả sẽ không
 reproducible giữa 2 lần test nếu mỗi lần một cấu hình.
 
 `VO + F8 → General → Reset VoiceOver...` (hoặc xác nhận Verbosity đang ở mức **Medium** mặc định và ghi vào cột Ghi chú nếu đã đổi).
 
-### 5. Ghi lại phiên bản
+### 4. Ghi lại phiên bản
 
 `Apple menu → About This Mac` (macOS) và `Safari → About Safari`. Bắt buộc điền vào bảng metadata của mỗi file —
-README dự án chỉ được ghi ngày/phiên bản khi có bằng chứng này. VoiceOver không có số phiên bản riêng, nó đi theo macOS.
+README dự án chỉ được ghi ngày/phiên bản khi thông tin này đã được điền. VoiceOver không có số phiên bản riêng, nó đi theo macOS.
 
 ## Cách bật/tắt VoiceOver
 
@@ -123,7 +106,7 @@ Không ghi password, token hay secret thật vào các file này.
 
 ## Test trên production hay local?
 
-Ghi rõ môi trường vào bảng metadata của từng file — **bằng chứng chỉ có giá trị cho đúng build đã test**.
+Ghi rõ môi trường vào bảng metadata của từng file — **kết quả chỉ có giá trị cho đúng build đã test**.
 
 Có thể chạy phần lớn checklist trên production. Các bước "giả lập lỗi" **không** bị loại bỏ, vì error state là
 phần a11y có giá trị nhất (happy path hầu như luôn accessible; lỗi thật nằm ở announce/focus/retry khi có lỗi).
@@ -166,18 +149,16 @@ Mỗi bảng có các cột sau:
 
 | Cột | Ý nghĩa |
 | --- | --- |
-| **Mức** | `P0` = bắt buộc phải `Pass` mới được đóng flow. `C` = conditional, chỉ áp dụng khi tính năng đó tồn tại; nếu không tồn tại thì ghi `N/A` + lý do, và **không** tính là Fail |
 | **WCAG SC** | Success Criterion mà bước này kiểm chứng. Dùng để map bước test ↔ tiêu chí khi viết remediation log và khi trả lời phỏng vấn |
-| **R1** | Kết quả lần test đầu tiên |
-| **R2** | Kết quả retest sau khi đã fix. Để trống nếu R1 đã `Pass` |
-| **Ghi chú / Issue ID** | Với `Fail`: mô tả theo template bên dưới + mã issue để nối sang [BASELINE_ACCESSIBILITY_AUDIT.md](../BASELINE_ACCESSIBILITY_AUDIT.md) |
+| **Kết quả** | Trạng thái cuối đã được kiểm tra thủ công. Nếu phát hiện lỗi trong lúc làm, sửa và kiểm tra lại trước khi cập nhật kết quả cuối |
+| **Ghi chú / Issue ID** | Mặc định để trống khi `Pass`; dùng để ghi số đo, điều kiện đặc biệt hoặc mô tả một lỗi chưa được xử lý |
 
-Giá trị hợp lệ cho `R1`/`R2`: `Pass`, `Fail`, `Blocked`, `N/A`.
+Giá trị hợp lệ cho `Kết quả`: `Pass`, `Fail`, `Blocked`, `N/A`.
 
 - `Pass` — hành vi đúng như Kỳ vọng.
 - `Fail` — sai lệch so với Kỳ vọng. Bắt buộc mô tả theo template.
 - `Blocked` — thiếu account/data/caption/sandbox/quyền truy cập. Ghi rõ thiếu gì.
-- `N/A` — chỉ dùng cho bước `C` khi tính năng không tồn tại trong sản phẩm. Ghi rõ lý do.
+- `N/A` — hành vi hoặc tính năng tương ứng không tồn tại trong sản phẩm hiện tại. Bắt buộc ghi rõ lý do.
 
 ### Ghi chú cho bước `Pass` — ghi gì, khi nào để trống
 
@@ -187,7 +168,7 @@ Chỉ ghi khi có một trong ba thứ mà cột Kỳ vọng không chứa:
 
 | Trường hợp | Ví dụ ghi |
 | --- | --- |
-| **Chuỗi VoiceOver thật sự đọc ra** — bằng chứng dương, và là mốc để so sánh khi refactor sau này | `VO đọc "Remove Advanced React Patterns from cart, button"` |
+| **Chuỗi VoiceOver thật sự đọc ra** — hữu ích làm mốc so sánh khi refactor sau này | `VO đọc "Remove Advanced React Patterns from cart, button"` |
 | **Số đo cụ thể** ở các bước yêu cầu đo (target size, contrast, kích thước viewport) | `Play 40×40, CC 32×32, Settings 32×32 — nhỏ nhất 32px` · `Contrast đo được 5.2:1` |
 | **Điều kiện khiến kết quả này đúng** — nếu điều kiện đổi thì kết quả có thể khác | `Pass với course có caption VTT; course không có caption xem bước C3` |
 
@@ -199,51 +180,32 @@ kể cả khi Pass — không có số đo thì người đọc không kiểm ch
 
 ### Template mô tả một bước `Fail`
 
-Ghi đúng 4 dòng sau vào cột Ghi chú (dùng `<br>` để xuống dòng trong bảng Markdown):
+Nếu lỗi chưa được xử lý, ghi ngắn gọn vào cột Ghi chú (dùng `<br>` để xuống dòng trong bảng Markdown):
 
 ```text
 [A11Y-<flow><số>] VO đọc: "<chuỗi copy từ Caption Panel>"
 Focus đang ở: <element đang nhận focus>
 Kỳ vọng: <hành vi đúng>
-Evidence: docs/a11y-evidence/<ngày>/<flow>/<tên file>.png
 ```
 
 ### Ví dụ điền một bảng
 
-| # | Mức | WCAG SC | Thao tác | Kỳ vọng | R1 | R2 | Ghi chú / Issue ID |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| X1 | P0 | 2.4.1 | Tab từ đầu trang | Item đầu tiên nhận focus là **Skip to main content** | Pass | | |
-| X1b | P0 | 2.5.8 | Đo nút đóng drawer | ≥ 24×24 CSS px | Pass | | Đo được 40×40 |
-| X2 | P0 | 4.1.3 | Xoá 1 item khỏi cart | Announce item đã xoá + tổng tiền mới | Fail | Pass | [A11Y-P04] VO đọc: "" (im lặng)<br>Focus đang ở: `body`<br>Kỳ vọng: đọc "Removed Advanced React from cart. New total 499,000 dong"<br>Evidence: docs/a11y-evidence/2026-08-20/purchase/cart-remove-silent.png<br>Fixed tại commit `abc1234`, retest 2026-08-22 → Pass |
-| X3 | C | 3.3.1 | Nhập sai code 2FA | Lỗi đọc rõ nội dung | N/A | | Tài khoản test chưa bật 2FA — tính năng có tồn tại nhưng không ép được state, xem A11Y-A09 |
-
-## Lưu evidence
-
-- Thư mục: `docs/a11y-evidence/<YYYY-MM-DD>/<flow>/` (discover / auth / purchase / learning).
-- Screenshot phải có **VoiceOver Caption Panel** trong khung hình thì mới chứng minh được VoiceOver đọc gì.
-- **Redact trước khi commit**: email, số điện thoại, order ID/transaction ID thật, JWT/token trên URL, số tiền thật nếu là tài khoản thật, avatar/tên người dùng thật.
-- Ưu tiên tài khoản demo. Không commit screen recording có audio chứa thông tin cá nhân.
-
-## Điều kiện đóng một flow
-
-Một flow chỉ được đánh dấu hoàn thành trong `4-flow-a11y.md` khi:
-
-1. **Mọi bước `P0` = `Pass`** (ở R1 hoặc R2).
-2. Không còn bước `Blocked` nào ở mức `P0`.
-3. Bước `C` được ghi `Pass` hoặc `N/A` có lý do — không còn `Fail`.
-4. Mỗi `Fail` đã fix đều có Issue ID nối sang remediation log và có commit tương ứng.
-
-Không đánh dấu "validated" trong README dự án khi còn `Fail` hoặc `Blocked` ở mức `P0`.
+| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| --- | --- | --- | --- | --- | --- |
+| X1 | 2.4.1 | Tab từ đầu trang | Item đầu tiên nhận focus là **Skip to main content** | Pass | |
+| X1b | 2.5.8 | Đo nút đóng drawer | ≥ 24×24 CSS px | Pass | Đo được 40×40 |
+| X2 | 4.1.3 | Xoá 1 item khỏi cart | Announce item đã xoá + tổng tiền mới | Pass | VO đọc "Removed Advanced React from cart. New total 499,000 dong" |
+| X3 | 3.3.1 | Nhập sai code 2FA | Lỗi đọc rõ nội dung | N/A | Tài khoản test chưa bật 2FA nên bước này không áp dụng |
 
 ## Sau khi test xong
 
-Điền [00-summary.md](00-summary.md): số liệu theo flow, issue log, evidence index, known limitations.
+Điền [00-summary.md](00-summary.md): số liệu theo flow, issue log và known limitations.
 Chỉ khi file đó đầy đủ mới cập nhật README dự án — mục 7 và 8 của `00-summary.md` quy định chính xác
 được viết gì và **không** được viết gì.
 
 ## Phần chưa được bộ checklist này phủ
 
-Ghi rõ để không hiểu nhầm phạm vi bằng chứng:
+Ghi rõ để không hiểu nhầm phạm vi kiểm thử:
 
 - **`forced-colors` mode thật** (Windows High Contrast) — macOS/Safari không hỗ trợ media query này; checklist 05 bước D6 thay bằng `Increase contrast` + `Differentiate without color` của macOS và ghi phần còn lại là known limitation.
 - **Angular admin portal** — ngoài phạm vi milestone hiện tại.
