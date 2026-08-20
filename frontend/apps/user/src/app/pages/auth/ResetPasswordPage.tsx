@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -32,16 +32,23 @@ const resetPasswordSchema = z
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
+type TokenState = 'validating' | 'valid' | 'invalid' | 'unavailable';
+
 function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
+  const [tokenState, setTokenState] = useState<TokenState>(
+    token ? 'validating' : 'invalid'
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
-  const [invalidToken, setInvalidToken] = useState(false);
   const [error, setError] = useState("");
   const stateHeadingRef = useRef<HTMLHeadingElement>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
+
+  // Use ref to prevent duplicate validation calls in Strict Mode
+  const hasVerifiedRef = useRef(false);
 
   const {
     register,
@@ -54,9 +61,48 @@ function ResetPasswordPage() {
 
   const password = watch("password");
 
+  const validateToken = useCallback(async (resetToken: string) => {
+    setTokenState('validating');
+    try {
+      await authService.validateResetToken(resetToken);
+      setTokenState('valid');
+    } catch (err: any) {
+      if (err?.status === 400) {
+        setTokenState('invalid');
+      } else {
+        setTokenState('unavailable');
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    if (!token || invalidToken || resetSuccess) stateHeadingRef.current?.focus();
-  }, [invalidToken, resetSuccess, token]);
+    // Prevent duplicate validation calls in Strict Mode
+    if (hasVerifiedRef.current) {
+      return;
+    }
+
+    if (token) {
+      hasVerifiedRef.current = true;
+      validateToken(token);
+    }
+  }, [token, validateToken]);
+
+  const handleRetry = () => {
+    if (!token) return;
+    hasVerifiedRef.current = true;
+    validateToken(token);
+  };
+
+  useEffect(() => {
+    if (
+      tokenState === 'invalid' ||
+      tokenState === 'unavailable' ||
+      tokenState === 'validating' ||
+      tokenState === 'valid'
+    ) {
+      stateHeadingRef.current?.focus();
+    }
+  }, [tokenState, resetSuccess]);
 
   const onInvalid = () => {
     requestAnimationFrame(() => errorSummaryRef.current?.focus());
@@ -74,20 +120,46 @@ function ResetPasswordPage() {
         confirmPassword: data.confirmPassword,
       });
       setResetSuccess(true);
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Failed to reset password. The link may have expired.";
-      setError(errorMessage);
-      setInvalidToken(true);
+    } catch (err: any) {
+      if (err?.status === 400) {
+        setTokenState('invalid');
+      } else {
+        const errorMessage =
+          err?.message || "Failed to reset password. Please try again.";
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Token validation
-  if (!token || invalidToken) {
+  // Checking reset link
+  if (tokenState === 'validating') {
+    return (
+      <Card
+        variant="elevated"
+        padding="lg"
+        className="max-w-md w-full text-center"
+      >
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+        <h1
+          ref={stateHeadingRef}
+          tabIndex={-1}
+          className="text-2xl font-bold text-gray-800 mb-2 focus:outline-none"
+        >
+          Checking reset link…
+        </h1>
+        <p role="status" className="text-gray-600">
+          Please wait while we verify your reset link.
+        </p>
+      </Card>
+    );
+  }
+
+  // Invalid / expired token
+  if (tokenState === 'invalid') {
     return (
       <Card
         variant="elevated"
@@ -126,6 +198,50 @@ function ResetPasswordPage() {
         >
           Request New Link
         </Link>
+      </Card>
+    );
+  }
+
+  // Service/network error while validating the token
+  if (tokenState === 'unavailable') {
+    return (
+      <Card
+        variant="elevated"
+        padding="lg"
+        className="max-w-md w-full text-center"
+      >
+        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-10 h-10 text-yellow-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+            />
+          </svg>
+        </div>
+        <h1
+          ref={stateHeadingRef}
+          tabIndex={-1}
+          className="text-2xl font-bold text-gray-800 mb-2 focus:outline-none"
+        >
+          Unable to Check Reset Link
+        </h1>
+        <p className="text-gray-600 mb-6">
+          We couldn't reach the server to verify your reset link. This is a
+          temporary problem — your link may still be valid.
+        </p>
+        <Button variant="primary" fullWidth onClick={handleRetry}>
+          Retry
+        </Button>
+        <div className="mt-4">
+          <AuthBackLink to={USER_ROUTES.LOGIN} />
+        </div>
       </Card>
     );
   }
@@ -186,7 +302,11 @@ function ResetPasswordPage() {
     <div className="w-full max-w-md">
       {/* Page intro */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <h1
+          ref={stateHeadingRef}
+          tabIndex={-1}
+          className="text-4xl font-bold text-gray-900 mb-2 focus:outline-none"
+        >
           Reset Password
         </h1>
         <p className="text-gray-600">Create a new password</p>
@@ -214,6 +334,9 @@ function ResetPasswordPage() {
             className="mb-4"
           />
         )}
+
+        {/* Submission error (network/5xx) - keeps the form visible */}
+        {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>

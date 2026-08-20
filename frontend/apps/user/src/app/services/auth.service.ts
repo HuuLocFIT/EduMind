@@ -76,6 +76,14 @@ export const authService = {
     return response.data;
   },
 
+  async validateResetToken(token: string): Promise<{ email: string }> {
+    const response = await apiClient.get<{ email: string }>(
+      AUTH_ENDPOINTS.VALIDATE_RESET_TOKEN,
+      { params: { token } }
+    );
+    return response.data;
+  },
+
   // ========== EMAIL VERIFICATION ==========
 
   async verifyEmail(token: string): Promise<MessageResponse> {

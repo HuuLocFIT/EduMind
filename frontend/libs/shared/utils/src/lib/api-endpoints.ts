@@ -27,6 +27,7 @@ export const AUTH_ENDPOINTS = {
   // Password Reset
   FORGOT_PASSWORD: `${API_BASE_PATH}/auth/password/forgot`,
   RESET_PASSWORD: `${API_BASE_PATH}/auth/password/reset`,
+  VALIDATE_RESET_TOKEN: `${API_BASE_PATH}/auth/password/validate-token`,
   
   // Email Verification
   VERIFY_EMAIL: `${API_BASE_PATH}/auth/verify-email`,

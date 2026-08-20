@@ -20,6 +20,7 @@ vi.mock('@edumind/shared-utils', () => ({
     REFRESH: '/auth/refresh',
     FORGOT_PASSWORD: '/auth/password/forgot',
     RESET_PASSWORD: '/auth/password/reset',
+    VALIDATE_RESET_TOKEN: '/auth/password/validate-token',
     VERIFY_EMAIL: '/auth/verify-email',
     RESEND_VERIFICATION: '/auth/resend-verification',
     SETUP_2FA: '/auth/2fa/setup',
@@ -154,6 +155,27 @@ describe('authService', () => {
 
       expect(apiClient.post).toHaveBeenCalledWith('/auth/password/reset', resetData);
       expect(result).toEqual(mockResponse.data);
+    });
+  });
+
+  describe('validateResetToken', () => {
+    it('should call validate-token endpoint with correct URL and params on 200', async () => {
+      const mockResponse = { data: { email: 'test@example.com' } };
+      vi.mocked(apiClient.get).mockResolvedValue(mockResponse);
+
+      const result = await authService.validateResetToken('reset-token');
+
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/password/validate-token', {
+        params: { token: 'reset-token' },
+      });
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('should propagate errors without catching them', async () => {
+      const error = { message: 'Bad Request', status: 400 };
+      vi.mocked(apiClient.get).mockRejectedValue(error);
+
+      await expect(authService.validateResetToken('expired-token')).rejects.toEqual(error);
     });
   });
 
