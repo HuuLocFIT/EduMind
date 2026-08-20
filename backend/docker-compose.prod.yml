@@ -11,13 +11,17 @@ services:
     # edumind-network. Use `docker compose exec` or an SSH tunnel to open the dashboard.
     expose:
       - "${DISCOVERY_SERVER_PORT:-8761}"
+    # EUREKA_USERNAME/EUREKA_PASSWORD come from env_file, like every other
+    # service — keeps credential parsing identical everywhere. Resolving
+    # them here via ${VAR} instead goes through compose's separate
+    # variable-substitution parser, which can disagree with env_file's
+    # parser on values containing special characters and silently
+    # register a different password than the other services send.
+    env_file: .env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - DISCOVERY_SERVER_PORT=${DISCOVERY_SERVER_PORT:-8761}
       - EUREKA_HOSTNAME=discovery-service
-      # Required — the prod profile has no default credentials.
-      - EUREKA_USERNAME=${EUREKA_USERNAME:?EUREKA_USERNAME is required}
-      - EUREKA_PASSWORD=${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
       - JAVA_OPTS=${DISCOVERY_JAVA_OPTS:--XX:MaxRAMPercentage=75.0}
     volumes:
       - discovery-logs:/app/logs
