@@ -2,19 +2,28 @@ import { useEffect, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthLayout } from "./AuthLayout";
 import { MainLayout } from "./MainLayout";
 
-vi.mock("../stores/auth.store", () => {
-  const state = {
+const mockAuthState = vi.hoisted(() => ({
+  state: {
     isAuthenticated: false,
-    user: null,
+    user: null as null | {
+      firstName: string;
+      lastName: string;
+      email: string;
+      profilePictureUrl?: string;
+      roles: string[];
+    },
     logout: vi.fn(),
-  };
+  },
+}));
+
+vi.mock("../stores/auth.store", () => {
   return {
-    useAuthStore: (selector?: (value: typeof state) => unknown) =>
-      selector ? selector(state) : state,
+    useAuthStore: (selector?: (value: typeof mockAuthState.state) => unknown) =>
+      selector ? selector(mockAuthState.state) : mockAuthState.state,
   };
 });
 
@@ -32,6 +41,12 @@ vi.mock("../components/Seo/SeoMetaTags", () => ({
 }));
 
 describe("layout accessibility contracts", () => {
+  beforeEach(() => {
+    mockAuthState.state.isAuthenticated = false;
+    mockAuthState.state.user = null;
+    mockAuthState.state.logout.mockReset();
+  });
+
   const DeferredHeading = () => {
     const [ready, setReady] = useState(false);
 
@@ -97,6 +112,63 @@ describe("layout accessibility contracts", () => {
     expect(screen.getAllByRole("main")).toHaveLength(1);
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();
     expect(screen.getByRole("contentinfo", { name: "Site footer" })).toBeInTheDocument();
+  });
+
+  it("keeps authenticated account menus within the viewport and keyboard operable", async () => {
+    mockAuthState.state.isAuthenticated = true;
+    mockAuthState.state.user = {
+      firstName: "Test",
+      lastName: "Student",
+      email: "student@example.com",
+      roles: [],
+    };
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={["/courses"]}>
+        <Routes>
+          <Route path="/courses" element={<MainLayout />}>
+            <Route index element={<h1>Courses</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Open navigation menu" }),
+    );
+    expect(
+      screen.getByRole("navigation", { name: "Mobile navigation" }),
+    ).toHaveClass(
+      "max-h-[calc(100dvh-4rem)]",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+
+    const trigger = screen.getByRole("button", { name: "User menu" });
+    await user.click(trigger);
+    const accountMenu = screen.getByRole("menu", {
+      name: "User account options",
+    });
+    expect(accountMenu).toHaveClass(
+      "max-h-[calc(100dvh-5rem)]",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+
+    const dashboard = screen.getByRole("menuitem", { name: "Dashboard" });
+    const learning = screen.getByRole("menuitem", { name: "My Learning" });
+    const logout = screen.getByRole("menuitem", { name: "Logout" });
+    await waitFor(() => expect(dashboard).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    expect(learning).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(logout).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(dashboard).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(accountMenu).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   it("provides a skip target and single main landmark in AuthLayout", async () => {

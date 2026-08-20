@@ -13,6 +13,8 @@ import type {
 } from '@edumind/shared-types';
 import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
 import { CourseAccessErrorDialog } from './components/CourseAccessErrorDialog';
+import { CoursePlayerHeader } from './components/CoursePlayerHeader';
+import { LessonNavigation } from './components/LessonNavigation';
 import { CoursePlayerPage } from './CoursePlayerPage';
 
 const assertNoSeriousViolations = async (container: HTMLElement) => {
@@ -332,6 +334,42 @@ const lessons = [
 ] as LessonResponse[];
 
 describe('CoursePlayer accessibility', () => {
+  it('uses compact player controls on short viewports without changing their accessible names', () => {
+    render(
+      <>
+        <CoursePlayerHeader
+          courseTitle="Accessible React"
+          progressPercentage={40}
+          sidebarOpen={false}
+          sidebarToggleRef={createRef<HTMLButtonElement>()}
+          onExit={vi.fn()}
+          onToggleSidebar={vi.fn()}
+        />
+        <LessonNavigation
+          hasPrevious
+          hasNext
+          onPrevious={vi.fn()}
+          onNext={vi.fn()}
+          previousLessonTitle="Intro"
+          nextLessonTitle="Quiz"
+        />
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: /Exit course player/ })).toHaveClass(
+      '[@media(max-height:32rem)]:h-10',
+    );
+    expect(screen.getByRole('banner')).toHaveClass('[@media(max-height:32rem)]:static');
+    expect(screen.getByRole('button', { name: 'Previous Lesson: Intro' })).toHaveClass(
+      '[@media(max-height:32rem)]:h-10',
+      '[@media(max-height:32rem)]:w-full',
+    );
+    expect(screen.getByRole('button', { name: 'Next Lesson: Quiz' })).toHaveClass(
+      '[@media(max-height:32rem)]:h-10',
+      '[@media(max-height:32rem)]:w-full',
+    );
+  });
+
   it('labels desktop curriculum navigation and exposes semantic lesson lists', () => {
     renderSidebar();
 
@@ -367,15 +405,31 @@ describe('CoursePlayer accessibility', () => {
   it('renders mobile curriculum as a modal, traps focus, and closes on Escape', async () => {
     const { onClose } = renderSidebar({ isDesktop: false });
     const dialog = screen.getByRole('dialog', { name: 'Course Content' });
-    const first = screen.getByRole('button', { name: /Introduction/ });
+    const close = screen.getByRole('button', { name: 'Close course content' });
     const last = screen.getByRole('button', { name: /Knowledge check/ });
 
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(first).toHaveFocus();
+    expect(dialog).toHaveClass(
+      'h-[calc(100dvh-4rem)]',
+      'max-w-sm',
+      'overflow-hidden',
+      'xl:w-80',
+      'xl:max-w-none',
+    );
+    expect(close).toHaveFocus();
+    expect(document.body).toHaveStyle({ overflow: 'hidden' });
     last.focus();
     await userEvent.tab();
-    expect(first).toHaveFocus();
+    expect(close).toHaveFocus();
     await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('provides a visible close action inside the mobile curriculum', async () => {
+    const { onClose } = renderSidebar({ isDesktop: false });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close course content' }));
+
     expect(onClose).toHaveBeenCalledOnce();
   });
 

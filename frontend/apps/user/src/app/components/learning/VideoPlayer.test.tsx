@@ -150,6 +150,9 @@ describe('VideoPlayer accessibility', () => {
     expect(screen.getByRole('button', { name: 'Mute video' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Captions' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toBeInTheDocument();
+    expect(screen.getByRole('timer', { name: 'Elapsed time 0:00 of 1:40' })).toHaveClass(
+      '[@media(max-width:360px)_and_(max-height:32rem)]:sr-only',
+    );
   });
 
   it('updates play/pause through Space and K shortcuts', () => {

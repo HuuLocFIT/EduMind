@@ -32,7 +32,7 @@ import { EmailVerificationPage } from './EmailVerificationPage';
 
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
@@ -59,6 +59,7 @@ vi.mock('lucide-react', () => ({
   XCircle: () => <span>✗</span>,
   Mail: () => <span>📧</span>,
   GraduationCap: () => <span>🎓</span>,
+  HelpCircle: () => <span>?</span>,
 }));
 
 // Mock window.prompt

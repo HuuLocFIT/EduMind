@@ -129,6 +129,30 @@ describe('CartDrawer', () => {
     expect(screen.getByText('2')).toHaveAttribute('aria-hidden', 'true');
   });
 
+  it('keeps cart items scrollable and compacts actions on short viewports', () => {
+    (useCart as any).mockReturnValue({
+      data: {
+        items: [{ courseId: 1, courseTitle: 'React Course', effectivePrice: 100 }],
+        totalAmount: 100,
+        currency: 'USD',
+      },
+      isLoading: false,
+    });
+
+    render(<CartDrawer {...defaultProps} />);
+
+    const dialog = screen.getByRole('dialog', { name: 'Shopping Cart, 1 item' });
+    const itemList = screen.getByRole('list', { name: 'Courses in your cart' });
+    const actions = screen.getByText('Checkout').parentElement;
+
+    expect(dialog).toHaveClass('h-dvh', 'max-h-dvh', 'overflow-hidden');
+    expect(itemList.parentElement).toHaveClass('min-h-0', 'overflow-y-auto');
+    expect(actions).toHaveClass(
+      '[@media(max-height:32rem)]:grid',
+      '[@media(max-height:32rem)]:grid-cols-2',
+    );
+  });
+
   it('uses singular item wording in the dialog name', () => {
     (useCart as any).mockReturnValue({
       data: {

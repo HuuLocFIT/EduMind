@@ -681,6 +681,23 @@ describe('CheckoutPage', () => {
       expect(screen.getAllByText('100.00 US dollars')).toHaveLength(2);
     });
 
+    it('contains payment methods within the card at narrow widths', () => {
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+
+      render(<CheckoutPage />);
+
+      const group = screen.getByRole('group', { name: 'Payment Method' });
+      const paypalOption = screen.getByRole('radio', { name: /PayPal/i }).closest('label');
+
+      expect(group).toHaveClass('min-w-0', 'max-w-full');
+      expect(paypalOption).toHaveClass(
+        'box-border',
+        'min-w-0',
+        'max-w-full',
+        'overflow-hidden',
+      );
+    });
+
     it('exposes understandable amounts and hides decorative security icons', () => {
       const previewWithAdjustments = {
         ...mockCartPreviewData,
