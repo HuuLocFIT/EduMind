@@ -3,9 +3,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 /**
  * Headless UI keeps the page behind a closing dialog inert for the length of
  * its 300 ms exit transition, so nothing focused or announced before that has
- * any effect for assistive technology.
+ * any effect for assistive technology. Headless UI's own Dialog also restores
+ * focus to whatever was focused before it opened once that transition ends
+ * (its `RestoreFocus` behavior, always on for `Dialog`) — this value must
+ * stay comfortably above 300 ms so our focus move always lands after that
+ * restore, not before it.
  */
-export const DIALOG_EXIT_MS = 350;
+export const DIALOG_EXIT_MS = 500;
 
 /**
  * VoiceOver/WebKit preempt the pending `aria-live="polite"` queue whenever

@@ -19,13 +19,29 @@ export function useFocusTrap(isActive: boolean, onClose?: () => void, isSuspende
     const container = containerRef.current;
     if (!container) return;
 
-    const focusableElements = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-    const firstFocusable = focusableElements[0];
-    if (firstFocusable) {
-      firstFocusable.focus();
+    const focusFirst = () => {
+      const focusableElements = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      const firstFocusable = focusableElements[0];
+      if (firstFocusable && document.activeElement !== firstFocusable) {
+        firstFocusable.focus();
+      }
+      return firstFocusable;
+    };
+
+    const firstFocusable = focusFirst();
+
+    // If the synchronous attempt above didn't stick, retry once next frame:
+    // this effect can fire while an ancestor (e.g. CoursePlayerBoot's
+    // loading-handoff wrapper) is still `hidden`, which makes every
+    // descendant unfocusable and silently no-ops .focus() — with no later
+    // retry otherwise, since this effect only re-runs on `isActive` change.
+    let frame: number | null = null;
+    if (firstFocusable && document.activeElement !== firstFocusable) {
+      frame = requestAnimationFrame(focusFirst);
     }
 
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
       previousActiveElement.current?.focus();
     };
   }, [isActive]);

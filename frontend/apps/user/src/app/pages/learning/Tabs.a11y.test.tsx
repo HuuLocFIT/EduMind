@@ -39,7 +39,7 @@ describe('shared Tabs accessibility', () => {
     const tabs = screen.getAllByRole('tab');
 
     expect(tablist).toHaveClass(
-      'w-full',
+      'inline-flex',
       'max-w-full',
       'overflow-x-auto',
       'overflow-y-hidden',

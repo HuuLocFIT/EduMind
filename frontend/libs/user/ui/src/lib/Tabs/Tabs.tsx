@@ -161,7 +161,7 @@ export const TabsList: React.FC<TabsListProps> = ({
       aria-labelledby={ariaLabelledBy}
       onKeyDown={handleKeyDown}
       className={clsx(
-        "flex w-full max-w-full items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-b border-gray-200",
+        "inline-flex max-w-full items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-b border-gray-200",
         className,
       )}
     >

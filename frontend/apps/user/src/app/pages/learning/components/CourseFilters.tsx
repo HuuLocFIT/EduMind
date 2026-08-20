@@ -32,7 +32,7 @@ export const CourseFilters: React.FC<CourseFiltersProps> = ({
         </div>
       <TabsList
         aria-labelledby="my-courses-heading"
-        className="flex items-center gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-slate-200"
+        className="items-center gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-slate-200"
       >
         {tabs.map((tab) => (
           <TabsTrigger

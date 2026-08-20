@@ -246,8 +246,8 @@ export const SignupPage = () => {
                         passwordStrength.color === "red"
                           ? "text-red-600"
                           : passwordStrength.color === "yellow"
-                          ? "text-yellow-600"
-                          : "text-green-600"
+                          ? "text-yellow-700"
+                          : "text-green-700"
                       }`}
                     >
                       Strength: {passwordStrength.label}

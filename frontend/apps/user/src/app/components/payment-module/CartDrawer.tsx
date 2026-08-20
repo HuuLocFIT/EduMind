@@ -58,6 +58,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const handleRemove = (courseId: number) => {
+    // Headless UI's Dialog restores focus to whatever was focused right
+    // before it opened once it closes. Left alone, that target is this row's
+    // own remove button, which the optimistic removal unmounts before the
+    // restore runs — so focus is dropped instead of handed to the successor
+    // row. Moving focus to the stable drawer heading first gives the restore
+    // something that's still there.
+    drawerHeadingRef.current?.focus({ preventScroll: true });
     setCoursePendingRemoval(courseId);
   };
 
