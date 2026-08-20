@@ -5,6 +5,7 @@ import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.PasswordResetTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
+import com.edumind.common.exception.TooManyRequestsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,8 @@ import java.util.UUID;
 public class PasswordResetService {
     private static final Logger logger = LoggerFactory.getLogger(PasswordResetService.class);
 
+    private static final int MAX_RESET_REQUESTS_PER_HOUR = 3;
+
     @Autowired
     private PasswordResetTokenRepository tokenRepository;
 
@@ -33,6 +36,9 @@ public class PasswordResetService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private PasswordResetRateLimiter rateLimiter;
+
     @Value("${app.auth.password-reset-expiration:3600000}") // 1 hour default
     private long expirationMs;
 
@@ -43,6 +49,25 @@ public class PasswordResetService {
     public void requestPasswordReset(String email, HttpServletRequest request) {
         logger.info("📧 Password reset requested for email: {}", email);
 
+        // Rate limit BEFORE looking up the user, keyed by hash(email), so that a non-existent
+        // email is throttled identically to an existing one. Doing this after findByEmail (and
+        // only for emails that exist) would make the rate limiter's response code a
+        // user-enumeration oracle.
+        //
+        // This increments once, unconditionally, before the limit check. That is safe ONLY
+        // because this is a FIXED window: the bucket resets on its own every hour, so an
+        // increment that "wastes" a slot on a request we're about to reject still self-heals.
+        // If this is ever migrated to a SLIDING window, this ordering becomes UNSAFE - a
+        // rejected/hammering client would keep incrementing forever and permanently starve
+        // itself, since a sliding window never resets independently of new attempts. Any future
+        // switch to sliding-window rate limiting must revisit this ordering.
+        String emailHash = rateLimiter.hashEmail(email);
+        int attempts = rateLimiter.incrementAndGet(emailHash);
+        if (attempts > MAX_RESET_REQUESTS_PER_HOUR) {
+            logger.warn("⚠️ Too many password reset requests for hashed email bucket");
+            throw new TooManyRequestsException("Too many password reset requests. Please try again later.");
+        }
+
         // Find user (don't reveal if user exists or not for security)
         User user = userRepository.findByEmail(email).orElse(null);
 
@@ -50,13 +75,6 @@ public class PasswordResetService {
             logger.warn("⚠️ Password reset requested for non-existent email: {}", email);
             // Still return success to prevent email enumeration
             return;
-        }
-
-        // Check rate limiting - prevent spam (max 3 requests per hour)
-        int recentTokenCount = tokenRepository.countByUserAndUsedFalse(user);
-        if (recentTokenCount >= 3) {
-            logger.warn("⚠️ Too many reset requests for user: {}", email);
-            throw new BadRequestException("Too many password reset requests. Please try again later.");
         }
 
         // Generate token

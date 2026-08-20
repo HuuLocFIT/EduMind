@@ -1,6 +1,7 @@
 package com.edumind.auth.scheduler;
 
 import com.edumind.auth.service.EmailVerificationService;
+import com.edumind.auth.service.PasswordResetRateLimiter;
 import com.edumind.auth.service.PasswordResetService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,12 @@ public class TokenCleanupScheduler {
 
     @Autowired
     private PasswordResetService passwordResetService;
+
+    @Autowired
+    private PasswordResetRateLimiter passwordResetRateLimiter;
+
+    /** Retention window for password reset rate-limit buckets. */
+    private static final long PASSWORD_RESET_BUCKET_RETENTION_HOURS = 24;
 
     /**
      * Cleanup expired email verification tokens
@@ -51,6 +58,13 @@ public class TokenCleanupScheduler {
             logger.info("✅ Cleanup completed: {} password reset tokens deleted", deleted);
         } catch (Exception e) {
             logger.error("❌ Error during password reset token cleanup", e);
+        }
+
+        try {
+            int deletedBuckets = passwordResetRateLimiter.cleanupOlderThan(PASSWORD_RESET_BUCKET_RETENTION_HOURS);
+            logger.info("✅ Cleanup completed: {} password reset rate-limit buckets deleted", deletedBuckets);
+        } catch (Exception e) {
+            logger.error("❌ Error during password reset rate-limit bucket cleanup", e);
         }
     }
 }

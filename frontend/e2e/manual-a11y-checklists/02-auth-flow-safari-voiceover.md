@@ -78,7 +78,7 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 | D2 | 3.3.3 | Submit email không tồn tại (backend generic response) | Thông báo **không tiết lộ** email có tồn tại hay không, nhưng vẫn đọc rõ hướng dẫn | Pass |  |
 | D3 | 4.1.3 | Submit thành công | Có `role="status"`/live region `polite` đọc thông báo đã gửi email | Pass |  |
 | D4 | 2.4.3 | Sau success, kiểm tra focus | Focus chuyển tới heading/status của confirmation | Pass |  |
-| D5 | 4.1.2, 4.1.3 | Nếu có nút Resend | Trạng thái disabled/loading/thời gian chờ được đọc rõ | Fail | [A11Y-A12] Nút "Resend" không có cooldown/thời gian chờ nào: chỉ disable tạm trong lúc request đang chạy (`isLoading`), reset về enabled ngay khi request xong (kể cả lỗi) → có thể bấm liên tục, không giới hạn số lần gửi lại (`ForgotPasswordPage.tsx:67-81`).<br>Ngoài ra nút không có `aria-disabled`/`aria-busy` nên VoiceOver không đọc được trạng thái loading tạm thời của chính nút (chỉ có `role="status"` cho message text, không gắn vào nút).<br>Kỳ vọng: (1) thêm cooldown N giây sau mỗi lần gửi, disable nút kèm đếm ngược hiển thị + đọc được (vd "Resend available in 30s"), (2) gắn `aria-disabled`/`aria-busy` vào nút trong lúc loading/cooldown.<br>Rủi ro liên quan: đây cũng là vấn đề rate-limiting/abuse ở tầng logic (có thể spam gọi API forgot-password), không chỉ là a11y — nên báo thêm cho backend/product. |
+| D5 | 4.1.2, 4.1.3 | Nếu có nút Resend | Trạng thái disabled/loading/thời gian chờ được đọc rõ | Pass | |
 | D6 | 4.1.2 | Link quay lại Login | Là `link` thật, kích hoạt được bằng Enter | Pass |  |
 
 ## E. ResetPasswordPage

@@ -366,6 +366,12 @@ app:
     token-expiration: 86400000
     refresh-expiration: 604800000
 
+    # Password reset request rate limiter (see PasswordResetRateLimiter)
+    # Dedicated HMAC secret used to hash emails into rate-limit bucket keys.
+    # Distinct from AUTH_SERVICE_ENCRYPTION_KEY - do not reuse it.
+    password-reset-limiter:
+      hmac-key: ${PASSWORD_RESET_LIMITER_HMAC_KEY}
+
   # Cookie settings for refresh token
   cookie:
     # Set to true in production (HTTPS required)

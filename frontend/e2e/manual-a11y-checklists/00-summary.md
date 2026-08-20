@@ -25,7 +25,7 @@ Phạm vi kiểm thử gồm Safari + VoiceOver trên macOS cho bốn critical j
 | Flow | Checklist | Tổng bước | Pass | Fail | Blocked | N/A | Kết luận |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | Discover | [01](01-discover-flow-safari-voiceover.md) | 53 | 49 | 0 | 0 | 4 | **Pass** |
-| Authentication | [02](02-auth-flow-safari-voiceover.md) | 56 | 52 | 1 | 0 | 3 | **Fail** |
+| Authentication | [02](02-auth-flow-safari-voiceover.md) | 56 | 53 | 0 | 0 | 3 | **Pass** |
 | Purchase | [03](03-purchase-flow-safari-voiceover.md) | 70 | 66 | 0 | 0 | 4 | **Pass** |
 | Learning | [04](04-learning-flow-safari-voiceover.md) | 80 | 74 | 0 | 0 | 6 | **Pass** |
 | Cross-cutting | [05](05-cross-cutting-zoom-reflow-motion.md) | 27 | 25 | 0 | 0 | 2 | **Pass** |
@@ -39,13 +39,7 @@ Quy tắc kết luận:
 
 ## 3. Vấn đề còn mở
 
-Chỉ liệt kê lỗi chưa được giải quyết. Khi lỗi đã sửa và bước tương ứng được xác nhận `Pass`, có thể xóa khỏi bảng; Git history lưu lại quá trình thay đổi.
-
-| Issue ID | Flow / bước | WCAG SC | Mô tả | Trạng thái |
-| --- | --- | --- | --- | --- |
-| A11Y-A12 | Authentication / D5 | 4.1.2, 4.1.3 | Nút Resend thiếu cooldown và không truyền đạt đầy đủ trạng thái loading cho VoiceOver. | Open |
-
-Trạng thái sử dụng trong bảng: `Open` · `Fixed` · `Accepted limitation`.
+Không có vấn đề 'Fail' nào được ghi nhận trong các checklist chi tiết.
 
 ## 4. Known limitations
 

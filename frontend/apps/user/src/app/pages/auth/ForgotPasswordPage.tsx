@@ -22,13 +22,17 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
+export const RESEND_COOLDOWN_SECONDS = 60;
+
 function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState("");
   const [resendMessage, setResendMessage] = useState("");
   const [validationAnnouncement, setValidationAnnouncement] = useState("");
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const validationAnnouncementTimerRef = useRef<number | null>(null);
+  const cooldownIntervalRef = useRef<number | null>(null);
   const confirmationHeadingRef = useRef<HTMLHeadingElement>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +64,40 @@ function ForgotPasswordPage() {
     }
   }, []);
 
+  useEffect(() => () => {
+    if (cooldownIntervalRef.current !== null) {
+      window.clearInterval(cooldownIntervalRef.current);
+    }
+  }, []);
+
+  // Resets the live region to "" first, then sets the real message on a
+  // later microtask so `aria-atomic` consumers see an actual change even
+  // when the new text is identical to what's already displayed.
+  const announceResendStatus = (message: string) => {
+    setResendMessage("");
+    queueMicrotask(() => setResendMessage(message));
+  };
+
+  const startCooldown = () => {
+    if (cooldownIntervalRef.current !== null) {
+      window.clearInterval(cooldownIntervalRef.current);
+    }
+    setCooldownRemaining(RESEND_COOLDOWN_SECONDS);
+    cooldownIntervalRef.current = window.setInterval(() => {
+      setCooldownRemaining((prev) => {
+        if (prev <= 1) {
+          if (cooldownIntervalRef.current !== null) {
+            window.clearInterval(cooldownIntervalRef.current);
+            cooldownIntervalRef.current = null;
+          }
+          announceResendStatus("Resend Email is now available");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setValidationAnnouncement("");
     setError("");
@@ -68,6 +106,7 @@ function ForgotPasswordPage() {
     try {
       await authService.forgotPassword(data);
       setEmailSent(true);
+      startCooldown();
     } catch (error: any) {
       const errorMessage =
         error?.message || "Failed to send reset email. Please try again.";
@@ -95,14 +134,17 @@ function ForgotPasswordPage() {
   };
 
   const handleResend = async () => {
-    if (!email) return;
+    if (!email || isLoading || cooldownRemaining > 0) return;
 
     setIsLoading(true);
     setError("");
     setResendMessage("");
     try {
       await authService.forgotPassword({ email });
-      setResendMessage("Reset email sent again.");
+      announceResendStatus(
+        `Reset email sent again. You can resend in ${RESEND_COOLDOWN_SECONDS} seconds.`,
+      );
+      startCooldown();
     } catch (error: any) {
       setError(error?.message || "Failed to resend email. Please try again.");
     } finally {
@@ -111,20 +153,44 @@ function ForgotPasswordPage() {
   };
 
   if (emailSent) {
+    const isCoolingDown = cooldownRemaining > 0;
+
     return (
       <Card variant="elevated" padding="lg" className="max-w-md w-full">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-10 h-10 text-blue-600" />
           </div>
+          {/*
+            The heading and this paragraph are born together in the same
+            render (this whole branch only exists once emailSent flips true),
+            so a passive role="status" live region here is unreliable: VO/
+            Safari generally only announces a *mutation* on a node that
+            already existed, not a node that shows up already populated.
+            aria-describedby, by contrast, is recomputed synchronously at the
+            moment focus lands - moving focus to the heading (below) makes VO
+            read the heading name and this description together in one
+            utterance, regardless of both being freshly mounted.
+
+            role="text" (a non-standard but WebKit-supported role) is used
+            instead of role="status" for a second reason: with a plain <p>,
+            the inline <span> for {email} makes VoiceOver's linear (VO+Right
+            Arrow) navigation stop at the span as a separate item, splitting
+            "We've sent password reset instructions to" from the email into
+            two announcements. role="text" tells VoiceOver to flatten this
+            node's subtree into a single static-text object read as one
+            utterance. Non-WebKit browsers simply don't recognize "text" and
+            fall back to default paragraph semantics - harmless there.
+          */}
           <h1
             ref={confirmationHeadingRef}
             tabIndex={-1}
+            aria-describedby="reset-confirmation-detail"
             className="text-2xl font-bold text-gray-800 mb-2 focus:outline-none"
           >
             Check Your Email
           </h1>
-          <p role="status" className="text-gray-600 mb-6">
+          <p id="reset-confirmation-detail" role="text" className="text-gray-600 mb-6">
             We've sent password reset instructions to{" "}
             <span className="font-semibold">{email}</span>
           </p>
@@ -142,11 +208,22 @@ function ForgotPasswordPage() {
                 message={error}
               />
             )}
-            {resendMessage && (
-              <p role="status" className="text-sm text-green-700">
-                {resendMessage}
-              </p>
-            )}
+            {/*
+              Always mounted (never conditionally rendered) so this stays the
+              SAME DOM node across the whole confirmation view. VoiceOver/
+              Safari does not reliably announce a role="status" element that
+              is born already populated with text in the same render pass —
+              it only picks up mutations on a node that already existed.
+              Visually hidden via sr-only (not display:none/unmounting) while
+              empty, since sr-only keeps the node in the accessibility tree.
+            */}
+            <p
+              role="status"
+              aria-atomic="true"
+              className={resendMessage ? "text-sm text-green-700" : "sr-only"}
+            >
+              {resendMessage}
+            </p>
 
             <div className="pt-4">
               <p className="text-sm text-gray-600 mb-3">
@@ -157,10 +234,19 @@ function ForgotPasswordPage() {
                 size="lg"
                 onClick={handleResend}
                 isLoading={isLoading}
+                aria-disabled={isCoolingDown || undefined}
+                aria-describedby={isCoolingDown ? "resend-cooldown-hint" : undefined}
+                className={isCoolingDown ? "opacity-50 cursor-not-allowed" : undefined}
                 fullWidth
               >
                 Resend Email
               </Button>
+              {isCoolingDown && (
+                <p id="resend-cooldown-hint" className="text-sm text-gray-600 mt-2">
+                  <span aria-hidden="true">Resend available in {cooldownRemaining}s</span>
+                  <span className="sr-only">Resend available in {cooldownRemaining} seconds</span>
+                </p>
+              )}
             </div>
 
             <AuthBackLink to={USER_ROUTES.LOGIN} />
