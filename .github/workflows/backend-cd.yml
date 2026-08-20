@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'backend/**'
+  workflow_dispatch: {}
 
 env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/edumind
