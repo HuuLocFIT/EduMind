@@ -103,7 +103,7 @@ describe('ResetPasswordPage', () => {
 
     it('shows a loading state and no form while validating', () => {
       // Never resolves during this test
-      mockValidateResetToken.mockReturnValue(new Promise(() => {}));
+      mockValidateResetToken.mockReturnValue(new Promise(() => undefined));
       renderResetPasswordPage('valid-token');
 
       expect(screen.getByRole('heading', { name: /checking reset link/i })).toBeInTheDocument();
