@@ -106,7 +106,7 @@ jobs:
             cd ${{ secrets.VPS_DEPLOY_PATH }}
 
             export IMAGE_TAG="$(printf '%s' "$DEPLOY_IMAGE_TAG" | cut -c1-7)"
-            export GITHUB_REPOSITORY_OWNER="$DEPLOY_REPOSITORY_OWNER"
+            export GITHUB_REPOSITORY_OWNER="$(printf '%s' "$DEPLOY_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
             test -n "$IMAGE_TAG"
 
             # Authenticate to GHCR on VPS
