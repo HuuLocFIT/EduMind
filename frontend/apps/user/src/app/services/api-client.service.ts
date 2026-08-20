@@ -68,6 +68,7 @@ apiClient.interceptors.request.use(
       endpoint.includes(AUTH_ENDPOINTS.LOGIN_2FA) ||
       endpoint.includes(AUTH_ENDPOINTS.FORGOT_PASSWORD) ||
       endpoint.includes(AUTH_ENDPOINTS.RESET_PASSWORD) ||
+      endpoint.includes(AUTH_ENDPOINTS.VALIDATE_RESET_TOKEN) ||
       endpoint.includes(AUTH_ENDPOINTS.VERIFY_EMAIL) ||
       endpoint.includes(AUTH_ENDPOINTS.RESEND_VERIFICATION) ||
       endpoint.includes('/auth/oauth2');
@@ -173,6 +174,7 @@ apiClient.interceptors.response.use(
       endpoint?.includes('/auth/oauth2') ||
       endpoint?.includes(AUTH_ENDPOINTS.FORGOT_PASSWORD) ||
       endpoint?.includes(AUTH_ENDPOINTS.RESET_PASSWORD) ||
+      endpoint?.includes(AUTH_ENDPOINTS.VALIDATE_RESET_TOKEN) ||
       endpoint?.includes(AUTH_ENDPOINTS.VERIFY_EMAIL) ||
       endpoint?.includes(AUTH_ENDPOINTS.RESEND_VERIFICATION);
 

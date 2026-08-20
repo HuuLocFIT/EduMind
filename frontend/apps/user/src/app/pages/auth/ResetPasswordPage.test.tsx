@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 // Use vi.hoisted to hoist mock function declarations
-const { mockResetPassword, mockNavigate } = vi.hoisted(() => ({
+const { mockResetPassword, mockValidateResetToken, mockNavigate } = vi.hoisted(() => ({
   mockResetPassword: vi.fn(),
+  mockValidateResetToken: vi.fn(),
   mockNavigate: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ const { mockResetPassword, mockNavigate } = vi.hoisted(() => ({
 vi.mock('../../services/auth.service', () => ({
   authService: {
     resetPassword: mockResetPassword,
+    validateResetToken: mockValidateResetToken,
   },
 }));
 
@@ -80,6 +82,8 @@ const renderResetPasswordPage = (token?: string) => {
 describe('ResetPasswordPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: token validates successfully unless a test overrides it
+    mockValidateResetToken.mockResolvedValue({ email: 'user@example.com' });
   });
 
   describe('Token Validation', () => {
@@ -88,6 +92,7 @@ describe('ResetPasswordPage', () => {
 
       expect(screen.getByText('Invalid Reset Link')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /request new link/i })).toHaveAttribute('href', '/forgot-password');
+      expect(mockValidateResetToken).not.toHaveBeenCalled();
     });
 
     it('focuses the missing-token heading', async () => {
@@ -96,11 +101,65 @@ describe('ResetPasswordPage', () => {
       await waitFor(() => expect(screen.getByRole('heading', { name: /invalid reset link/i })).toHaveFocus());
     });
 
-    it('should show reset form when token is present', () => {
+    it('shows a loading state and no form while validating', () => {
+      // Never resolves during this test
+      mockValidateResetToken.mockReturnValue(new Promise(() => {}));
       renderResetPasswordPage('valid-token');
 
-      expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /checking reset link/i })).toBeInTheDocument();
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /^reset password$/i })).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('••••••••')).not.toBeInTheDocument();
+    });
+
+    it('should show reset form when token is valid', async () => {
+      renderResetPasswordPage('valid-token');
+
+      expect(mockValidateResetToken).toHaveBeenCalledWith('valid-token');
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
       expect(screen.getAllByPlaceholderText('••••••••')[0]).toBeInTheDocument();
+    });
+
+    it('shows Invalid Reset Link immediately when the token is rejected with 400 at mount', async () => {
+      mockValidateResetToken.mockRejectedValue({ message: 'Bad Request', status: 400 });
+      renderResetPasswordPage('expired-token');
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid Reset Link')).toBeInTheDocument();
+      });
+      // The password form must never render
+      expect(screen.queryByPlaceholderText('••••••••')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /invalid reset link/i })).toHaveFocus();
+    });
+
+    it('shows a service-error screen with Retry when validation fails with 5xx/429', async () => {
+      mockValidateResetToken.mockRejectedValue({ message: 'Server Error', status: 500 });
+      renderResetPasswordPage('some-token');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+      });
+      // Must not claim the token itself is invalid/expired
+      expect(screen.queryByText('Invalid Reset Link')).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('••••••••')).not.toBeInTheDocument();
+    });
+
+    it('re-runs validation when Retry is clicked and shows the form on success', async () => {
+      const user = userEvent.setup();
+      mockValidateResetToken.mockRejectedValueOnce({ message: 'Network Error', status: 0 });
+      renderResetPasswordPage('some-token');
+
+      const retryButton = await screen.findByRole('button', { name: /retry/i });
+
+      mockValidateResetToken.mockResolvedValueOnce({ email: 'user@example.com' });
+      await user.click(retryButton);
+
+      expect(mockValidateResetToken).toHaveBeenCalledTimes(2);
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
     });
   });
 
@@ -110,16 +169,20 @@ describe('ResetPasswordPage', () => {
       mockResetPassword.mockResolvedValue({ success: true, message: 'Password reset successfully' });
       renderResetPasswordPage('valid-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
-      
+
       // Wait for form validation to complete
       await waitFor(() => {
         const button = screen.getByRole('button', { name: /reset password/i });
         expect(button).not.toBeDisabled();
       });
-      
+
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
@@ -136,16 +199,20 @@ describe('ResetPasswordPage', () => {
       mockResetPassword.mockResolvedValue({ success: true, message: 'Password reset successfully' });
       renderResetPasswordPage('valid-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
-      
+
       // Wait for form validation to complete
       await waitFor(() => {
         const button = screen.getByRole('button', { name: /reset password/i });
         expect(button).not.toBeDisabled();
       });
-      
+
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
@@ -162,6 +229,10 @@ describe('ResetPasswordPage', () => {
       const user = userEvent.setup();
       renderResetPasswordPage('valid-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'Password123!');
       await user.type(passwordInputs[1], 'DifferentPassword!');
@@ -176,6 +247,10 @@ describe('ResetPasswordPage', () => {
       const user = userEvent.setup();
       renderResetPasswordPage('valid-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
@@ -187,6 +262,10 @@ describe('ResetPasswordPage', () => {
     it('should show error for weak password', async () => {
       const user = userEvent.setup();
       renderResetPasswordPage('valid-token');
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
 
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'weak');
@@ -204,16 +283,20 @@ describe('ResetPasswordPage', () => {
       mockResetPassword.mockResolvedValue({ success: true, message: 'Password reset successfully' });
       renderResetPasswordPage('valid-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'StrongPassword123!');
       await user.type(passwordInputs[1], 'StrongPassword123!');
-      
+
       // Wait for form validation to complete
       await waitFor(() => {
         const button = screen.getByRole('button', { name: /reset password/i });
         expect(button).not.toBeDisabled();
       });
-      
+
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
@@ -223,8 +306,12 @@ describe('ResetPasswordPage', () => {
   });
 
   describe('Password accessibility', () => {
-    it('labels both fields and uses new-password autocomplete', () => {
+    it('labels both fields and uses new-password autocomplete', async () => {
       renderResetPasswordPage('valid-token');
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
 
       const password = screen.getByLabelText('New Password');
       const confirmation = screen.getByLabelText('Confirm New Password');
@@ -234,10 +321,12 @@ describe('ResetPasswordPage', () => {
       expect(confirmation).toBeRequired();
     });
 
-    it('keeps password requirements available before validation', () => {
+    it('keeps password requirements available before validation', async () => {
       renderResetPasswordPage('valid-token');
 
-      expect(screen.getByText(/must be at least 8 characters with uppercase/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/must be at least 8 characters with uppercase/i)).toBeInTheDocument();
+      });
     });
   });
 
@@ -252,16 +341,20 @@ describe('ResetPasswordPage', () => {
 
       renderResetPasswordPage('valid-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
-      
+
       // Wait for form validation to complete
       await waitFor(() => {
         const button = screen.getByRole('button', { name: /reset password/i });
         expect(button).not.toBeDisabled();
       });
-      
+
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
@@ -274,33 +367,40 @@ describe('ResetPasswordPage', () => {
     });
   });
 
-  describe('Token Expiration', () => {
-    it('should handle expired token error', async () => {
+  describe('Token Expiration on Submit', () => {
+    it('400 on submit transitions to the invalid-link screen', async () => {
       const user = userEvent.setup();
-      const error = new Error('Token expired');
-      (error as any).response = { status: 400, data: { message: 'Reset token has expired' } };
+      const error = { message: 'Reset token has expired', status: 400 };
       mockResetPassword.mockRejectedValue(error);
 
       renderResetPasswordPage('expired-token');
 
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
+
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
       await user.type(passwordInputs[1], 'NewPassword123!');
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText('Invalid Reset Link')).toBeInTheDocument();
       });
       expect(screen.getByRole('heading', { name: /invalid reset link/i })).toHaveFocus();
+      expect(screen.getByRole('link', { name: /request new link/i })).toBeInTheDocument();
     });
 
-    it('should handle invalid token error', async () => {
+    it('500 on submit keeps the form visible and shows an error message', async () => {
       const user = userEvent.setup();
-      const error = new Error('Invalid token');
-      (error as any).response = { status: 400, data: { message: 'Invalid reset token' } };
+      const error = { message: 'Internal Server Error', status: 500 };
       mockResetPassword.mockRejectedValue(error);
 
-      renderResetPasswordPage('invalid-token');
+      renderResetPasswordPage('valid-token');
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /reset password/i })).toBeInTheDocument();
+      });
 
       const passwordInputs = screen.getAllByPlaceholderText('••••••••');
       await user.type(passwordInputs[0], 'NewPassword123!');
@@ -308,9 +408,11 @@ describe('ResetPasswordPage', () => {
       await user.click(screen.getByRole('button', { name: /reset password/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('Internal Server Error');
       });
-      expect(screen.getByRole('link', { name: /request new link/i })).toBeInTheDocument();
+      // The form must still be present - not the invalid-link screen
+      expect(screen.queryByText('Invalid Reset Link')).not.toBeInTheDocument();
+      expect(screen.getAllByPlaceholderText('••••••••')[0]).toBeInTheDocument();
     });
   });
 });
