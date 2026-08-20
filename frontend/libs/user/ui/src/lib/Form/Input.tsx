@@ -22,6 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       fullWidth = false,
       className,
       disabled,
+      "aria-describedby": ariaDescribedBy,
       ...props
     },
     ref
@@ -61,7 +62,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             disabled={disabled}
             aria-invalid={!!error}
             aria-describedby={
-              [helperText ? `${inputId}-description` : null, error ? `${inputId}-error` : null]
+              [ariaDescribedBy, helperText ? `${inputId}-description` : null, error ? `${inputId}-error` : null]
                 .filter(Boolean)
                 .join(' ') || undefined
             }

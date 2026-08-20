@@ -10,6 +10,9 @@ import { USER_ROUTES } from "@edumind/shared-utils";
 import { useMemo } from "react";
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
+const accessibleCurrencyAmount = (amount: number, currency: string): string =>
+  `${amount.toFixed(2)} ${currency === "USD" ? "US dollars" : currency}`;
+
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const { success: showSuccess, error: showError, showToast } = useToast();
@@ -244,31 +247,33 @@ export const CartPage: React.FC = () => {
                     Order Summary
                   </h2>
 
-                  <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                  <dl className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-600">Subtotal ({items.length} items):</span>
-                      <span className="font-medium text-gray-900">
-                        ${subtotal.toFixed(2)}
-                      </span>
+                      <dt className="text-gray-600">Subtotal ({items.length} items)</dt>
+                      <dd className="font-medium text-gray-900">
+                        <span aria-hidden="true">${subtotal.toFixed(2)} {currency}</span>
+                        <span className="sr-only">{accessibleCurrencyAmount(subtotal, currency)}</span>
+                      </dd>
                     </div>
 
                     {discount > 0 && (
                       <div className="flex items-center justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600">Discount:</span>
-                        <span className="font-medium text-green-700">
-                          -${discount.toFixed(2)}
-                        </span>
+                        <dt className="text-gray-600">Discount</dt>
+                        <dd className="font-medium text-green-700">
+                          <span aria-hidden="true">-${discount.toFixed(2)} {currency}</span>
+                          <span className="sr-only">Minus {accessibleCurrencyAmount(discount, currency)}</span>
+                        </dd>
                       </div>
                     )}
 
-                    <div className="pt-2 sm:pt-3 border-t">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm sm:text-base font-semibold text-gray-900">Total:</span>
-                        <PriceTag price={totalAmount} size="lg" />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{currency}</p>
+                    <div className="flex items-center justify-between pt-2 sm:pt-3 border-t">
+                      <dt className="text-sm sm:text-base font-semibold text-gray-900">Total</dt>
+                      <dd>
+                        <span aria-hidden="true"><PriceTag price={totalAmount} size="lg" /></span>
+                        <span className="sr-only">{accessibleCurrencyAmount(totalAmount, currency)}</span>
+                      </dd>
                     </div>
-                  </div>
+                  </dl>
 
                   {/* Checkout Button */}
                   <Button

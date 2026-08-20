@@ -128,6 +128,43 @@ describe("Browse courses accessibility", () => {
     expect(screen.getByRole("button", { name: "Clear All Filters" })).toBeInTheDocument();
   });
 
+  it("moves focus to the empty-state heading after settled empty results are requested", () => {
+    const { rerender } = render(
+      <BrowseCourseList {...listProps} activeFiltersCount={2} isFetching />
+    );
+
+    const heading = screen.getByRole("heading", { name: "No courses found" });
+    rerender(
+      <BrowseCourseList
+        {...listProps}
+        activeFiltersCount={2}
+        focusRequest={1}
+        isFetching
+      />
+    );
+    expect(heading).not.toHaveFocus();
+
+    rerender(
+      <BrowseCourseList
+        {...listProps}
+        activeFiltersCount={2}
+        focusRequest={1}
+      />
+    );
+    expect(heading).toHaveFocus();
+
+    const clearFiltersButton = screen.getByRole("button", { name: "Clear All Filters" });
+    clearFiltersButton.focus();
+    rerender(
+      <BrowseCourseList
+        {...listProps}
+        activeFiltersCount={2}
+        focusRequest={1}
+      />
+    );
+    expect(clearFiltersButton).toHaveFocus();
+  });
+
   it("announces the visible result range as a sentence", () => {
     const course = { id: 13, title: "TypeScript", slug: "typescript" } as CourseResponse;
     render(

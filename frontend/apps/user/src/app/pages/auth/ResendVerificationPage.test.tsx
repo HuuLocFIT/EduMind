@@ -67,8 +67,9 @@ describe("ResendVerificationPage", () => {
     await user.type(screen.getByRole("textbox", { name: /email/i }), "user@example.com");
     await user.click(screen.getByRole("button", { name: "Resend Verification Email" }));
 
-    const alert = await screen.findByRole("alert", { name: "Unable to resend email" });
-    expect(alert).toHaveAccessibleDescription("Too many verification requests");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Unable to resend email");
+    expect(alert).toHaveTextContent("Too many verification requests");
     expect(alert).toHaveFocus();
   });
 

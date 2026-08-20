@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import type { FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import {
+  getPasswordRequirements,
   SignupRequestSchema,
   type SignupRequest,
 } from "@edumind/shared-types";
@@ -23,6 +25,11 @@ export const SignupPage = () => {
   const { signup, isLoading, error, clearError } = useAuthStore();
   const [localError, setLocalError] = useState<string>("");
   const [success, setSuccess] = useState(false);
+  const [validationAnnouncement, setValidationAnnouncement] = useState("");
+  const [passwordRequirementAnnouncement, setPasswordRequirementAnnouncement] = useState("");
+  const validationAnnouncementTimerRef = useRef<number | null>(null);
+  const passwordAnnouncementTimerRef = useRef<number | null>(null);
+  const previousPasswordRequirementsRef = useRef<ReturnType<typeof getPasswordRequirements> | null>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -37,6 +44,12 @@ export const SignupPage = () => {
 
   const password = watch("password", "");
   const passwordStrength = password ? getPasswordStrength(password) : null;
+  const passwordRequirements = getPasswordRequirements(password);
+  const validationMessages = [
+    errors.username?.message,
+    errors.email?.message,
+    errors.password?.message,
+  ].filter((message): message is string => Boolean(message));
 
   useEffect(() => {
     if (error || localError) {
@@ -50,7 +63,48 @@ export const SignupPage = () => {
     }
   }, [success]);
 
+  useEffect(() => () => {
+    if (validationAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(validationAnnouncementTimerRef.current);
+    }
+    if (passwordAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(passwordAnnouncementTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    const previousRequirements = previousPasswordRequirementsRef.current;
+    previousPasswordRequirementsRef.current = passwordRequirements;
+
+    if (!password || !previousRequirements) {
+      if (passwordAnnouncementTimerRef.current !== null) {
+        window.clearTimeout(passwordAnnouncementTimerRef.current);
+        passwordAnnouncementTimerRef.current = null;
+      }
+      setPasswordRequirementAnnouncement("");
+      return;
+    }
+
+    const changedRequirements = passwordRequirements.filter(
+      (requirement, index) => requirement.met !== previousRequirements[index]?.met,
+    );
+    if (changedRequirements.length === 0) return;
+
+    if (passwordAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(passwordAnnouncementTimerRef.current);
+    }
+    passwordAnnouncementTimerRef.current = window.setTimeout(() => {
+      setPasswordRequirementAnnouncement(
+        changedRequirements
+          .map((requirement) => `${requirement.label}: ${requirement.met ? "met" : "not met"}`)
+          .join(". "),
+      );
+      passwordAnnouncementTimerRef.current = null;
+    }, 300);
+  }, [password]);
+
   const onSubmit = async (data: SignupRequest) => {
+    setValidationAnnouncement("");
     clearError();
     setLocalError("");
 
@@ -61,6 +115,26 @@ export const SignupPage = () => {
       const errorMsg = err.message || "Failed to create account. Please try again.";
       setLocalError(errorMsg);
     }
+  };
+
+  const onInvalid = (invalidErrors: FieldErrors<SignupRequest>) => {
+    clearError();
+    setLocalError("");
+    setValidationAnnouncement("");
+    if (validationAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(validationAnnouncementTimerRef.current);
+    }
+    const messages = [
+      invalidErrors.username?.message,
+      invalidErrors.email?.message,
+      invalidErrors.password?.message,
+    ].filter((message): message is string => typeof message === "string");
+    validationAnnouncementTimerRef.current = window.setTimeout(() => {
+      setValidationAnnouncement(
+        `${messages.length} ${messages.length === 1 ? "error" : "errors"}. ${messages.join(". ")}`,
+      );
+      validationAnnouncementTimerRef.current = null;
+    }, 300);
   };
 
   const handleOAuth2Login = (provider: "google" | "facebook") => {
@@ -116,10 +190,29 @@ export const SignupPage = () => {
       <Card>
         <CardBody>
           {/* Error Alert */}
-          {(error || localError) && (
+          {validationAnnouncement && (
+            <p className="sr-only" role="alert" aria-atomic="true">
+              {validationAnnouncement}
+            </p>
+          )}
+          {(validationMessages.length > 0 || error || localError) && (
             <AuthErrorSummary
               ref={errorSummaryRef}
-              message={error || localError}
+              role={validationMessages.length > 0 ? "group" : "alert"}
+              title={
+                validationMessages.length > 0
+                  ? `${validationMessages.length} ${validationMessages.length === 1 ? "error" : "errors"}`
+                  : undefined
+              }
+              message={
+                validationMessages.length > 0 ? (
+                  <ul className="mt-1 list-disc pl-5">
+                    {validationMessages.map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                ) : (error || localError)
+              }
               className="mb-6"
             />
           )}
@@ -180,7 +273,7 @@ export const SignupPage = () => {
           </div>
 
           {/* Signup Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
             {/* Username */}
             <Input
               id="signup-username"
@@ -218,9 +311,35 @@ export const SignupPage = () => {
                 fullWidth
                 required
                 autoComplete="new-password"
-                helperText="Use at least 8 characters with uppercase, lowercase, number, and special character."
+                aria-describedby="signup-password-requirements"
                 {...register("password")}
               />
+
+              <div id="signup-password-requirements" className="mt-2">
+                <p className="text-sm font-medium text-gray-700">Password requirements:</p>
+                <ul className="mt-1 space-y-1 text-sm">
+                  {passwordRequirements.map((requirement) => (
+                    <li
+                      key={requirement.id}
+                      className={requirement.met ? "text-green-700" : "text-gray-600"}
+                    >
+                      <span aria-hidden="true" className="mr-2">
+                        {requirement.met ? "✓" : "×"}
+                      </span>
+                      {requirement.label} — {requirement.met ? "met" : "not met"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <p
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                data-testid="password-requirement-status"
+              >
+                {passwordRequirementAnnouncement}
+              </p>
 
               {/* Password Strength */}
               {passwordStrength && (

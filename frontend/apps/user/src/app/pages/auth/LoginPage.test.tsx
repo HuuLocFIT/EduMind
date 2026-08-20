@@ -77,13 +77,13 @@ vi.mock('@edumind/user-ui', () => ({
     <div>
       {label && <label htmlFor={props.name}>{label}</label>}
       <input {...props} aria-invalid={!!error} />
-      {error && <span role="alert">{error}</span>}
+      {error && <span>{error}</span>}
     </div>
   ),
   PasswordInput: ({ error, ...props }: any) => (
     <div>
       <input type="password" {...props} aria-invalid={!!error} />
-      {error && <span role="alert">{error}</span>}
+      {error && <span>{error}</span>}
     </div>
   ),
   Alert: ({ message, variant }: any) => (
@@ -185,16 +185,47 @@ describe('LoginPage', () => {
   describe('Form Validation', () => {
     it('should show validation error when submitting empty form', async () => {
       const user = userEvent.setup();
+      mockLocationState = {};
       renderLoginPage();
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
       await user.click(submitButton);
 
-      // Wait for validation errors
+      const summary = await screen.findByTestId('login-error');
+      const announcement = await screen.findByRole('alert');
+      expect(screen.getByPlaceholderText('e.g. lucas or lucas@email.com')).toHaveFocus();
+      expect(summary).toHaveTextContent('2 errors');
+      expect(summary).toHaveTextContent('Username or email is required');
+      expect(summary).toHaveTextContent('Password is required');
+      expect(announcement).toHaveTextContent('2 errors');
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(mockLogin).not.toHaveBeenCalled();
+    });
+
+    it('announces only the remaining validation error on a later submit', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      renderLoginPage();
+
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      const firstAnnouncement = await screen.findByRole('alert');
+      await user.type(
+        screen.getByPlaceholderText('e.g. lucas or lucas@email.com'),
+        'student',
+      );
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
       await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        expect(alerts.length).toBeGreaterThan(0);
+        expect(screen.getByRole('alert')).toHaveTextContent('1 error');
       });
+      const summary = screen.getByTestId('login-error');
+      expect(screen.getByRole('alert')).not.toBe(firstAnnouncement);
+      expect(screen.getByPlaceholderText('••••••••')).toHaveFocus();
+      expect(summary).toHaveTextContent('1 error');
+      expect(summary).toHaveTextContent('Password is required');
+      expect(summary).not.toHaveTextContent('Username or email is required');
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(mockLogin).not.toHaveBeenCalled();
     });
 
     it('should allow submission when fields are non-empty', async () => {

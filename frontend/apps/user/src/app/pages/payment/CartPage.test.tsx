@@ -181,9 +181,19 @@ describe('CartPage', () => {
     
     // Summary check
     const summary = screen.getByRole('region', { name: 'Order Summary' });
-    expect(within(summary).getByText('Subtotal (2 items):')).toBeInTheDocument();
-    expect(within(summary).getByText('$100.00')).toBeInTheDocument();
-    expect(within(summary).getByText('Total:')).toBeInTheDocument();
+    expect(within(summary).getByText('Subtotal (2 items)')).toBeInTheDocument();
+    expect(within(summary).getByText('$100.00 USD')).toBeInTheDocument();
+    expect(within(summary).getByText('Total')).toBeInTheDocument();
+    expect(within(summary).getAllByText('100.00 US dollars')).toHaveLength(2);
+
+    const definitionList = summary.querySelector('dl');
+    expect(definitionList).not.toBeNull();
+    expect(
+      Array.from(definitionList!.children).every((child) =>
+        child.matches('div') &&
+        Array.from(child.children).every((item) => item.matches('dt, dd')),
+      ),
+    ).toBe(true);
   });
 
   it('handles remove item interaction', async () => {

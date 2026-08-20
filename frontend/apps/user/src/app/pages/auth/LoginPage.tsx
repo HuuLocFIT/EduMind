@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import type { FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
@@ -29,6 +30,8 @@ export const LoginPage = () => {
   const [needs2FA, setNeeds2FA] = useState(false);
   const [loginData, setLoginData] = useState<LoginRequest | null>(null);
   const [localError, setLocalError] = useState<string>("");
+  const [validationAnnouncement, setValidationAnnouncement] = useState("");
+  const validationAnnouncementTimerRef = useRef<number | null>(null);
   const { success: showSuccess } = useToast();
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const twoFactorHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -62,6 +65,11 @@ export const LoginPage = () => {
     },
   });
 
+  const loginValidationMessages = [
+    loginErrors.usernameOrEmail?.message,
+    loginErrors.password?.message,
+  ].filter((message): message is string => Boolean(message));
+
   useEffect(() => {
     if (needs2FA) {
       twoFactorHeadingRef.current?.focus();
@@ -74,7 +82,14 @@ export const LoginPage = () => {
     }
   }, [error, localError]);
 
+  useEffect(() => () => {
+    if (validationAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(validationAnnouncementTimerRef.current);
+    }
+  }, []);
+
   const onLoginSubmit = async (data: LoginRequest) => {
+    setValidationAnnouncement("");
     clearError();
     setLocalError("");
 
@@ -100,6 +115,25 @@ export const LoginPage = () => {
         setLocalError(errorMsg);
       }
     }
+  };
+
+  const onLoginInvalid = (invalidErrors: FieldErrors<LoginRequest>) => {
+    clearError();
+    setLocalError("");
+    setValidationAnnouncement("");
+    if (validationAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(validationAnnouncementTimerRef.current);
+    }
+    const messages = [
+      invalidErrors.usernameOrEmail?.message,
+      invalidErrors.password?.message,
+    ].filter((message): message is string => typeof message === "string");
+    validationAnnouncementTimerRef.current = window.setTimeout(() => {
+      setValidationAnnouncement(
+        `${messages.length} ${messages.length === 1 ? "error" : "errors"}. ${messages.join(". ")}`,
+      );
+      validationAnnouncementTimerRef.current = null;
+    }, 300);
   };
 
   const on2FASubmit = async (data: { code: string }) => {
@@ -174,11 +208,30 @@ export const LoginPage = () => {
           )}
 
           {/* Error Alert */}
-          {(error || localError) && (
+          {validationAnnouncement && (
+            <p className="sr-only" role="alert" aria-atomic="true">
+              {validationAnnouncement}
+            </p>
+          )}
+          {(loginValidationMessages.length > 0 || error || localError) && (
             <AuthErrorSummary
               ref={errorSummaryRef}
+              role={loginValidationMessages.length > 0 ? "group" : "alert"}
               data-testid="login-error"
-              message={error || localError}
+              title={
+                loginValidationMessages.length > 0
+                  ? `${loginValidationMessages.length} ${loginValidationMessages.length === 1 ? "error" : "errors"}`
+                  : undefined
+              }
+              message={
+                loginValidationMessages.length > 0 ? (
+                  <ul className="mt-1 list-disc pl-5">
+                    {loginValidationMessages.map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                ) : (error || localError)
+              }
               className="mb-6"
             />
           )}
@@ -322,8 +375,9 @@ export const LoginPage = () => {
 
               {/* Login Form */}
               <form
-                onSubmit={handleSubmitLogin(onLoginSubmit)}
+                onSubmit={handleSubmitLogin(onLoginSubmit, onLoginInvalid)}
                 className="space-y-4"
+                noValidate
               >
                 {/* Email */}
                 <Input
