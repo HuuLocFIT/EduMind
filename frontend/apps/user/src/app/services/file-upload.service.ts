@@ -9,12 +9,18 @@ export const fileUploadService = {
    * Upload a single file
    * POST /upload/document
    */
-  async uploadFile(file: File): Promise<FileUploadResponse> {
+  async uploadFile(
+    file: File,
+    folder = "lessons/resources"
+  ): Promise<FileUploadResponse> {
     const formData = new FormData();
     formData.append("file", file);
 
+    const params = new URLSearchParams();
+    params.set("folder", folder);
+
     const response = await apiClient.post<FileUploadResponse>(
-      UPLOAD_ENDPOINTS.DOCUMENT,
+      `${UPLOAD_ENDPOINTS.DOCUMENT}?${params.toString()}`,
       formData,
       {
         headers: { "Content-Type": "multipart/form-data" },
@@ -30,9 +36,10 @@ export const fileUploadService = {
    * @returns Array of FileUploadResponse
    */
   async uploadMultipleFiles(
-    files: File[]
+    files: File[],
+    folder = "documents/teacher-applications"
   ): Promise<FileUploadResponse[]> {
-    const uploadPromises = files.map((file) => this.uploadFile(file));
+    const uploadPromises = files.map((file) => this.uploadFile(file, folder));
     return Promise.all(uploadPromises);
   },
 

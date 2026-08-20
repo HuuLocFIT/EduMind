@@ -12,7 +12,8 @@
       "options": {
         "main": "libs/shared/types/src/index.ts",
         "tsConfig": "libs/shared/types/tsconfig.lib.json",
-        "outputPath": "libs/shared/types/dist"
+        "outputPath": "libs/shared/types/dist",
+        "rootDir": "libs/shared/types/src"
       }
     },
     "lint": {

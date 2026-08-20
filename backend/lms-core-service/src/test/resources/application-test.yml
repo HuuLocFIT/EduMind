@@ -73,6 +73,9 @@ payment:
     success-rate: 1.0
   paypal:
     enabled: false
+    # Integration tests use synthetic PayPal payloads and do not call PayPal's
+    # remote signature-verification API. Production defaults to false.
+    allow-unsigned-webhooks: true
     return-base-url: http://localhost:3000
     client-id: test-client-id
     client-secret: test-client-secret

@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class TrialExpiryScheduler {
@@ -84,35 +86,28 @@ public class TrialExpiryScheduler {
     }
 
     /**
-     * Handle expired trial
-     * Options:
-     * 1. Auto-disable account (recommended)
-     * 2. Auto-downgrade to STUDENT
-     * 3. Just send email notification
+     * Handle expired trial: downgrade to STUDENT, keep the account active.
      */
     private void handleExpiredTrial(User user) {
         logger.info("⚠️ Trial expired for user: {}", user.getUsername());
 
-        // Send email notification
-        emailService.sendTrialExpiredEmail(user);
+        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
+                .orElseThrow(() -> new RuntimeException("STUDENT role not found"));
+        Role trialRole = roleRepository.findByName(RoleName.ROLE_TEACHER_TRIAL)
+                .orElseThrow(() -> new RuntimeException("TEACHER_TRIAL role not found"));
 
-        // Option 1: Disable account (RECOMMENDED - requires admin action to upgrade)
-        user.setIsActive(false);
+        Set<Role> roles = new HashSet<>(user.getRoles());
+        roles.remove(trialRole);
+        roles.add(studentRole);
+        user.setRoles(roles);
+
+        user.setIsTrial(false);
+        user.setTrialStartDate(null);
+        user.setTrialEndDate(null);
+
         userRepository.save(user);
-        logger.info("🔒 Account disabled for expired trial: {}", user.getUsername());
+        logger.info("⬇️ User downgraded to STUDENT after trial expiry: {}", user.getUsername());
 
-        // Option 2: Auto-downgrade to STUDENT (uncomment if preferred)
-        // Role studentRole = roleRepository.findByName("STUDENT")
-        //         .orElseThrow(() -> new RuntimeException("STUDENT role not found"));
-        // Role trialRole = roleRepository.findByName("TEACHER_TRIAL")
-        //         .orElseThrow(() -> new RuntimeException("TEACHER_TRIAL role not found"));
-        //
-        // Set<Role> roles = new HashSet<>(user.getRoles());
-        // roles.remove(trialRole);
-        // roles.add(studentRole);
-        // user.setRoles(roles);
-        // user.setIsTrial(false);
-        // userRepository.save(user);
-        // logger.info("⬇️ User downgraded to STUDENT: {}", user.getUsername());
+        emailService.sendTrialExpiredEmail(user);
     }
 }

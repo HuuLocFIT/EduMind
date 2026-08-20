@@ -54,16 +54,16 @@ vi.mock('@edumind/user-ui', () => ({
   ),
   Input: ({ label, error, ...props }: any) => (
     <div>
-      {label && <label>{label}</label>}
+      {label && <label htmlFor={props.id}>{label}</label>}
       <input {...props} aria-invalid={!!error} />
-      {error && <span role="alert">{error}</span>}
+      {error && <span>{error}</span>}
     </div>
   ),
   PasswordInput: ({ label, error, ...props }: any) => (
     <div>
-      {label && <label>{label}</label>}
+      {label && <label htmlFor={props.id}>{label}</label>}
       <input type="password" {...props} aria-invalid={!!error} />
-      {error && <span role="alert">{error}</span>}
+      {error && <span>{error}</span>}
     </div>
   ),
   Alert: ({ message }: any) => <div role="alert">{message}</div>,
@@ -105,9 +105,9 @@ describe('SignupPage', () => {
       renderSignupPage();
 
       expect(screen.getByRole('heading', { name: /create account/i })).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('e.g. lucas')).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Username' })).toHaveAttribute('placeholder', 'e.g. lucas');
       expect(screen.getByPlaceholderText('your.email@example.com')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Create a strong password')).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toHaveAttribute('placeholder', 'Create a strong password');
       expect(screen.queryByLabelText(/first name/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/last name/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/phone number/i)).not.toBeInTheDocument();
@@ -132,9 +132,9 @@ describe('SignupPage', () => {
       mockSignup.mockResolvedValue(undefined);
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -151,9 +151,9 @@ describe('SignupPage', () => {
       mockSignup.mockResolvedValue(undefined);
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
 
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
@@ -203,6 +203,34 @@ describe('SignupPage', () => {
   });
 
   describe('Form Validation', () => {
+    it('exposes the status of every password requirement to assistive technology', async () => {
+      const user = userEvent.setup();
+      renderSignupPage();
+
+      const passwordInput = screen.getByLabelText('Password');
+      expect(passwordInput).toHaveAttribute('aria-describedby', 'signup-password-requirements');
+      expect(screen.getByText('At least 8 characters — not met')).toBeInTheDocument();
+      expect(screen.getByText('Uppercase letter — not met')).toBeInTheDocument();
+      expect(screen.getByText('Lowercase letter — not met')).toBeInTheDocument();
+      expect(screen.getByText('Number — not met')).toBeInTheDocument();
+      expect(screen.getByText('Special character — not met')).toBeInTheDocument();
+
+      const status = screen.getByTestId('password-requirement-status');
+      expect(status).toHaveAttribute('role', 'status');
+      expect(status).toHaveAttribute('aria-live', 'polite');
+      expect(status).toHaveAttribute('aria-atomic', 'true');
+      expect(status).toBeEmptyDOMElement();
+
+      await user.type(passwordInput, 'Password123!');
+
+      expect(screen.getByText('At least 8 characters — met')).toBeInTheDocument();
+      expect(screen.getByText('Uppercase letter — met')).toBeInTheDocument();
+      expect(screen.getByText('Lowercase letter — met')).toBeInTheDocument();
+      expect(screen.getByText('Number — met')).toBeInTheDocument();
+      expect(screen.getByText('Special character — met')).toBeInTheDocument();
+      await waitFor(() => expect(status).not.toBeEmptyDOMElement());
+    });
+
     it('should show error for empty username', async () => {
       const user = userEvent.setup();
       mockSignup.mockClear();
@@ -211,15 +239,14 @@ describe('SignupPage', () => {
       const submitButton = screen.getByRole('button', { name: /^Create Account$/i });
       await user.click(submitButton);
 
-      // Form should not submit when validation fails
-      await waitFor(() => {
-        // Either validation error is shown OR form submission was prevented
-        const usernameInput = screen.getByPlaceholderText('e.g. lucas');
-        const hasError = usernameInput.getAttribute('aria-invalid') === 'true' || 
-                        screen.queryAllByRole('alert').length > 0 ||
-                        !mockSignup.mock.calls.length; // Form didn't submit
-        expect(hasError).toBe(true);
-      }, { timeout: 3000 });
+      const summary = await screen.findByRole('alert');
+      expect(screen.getByRole('textbox', { name: 'Username' })).toHaveFocus();
+      expect(summary).toHaveTextContent('3 errors');
+      expect(summary).toHaveTextContent(/username/i);
+      expect(summary).toHaveTextContent(/email/i);
+      expect(summary).toHaveTextContent(/password/i);
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(mockSignup).not.toHaveBeenCalled();
     });
 
     it('should show error for invalid email format', async () => {
@@ -228,9 +255,9 @@ describe('SignupPage', () => {
       renderSignupPage();
 
       const emailInput = screen.getByPlaceholderText('your.email@example.com');
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(emailInput, 'invalid-email');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -247,8 +274,8 @@ describe('SignupPage', () => {
       mockSignup.mockClear();
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -265,12 +292,12 @@ describe('SignupPage', () => {
       mockSignup.mockClear();
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
-        const passwordInput = screen.getByPlaceholderText('Create a strong password');
+        const passwordInput = screen.getByLabelText('Password');
         const hasError = passwordInput.getAttribute('aria-invalid') === 'true' || 
                         screen.queryAllByRole('alert').length > 0 ||
                         !mockSignup.mock.calls.length;
@@ -282,9 +309,9 @@ describe('SignupPage', () => {
       const user = userEvent.setup();
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'weak');
+      await user.type(screen.getByLabelText('Password'), 'weak');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -298,9 +325,9 @@ describe('SignupPage', () => {
       mockSignup.mockResolvedValue(undefined);
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
 
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
@@ -320,9 +347,9 @@ describe('SignupPage', () => {
       await waitFor(() => {
         // At least one input should have validation error or form should not submit
         const inputs = [
-          screen.getByPlaceholderText('e.g. lucas'),
+          screen.getByRole('textbox', { name: 'Username' }),
           screen.getByPlaceholderText('your.email@example.com'),
-          screen.getByPlaceholderText('Create a strong password'),
+          screen.getByLabelText('Password'),
         ];
         const hasError = inputs.some(input => input.getAttribute('aria-invalid') === 'true') ||
                         screen.queryAllByRole('alert').length > 0 ||
@@ -336,10 +363,10 @@ describe('SignupPage', () => {
       renderSignupPage();
 
       // Try with invalid username (too short or invalid characters)
-      const usernameInput = screen.getByPlaceholderText('e.g. lucas');
+      const usernameInput = screen.getByRole('textbox', { name: 'Username' });
       await user.type(usernameInput, 'ab');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -353,9 +380,9 @@ describe('SignupPage', () => {
       renderSignupPage();
 
       const emailInput = screen.getByPlaceholderText('your.email@example.com');
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(emailInput, 'not-an-email');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -390,9 +417,9 @@ describe('SignupPage', () => {
 
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       // Verify that signup was called (form submitted)
@@ -419,9 +446,9 @@ describe('SignupPage', () => {
 
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'existinguser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'existinguser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {
@@ -436,9 +463,9 @@ describe('SignupPage', () => {
 
       renderSignupPage();
 
-      await user.type(screen.getByPlaceholderText('e.g. lucas'), 'testuser');
+      await user.type(screen.getByRole('textbox', { name: 'Username' }), 'testuser');
       await user.type(screen.getByPlaceholderText('your.email@example.com'), 'test@example.com');
-      await user.type(screen.getByPlaceholderText('Create a strong password'), 'Password123!');
+      await user.type(screen.getByLabelText('Password'), 'Password123!');
       await user.click(screen.getByRole('button', { name: /^Create Account$/i }));
 
       await waitFor(() => {

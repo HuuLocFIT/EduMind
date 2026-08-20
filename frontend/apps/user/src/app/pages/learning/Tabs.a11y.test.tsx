@@ -32,6 +32,23 @@ describe('shared Tabs accessibility', () => {
     expect(allTab).toHaveAttribute('tabindex', '0');
   });
 
+  it('contains horizontal overflow within the tablist on narrow viewports', () => {
+    render(<ExampleTabs />);
+
+    const tablist = screen.getByRole('tablist', { name: 'Course filters' });
+    const tabs = screen.getAllByRole('tab');
+
+    expect(tablist).toHaveClass(
+      'inline-flex',
+      'max-w-full',
+      'overflow-x-auto',
+      'overflow-y-hidden',
+    );
+    tabs.forEach((tab) => {
+      expect(tab).toHaveClass('shrink-0', 'whitespace-nowrap');
+    });
+  });
+
   it('supports arrow, Home and End keys with roving tabindex and retained focus', async () => {
     const user = userEvent.setup();
     render(<ExampleTabs />);

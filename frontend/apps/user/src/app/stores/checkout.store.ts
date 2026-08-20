@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import type { PaymentMethod } from "@edumind/shared-constants";
-import type { CheckoutItemPreview } from "@edumind/shared-types";
 
 export type CheckoutStep = "cart" | "payment" | "processing" | "success" | "failed";
 export type CheckoutMode = "cart" | "direct"; // cart checkout or buy-now
@@ -125,5 +124,9 @@ export const useCheckoutStore = create<CheckoutState>()((set) => ({
       errorMessage: result.errorMessage ?? state.errorMessage,
     })),
 
-  reset: () => set(initialState),
+  // Preserve the user's payment method choice across reset — reset runs on every
+  // CheckoutPage mount (including Cart <-> Checkout back-and-forth and Retry from
+  // the failed page), and re-clearing it forces a redundant re-selection (SC 3.3.7).
+  reset: () =>
+    set((state) => ({ ...initialState, selectedPaymentMethod: state.selectedPaymentMethod })),
 }));

@@ -27,10 +27,6 @@ flowchart TB
         LMSCore["LMS Core Service<br/>Modular Monolith<br/>:8083"]
     end
 
-    subgraph Planned["🚧 Planned"]
-        AISvc["🤖 AI Service<br/>Python / FastAPI / LangChain<br/><i>PLANNED</i>"]
-    end
-
     subgraph DataStores["Data Stores"]
         AuthDB[(Auth DB<br/>PostgreSQL)]
         LMSDB[(LMS DB<br/>PostgreSQL)]
@@ -42,6 +38,8 @@ flowchart TB
         PaymentGW["Payment Gateway"]
         Email["Email Service"]
         OAuth["Google OAuth2"]
+        Gemini["Google Gemini"]
+        Groq["Groq (Whisper)"]
     end
 
     Student --> UserApp
@@ -55,7 +53,6 @@ flowchart TB
     Gateway --> AuthSvc
     Gateway --> LMSCore
     Gateway --> Redis
-    Gateway -.->|Future| AISvc
 
     AuthSvc --> AuthDB
     AuthSvc --> Email
@@ -65,12 +62,11 @@ flowchart TB
     LMSCore --> LMSDB
     LMSCore --> Cloudinary
     LMSCore --> PaymentGW
+    LMSCore --> Gemini
+    LMSCore --> Groq
 
     AuthSvc --> Discovery
     LMSCore --> Discovery
-
-    style AISvc fill:#fff3cd,stroke:#ffc107,stroke-dasharray: 5 5
-    style Planned fill:#fffbe6,stroke:#ffc107
 ```
 
 ---
@@ -91,21 +87,20 @@ flowchart TB
 | **API Gateway** | Spring Cloud Gateway | 8080 | ✅ Active | Single entry point. Handles routing, CORS, rate limiting (Redis). |
 | **Discovery Service** | Netflix Eureka | 8761 | ✅ Active | Service registry for dynamic service discovery. |
 | **Auth Service** | Spring Boot 3.5 | 8081 | ✅ Active | Identity management: JWT, OAuth2, 2FA, RBAC, Email Verification. |
-| **LMS Core Service** | Spring Boot 3.5 (Modular Monolith) | 8083 | ✅ Active | Core business logic separated by schemas: `course`, `payment`, `gamification`. |
-| **AI Service** | Python / FastAPI / LangChain | TBD | 🚧 **Planned** | LLM-powered recommendations, content generation, learning assistance, RAG. |
+| **LMS Core Service** | Spring Boot 3.5 (Modular Monolith) | 8083 | ✅ Active | Core business logic as a modular monolith with schema-based isolation (active: `course`, `payment`, `ai`; reserved for future: `assessment`, `gamification`, `notification`). Calls Google Gemini for RAG chat/embeddings/summaries/quizzes and Groq for Whisper transcription. |
 
 ### Data Stores
 
 | Store | Technology | Purpose |
 |-------|------------|---------|
 | **Auth Database** | PostgreSQL | Persists users, roles, tokens, teacher applications. |
-| **LMS Database** | PostgreSQL | Persists courses, sections, lessons, enrollments, orders, invoices, reviews. |
+| **LMS Database** | PostgreSQL + pgvector | Persists courses, sections, lessons, enrollments, orders, invoices, reviews, plus the `ai` schema's `lesson_embeddings` table (ivfflat index) and other AI module tables. |
 | **Redis** | Redis 7 | Rate limiting counters, session caching. |
 
 ---
 
 ## Key Design Decisions
 
-1.  **Modular Monolith for LMS Core**: Chosen to **minimize deployment costs** while using **separate database schemas** (course, payment, gamification) for future microservice extraction.
+1.  **Modular Monolith for LMS Core**: Chosen to **minimize deployment costs** while using **separate database schemas** (active: course, payment, ai; reserved for future: assessment, gamification, notification) for future microservice extraction.
 2.  **API Gateway for Centralization**: All client traffic enters through a single point, simplifying security (rate limiting, CORS) and observability.
 3.  **Eureka for Discovery**: Enables dynamic scaling and failover without hardcoded service addresses.

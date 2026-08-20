@@ -208,6 +208,20 @@ export const CheckoutPage: React.FC = () => {
             amount: String(displayAmount || ''),
             currency: displayCurrency,
           });
+
+          // Bank transfer details, so the QR page can render a readable/copyable
+          // alternative to the QR image (screen readers cannot scan it).
+          // Empty values are skipped: the QR page treats absence as "not configured".
+          const transferDetails: Record<string, string | null | undefined> = {
+            bankCode: result.bankCode,
+            bankName: result.bankName,
+            bankAccount: result.bankAccount,
+            accountName: result.accountName,
+            transferContent: result.transferContent,
+          };
+          Object.entries(transferDetails).forEach(([key, value]) => {
+            if (value) qrPageParams.set(key, value);
+          });
           navigate(`${USER_ROUTES.CHECKOUT_SEPAY_QR}?${qrPageParams.toString()}`);
           return;
         }
@@ -307,14 +321,14 @@ export const CheckoutPage: React.FC = () => {
       : (error as Error)?.message || "Unable to load checkout";
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="p-8 max-w-md text-center" role="alert">
+        <Card className="p-8 max-w-md text-center">
           <div className="text-red-500 mb-4">
             <Lock aria-hidden="true" className="w-12 h-12 mx-auto" />
           </div>
           <h1 ref={errorHeadingRef} tabIndex={-1} className="text-xl font-semibold text-gray-900 mb-2">
             Checkout Error
           </h1>
-          <p className="text-gray-600 mb-4">
+          <p role="status" className="text-gray-600 mb-4">
             {loadError}
           </p>
           <Button
@@ -446,9 +460,9 @@ export const CheckoutPage: React.FC = () => {
               </dl>
 
               {checkoutError && (
-                <div role="alert" className="mb-4 text-sm text-red-700">
+                <div className="mb-4 text-sm text-red-700">
                   <h2 ref={errorHeadingRef} tabIndex={-1} className="font-semibold">Unable to place order</h2>
-                  <p>{checkoutError}</p>
+                  <p role="status">{checkoutError}</p>
                   {isDirectCheckout && <button type="button" className="underline" onClick={() => navigate(USER_ROUTES.COURSES)}>Browse courses</button>}
                 </div>
               )}
@@ -501,12 +515,11 @@ export const CheckoutPage: React.FC = () => {
           </div>
 
           {/* Main Content - Order Items & Payment Methods */}
-          <div className="order-2 lg:order-1 lg:col-span-2 space-y-4 sm:space-y-6">
+          <div className="order-2 min-w-0 space-y-4 sm:space-y-6 lg:order-1 lg:col-span-2">
             {/* Payment Method Selection - Show before items on mobile for faster checkout */}
-            <Card className="p-4 sm:p-6">
+            <Card className="min-w-0 max-w-full overflow-hidden p-4 sm:p-6">
               <h2 id="payment-method-heading" className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Payment Method</h2>
-              <fieldset aria-labelledby="payment-method-heading">
-              <legend className="sr-only">Choose a payment method</legend>
+              <fieldset aria-labelledby="payment-method-heading" className="min-w-0 max-w-full">
               <div className="space-y-2 sm:space-y-3">
                 {PAYMENT_METHODS.map((method) => {
                   const Icon = method.icon;
@@ -515,14 +528,15 @@ export const CheckoutPage: React.FC = () => {
                   return (
                     <label
                       key={method.id}
-                      className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border-2 transition-all ${
+                      className={`box-border flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-lg border-2 p-3 transition-all sm:gap-4 sm:p-4 ${
                         isSelected
                           ? "border-blue-600 bg-blue-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <input className="h-5 w-5 flex-shrink-0" type="radio" name="paymentMethod" value={method.id}
-                        checked={isSelected} onChange={() => handleSelectPaymentMethod(method.id)} />
+                      <input className="h-6 w-6 flex-shrink-0" type="radio" name="paymentMethod" value={method.id}
+                        checked={isSelected} onChange={() => handleSelectPaymentMethod(method.id)}
+                        aria-label={`${method.name}, ${method.description}`} />
                       <div aria-hidden="true"
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                           isSelected
@@ -532,7 +546,7 @@ export const CheckoutPage: React.FC = () => {
                       >
                         <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
-                      <div className="flex-1 text-left min-w-0">
+                      <div className="flex-1 text-left min-w-0" aria-hidden="true">
                         <p className="text-sm sm:text-base font-medium text-gray-900">
                           {method.name}
                         </p>
@@ -540,7 +554,6 @@ export const CheckoutPage: React.FC = () => {
                           {method.description}
                         </p>
                       </div>
-                      {isSelected && <span className="text-sm font-semibold">Selected</span>}
                     </label>
                   );
                 })}

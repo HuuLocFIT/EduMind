@@ -164,7 +164,7 @@ describe('CheckoutFailedPage', () => {
       render(<CheckoutFailedPage />);
 
       expect(screen.getByText('Manual Refund Required')).toBeInTheDocument();
-      expect(screen.getByText(/refund requires manual processing/i)).toBeInTheDocument();
+      expect(screen.getByText(/requires manual refund processing/i)).toBeInTheDocument();
     });
 
     it('returns correct message for ORDER_EXPIRED', () => {
@@ -290,7 +290,7 @@ describe('CheckoutFailedPage', () => {
       render(<CheckoutFailedPage />);
 
       expect(screen.getByRole('heading', { name: 'Refund status' })).toBeInTheDocument();
-      expect(screen.getByText(/awaiting manual review/i)).toBeInTheDocument();
+      expect(screen.getByText(/flagged for manual refund handling/i)).toBeInTheDocument();
     });
 
     it('shows possible reasons for payment failures with showReasons=true', () => {
@@ -337,11 +337,6 @@ describe('CheckoutFailedPage', () => {
       expect(screen.getByRole('button', { name: 'Start New Order' })).toBeInTheDocument();
     });
 
-    it('provides a real support link', () => {
-      render(<CheckoutFailedPage />);
-
-      expect(screen.getByRole('link', { name: 'Contact Support' })).toHaveAttribute('href', 'mailto:support@edumind.com');
-    });
   });
 
   describe('icon configuration', () => {
@@ -456,7 +451,7 @@ describe('CheckoutFailedPage', () => {
       expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
     });
 
-    it('supports keyboard activation for retry, cart, and support actions', async () => {
+    it('supports keyboard activation for retry and cart actions', async () => {
       const user = userEvent.setup();
       mockSearchParams.set('errorCode', 'INSTRUMENT_DECLINED');
       render(<CheckoutFailedPage />);
@@ -470,9 +465,6 @@ describe('CheckoutFailedPage', () => {
       expect(screen.getByRole('button', { name: 'Return to Cart' })).toHaveFocus();
       await user.keyboard(' ');
       expect(mockNavigate).toHaveBeenCalledWith(USER_ROUTES.CART);
-
-      await user.tab();
-      expect(screen.getByRole('link', { name: 'Contact Support' })).toHaveFocus();
     });
   });
 });

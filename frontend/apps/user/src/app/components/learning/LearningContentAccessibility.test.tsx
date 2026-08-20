@@ -176,13 +176,16 @@ describe('ArticleViewer', () => {
 
   it('gives code blocks a region name containing the language', () => {
     const { container } = render(<ArticleViewer html={richHtml} />);
-    expect(screen.getByRole('region', { name: 'Code example, typescript' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Code example, TypeScript' })).toBeInTheDocument();
+    expect(screen.getByText('Code example — TypeScript')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('figure')).not.toBeInTheDocument();
     expect(container.querySelector('pre')).not.toHaveAttribute('lang');
   });
 
   it('uses language-not-specified context when no language metadata is present', () => {
     render(<ArticleViewer html={'<pre><code>bare code</code></pre>'} />);
-    expect(screen.getByRole('region', { name: 'Code example, language not specified' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Code example, Language not specified' })).toBeInTheDocument();
+    expect(screen.getByText('Code example — Language not specified')).toHaveAttribute('aria-hidden', 'true');
   });
 
   it.each(['python', 'java', 'go', 'js'])(
@@ -193,7 +196,8 @@ describe('ArticleViewer', () => {
           html={`<pre class="language-${language}"><code>sample code</code></pre>`}
         />,
       );
-      const region = screen.getByRole('region', { name: `Code example, ${language}` });
+      const expectedName = language === 'js' ? 'JavaScript' : language === 'python' ? 'Python' : language;
+      const region = screen.getByRole('region', { name: `Code example, ${expectedName}` });
       expect(region).toHaveTextContent('sample code');
       expect(container.querySelector('pre')).not.toHaveAttribute('lang');
       await assertNoSeriousViolations(container);
@@ -207,7 +211,7 @@ describe('ArticleViewer', () => {
       />,
     );
 
-    expect(screen.getByRole('region', { name: 'Code example, python' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Code example, Python' })).toBeInTheDocument();
     expect(container.querySelector('pre')).not.toHaveAttribute('lang');
     expect(container.querySelector('code')).not.toHaveAttribute('lang');
   });

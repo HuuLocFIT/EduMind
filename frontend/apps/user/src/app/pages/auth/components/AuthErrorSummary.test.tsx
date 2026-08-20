@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AuthErrorSummary } from "./AuthErrorSummary";
 
 describe("AuthErrorSummary", () => {
-  it("exposes the title and message as the alert name and description", () => {
+  it("exposes the title and message once as alert content", () => {
     const ref = createRef<HTMLDivElement>();
 
     render(
@@ -15,8 +15,11 @@ describe("AuthErrorSummary", () => {
       />,
     );
 
-    const alert = screen.getByRole("alert", { name: "Unable to sign in" });
-    expect(alert).toHaveAccessibleDescription("Check your email and password.");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Unable to sign in");
+    expect(alert).toHaveTextContent("Check your email and password.");
+    expect(alert).not.toHaveAttribute("aria-labelledby");
+    expect(alert).not.toHaveAttribute("aria-describedby");
     expect(alert).toHaveAttribute("tabindex", "-1");
     expect(ref.current).toBe(alert);
   });
@@ -33,8 +36,8 @@ describe("AuthErrorSummary", () => {
       />,
     );
 
-    expect(screen.getByRole("alert", { name: "Error" })).toHaveAccessibleDescription(
-      /Password is required.*Passwords must match/,
-    );
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Error");
+    expect(alert).toHaveTextContent(/Password is required.*Passwords must match/);
   });
 });

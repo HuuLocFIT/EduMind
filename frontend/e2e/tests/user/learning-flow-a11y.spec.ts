@@ -224,7 +224,7 @@ authTest.describe('@a11y-learning Course player structure and navigation', () =>
     const allTab = studentPage.getByRole('tab', { name: /^All,/ });
     await allTab.focus();
     await allTab.press('ArrowRight');
-    const inProgressTab = studentPage.getByRole('tab', { name: /^In Progress,/ });
+    const inProgressTab = studentPage.getByRole('tab', { name: /^Active,/ });
     await expect(inProgressTab).toBeFocused();
     await expect(inProgressTab).toHaveAttribute('aria-selected', 'true');
     await expect(studentPage.getByRole('list', { name: 'active courses' })).toBeVisible();
@@ -281,10 +281,8 @@ authTest.describe('@a11y-learning Course player structure and navigation', () =>
     await player.markCompleteButton.focus();
     await player.markCompleteButton.press('Enter');
     await expect(
-      studentPage.getByRole('status').filter({
-        hasText: 'Player overview completed. Course progress is 67%.',
-      })
-    ).toBeVisible();
+      studentPage.getByRole('button', { name: 'Go to next lesson now' })
+    ).toHaveAccessibleDescription('Player overview completed. Course progress is 67%. Moving to Knowledge check in 10 seconds. To remain on this lesson, activate Cancel auto-advance.');
     await expect(studentPage.getByText('Course Progress: 67%')).toBeVisible();
     await expect(player.lessonItems.nth(1)).toHaveAccessibleName(/Completed/);
     await checkA11y(studentPage, { stateName: 'course player completion updated progress', testInfo });

@@ -340,9 +340,12 @@ export const CourseDetailPage: React.FC = () => {
               </p>
 
               <div className="flex flex-wrap items-center gap-6 mb-6">
-                <div className="flex items-center gap-2" role="img" aria-label={course.averageRating
-                  ? `${course.averageRating.toFixed(1)} out of 5 stars from ${course.totalReviews || 0} ${course.totalReviews === 1 ? "review" : "reviews"}`
-                  : "No ratings yet"}>
+                <div className="flex items-center gap-2">
+                  <span className="sr-only">
+                    {course.averageRating
+                      ? `${course.averageRating.toFixed(1)} out of 5 stars from ${course.totalReviews || 0} ${course.totalReviews === 1 ? "review" : "reviews"}`
+                      : "No ratings yet"}
+                  </span>
                   <span aria-hidden="true"><RatingStars rating={course.averageRating || 0} size="md" /></span>
                   { course.averageRating? 
                     <span aria-hidden="true" className="text-lg font-semibold">
@@ -356,12 +359,13 @@ export const CourseDetailPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-blue-100">
                   <Users aria-hidden="true" focusable="false" className="w-5 h-5" />
-                  <span>{course.totalStudents || 0} students</span>
+                  <span>{`${course.totalStudents || 0} students`}</span>
                 </div>
                 {hasPositiveCourseMetric(course.durationHours) && (
                   <div className="flex items-center gap-2 text-blue-100">
                     <Clock aria-hidden="true" focusable="false" className="w-5 h-5" />
-                    <span>{course.durationHours}h</span>
+                    <span className="sr-only">{`${course.durationHours} hours`}</span>
+                    <span aria-hidden="true">{course.durationHours}h</span>
                   </div>
                 )}
               </div>
@@ -482,7 +486,7 @@ export const CourseDetailPage: React.FC = () => {
                           <Clock aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
                         </div>
                         <span>
-                          {course.durationHours} hours on-demand video
+                          {`${course.durationHours} hours on-demand video`}
                         </span>
                       </li>
                     )}
@@ -491,7 +495,7 @@ export const CourseDetailPage: React.FC = () => {
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                           <BookOpen aria-hidden="true" focusable="false" className="w-4 h-4 text-blue-600" />
                         </div>
-                        <span>{course.totalLessons} lessons</span>
+                        <span>{`${course.totalLessons} lessons`}</span>
                       </li>
                     )}
                     {course.hasCertificate && (
@@ -570,11 +574,14 @@ export const CourseDetailPage: React.FC = () => {
                       <h2 className="text-3xl font-bold text-gray-900">Student Reviews</h2>
                       {course.averageRating && (
                         <div className="flex items-center gap-2">
+                          <span className="sr-only">
+                            {`${course.averageRating.toFixed(1)} out of 5 stars from ${course.totalReviews || 0} ${course.totalReviews === 1 ? "review" : "reviews"}`}
+                          </span>
                           <Star aria-hidden="true" focusable="false" className="w-6 h-6 text-yellow-400 fill-yellow-400" />
-                          <span className="text-2xl font-bold text-gray-900">
+                          <span aria-hidden="true" className="text-2xl font-bold text-gray-900">
                             {course.averageRating.toFixed(1)}
                           </span>
-                          <span className="text-gray-600">
+                          <span aria-hidden="true" className="text-gray-600">
                             ({course.totalReviews || 0}{" "}
                             {course.totalReviews === 1 ? "review" : "reviews"})
                           </span>

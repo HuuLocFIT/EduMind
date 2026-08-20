@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -20,10 +21,13 @@ public class LoggingFilter implements GlobalFilter, Ordered {
 
         logger.info("📥 Incoming Request: {} {}", method, path);
 
-        return chain.filter(exchange).then(Mono.fromRunnable(() -> {
-            int statusCode = exchange.getResponse().getStatusCode().value();
-            logger.info("📤 Response Status: {} for {} {}", statusCode, method, path);
-        }));
+        // doFinally (not then) so the response is logged on error/cancel too, not only on
+        // successful completion. Status can still be null if the response was never committed.
+        return chain.filter(exchange).doFinally(signal -> {
+            HttpStatusCode status = exchange.getResponse().getStatusCode();
+            logger.info("📤 Response Status: {} for {} {} ({})",
+                    status != null ? status.value() : "unknown", method, path, signal);
+        });
     }
 
     @Override

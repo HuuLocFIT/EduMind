@@ -113,24 +113,24 @@ public class EmailVerificationService {
      */
     @Transactional
     public void verifyEmail(String tokenString) {
-        logger.info("🔍 Verifying email token: {}", tokenString);
+        logger.info("🔍 Verifying email token");
 
         // Find token
         EmailVerificationToken token = tokenRepository.findByToken(tokenString)
                 .orElseThrow(() -> {
-                    logger.error("❌ Invalid token: {}", tokenString);
+                    logger.error("❌ Invalid email verification token");
                     return new BadRequestException("Invalid verification token");
                 });
 
         // Check if already verified
         if (token.isVerified()) {
-            logger.warn("⚠️ Token already used: {}", tokenString);
+            logger.warn("⚠️ Email verification token already used");
             throw new BadRequestException("This verification link has already been used");
         }
 
         // Check if expired
         if (token.isExpired()) {
-            logger.error("❌ Token expired: {}", tokenString);
+            logger.error("❌ Email verification token expired");
             throw new BadRequestException("Verification link has expired. Please request a new one.");
         }
 

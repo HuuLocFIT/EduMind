@@ -405,7 +405,7 @@ export const BrowseCoursesPage: React.FC = () => {
     setSearchInputValue(keyword);
     setAppliedKeyword(keyword);
     setPage(0);
-    markAppliedRequest();
+    markAppliedRequest(true);
     if (shouldRefetchCurrentQuery) void refetch();
   };
 

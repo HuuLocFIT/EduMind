@@ -154,7 +154,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           {/* Duration */}
           <div className="flex items-center gap-1.5" title="Duration">
              <Clock className="w-4 h-4 text-gray-400" aria-hidden="true" />
-             <span>{course.durationHours || 0}h</span>
+             <span className="sr-only">{`${course.durationHours || 0} hours`}</span>
+             <span aria-hidden="true">{course.durationHours || 0}h</span>
           </div>
         </div>
       </a>
@@ -176,7 +177,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
 
            {/* Savings Text */}
            {course.discountPrice && course.discountPrice < course.price && (
-             <span className="text-xs font-bold text-red-600 mt-1 bg-red-50 px-2 py-0.5 rounded-sm w-fit">
+             <span className="text-xs font-bold text-red-700 mt-1 bg-red-50 px-2 py-0.5 rounded-sm w-fit">
                 Save {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(course.price - course.discountPrice)}
              </span>
            )}

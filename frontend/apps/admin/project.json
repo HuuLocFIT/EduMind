@@ -36,6 +36,7 @@
               "with": "apps/admin/src/environments/environment.prod.ts"
             }
           ],
+          "sourceMap": true,
           "budgets": [
             {
               "type": "initial",

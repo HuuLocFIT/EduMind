@@ -294,4 +294,128 @@ describe('useCoursePlayerData', () => {
 
     expect(setCurrentLesson).toHaveBeenCalledWith(null);
   });
+
+  it('sets the search-param type hint from getCourseBySlug nested lessons before getCourseLessons resolves', async () => {
+    const nestedLesson = {
+      id: 5,
+      sectionId: 10,
+      title: 'Nested Lesson',
+      contentType: ContentType.ARTICLE,
+      orderIndex: 0,
+      videoUrl: null,
+      articleContent: null,
+      resources: null,
+    } as LessonResponse;
+
+    const courseWithNestedLessons = {
+      ...courseA,
+      sections: [
+        {
+          id: 10,
+          courseId: 100,
+          title: 'Introduction',
+          orderIndex: 0,
+          lessons: [nestedLesson],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    } as CourseDetailResponse;
+
+    let resolveLessons!: (value: LessonResponse[]) => void;
+    const deferredLessons = new Promise<LessonResponse[]>((resolve) => {
+      resolveLessons = resolve;
+    });
+
+    vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseWithNestedLessons);
+    vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
+    vi.mocked(lessonService.getCourseLessons).mockReturnValue(deferredLessons);
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue(enrollmentA);
+    vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
+
+    const setSearchParams = vi.fn();
+    renderHook(() =>
+      useCoursePlayerData({
+        courseSlug: 'course-a',
+        currentLesson: null,
+        searchParams: new URLSearchParams(),
+        setSearchParams,
+        setCurrentLesson: vi.fn(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(setSearchParams).toHaveBeenCalledWith(
+        { lesson: '5', type: ContentType.ARTICLE },
+        { replace: true }
+      );
+    });
+
+    // The lessons round trip (getCourseLessons) is still pending: the hint
+    // above came from the nested lessons in getCourseBySlug's response, one
+    // round trip earlier than the official resolve.
+    expect(setSearchParams).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveLessons([]);
+    });
+  });
+
+  it('never calls setCurrentLesson with the metadata-only lesson data nested in getCourseBySlug', async () => {
+    const nestedLesson = {
+      id: 5,
+      sectionId: 10,
+      title: 'Nested Lesson',
+      contentType: ContentType.VIDEO,
+      orderIndex: 0,
+      videoUrl: null,
+      articleContent: null,
+      resources: null,
+    } as LessonResponse;
+
+    const fullLesson = {
+      ...nestedLesson,
+      videoUrl: 'https://example.com/video.mp4',
+    } as LessonResponse;
+
+    const courseWithNestedLessons = {
+      ...courseA,
+      sections: [
+        {
+          id: 10,
+          courseId: 100,
+          title: 'Introduction',
+          orderIndex: 0,
+          lessons: [nestedLesson],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    } as CourseDetailResponse;
+
+    vi.mocked(courseService.getCourseBySlug).mockResolvedValue(courseWithNestedLessons);
+    vi.mocked(sectionService.getCourseSections).mockResolvedValue(sections);
+    vi.mocked(lessonService.getCourseLessons).mockResolvedValue([fullLesson]);
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse).mockResolvedValue(enrollmentA);
+    vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([]);
+
+    const setCurrentLesson = vi.fn();
+    renderHook(() =>
+      useCoursePlayerData({
+        courseSlug: 'course-a',
+        currentLesson: null,
+        searchParams: new URLSearchParams(),
+        setSearchParams: vi.fn(),
+        setCurrentLesson,
+      })
+    );
+
+    await waitFor(() => {
+      expect(setCurrentLesson).toHaveBeenCalledWith(fullLesson);
+    });
+
+    expect(setCurrentLesson).not.toHaveBeenCalledWith(
+      expect.objectContaining({ videoUrl: null, articleContent: null, resources: null })
+    );
+  });
 });

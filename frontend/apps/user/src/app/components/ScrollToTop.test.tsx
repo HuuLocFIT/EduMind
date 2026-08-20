@@ -135,4 +135,49 @@ describe("route accessibility", () => {
     expect(document.title).toBe("My Learning | EduMind");
   });
 
+  // A query-param change is how in-page state (the course player's `?lesson=`,
+  // browse filters, pagination) mirrors itself into the URL — it is not a
+  // navigation. Treating it as one steals focus from whatever the page just
+  // focused, blanks the page's own <title>, and arms the 3s `main.focus()`
+  // fallback against a page that is not loading.
+  it("does not treat a query-param-only change as a navigation", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    render(
+      <MemoryRouter initialEntries={["/learn/course-a?lesson=1"]}>
+        <ScrollToTop />
+        <main id="main-content" tabIndex={-1}>
+          <Routes>
+            <Route
+              path="/learn/:slug"
+              element={
+                <>
+                  <h1>Course A</h1>
+                  <Link to="/learn/course-a?lesson=2" replace>
+                    Next lesson
+                  </Link>
+                  <h2 tabIndex={-1}>Lesson heading</h2>
+                </>
+              }
+            />
+          </Routes>
+        </main>
+      </MemoryRouter>,
+    );
+
+    document.title = "Lesson one | EduMind";
+    await user.click(screen.getByRole("link", { name: "Next lesson" }));
+
+    // The page's own focus target, standing in for the course player's
+    // post-navigation lesson-heading focus.
+    const lessonHeading = screen.getByRole("heading", { level: 2 });
+    lessonHeading.focus();
+
+    await vi.advanceTimersByTimeAsync(3500);
+
+    expect(lessonHeading).toHaveFocus();
+    expect(document.title).toBe("Lesson one | EduMind");
+    vi.useRealTimers();
+  });
 });

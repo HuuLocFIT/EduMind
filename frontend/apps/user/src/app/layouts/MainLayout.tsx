@@ -37,6 +37,13 @@ export const MainLayout: React.FC = () => {
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
+  // The course player renders its own full-height, viewport-fixed curriculum
+  // sidebar (top-16 to bottom-0). If the site footer renders below it, the
+  // fixed sidebar stays pinned over the footer as the page scrolls, visually
+  // burying it. Suppress the global footer for that route instead of fighting
+  // the sidebar's intentional fixed positioning.
+  const isCoursePlayerRoute = location.pathname.startsWith(`${USER_ROUTES.LEARNING}/`);
+
   const mainContentHref = `${location.pathname}${location.search}#main-content`;
   const handleSkipToMain = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -229,14 +236,14 @@ export const MainLayout: React.FC = () => {
                           role="menu"
                           tabIndex={-1}
                           aria-label="User account options"
-                          className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+                          className="absolute right-0 mt-2 w-56 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain bg-white rounded-lg shadow-lg border border-gray-200 py-2"
                           onKeyDown={handleMenuKeyDown}
                         >
-                          <div className="px-4 py-2 border-b">
-                            <p className="font-semibold text-gray-900">
+                          <div className="px-4 py-2 border-b min-w-0">
+                            <p className="font-semibold text-gray-900 break-words">
                               {user?.firstName} {user?.lastName}
                             </p>
-                            <p className="text-sm text-gray-600">{user?.email}</p>
+                            <p className="text-sm text-gray-600 break-all">{user?.email}</p>
                           </div>
 
                           <button
@@ -436,12 +443,16 @@ export const MainLayout: React.FC = () => {
 
             {/* Mobile Menu */}
             {mobileMenuOpen && (
-              <nav id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden py-4 border-t">
+              <nav
+                id="mobile-navigation"
+                aria-label="Mobile navigation"
+                className="md:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain py-4 border-t"
+              >
                 <ul className="flex flex-col gap-4">
                   <li>
                     <Link
                       to={USER_ROUTES.COURSES}
-                      className="text-gray-700 hover:text-blue-600"
+                      className="block w-full text-gray-700 hover:text-blue-600"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Browse Courses
@@ -453,7 +464,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.DASHBOARD}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Dashboard
@@ -462,7 +473,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.LEARNING}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           My Learning
@@ -471,7 +482,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.WISHLIST}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Wishlist
@@ -480,7 +491,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.CERTIFICATES}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Certificates
@@ -489,7 +500,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.ORDERS}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           My Orders
@@ -498,7 +509,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.REFUNDS}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           My Refunds
@@ -507,7 +518,7 @@ export const MainLayout: React.FC = () => {
                       <li>
                         <Link
                           to={USER_ROUTES.PROFILE_SETTINGS}
-                          className="text-gray-700 hover:text-blue-600"
+                          className="block w-full text-gray-700 hover:text-blue-600"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Settings
@@ -524,7 +535,7 @@ export const MainLayout: React.FC = () => {
                             <li>
                               <Link
                                 to={USER_ROUTES.TEACHER_APPLICATION}
-                                className="flex items-center justify-between text-blue-600 font-medium"
+                                className="flex items-center justify-between w-full text-blue-600 font-medium"
                                 onClick={() => setMobileMenuOpen(false)}
                               >
                                 <div className="flex items-center gap-2">
@@ -537,7 +548,7 @@ export const MainLayout: React.FC = () => {
                             <li>
                               <Link
                                 to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-                                className="flex items-center justify-between text-gray-700 hover:text-blue-600"
+                                className="flex items-center justify-between w-full text-gray-700 hover:text-blue-600"
                                 onClick={() => setMobileMenuOpen(false)}
                               >
                                 <div className="flex items-center gap-2">
@@ -557,7 +568,7 @@ export const MainLayout: React.FC = () => {
                           <li>
                             <Link
                               to={TEACHER_ROUTES.DASHBOARD}
-                              className="flex items-center gap-2 text-green-600 font-medium"
+                              className="flex items-center gap-2 w-full text-green-600 font-medium"
                               onClick={() => setMobileMenuOpen(false)}
                             >
                               <GraduationCap className="w-5 h-5" />
@@ -627,7 +638,8 @@ export const MainLayout: React.FC = () => {
       {/* Cart Drawer */}
       <CartDrawer isOpen={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
 
-      {/* Footer */}
+      {/* Footer — hidden on the course player route, see isCoursePlayerRoute above */}
+      {!isCoursePlayerRoute && (
       <footer aria-label="Site footer" className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-4 py-6 sm:py-8">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-6 sm:gap-8">
@@ -680,9 +692,9 @@ export const MainLayout: React.FC = () => {
                   </span>
                 </li>
                 <li>
-                  <span>
+                  <a href="mailto:support@edumind.com" className="hover:text-blue-600">
                     Contact Us
-                  </span>
+                  </a>
                 </li>
                 <li>
                   <span>
@@ -714,6 +726,7 @@ export const MainLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 };

@@ -12,6 +12,7 @@ import {
   LoadingOverlay,
   Modal,
   PasswordInput,
+  PriceTag,
   ProgressBar,
   Radio,
   Select,
@@ -29,6 +30,19 @@ import {
 } from "@edumind/user-ui";
 
 describe("shared UI accessibility contracts", () => {
+  it("exposes discounted pricing as one contextual sentence", () => {
+    const { container } = render(
+      <PriceTag price={75} originalPrice={100} />,
+    );
+
+    expect(
+      screen.getByText("Original price $100.00, now $75.00, you save 25%"),
+    ).toHaveClass("sr-only");
+    const visualPrices = container.querySelector('[aria-hidden="true"]');
+    expect(visualPrices).toHaveTextContent("$75.00$100.00-25%");
+    expect(visualPrices).not.toHaveTextContent("Original price");
+  });
+
   it("associates labels, descriptions, errors, and invalid state with form controls", () => {
     render(
       <>
@@ -60,7 +74,7 @@ describe("shared UI accessibility contracts", () => {
     );
   });
 
-  it("exposes password visibility and switch state to keyboard and assistive technology", async () => {
+  it("changes the password visibility action without losing its value or focus", async () => {
     const user = userEvent.setup();
     render(
       <>
@@ -71,10 +85,14 @@ describe("shared UI accessibility contracts", () => {
 
     const password = screen.getByLabelText("Password");
     const visibility = screen.getByRole("button", { name: "Show password" });
-    await user.click(visibility);
+    await user.type(password, "Password123");
+    visibility.focus();
+    await user.keyboard(" ");
     expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("Password123");
     expect(visibility).toHaveAccessibleName("Hide password");
-    expect(visibility).toHaveAttribute("aria-pressed", "true");
+    expect(visibility).not.toHaveAttribute("aria-pressed");
+    expect(visibility).toHaveFocus();
     expect(screen.getByRole("switch", { name: "Email notifications" })).toBeChecked();
   });
 

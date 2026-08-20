@@ -1,6 +1,6 @@
 # EduMind Admin Dashboard
 
-A production-grade Angular 20 admin panel for the EduMind LMS platform. Manages teacher applications, course moderation, category configuration, and financial operations (refunds and instructor payouts).
+A production-grade Angular 20 admin panel for the EduMind LMS platform. Manages teacher applications, student accounts, course moderation, category configuration, enrollment reports, and financial operations (refunds and instructor payouts).
 
 ---
 
@@ -27,19 +27,21 @@ A production-grade Angular 20 admin panel for the EduMind LMS platform. Manages 
 
 ## Tech Stack
 
-| Concern              | Technology                                      |
-|----------------------|-------------------------------------------------|
-| Framework            | Angular 20 (standalone components)              |
-| Language             | TypeScript 5.9                                  |
-| Build tool           | Vite 7 via `@angular/build`                     |
-| Monorepo             | Nx v22                                          |
-| Styling              | Tailwind CSS 4                                  |
-| Reactive programming | RxJS 7.8                                        |
-| Local state          | Angular Signals (`signal`, `computed`)          |
-| Schema validation    | Zod                                             |
-| HTTP client          | Angular `HttpClient`                            |
-| Testing              | Vitest 3 + `@testing-library/angular`           |
-| Icons                | Google Material Design Icons (CDN)              |
+| Concern              | Technology                                                              |
+|----------------------|--------------------------------------------------------------------------|
+| Framework            | Angular 20 (standalone components)                                     |
+| Language             | TypeScript 5.9                                                          |
+| Build tool           | Angular application builder (`@angular/build:application`, esbuild-based) for production builds; Vite powers the dev server and Vitest test runner |
+| Monorepo             | Nx v22                                                                  |
+| Styling              | Tailwind CSS 3.4                                                        |
+| Reactive programming | RxJS 7.8                                                                |
+| Local state          | Angular Signals (`signal`, `computed`)                                 |
+| Schema validation    | Zod 3.25 (HTTP response validation only — not all services use it yet, see [HTTP Layer](#http-layer)) |
+| HTTP client          | Angular `HttpClient`                                                    |
+| Error tracking       | Sentry (`@sentry/angular`) — error capture, tracing, release source maps |
+| Charts               | ApexCharts (`ng-apexcharts`) — dashboard visualizations                |
+| Testing              | Vitest 3 + Angular `TestBed` (no `@testing-library/angular` — it is not a project dependency) |
+| Icons                | Google Material Design Icons (CDN)                                     |
 
 ---
 
@@ -63,7 +65,7 @@ npm install
 npm run start:admin
 
 # Or using Nx directly
-nx serve admin
+npx nx serve admin
 ```
 
 Default admin credentials are configured in the backend seed data.
@@ -79,20 +81,36 @@ apps/admin/src/
 │   ├── app.routes.ts              # Top-level route definitions
 │   ├── app.ts                     # Root component (router outlet only)
 │   │
-│   ├── core/                      # Singleton services, guards, interceptors
+│   ├── core/                      # Singleton services, guards, interceptors, utilities
 │   │   ├── guards/
 │   │   │   ├── auth.guard.ts      # Redirects unauthenticated → /auth/login
 │   │   │   └── guest.guard.ts     # Redirects authenticated → /dashboard
 │   │   ├── interceptors/
 │   │   │   └── auth.interceptor.ts # Token injection, 401 handling, response unwrapping
-│   │   └── services/
-│   │       ├── auth.service.ts
-│   │       ├── category.service.ts
-│   │       ├── course.service.ts
-│   │       ├── teacher-application.service.ts
-│   │       ├── admin-user.service.ts
-│   │       ├── admin-refund.service.ts
-│   │       └── admin-payout.service.ts
+│   │   ├── services/
+│   │   │   ├── auth.service.ts
+│   │   │   ├── category.service.ts
+│   │   │   ├── course.service.ts
+│   │   │   ├── teacher-application.service.ts
+│   │   │   ├── admin-user.service.ts
+│   │   │   ├── admin-refund.service.ts
+│   │   │   ├── admin-payout.service.ts
+│   │   │   ├── admin-dashboard.service.ts
+│   │   │   ├── admin-enrollment.service.ts
+│   │   │   └── file-upload.service.ts
+│   │   └── utils/                 # Composition helpers (injectable functions)
+│   │       ├── inject-async-state.ts    # Loading/error/success signal wiring for a request
+│   │       ├── inject-media-query.ts    # Reactive window.matchMedia signal
+│   │       ├── inject-modal.ts          # Open/close/data signal trio for a modal
+│   │       ├── inject-pagination.ts     # Page/size/total signal trio + paged-response helper
+│   │       └── display-helpers.ts       # Formatting helpers (initials, full name, badge variant)
+│   │
+│   ├── shared/
+│   │   └── pipes/                 # Cross-feature display pipes
+│   │       ├── cloudinary-url.pipe.ts
+│   │       ├── document-type-label.pipe.ts
+│   │       ├── enum-label.pipe.ts
+│   │       └── role-label.pipe.ts
 │   │
 │   ├── features/                  # Lazy-loaded feature areas
 │   │   ├── auth/
@@ -103,9 +121,11 @@ apps/admin/src/
 │   │   ├── courses/
 │   │   │   ├── courses.component.ts
 │   │   │   └── course-detail.component.ts
+│   │   ├── students/
 │   │   ├── teachers/
 │   │   │   ├── teacher-applications/
 │   │   │   └── trial-teachers/
+│   │   ├── enrollment-reports/
 │   │   └── payments/
 │   │       ├── refunds/
 │   │       └── payouts/
@@ -114,11 +134,11 @@ apps/admin/src/
 │       └── main-layout/           # Shell: sidebar, topbar, router outlet
 │
 ├── environments/
-│   ├── environment.ts             # { apiUrl: 'http://localhost:8080' }
-│   └── environment.prod.ts        # { apiUrl: 'https://api.edumind.com' }
+│   ├── environment.ts             # { apiUrl: 'http://localhost:8080', sentryDsn: '' (disabled), sentryEnvironment: 'development' }
+│   └── environment.prod.ts        # { apiUrl: 'https://api.edumind.nguyenloc.dev', sentryDsn: '<real DSN>', sentryEnvironment: 'production' }
 ├── styles.css                     # Tailwind directives + global overrides
 ├── test-setup.ts                  # Vitest + Angular TestBed initialization
-└── main.ts                        # bootstrapApplication entry point
+└── main.ts                        # bootstrapApplication entry point + Sentry.init()
 ```
 
 ---
@@ -129,21 +149,35 @@ apps/admin/src/
 
 The app uses Angular's `bootstrapApplication()` API — there are no `NgModule` declarations anywhere.
 
-`app.config.ts` registers all application-level providers in one place:
+`main.ts` calls `Sentry.init()` before bootstrapping — configuring the DSN, environment, tracing, and session replay from `environment.ts`/`environment.prod.ts`. In development, `sentryDsn` is left blank, which disables reporting entirely.
+
+`app.config.ts` registers all application-level providers:
 
 ```typescript
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
+    // provideBrowserGlobalErrorListeners() is intentionally NOT used here —
+    // it conflicts with Sentry.createErrorHandler() (both hook uncaught errors,
+    // which would process every error twice).
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(appRoutes),
     provideHttpClient(withInterceptors([authInterceptor])),
+
+    // Sentry replaces Angular's default ErrorHandler.
+    { provide: ErrorHandler, useValue: Sentry.createErrorHandler({ showDialog: false }) },
+
+    // TraceService tracks route transitions; deps: [Router] is required or tracking silently no-ops.
+    { provide: Sentry.TraceService, deps: [Router] },
+
+    // Angular DI is lazy — provideAppInitializer forces TraceService to instantiate eagerly.
+    provideAppInitializer(() => { inject(Sentry.TraceService); }),
   ],
 };
 ```
 
 - `eventCoalescing: true` batches change detection events for performance.
 - A single functional interceptor covers all outbound HTTP requests.
+- Sentry's `ErrorHandler` is the app's only global error handler — there is no separate browser error listener.
 
 ---
 
@@ -157,9 +191,11 @@ export const appConfig: ApplicationConfig = {
   /dashboard
   /teachers/applications
   /teachers/trial
+  /students
   /categories
   /courses
   /courses/:id
+  /enrollment-reports
   /payments/refunds
   /payments/payouts/pending
   /payments/payouts
@@ -221,7 +257,7 @@ Both guards are functional, using `inject()` internally:
 
 #### Service pattern
 
-All services are `providedIn: 'root'` singletons that inject `HttpClient` and `environment.apiUrl`. They validate responses with Zod schemas in the RxJS pipeline and return `Observable<T>`:
+All services are `providedIn: 'root'` singletons that inject `HttpClient` and `environment.apiUrl`. All services validate responses with Zod schemas in the RxJS pipeline and return `Observable<T>`:
 
 ```typescript
 @Injectable({ providedIn: 'root' })
@@ -261,7 +297,9 @@ visibleCategories = computed(() =>
 );
 ```
 
-Signals automatically propagate changes — no manual `markForCheck()` or subscription teardown needed for Signal-based state.
+Signals automatically propagate changes — no manual `markForCheck()` needed for signal-based state.
+
+**RxJS subscription cleanup:** the preferred pattern is `takeUntilDestroyed(this.destroyRef)` (from `@angular/core/rxjs-interop`), used in `students.component.ts`, `trial-teachers.component.ts`, `courses.component.ts`, and the `core/utils` composition helpers. Manual `ngOnDestroy` teardown is reserved for non-RxJS resources (e.g. a raw `matchMedia` listener) that aren't wrapped by one of those helpers.
 
 ---
 
@@ -269,19 +307,21 @@ Signals automatically propagate changes — no manual `markForCheck()` or subscr
 
 ### Auth (`/auth`)
 
-`LoginComponent` uses a `FormGroup` with inline validators. On success it sets a `successMessage` signal and navigates to `/dashboard` after a 1-second delay. All auth errors are surfaced via `AuthService.error` signal.
+`LoginComponent` uses Reactive Forms (`FormBuilder`, `FormGroup`, `ReactiveFormsModule`) with `Validators.required`/`minLength`. On success it navigates to `/dashboard` immediately. All auth errors are surfaced via `AuthService.error` signal.
 
 ---
 
 ### Dashboard (`/dashboard`)
 
-Currently renders hardcoded placeholder statistics. No API calls. This is the designated location for future analytics widgets.
+Fully API-driven — not a placeholder. On init, `DashboardComponent` runs a single `forkJoin` across `AdminDashboardService.getDashboardStats()`, `AdminUserService.getUsersByRole()` (student and teacher counts), `getApplications()` (pending count), and `AdminEnrollmentService.getReports()` (recent pending reports).
+
+Renders four ApexCharts (`ng-apexcharts`): monthly enrollment trend (area), monthly revenue (bar), course status breakdown (donut: published/draft/archived), and top categories by course count (horizontal bar). Computed KPI signals include completion rate, course publish rate, average revenue per enrollment, month-over-month revenue/enrollment change, and a combined pending-tasks count (reports + refunds + applications).
 
 ---
 
 ### Categories (`/categories`)
 
-Full CRUD with inline client-side search. Slug is auto-generated from the name field on input change and validated with the regex `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`. `toggleCategoryStatus()` issues a `PATCH` request and reloads the list in-place.
+Full CRUD with inline client-side search. Slug is auto-generated from the name field on input change and validated with the regex `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`. `toggleCategoryStatus()` issues a `PATCH` request and reloads the list in-place. Category images are uploaded via `ImageUploadComponent` and displayed through `CloudinaryUrlPipe`.
 
 ---
 
@@ -290,6 +330,12 @@ Full CRUD with inline client-side search. Slug is auto-generated from the name f
 `CoursesComponent` is a paginated, filterable data grid. Columns are defined declaratively with `@ViewChild` template references for custom cell rendering, enabling type-safe cell templates without wrapper directives. Responsive breakpoint detection uses `window.matchMedia` with a registered listener cleaned up in `ngOnDestroy`.
 
 `CourseDetailComponent` is a read-only detail view loaded from route params.
+
+---
+
+### Students (`/students`)
+
+Paginated, status-filtered (`ALL` / `ACTIVE` / `INACTIVE`) student list backed by `AdminUserService.getUsersByRole('ROLE_STUDENT', ...)`. Search is server-side and debounced 300ms (`Subject` + `debounceTime` + `distinctUntilChanged`, torn down via `takeUntilDestroyed`). Each row supports a read-only detail modal, activate/deactivate (via a confirm modal), and delete (via a separate confirm modal, `AdminUserService.deleteUser()`). Live stat cards (total / active / inactive) update optimistically after a toggle or delete, then the list reloads.
 
 ---
 
@@ -302,6 +348,17 @@ Uses `forkJoin()` to fetch pending / approved / rejected counts and trial teache
 #### Trial Teachers (`/teachers/trial`)
 
 Displays trial period progress (assumed 30-day window). Progress bar color coding: blue → orange (≤7 days) → red (≤3 days or expired). Expiring teachers within 7 days are surfaced in a separate summary section.
+
+---
+
+### Enrollment Reports (`/enrollment-reports`)
+
+Paginated, status-filtered (`ALL` / `PENDING` / `APPROVED` / `REJECTED`) table of student enrollment/refund reports, backed by `AdminEnrollmentService`. Stat cards show pending/approved/rejected counts (`getReportStats()`). Row actions are only offered for `PENDING` reports:
+
+- **Approve** — `approveReport(id, notes?)`, notes optional.
+- **Reject** — `rejectReport(id, reason)`, reason required and validated client-side before submit.
+
+Stat counters update optimistically on approve/reject, then the list reloads.
 
 ---
 
@@ -324,7 +381,7 @@ Status-filtered view of all payouts (ALL / PENDING / PROCESSING / AWAITING_MANUA
 
 #### Create Payout (`/payments/payouts/create`)
 
-Reactive form with dynamic validators — when `paymentMethod` changes to `BANK_TRANSFER`, the bank fields become required; switching to `PAYPAL` makes `paypalEmail` required and bank fields optional.
+Reactive form (`FormBuilder`/`ReactiveFormsModule`) with dynamic validators — when `paymentMethod` changes to `BANK_TRANSFER`, the bank fields become required and PayPal's email field is cleared; switching to `PAYPAL` makes `paypalEmail` required and clears/relaxes the bank fields.
 
 ---
 
@@ -339,7 +396,7 @@ Reactive form with dynamic validators — when `paymentMethod` changes to `BANK_
 | Import                      | Contents                                                                               |
 |-----------------------------|----------------------------------------------------------------------------------------|
 | `@edumind/shared-types`     | All Zod schemas + inferred TypeScript types for DTOs, enums, request/response models   |
-| `@edumind/shared-utils`     | `unwrapApiResponse()`, `ADMIN_ROUTES`, `AUTH_ENDPOINTS`, `CATEGORY_ENDPOINTS`, `COURSE_ENDPOINTS`, `ADMIN_ENDPOINTS`, `REFUND_ENDPOINTS`, `PAYOUT_ENDPOINTS` |
+| `@edumind/shared-utils`     | `unwrapApiResponse()`, `ADMIN_ROUTES`, `AUTH_ENDPOINTS`, `CATEGORY_ENDPOINTS`, `COURSE_ENDPOINTS`, `ADMIN_ENDPOINTS`, `REFUND_ENDPOINTS`, `PAYOUT_ENDPOINTS`, `STUDENT_ENDPOINTS`, `ENROLLMENT_ENDPOINTS` |
 | `@edumind/shared-constants` | Environment-agnostic constants                                                         |
 | `@edumind/admin-ui`         | Admin-specific UI component library (see below)                                        |
 
@@ -360,6 +417,7 @@ All types flow from `@edumind/shared-types`. Never define a DTO interface inline
 | `CheckboxComponent`     | Boolean checkbox                             |
 | `SwitchComponent`       | Toggle switch                                |
 | `SelectComponent`       | Dropdown select                              |
+| `MultiSelectComponent`  | Multi-value dropdown select                  |
 | `CardComponent`         | Content container                            |
 | `StatCardComponent`     | KPI stat display                             |
 | `AlertComponent`        | Success / warning / error alerts             |
@@ -372,6 +430,7 @@ All types flow from `@edumind/shared-types`. Never define a DTO interface inline
 | `SearchBarComponent`    | Debounced search input                       |
 | `BadgeComponent`        | Status label / tag                           |
 | `EmptyStateComponent`   | Illustrated empty state                      |
+| `ImageUploadComponent`  | Image upload with preview                    |
 
 ---
 
@@ -385,13 +444,21 @@ npm run test:admin            # Run once
 npm run test:admin:watch      # Watch mode
 npm run test:admin:coverage   # Coverage report
 
-# Single file
-nx test admin -- apps/admin/src/app/core/services/auth.service.spec.ts
+# Single file (path is relative to sourceRoot, no "apps/admin/" prefix, no "--")
+npx nx test admin src/app/core/services/auth.service.spec.ts
 ```
 
 ### Setup
 
-`src/test-setup.ts` initializes `BrowserDynamicTestingModule`, mocks `window.matchMedia`, `window.scrollTo`, and `ResizeObserver`, and runs `localStorage.clear()` + `vi.clearAllMocks()` after every test.
+`src/test-setup.ts` initializes `BrowserDynamicTestingModule`, mocks `window.matchMedia`, `window.scrollTo`, and `ResizeObserver`, and runs `localStorage.clear()`, `sessionStorage.clear()`, and `vi.clearAllMocks()` after every test.
+
+### Current coverage scope
+
+Only **5 spec files** exist in the entire app, all within the auth slice: `auth.interceptor.spec.ts`, `auth.service.spec.ts`, `auth.guard.spec.ts`, `guest.guard.spec.ts`, `login.component.spec.ts`. There is currently **no test coverage** for categories, courses, students, teachers, enrollment-reports, payments, the dashboard, or their backing services. The patterns below describe how the existing auth tests are structured — they are the convention to follow when adding tests elsewhere, not evidence that coverage is broad today.
+
+### End-to-End & Accessibility
+
+Cross-app Playwright E2E and accessibility (axe-core/pa11y) suites live at `frontend/e2e/` — its page-objects cover both the admin and user apps. See the **Testing & Quality** section of [`../../README.md`](../../README.md).
 
 ### Patterns
 
@@ -418,21 +485,29 @@ expect(result).toBe(true);
 
 ```bash
 # From frontend/ directory
-npm run build:admin           # Production build → dist/apps/admin/
+npm run build:admin           # Production build
 ```
 
-Build is handled by `@angular/build:application` (Vite-based). Production budgets enforced by Angular CLI:
+Build is handled by `@angular/build:application` (esbuild-based). Production budgets enforced by Angular CLI (`apps/admin/project.json`):
 
 | Budget          | Warning  | Error |
 |-----------------|----------|-------|
 | Initial bundle  | 500 KB   | 1 MB  |
 | Component CSS   | 4 KB     | 8 KB  |
 
-The `dist/apps/admin/` output is a fully static SPA. Deploy behind any static host or CDN; configure the server to serve `index.html` for all routes (SPA fallback).
+The `@angular/build:application` executor always nests browser output under a `browser/` subfolder — the deployable SPA is at **`dist/apps/admin/browser/`**, not `dist/apps/admin/` directly. Deploy that folder behind any static host or CDN; configure the server to serve `index.html` for all routes (SPA fallback).
 
 ### Environment switching
 
-Angular's file replacement mechanism swaps `environment.ts` with `environment.prod.ts` during production builds. Only `apiUrl` differs between environments — no other configuration is environment-specific.
+Angular's file replacement mechanism swaps `environment.ts` with `environment.prod.ts` during production builds. Besides `apiUrl`, the two files also differ in `production` (`false`/`true`), `sentryDsn` (blank in dev, a real DSN in prod), and `sentryEnvironment` (`'development'`/`'production'`). `appVersion` starts as `'0.0.0'` in both files but is overwritten in CI (see below).
+
+### Sentry releases & source maps
+
+`.github/workflows/frontend-release.yml` runs on pushes to `main` under `frontend/**`. It:
+
+1. Injects the release version (`git rev-parse --short HEAD`) into `environment.prod.ts`'s `appVersion` via `sed`.
+2. Builds all Nx projects.
+3. Runs `@sentry/cli sourcemaps upload` against `dist/apps/admin` (and `dist/apps/user`), then deletes all `*.map` files from the dist output before any deploy step.
 
 ---
 
@@ -443,19 +518,19 @@ Angular's file replacement mechanism swaps `environment.ts` with `environment.pr
 - All components are **standalone**. Never introduce an `NgModule`.
 - Use `inject()` for dependency injection, not constructor parameters.
 - Component-local UI state lives in `signal()`. Derived state uses `computed()`.
-- Clean up `matchMedia` listeners, subscriptions, and timers in `ngOnDestroy`.
+- Clean up RxJS subscriptions with `takeUntilDestroyed(this.destroyRef)`. Reserve manual `ngOnDestroy` teardown for non-RxJS resources (e.g. a raw `matchMedia` listener not wrapped by `injectMediaQuery`).
 
 ### Forms
 
-- **Template-driven** (`FormsModule`, `[(ngModel)]`) for simple forms (login, payout creation).
-- **Reactive** (`ReactiveFormsModule`, `FormBuilder`) when validators are dynamic or form structure changes at runtime.
-- Validate with Angular built-in validators. Do not use Zod for form validation — Zod is for HTTP response validation only.
+- **Reactive** (`ReactiveFormsModule`, `FormBuilder`) is used for both simple and dynamic forms in practice — e.g. `LoginComponent` and `CreatePayoutComponent` are both Reactive Forms; the latter adds runtime `setValidators()`/`clearValidators()` calls when `paymentMethod` changes between bank transfer and PayPal.
+- **Template-driven** (`FormsModule`, `[(ngModel)]`) is used for simpler, single-field interactions such as the search/filter inputs in `CategoriesComponent` and `StudentsComponent`.
+- Validate with Angular built-in validators. Do not use Zod for form validation — Zod is for HTTP response validation only (and even then, not yet applied to every service — see [HTTP Layer](#http-layer)).
 
 ### Services
 
 - One service per domain area. No logic in components that belongs in a service.
-- Services return `Observable<T>`. Components subscribe via `async` pipe or explicit subscription in `ngOnInit` (with corresponding `ngOnDestroy` teardown).
-- Zod `.parse()` happens in the service `map()` pipeline, not in components.
+- Services return `Observable<T>`. Components subscribe via `async` pipe or explicit subscription in `ngOnInit` (with corresponding cleanup via `takeUntilDestroyed` where applicable).
+- Where used, Zod `.parse()` happens in the service `map()` pipeline, not in components.
 
 ### Routing
 

@@ -41,7 +41,7 @@ export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
                  e.preventDefault();
                  onSubmit();
                }}
-               className="bg-white rounded-xl flex items-center p-1.5 shadow-sm"
+               className="flex w-full min-w-0 items-center rounded-xl bg-white p-1.5 shadow-sm"
              >
                <Sparkles className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" aria-hidden="true" />
                <label htmlFor="course-search-input" className="sr-only">Search courses</label>
@@ -51,7 +51,7 @@ export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
                  value={value}
                  onChange={(e) => onInputChange(e.target.value)}
                  placeholder="Search for courses, skills, or teachers..."
-                 className="flex-1 bg-transparent border-none outline-none h-12 px-4 text-gray-900 placeholder:text-gray-400 text-base"
+                 className="h-12 min-w-0 flex-1 border-none bg-transparent px-2 text-base text-gray-900 outline-none placeholder:text-gray-400 sm:px-4"
                />
                {value && (
                  <button

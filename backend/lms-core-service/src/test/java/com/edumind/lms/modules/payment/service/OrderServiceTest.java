@@ -18,6 +18,7 @@ import com.edumind.lms.modules.payment.enums.PaymentMethod;
 import com.edumind.lms.modules.payment.exception.CartEmptyException;
 import com.edumind.lms.modules.payment.exception.InvalidOrderStateException;
 import com.edumind.lms.modules.payment.exception.OrderNotFoundException;
+import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
 import com.edumind.lms.modules.payment.repository.OrderItemRepository;
 import com.edumind.lms.modules.payment.repository.OrderRepository;
 import com.edumind.common.response.ApiResponse;
@@ -78,6 +79,9 @@ class OrderServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private SepayGatewayProperties sepayGatewayProperties;
+
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -90,6 +94,8 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(sepayGatewayProperties.getQrExpireMinutes()).thenReturn(15);
+
         order = new Order();
         order.setId(orderId);
         order.setOrderNumber(orderNumber);
@@ -791,7 +797,7 @@ class OrderServiceTest {
         }
 
         @Test
-        @DisplayName("Should set expiration time to 30 minutes from now")
+        @DisplayName("Should set expiration time to qrExpireMinutes from now")
         void createOrderFromSingleCourse_ShouldSetExpirationTime() {
             // Given
             DirectCheckoutRequest request = new DirectCheckoutRequest();
@@ -816,8 +822,8 @@ class OrderServiceTest {
             // Then
             assertThat(result.getExpiresAt()).isNotNull();
             LocalDateTime afterCreation = LocalDateTime.now();
-            LocalDateTime expectedMin = beforeCreation.plusMinutes(30);
-            LocalDateTime expectedMax = afterCreation.plusMinutes(30);
+            LocalDateTime expectedMin = beforeCreation.plusMinutes(15);
+            LocalDateTime expectedMax = afterCreation.plusMinutes(15);
             assertThat(result.getExpiresAt()).isAfterOrEqualTo(expectedMin);
             assertThat(result.getExpiresAt()).isBeforeOrEqualTo(expectedMax);
         }
@@ -856,7 +862,7 @@ class OrderServiceTest {
     class CreateOrderFromCartAuditTests {
 
         @Test
-        @DisplayName("Should set expiration time to 30 minutes from now")
+        @DisplayName("Should set expiration time to qrExpireMinutes from now")
         void createOrderFromCart_ShouldSetExpirationTime() {
             // Given
             CartItem cartItem = new CartItem();
@@ -886,8 +892,8 @@ class OrderServiceTest {
             // Then
             assertThat(result.getExpiresAt()).isNotNull();
             LocalDateTime afterCreation = LocalDateTime.now();
-            LocalDateTime expectedMin = beforeCreation.plusMinutes(30);
-            LocalDateTime expectedMax = afterCreation.plusMinutes(30);
+            LocalDateTime expectedMin = beforeCreation.plusMinutes(15);
+            LocalDateTime expectedMax = afterCreation.plusMinutes(15);
             assertThat(result.getExpiresAt()).isAfterOrEqualTo(expectedMin);
             assertThat(result.getExpiresAt()).isBeforeOrEqualTo(expectedMax);
         }

@@ -9,8 +9,8 @@ import reactor.core.publisher.Mono;
 public class RateLimiterConfig {
 
     /**
-     * KeyResolver dùng IP address của client làm key cho rate limiting
-     * Mỗi IP sẽ có rate limit riêng
+     * KeyResolver that uses the client's IP address as the key for rate limiting.
+     * Each IP gets its own rate limit.
      */
     @Bean
     public KeyResolver ipKeyResolver() {

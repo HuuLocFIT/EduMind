@@ -18,7 +18,6 @@ export const PasswordInput = forwardRef<
           onClick={() => setShowPassword(!showPassword)}
           className="inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
           aria-label={`${showPassword ? "Hide" : "Show"} ${visibilityLabel}`}
-          aria-pressed={showPassword}
         >
           {showPassword ? (
             <EyeOff aria-hidden="true" className="w-5 h-5" />

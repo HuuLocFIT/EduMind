@@ -27,10 +27,10 @@ public class TeacherApplicationController {
     /**
      * Submit teacher application
      * POST /teacher-application/submit
-     * Access: STUDENT (or GUEST if you allow)
+     * Access: STUDENT
      */
     @PostMapping("/submit")
-    @PreAuthorize("hasAnyRole('STUDENT', 'GUEST')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<MessageResponse> submitApplication(
             @Valid @RequestBody TeacherApplicationRequest request) {
 

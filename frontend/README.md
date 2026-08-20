@@ -1,321 +1,271 @@
-# EduMind Frontend Monorepo
+# EduMind Frontend
 
-> **Status:** Active Development
-> **Monorepo Strategy:** [Nx](https://nx.dev)
-> **Engine:** Node.js v24+
+Frontend monorepo for EduMind, containing the public learning platform, teacher workspace, and administration console.
 
-Welcome to the **EduMind** frontend repository. This workspace follows a unified monorepo architecture, housing both the **React-based User Platform** and the **Angular-based Admin Console**, backed by shared TypeScript libraries.
+> Status: active development. Both applications are production-buildable, but the release workflow does not deploy artifacts automatically yet. See [Production status](#production-status).
 
----
+## Applications
 
-## Technology Stack
+| Project | Stack | Development URL | Scope |
+| --- | --- | --- | --- |
+| [`apps/user`](apps/user/README.md) | React 19, Vite 7 | `http://localhost:3000` | Catalog, authentication, learning, AI tools, checkout, orders, certificates, and teacher workflows |
+| [`apps/admin`](apps/admin/README.md) | Angular 20 | `http://localhost:4200` | Dashboard, teacher applications, students, course moderation, categories, reports, refunds, and payouts |
 
-| Domain | Technology | Version |
-| :--- | :--- | :--- |
-| **Monorepo** | Nx | v22 |
-| **User App** | React + Vite | v19 / v7 |
-| **Admin App** | Angular | v20 |
-| **Language** | TypeScript | v5.9 |
-| **Styling** | Tailwind CSS | v3.4 |
-| **Testing** | Vitest | v3.0 |
+Internal workspace libraries:
 
-### User Application (`apps/user`)
+- `@edumind/shared-types`: DTOs and Zod schemas
+- `@edumind/shared-constants`: domain constants
+- `@edumind/shared-utils`: environment, route, response, date, download, and Cloudinary helpers
+- `@edumind/user-ui`: React UI primitives
+- `@edumind/admin-ui`: Angular standalone UI components
 
-A consumer-facing learning platform.
+See [`libs/README.md`](libs/README.md) for their current API surface.
 
-- **Core**: React 19, Vite, TypeScript
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand) (client state), [TanStack Query v5](https://tanstack.com/query) (server state)
-- **Forms & Validation**: React Hook Form + Zod
-- **UI System**: Tailwind CSS, Headless UI, Lucide React (icons)
-- **Utilities**: Date-fns, Axios, JWT Decode
-- **Testing**: Vitest (unit/integration)
+## Technology
 
-### Admin Application (`apps/admin`)
+| Area | Implementation |
+| --- | --- |
+| Workspace | Nx 22, npm workspaces |
+| Language | TypeScript 5.9 in strict mode |
+| User application | React 19, React Router 6, Vite 7 |
+| Admin application | Angular 20 standalone components |
+| Styling | Tailwind CSS 3.4 |
+| Data and state | Axios, TanStack Query 5, Zustand 5, Angular Signals, RxJS 7.8 |
+| Forms and validation | React Hook Form, Zod |
+| Unit/integration tests | Vitest 3, Testing Library, Angular `TestBed` |
+| E2E/accessibility | Playwright, axe-core, pa11y |
+| Monitoring | Sentry for React and Angular |
 
-A management console for platform operators.
+Versions above reflect `package.json` and `package-lock.json`. Treat the lockfile as the authoritative dependency source.
 
-- **Core**: Angular 20 (Zone.js enabled)
-- **Reactive Programming**: RxJS 7.8
-- **Architecture**: Modular layout with separation of Core, Features, and Layouts
-- **Bundler**: Angular CLI (`@angular/build`)
+## Prerequisites
 
----
+- Node.js 20.x (the version used by CI)
+- npm; do not use pnpm, Yarn, or Bun in this repository
+- EduMind API Gateway, normally `http://localhost:8080` for local development
 
-## Architecture & Path Aliases
+Run every command in this document from `frontend/`.
 
-This project uses **strict module boundaries**, **workspace libraries**, and **path aliases** to maintain clean imports and separation of concerns.
+## Local setup
 
-### Path Mapping
-
-| Alias | Resolves To | Purpose |
-| :--- | :--- | :--- |
-| **Shared Libs** | | |
-| `@edumind/shared-types` | `libs/shared/types/src` | Zod schemas & shared DTOs |
-| `@edumind/shared-constants` | `libs/shared/constants/src` | Global config & constants |
-| `@edumind/shared-utils` | `libs/shared/utils/src` | Env config, helpers, routes, API helpers |
-| `@edumind/user-ui` | `libs/user/ui/src` | Shared React UI components |
-| **User App** | | |
-| `@user/stores` | `apps/user/src/app/stores` | Zustand stores |
-| `@user/services` | `apps/user/src/app/services` | API clients (`apiClient`, domain services) |
-| `@user/components` | `apps/user/src/app/components` | Reusable UI atoms & compounds |
-| `@user/pages` | `apps/user/src/app/pages` | Route-level views |
-| **Admin App** | | |
-| `@admin/core` | `apps/admin/src/app/core` | Guards, interceptors, singleton services |
-| `@admin/features` | `apps/admin/src/app/features` | Lazy-loaded smart modules |
-| `@admin/layouts` | `apps/admin/src/app/layouts` | Layout components |
-
-### User App Architecture (React, `apps/user`)
-
-**Directory layout:**
-
-```text
-apps/user/src/app/
-├── services/        # HTTP/API services (all Axios calls via apiClient)
-├── stores/          # Zustand stores (UI + auth/cart orchestration only)
-├── components/      # Reusable presentational/compound components
-├── layouts/         # App-wide layouts (auth, main, teacher)
-├── pages/           # Route-level pages (public, dashboard, learning, teacher, payment)
-└── lib/             # Query client/config, query keys, shared infra
+```bash
+npm ci
+cp .env.example apps/user/.env
+npm run start:user
 ```
 
-- **State management**:
-  - **TanStack Query v5** for all server-side data (courses, lessons, orders, etc.)
-  - **Zustand** only for client/UI state (auth snapshot, cart state, modals, layout toggles, AI chat history)
-- **API layer**:
-  - All HTTP traffic goes through `api-client.service.ts` and domain services in `services/`
-  - `@edumind/shared-utils` provides `API_URL`, endpoint constants (`AI_ENDPOINTS`, etc.), and `unwrapApiResponse`
-- **Routing**:
-  - Central router in `app.tsx`, with lazy-loaded pages (`createLazyRoute()`) and guards (`ProtectedRoute`, `TeacherGuard`)
+Use `npm install` instead when intentionally changing dependencies. CI and reproducible setup use `npm ci`.
 
-### Admin App Architecture (Angular, `apps/admin`)
-
-**Directory layout:**
-
-```text
-apps/admin/src/app/
-├── core/              # Guards, interceptors, singleton services
-├── features/          # Lazy-loaded feature areas (auth, courses, categories, teachers, payments)
-├── layouts/           # Main shell layout(s)
-└── app.routes.ts      # Top-level route configuration
+```bash
+npm run start:user     # React app on port 3000
+npm run start:admin    # Angular app on port 4200
+npm start              # all Nx serve targets; long-running
 ```
 
-- Each domain lives under `features/` as a coherent module with co-located components, routes, and services
-- HTTP via Angular `HttpClient` + RxJS; components prefer `async` pipes and focused observables
+### Environment configuration
 
-### Shared Libraries
+The React Vite root is `apps/user`, so local Vite env files belong in that directory, for example `apps/user/.env.local`. A root-level `frontend/.env` is not loaded by the current Vite configuration.
 
-| Library | Path | Purpose |
-| :--- | :--- | :--- |
-| `@edumind/shared-types` | `libs/shared/types` | Zod schemas + TypeScript types for all DTOs |
-| `@edumind/shared-constants` | `libs/shared/constants` | API endpoint constants, global config |
-| `@edumind/shared-utils` | `libs/shared/utils` | Env config (`API_URL`), routes, helpers, response unwrapping |
-| `@edumind/user-ui` | `libs/user/ui` | Shared React UI primitives for the user app |
+| Variable | Required | Description |
+| --- | --- | --- |
+| `VITE_API_URL` | Yes | API Gateway base URL |
+| `VITE_APP_URL` | No | Public user-app URL used for canonical/SEO URLs; production fallback is built into the app |
+| `VITE_SENTRY_DSN_USER` | Production monitoring only | Sentry DSN for the user application |
+| `VITE_APP_VERSION` | No | Release identifier injected by release CI |
 
----
+The Angular application uses compile-time files:
 
-## AI Features
+- `apps/admin/src/environments/environment.ts` for development
+- `apps/admin/src/environments/environment.prod.ts` for production through Angular file replacement
 
-The user app integrates five AI capabilities, all backed by the `ai.service.ts` service and Zod schemas in `@edumind/shared-types`.
+They configure the API URL, Sentry, environment name, and version. Changing the production endpoint requires rebuilding the admin application.
 
-### Async Job Pattern
+For E2E, copy `.env.e2e.example` to `.env.e2e` and provide dedicated student, teacher, and admin accounts. Do not commit populated env files or credentials.
 
-All generation operations are asynchronous. Every trigger returns `202 Accepted` with a `jobId`. State machine:
-
-```
-PENDING → PROCESSING → COMPLETED / FAILED / DELAYED
-```
-
-- `DELAYED`: rate limit hit on the backend (Groq 429); job will be retried automatically
-- `pollJobUntilDone(jobId, onTick, intervalMs)` in `ai.service.ts` polls until a terminal state
-- Progress UI is handled inside each modal component
-
-### 1. RAG Chat (`AiChatPanel.tsx`)
-
-Floating AI Course Tutor panel for students. Sends questions + conversation history to a vector-search backed chat endpoint.
-
-- **Endpoint**: `GET /api/ai/chat/courses/{courseId}/stream` (SSE)
-- **Rate limit**: 20 questions/day per user; HTTP 429 shows "20 questions/day limit reached"
-- **SSE event types**:
-  - `event: metadata` — JSON with source lessons and confidence tier (`HIGH`/`MEDIUM`/`GAP`)
-  - `event: error` — JSON error message
-  - `data: <token>` — streamed LLM token
-- **Typewriter effect**: Tokens are buffered and flushed at 60 fps via `setInterval`
-- **Conversation history**: Last 4 turns sent to backend for context
-- **Source attribution**: Source lesson badges displayed per response with confidence tier color coding
-- **Markdown rendering**: `react-markdown` + `rehype-raw` + syntax highlighter with copy buttons
-- **Persistence**: Chat history persisted per course via Zustand (`useAiChatStore`)
-- **Cancellation**: `AbortController` signal passed to `chatStream()`; fallback to non-streaming API on network error
-
-### 2. Video Transcription (`TranscriptionModal.tsx`)
-
-Teachers can auto-transcribe video lessons. Supports Cloudinary-hosted videos and YouTube URLs.
-
-- **Endpoint**: `POST /api/ai/transcribe/lessons/{lessonId}` — teacher-only
-- **Sources**:
-  - Cloudinary: extracts MP3 audio via URL transformation
-  - YouTube: tries auto-captions first (fast/free), falls back to audio download
-- **Rate limiting**: If Groq returns 429, job status becomes `DELAYED` — the UI shows "will retry automatically"
-- **On success**: Transcribed text is applied to the lesson's article content field, which triggers embedding + summary generation automatically on the backend
-- **Phases**: `config → processing → completed / failed`
-
-### 3. Quiz Generation (`QuizGeneratorModal.tsx`)
-
-Teachers can generate multiple-choice quizzes from lesson content.
-
-- **Endpoint**: `POST /api/ai/quizzes/generate` (triggers async job)
-- **Configurable**: 1–20 questions via slider
-- **Teacher view**: Correct answer highlighted + collapsible explanation per question
-- **Student view**: Correct answers and explanations hidden until after attempt submission
-- **History**: Previous quizzes for the lesson shown in an accordion
-- **Phases**: `config → generating → completed / failed`
-
-### 4. Lesson Summary (`LessonSummaryPanel`)
-
-Auto-generated structured summaries displayed on the course player page.
-
-- **Endpoint**: `GET /api/ai/summaries/lesson/{lessonId}`
-- **Format**: `summaryText`, `keyPoints[]`, `vocabulary[]`
-- Generated automatically when lesson content is updated (triggered server-side by `LessonContentUpdatedEvent`)
-
-### 5. Quiz Taking (`CoursePlayerPage.tsx`)
-
-Students can take quizzes directly in the course player.
-
-- "Take Quiz" button enabled only when a quiz exists for the lesson (`aiService.getQuizForStudent()`)
-- `QuizTakerModal` handles the attempt flow
-- On passing: lesson is marked complete
-
----
-
-## Schemas (`libs/shared/types/src/lib/ai.schemas.ts`)
-
-All AI request/response types are Zod schemas:
-
-| Schema | Purpose |
-| :--- | :--- |
-| `AiJobStatus` | Enum: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `DELAYED` |
-| `AiJobResponseSchema` | Job state, error message, retry timestamps |
-| `QuizQuestionDtoSchema` | Question, 4 options, optional `correctIndex` + `explanation` |
-| `GeneratedQuizResponseSchema` | Quiz with all questions for a lesson |
-| `SubmitQuizAttemptRequestSchema` | Lesson/quiz IDs + selected answer indices |
-| `QuizAttemptResponseSchema` | Score, percentage, full question review |
-| `LessonSummaryResponseSchema` | Summary text, key points, vocabulary |
-| `ChatRequestSchema` | Question + optional conversation history |
-| `TranscribeRequestSchema` | Video URL (validated as URL) |
-
----
-
-## Project Structure
+## Architecture
 
 ```text
 frontend/
 ├── apps/
-│   ├── admin/               # Angular Admin Console
-│   └── user/                # React User Platform
+│   ├── user/                 # React user and teacher application
+│   └── admin/                # Angular administration application
 ├── libs/
-│   ├── admin/               # Admin-specific libraries
-│   ├── shared/              # Shared logic (types, utils, constants)
-│   └── user/                # User-specific libraries
-├── tools/                   # Workspace scripts
-├── nx.json                  # Nx configuration
-├── package.json             # Root dependencies
-└── tsconfig.base.json       # Base TS config & path aliases
+│   ├── shared/               # types, constants, utilities
+│   ├── user/ui/              # React component library
+│   └── admin/ui/             # Angular component library
+├── e2e/                      # Playwright and accessibility suites
+├── tools/                    # prerender and sitemap tooling
+├── nx.json
+├── package.json
+└── tsconfig.base.json        # compiler options and path aliases
 ```
 
----
+### User application
 
-## Getting Started
+- Routes live in `apps/user/src/app/app.tsx`. Most route pages are lazy-loaded; home and not-found are eager-loaded.
+- Domain services under `apps/user/src/app/services` use the shared Axios client.
+- TanStack Query manages server state. Zustand manages authentication and client/UI workflows such as cart, checkout, chat, and uploads.
+- Authentication stores the access token in `localStorage`; the backend supplies the refresh token as an HttpOnly cookie. The Axios interceptor coalesces concurrent refresh attempts.
+- Implemented areas include catalog and enrollment, lesson progress, quizzes and AI learning tools, wishlist, cart/checkout, PayPal and Sepay flows, orders/refunds/invoices, certificates, teacher course management, analytics, earnings, and payouts.
 
-### Prerequisites
-- **Node.js**: v24.x
-- **Package Manager**: npm
+See [`apps/user/README.md`](apps/user/README.md) for the detailed route, service, state, and feature inventory.
 
-### Installation
-```sh
-npm install
-```
+### Admin application
 
-### Environment & Backend Integration
+- The app bootstraps through Angular standalone APIs and has no application `NgModule`.
+- `apps/admin/src/app/app.routes.ts` lazy-loads feature components.
+- A functional HTTP interceptor adds authentication, unwraps API envelopes, and coordinates token refresh.
+- Angular Signals hold local view state; RxJS handles HTTP and cross-request coordination.
+- Guards protect the main layout, and login rejects users without the admin role.
 
-Both frontends talk to the **API Gateway** on `http://localhost:8080`.
+See [`apps/admin/README.md`](apps/admin/README.md) for feature and HTTP-layer details.
 
-- **User App (React)**: Create `apps/user/.env` (or `.env.local`):
-  ```
-  VITE_API_URL=http://localhost:8080
-  ```
-- **Admin App (Angular)**: Edit `apps/admin/src/environments/environment.ts` — default `apiUrl` is `http://localhost:8080`.
+### Boundaries and validation
 
-### Development Server
+TypeScript aliases are defined in `tsconfig.base.json`; application aliases use wildcard forms such as `@user/services/*` and `@admin/core/*`. Nx's module-boundary configuration is currently permissive, so tag-based architectural layers are not enforced.
 
-```sh
-# Start User App (http://localhost:3000)
-npm run start:user
+Zod schemas are used at selected service boundaries, especially authentication, but runtime response validation is not universal. Do not assume a response is validated unless its service explicitly parses it.
 
-# Start Admin App (http://localhost:4200)
-npm run start:admin
+## Quality checks
 
-# Start both in parallel
-npm start
-```
+### Lint and type checking
 
-### Quality Checks
-
-```sh
-# Lint all apps and libs
+```bash
 npm run lint
+npm run lint:a11y
+npx nx typecheck user
+```
 
-# User app tests (Vitest)
+### Unit and integration tests
+
+```bash
 npm run test:user
-npm run test:user:watch      # watch mode
-npm run test:user:coverage   # with coverage
-
-# Run a single test file
-nx test user -- apps/user/src/app/services/ai.service.test.ts
-
-# Admin app tests
+npm run test:user:watch
+npm run test:user:coverage
 npm run test:admin
-
-# All tests
+npm run test:admin:watch
+npm run test:admin:coverage
 npm test
 ```
 
-### Build for Production
+Focused user test with Vitest:
 
-```sh
-npm run build:user    # User app only
-npm run build:admin   # Admin app only
-npm run build         # All projects
+```bash
+npx vitest run --root apps/user src/app/services/auth.service.test.ts
 ```
 
----
+Or through Nx, using a path relative to `apps/user`:
 
-## Contribution Guidelines
+```bash
+NX_DAEMON=false NX_ISOLATE_PLUGINS=false \
+  npx nx test user src/app/services/auth.service.test.ts
+```
 
-1. **Strict Typing**: No `any`. Define interfaces as Zod schemas in `@edumind/shared-types` if reused across files.
-2. **State Management**:
-   - **Zustand** for global client/UI state (modals, sidebar, AI chat history).
-   - **TanStack Query** for all server data fetching and caching. Never store server data in Zustand.
-3. **API Calls**: All HTTP calls go through service files (`*.service.ts`) using `apiClient`. Never call `axios` directly from components.
-4. **Routing**: All page routes use `createLazyRoute()` for code splitting.
-5. **Commits**: Follow conventional commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
+The explicit Nx flags support sandboxed environments where daemon/plugin-worker IPC is unavailable.
 
----
+Current coverage is uneven: user tests cover several core and accessibility flows, while admin tests are concentrated in authentication. Coverage reports exist, but no minimum threshold is enforced.
 
-## Commands Reference
+### End-to-end tests
 
-| Command | Action |
-| :--- | :--- |
-| `npm run start:user` | Start React dev server (`apps/user`, port 3000) |
-| `npm run start:admin` | Start Angular dev server (`apps/admin`, port 4200) |
-| `npm start` | Run all `serve` targets via Nx |
-| `npm run build:user` | Production build for the React user app |
-| `npm run build:admin` | Production build for the Angular admin app |
-| `npm run build` | Build all frontend projects |
-| `npm run test:user` | Run Vitest tests for the user app |
-| `npm run test:user:watch` | Watch mode for user app tests |
-| `npm run test:user:coverage` | Coverage report for user app tests |
-| `npm run test:admin` | Run tests for the admin app |
-| `npm test` | Run all tests via Nx |
-| `npm run lint` | Lint all apps and libs |
-| `nx graph` | Visualize project and dependency graph |
-| `nx reset` | Clear the Nx cache |
+E2E requires the backend and configured accounts. Playwright starts the frontend development servers defined by its configuration.
+
+```bash
+npm run e2e
+npm run e2e:user
+npm run e2e:admin
+npm run e2e:ui
+npm run e2e:report
+```
+
+See [`e2e/E2E_TESTING_GUIDE.md`](e2e/E2E_TESTING_GUIDE.md).
+
+### Accessibility
+
+```bash
+npm run test:a11y
+npm run test:a11y:public
+npm run test:a11y:auth
+npm run test:a11y:purchase
+npm run test:a11y:learning
+npm run test:a11y:utilities
+npm run pa11y
+npm run pa11y:ci
+```
+
+See [`e2e/ACCESSIBILITY_TESTING.md`](e2e/ACCESSIBILITY_TESTING.md) and [`e2e/BASELINE_ACCESSIBILITY_AUDIT.md`](e2e/BASELINE_ACCESSIBILITY_AUDIT.md).
+
+## Production builds
+
+```bash
+npm run build:user        # dist/apps/user
+npm run build:user:full   # build plus SEO prerender
+npm run build:admin       # dist/apps/admin/browser
+npm run build             # all build targets
+```
+
+Both production builds emit source maps locally. The release workflow uploads and then deletes them from its artifacts.
+
+`build:user:full` runs Puppeteer after the normal build. It prerenders static routes and fetches course slugs from `VITE_API_URL` (falling back to the production API), so complete dynamic prerender output requires network access and an available backend.
+
+The Angular application builder places the deployable browser artifact in `dist/apps/admin/browser`. Static hosting must provide SPA fallback routing.
+
+## Deployment and CI
+
+Workflows live in `.github/workflows`:
+
+| Workflow | Trigger | Current behavior |
+| --- | --- | --- |
+| `frontend-ci.yml` | PRs and non-`main` pushes changing `frontend/**` | `npm ci`, then lint, test, and build affected Nx projects |
+| `frontend-release.yml` | Push to `main` changing `frontend/**` | Builds all projects, uploads Sentry source maps by git-SHA release, then removes maps |
+| `frontend-seo-rebuild.yml` | Manual dispatch only | Calls the configured Vercel deploy hook; its daily schedule is commented out |
+
+Important: `frontend-release.yml` has no deployment step. Deployment is configured separately from release CI.
+
+### User hosting
+
+`vercel.json` defines SPA rewrites, immutable caching for `/assets/*`, and baseline `X-Content-Type-Options` and `Referrer-Policy` headers. `vercel-build.sh` installs Chromium requirements and runs the user prerender target. These files are tailored to the user application; the repository does not define equivalent Vercel deployment configuration for the admin artifact.
+
+### Monitoring
+
+Both apps initialize Sentry before application bootstrap. Release source maps are uploaded when GitHub Actions has the required Sentry credentials. The user DSN comes from `VITE_SENTRY_DSN_USER`; admin production settings are compiled from `environment.prod.ts`.
+
+## Production status
+
+Known limitations in the current implementation:
+
+- Release CI prepares artifacts and Sentry releases but does not deploy them.
+- No frontend container image is defined; hosting is static-site oriented.
+- Automated coverage is uneven and has no enforced threshold.
+- Nx dependency tags do not enforce library layers.
+- Runtime Zod validation is service-specific rather than universal.
+- AI chat enables raw HTML through `rehype-raw`; unlike the article viewer, it does not currently sanitize that HTML with DOMPurify. Treat this as a hardening item before accepting untrusted HTML-generating sources.
+
+## Contribution rules
+
+- Keep TypeScript strict and avoid `any` unless a documented integration boundary requires it.
+- Put reusable API contracts in `@edumind/shared-types` and parse untrusted responses at service boundaries.
+- Keep HTTP access in domain services, not components.
+- Use TanStack Query for React server state and Zustand for client/UI workflows.
+- Preserve lazy loading for non-critical route pages.
+- Add or update tests with behavior changes.
+- Use Conventional Commit prefixes such as `feat:`, `fix:`, `test:`, `docs:`, and `chore:`.
+
+## Command reference
+
+| Command | Purpose |
+| --- | --- |
+| `npm run start:user` | Start React development server |
+| `npm run start:admin` | Start Angular development server |
+| `npm start` | Start all serve targets |
+| `npm run build:user` | Build React application |
+| `npm run build:user:full` | Build and prerender React application |
+| `npm run build:admin` | Build Angular application |
+| `npm run build` | Build all projects |
+| `npm run test:user` | Test React application |
+| `npm run test:admin` | Test Angular application |
+| `npm test` | Test all projects |
+| `npm run lint` | Lint configured projects |
+| `npm run lint:a11y` | Run JSX accessibility linting |
+| `npm run e2e` | Run all Playwright projects |
+| `npm run graph` | Open Nx dependency graph |
+| `npm run reset` | Reset Nx state and cache |

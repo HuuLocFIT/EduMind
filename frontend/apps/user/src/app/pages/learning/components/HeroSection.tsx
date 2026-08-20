@@ -46,22 +46,23 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <div className="flex items-center gap-4">
                   <CloudinaryImage
                     src={mostRecentCourse.courseThumbnail}
-                    alt={mostRecentCourse.courseTitle}
+                    alt=""
                     widths={[128]}
                     priority={true}
                     className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg truncate">{mostRecentCourse.courseTitle}</h3>
+                    <h2 className="font-semibold text-lg truncate">{mostRecentCourse.courseTitle}</h2>
                     <p className="text-blue-200 text-sm">
                       {mostRecentCourse.completedLessons || 0} of {mostRecentCourse.totalLessons || 0} lessons completed
                     </p>
                   </div>
                   <button
                     onClick={() => onContinueLearning(mostRecentCourse)}
+                    aria-label={`Start ${mostRecentCourse.courseTitle}`}
                     className="bg-white text-blue-600 hover:bg-blue-50 px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all hover:scale-105 shadow-lg flex-shrink-0"
                   >
-                    <Play className="w-4 h-4 fill-current" />
+                    <Play className="w-4 h-4 fill-current" aria-hidden="true" />
                     Start
                   </button>
                 </div>

@@ -5,10 +5,18 @@ import { SeoMetaTags } from "../Seo/SeoMetaTags";
 
 export interface CoursePlayerSkeletonProps {
   contentType?: "VIDEO" | "ARTICLE" | "QUIZ";
+  /**
+   * Render the page-level `<title>`/meta tags for this skeleton. Only the
+   * outermost owner of the skeleton for a given route render (CoursePlayerBoot,
+   * or the raw Suspense fallback when Boot isn't in play) should pass this —
+   * otherwise two `<title>` tags can be hoisted at once.
+   */
+  withSeo?: boolean;
 }
 
 export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
   contentType,
+  withSeo = false,
 }) => {
   const effectiveContentType = useLessonTypeHint(contentType);
 
@@ -22,8 +30,13 @@ export const CoursePlayerSkeleton: React.FC<CoursePlayerSkeletonProps> = ({
       {/* This skeleton is the Suspense fallback for the lazy-loaded
           CoursePlayerPage chunk, so it can be the only thing on screen
           while that chunk is still fetching — it needs its own title so
-          the document is never briefly without one. */}
-      <SeoMetaTags title="Course Player" description="Continue your course on EduMind." noIndex />
+          the document is never briefly without one. Only the owner that
+          mounts this skeleton for the whole route (CoursePlayerBoot) should
+          pass withSeo — otherwise this and CoursePlayerPage's own SeoMetaTags
+          would both be mounted and hoist two <title> tags at once. */}
+      {withSeo && (
+        <SeoMetaTags title="Course Player" description="Continue your course on EduMind." noIndex />
+      )}
       <p role="status" className="sr-only">
         Loading course player
       </p>

@@ -39,6 +39,45 @@ type PasswordSchemaOptions = {
   requireSpecial?: boolean;
 };
 
+export type PasswordRequirement = {
+  id: "min-length" | "uppercase" | "lowercase" | "number" | "special";
+  label: string;
+  met: boolean;
+};
+
+export function getPasswordRequirements(
+  password: string,
+  minLength = 8
+): PasswordRequirement[] {
+  return [
+    {
+      id: "min-length",
+      label: `At least ${minLength} characters`,
+      met: password.length >= minLength,
+    },
+    {
+      id: "uppercase",
+      label: "Uppercase letter",
+      met: PASSWORD_UPPERCASE_REGEX.test(password),
+    },
+    {
+      id: "lowercase",
+      label: "Lowercase letter",
+      met: PASSWORD_LOWERCASE_REGEX.test(password),
+    },
+    {
+      id: "number",
+      label: "Number",
+      met: PASSWORD_NUMBER_REGEX.test(password),
+    },
+    {
+      id: "special",
+      label: "Special character",
+      met: PASSWORD_SPECIAL_CHAR_REGEX.test(password),
+    },
+  ];
+}
+
 export function createPasswordSchema(
   options: PasswordSchemaOptions = {}
 ): z.ZodString {
@@ -119,4 +158,3 @@ export function createNumericCodeSchema(
 export function createRequiredStringSchema(fieldLabel: string): z.ZodString {
   return z.string().min(1, `${fieldLabel} is required`);
 }
-

@@ -20,7 +20,7 @@ The [C4 Model](https://c4model.com/) provides a hierarchical way to visualize so
 - **Who uses the system?** Students, Teachers, Administrators.
 - **What external systems does it integrate with?** Email, OAuth2, Cloudinary, Payment Gateways.
 
-👉 [View System Context Diagram](./c4-context.md)
+[View System Context Diagram](./c4-context.md)
 
 ---
 
@@ -29,7 +29,7 @@ The [C4 Model](https://c4model.com/) provides a hierarchical way to visualize so
 - **Backend**: API Gateway, Auth Service, LMS Core Service (Modular Monolith).
 - **Data Stores**: PostgreSQL (Auth DB, LMS DB), Redis.
 
-👉 [View Container Diagram](./c4-container.md)
+[View Container Diagram](./c4-container.md)
 
 ---
 
@@ -37,7 +37,7 @@ The [C4 Model](https://c4model.com/) provides a hierarchical way to visualize so
 - **Auth Service Components**: Controllers, JWT Provider, OAuth2 Handler, Email Service.
 - **LMS Core Modules**: Course, Enrollment, Review, Payment (with Strategy Pattern for gateways).
 
-👉 [View Component Diagrams](./c4-components.md)
+[View Component Diagrams](./c4-components.md)
 
 ---
 
@@ -45,7 +45,7 @@ The [C4 Model](https://c4model.com/) provides a hierarchical way to visualize so
 
 1.  **Modular Monolith for LMS Core Service**
     *   **Why?** Minimizes deployment costs while enabling future microservice extraction.
-    *   **How?** Uses separate PostgreSQL schemas (`course`, `payment`, `gamification`).
+    *   **How?** Uses separate PostgreSQL schemas (active: `course`, `payment`, `ai`; reserved for future: `assessment`, `gamification`, `notification`).
 
 2.  **API Gateway as Single Entry Point**
     *   Centralizes routing, CORS, and rate limiting (Redis-backed).

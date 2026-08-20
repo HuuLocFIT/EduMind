@@ -9,10 +9,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -118,6 +121,69 @@ class CloudinaryServiceTest {
         assertThat(cloudinaryService.uploadIcon(png, "icons")).isNotNull();
         assertThat(cloudinaryService.uploadIcon(jpeg, "icons")).isNotNull();
         assertThat(cloudinaryService.uploadIcon(webp, "icons")).isNotNull();
+    }
+
+    @Test
+    void uploadDocumentRejectsUnrecognizedContentRegardlessOfDeclaredType() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "resource.pdf", "application/pdf",
+                "not actually a pdf".getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> cloudinaryService.uploadDocument(file, "lessons/resources"))
+                .isInstanceOf(FileUploadException.class);
+    }
+
+    @Test
+    void uploadDocumentAcceptsPdf() {
+        byte[] pdf = "%PDF-1.4 rest of file".getBytes(StandardCharsets.US_ASCII);
+        MockMultipartFile file = new MockMultipartFile("file", "resource.pdf", "application/pdf", pdf);
+
+        assertThat(cloudinaryService.uploadDocument(file, "lessons/resources")).isNotNull();
+    }
+
+    @Test
+    void uploadDocumentAcceptsDocxPptxXlsxAndZip() throws IOException {
+        MockMultipartFile docx = new MockMultipartFile(
+                "file", "resource.docx", "application/octet-stream", zipWithEntry("word/document.xml"));
+        MockMultipartFile pptx = new MockMultipartFile(
+                "file", "resource.pptx", "application/octet-stream", zipWithEntry("ppt/presentation.xml"));
+        MockMultipartFile xlsx = new MockMultipartFile(
+                "file", "resource.xlsx", "application/octet-stream", zipWithEntry("xl/workbook.xml"));
+        MockMultipartFile zip = new MockMultipartFile(
+                "file", "resource.zip", "application/octet-stream", zipWithEntry("some/file.txt"));
+
+        assertThat(cloudinaryService.uploadDocument(docx, "lessons/resources")).isNotNull();
+        assertThat(cloudinaryService.uploadDocument(pptx, "lessons/resources")).isNotNull();
+        assertThat(cloudinaryService.uploadDocument(xlsx, "lessons/resources")).isNotNull();
+        assertThat(cloudinaryService.uploadDocument(zip, "lessons/resources")).isNotNull();
+    }
+
+    @Test
+    void uploadDocumentDoesNotDoublePrefixTheFolder() {
+        byte[] pdf = "%PDF-1.4 rest of file".getBytes(StandardCharsets.US_ASCII);
+        MockMultipartFile file = new MockMultipartFile("file", "resource.pdf", "application/pdf", pdf);
+
+        cloudinaryService.uploadDocument(file, "lessons/resources");
+
+        ArgumentCaptor<Map> optionsCaptor = ArgumentCaptor.forClass(Map.class);
+        try {
+            org.mockito.Mockito.verify(uploader).upload(any(), optionsCaptor.capture());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        Map<Object, Object> options = optionsCaptor.getValue();
+        assertThat(options).containsEntry("folder", "lessons/resources");
+        assertThat(options.get("public_id")).asString().doesNotContain("/");
+    }
+
+    private static byte[] zipWithEntry(String entryName) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(out)) {
+            zos.putNextEntry(new ZipEntry(entryName));
+            zos.write("content".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+        return out.toByteArray();
     }
 
     private static Map<String, Object> defaultUploadResult() {

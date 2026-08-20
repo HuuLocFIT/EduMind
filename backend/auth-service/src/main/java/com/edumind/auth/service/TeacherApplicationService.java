@@ -58,7 +58,7 @@ public class TeacherApplicationService {
     private EmailService emailService;
 
     /**
-     * Student/Guest submits teacher application
+     * Student submits teacher application
      */
     @Transactional
     public MessageResponse submitApplication(TeacherApplicationRequest request) {

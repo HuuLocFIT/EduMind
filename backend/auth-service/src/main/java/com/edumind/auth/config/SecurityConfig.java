@@ -130,7 +130,7 @@ public class SecurityConfig {
                                 .requestMatchers("/login/oauth2/**").permitAll()
                                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                                 .requestMatchers("/actuator/**").hasRole("ADMIN")
-                                .requestMatchers("/teacher-application/submit").hasAnyRole("STUDENT", "GUEST")
+                                .requestMatchers("/teacher-application/submit").hasRole("STUDENT")
                                 .requestMatchers("/teacher-application/my-application").authenticated()
                                 .requestMatchers("/teacher-application/trial-status").hasRole("TEACHER_TRIAL")
                                 .requestMatchers("/upload/**").authenticated()

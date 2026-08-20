@@ -34,6 +34,14 @@ public class GatewayPaymentResult {
     private String localCurrency;
     private BigDecimal exchangeRate;
 
+    // Bank transfer info (SePay QR) - accessible text alternative to the QR image,
+    // so a user who cannot scan it can still complete the transfer manually.
+    private String bankCode;
+    private String bankName;
+    private String bankAccount;
+    private String accountName;
+    private String transferContent;
+
     // Error info (if failed)
     private String errorCode;
     private String errorMessage;

@@ -1,6 +1,6 @@
 # Common Library
 
-Shared library for EduMind Platform microservices - Provides common utilities, response models, exception handling, and security services used across all microservices.
+Shared library for EduMind Platform microservices - Provides common utilities, response models, exception handling, security services, and file-upload support used across all microservices.
 
 ## Table of Contents
 
@@ -8,11 +8,13 @@ Shared library for EduMind Platform microservices - Provides common utilities, r
 - [Architecture](#architecture)
 - [Components](#components)
 - [Installation](#installation)
-- [Usage](#usage)
+- [Quick Start](#quick-start)
 - [Response Models](#response-models)
 - [Exception Handling](#exception-handling)
 - [Security Utilities](#security-utilities)
+- [File Upload (Cloudinary)](#file-upload-cloudinary)
 - [Constants](#constants)
+- [Known Issues / Backlog](#known-issues--backlog)
 - [Best Practices](#best-practices)
 
 ## Overview
@@ -28,8 +30,10 @@ The Common Library is a shared Maven dependency that provides reusable component
 - Spring Boot 3.5.6
 - Spring Web (for REST controllers)
 - Spring Security (for security utilities)
+- Spring Validation (`spring-boot-starter-validation`)
 - Lombok (for reducing boilerplate)
 - Jackson (for JSON serialization)
+- Cloudinary SDK (`cloudinary-http5`, for file/image upload)
 - Java 21
 
 **Packaging:** JAR (Maven dependency)
@@ -63,6 +67,14 @@ The Common Library is a shared Maven dependency that provides reusable component
 │  └────────────────────────────────────────────────────┘    │
 │                                                            │
 │  ┌────────────────────────────────────────────────────┐    │
+│  │  File Upload (Cloudinary)                          │    │
+│  │  • CloudinaryConfig                                │    │
+│  │  • CloudinaryService                               │    │
+│  │  • FileUploadResponse                              │    │
+│  │  • FileTypeSniffer / SvgSanitizer                  │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                            │
+│  ┌────────────────────────────────────────────────────┐    │
 │  │  Constants                                         │    │
 │  │  • ErrorCode                                       │    │
 │  │  • ResponseStatus                                  │    │
@@ -74,10 +86,12 @@ The Common Library is a shared Maven dependency that provides reusable component
 ┌───────▼──────┐  ┌─────▼────────┐  ┌─────▼────────┐
 │ Auth Service │  │ API Gateway  │  │ Other        │
 │              │  │              │  │ Services     │
-│ Uses:        │  │ Uses:        │  │              │
-│ • Responses  │  │ • Responses  │  │ • Responses  │
-│ • Exceptions │  │ • Exceptions │  │ • Exceptions │
-│ • Security   │  │              │  │ • Security   │
+│ Uses:        │  │ Uses:        │  │ (e.g. LMS    │
+│ • Responses  │  │ • Responses  │  │  Core)       │
+│ • Exceptions │  │ • Exceptions │  │ • Responses  │
+│ • Security   │  │              │  │ • Exceptions │
+│              │  │              │  │ • Security   │
+│              │  │              │  │ • File Upload│
 └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
@@ -95,40 +109,29 @@ All microservices depend on `common-lib`:
 
 ## Components
 
-### 1. Response Models (`com.edumind.common.response`)
+Quick reference — see the linked sections below for field-level detail and usage examples.
 
-Standardized response formats for all API endpoints:
-
-- **`ApiResponse<T>`** - Generic API response wrapper
-- **`PagedResponse<T>`** - Paginated response wrapper
-- **`ErrorResponse`** - Standardized error response
-- **`MessageResponse`** - Simple message response
-
-### 2. Exception Handling (`com.edumind.common.exception`)
-
-Centralized exception handling and custom exceptions:
-
-- **`GlobalExceptionHandler`** - Global exception handler with `@RestControllerAdvice`
-- **`ResourceNotFoundException`** - 404 Not Found
-- **`BadRequestException`** - 400 Bad Request
-- **`TokenRefreshException`** - Token refresh errors
-- **`EmailSendException`** - Email sending errors
-- **`FileUploadException`** - File upload errors
-- **`TooManyRequestsException`** - 429 Rate Limit errors
-
-### 3. Security Utilities (`com.edumind.common.security`)
-
-Security-related utilities:
-
-- **`EncryptionService`** - AES/GCM encryption/decryption
-- **`RateLimitService`** - Rate limiting utilities
-
-### 4. Constants (`com.edumind.common.constants`)
-
-Shared constants across services:
-
-- **`ErrorCode`** - Standardized error codes
-- **`ResponseStatus`** - Response status messages
+| Package | Class | Purpose |
+|---|---|---|
+| `com.edumind.common.response` | [`ApiResponse<T>`](#apiresponset) | Generic success response wrapper |
+| | [`PagedResponse<T>`](#pagedresponset) | Paginated list response wrapper |
+| | [`ErrorResponse`](#errorresponse) | Standardized error response |
+| | [`MessageResponse`](#messageresponse) | Simple message-only response |
+| `com.edumind.common.exception` | [`GlobalExceptionHandler`](#globalexceptionhandler) | `@RestControllerAdvice` handling all exceptions below |
+| | `ResourceNotFoundException` | 404 Not Found |
+| | `BadRequestException` | 400 Bad Request |
+| | `TokenRefreshException` | 403 - refresh token invalid/expired |
+| | `EmailSendException` | 500 - email delivery failure |
+| | `FileUploadException` | 400 - file upload failure |
+| | `TooManyRequestsException` | 429 - rate limit exceeded |
+| `com.edumind.common.security` | [`EncryptionService`](#encryptionservice) | AES-256/GCM encrypt/decrypt |
+| | [`RateLimitService`](#ratelimitservice) | Per-user lockout with exponential backoff |
+| `com.edumind.common.config` | [`CloudinaryConfig`](#file-upload-cloudinary) | Builds the `Cloudinary` bean |
+| `com.edumind.common.service` | [`CloudinaryService`](#file-upload-cloudinary) | Upload/delete files, images, icons on Cloudinary |
+| `com.edumind.common.dto` | `FileUploadResponse` | Result DTO for Cloudinary uploads |
+| `com.edumind.common.util` | `FileTypeSniffer`, `SvgSanitizer` | Magic-byte content sniffing, XXE-hardened SVG sanitization |
+| `com.edumind.common.constants` | [`ErrorCode`](#errorcode) | Standardized error codes |
+| | [`ResponseStatus`](#responsestatus) | Standardized status messages |
 
 ## Installation
 
@@ -175,206 +178,55 @@ This will:
 2. Build all services that depend on it
 3. Install all artifacts to local Maven repository
 
-## Usage
+## Quick Start
 
-### Using Response Models
-
-#### ApiResponse
+A minimal controller showing the pieces working together — see the sections below for the full API of each.
 
 ```java
 import com.edumind.common.response.ApiResponse;
-
-// Success response with data
-@GetMapping("/users/{id}")
-public ResponseEntity<ApiResponse<User>> getUser(@PathVariable Long id) {
-    User user = userService.findById(id);
-    return ResponseEntity.ok(ApiResponse.success(user));
-}
-
-// Success response with custom message
-@PostMapping("/users")
-public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserRequest request) {
-    User user = userService.create(request);
-    return ResponseEntity.ok(ApiResponse.success("User created successfully", user));
-}
-
-// Created response (201)
-@PostMapping("/users")
-public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserRequest request) {
-    User user = userService.create(request);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.created("User created successfully", user));
-}
-```
-
-#### PagedResponse
-
-```java
-import com.edumind.common.response.PagedResponse;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
-@GetMapping("/users")
-public ResponseEntity<PagedResponse<User>> getUsers(Pageable pageable) {
-    Page<User> page = userService.findAll(pageable);
-    
-    return ResponseEntity.ok(PagedResponse.of(
-        page.getContent(),
-        page.getNumber(),
-        page.getSize(),
-        page.getTotalElements(),
-        page.getTotalPages()
-    ));
-}
-```
-
-#### ErrorResponse
-
-```java
-import com.edumind.common.response.ErrorResponse;
-
-// ErrorResponse is automatically created by GlobalExceptionHandler
-// You don't need to create it manually in controllers
-```
-
-### Using Exception Handling
-
-#### Global Exception Handler
-
-The `GlobalExceptionHandler` is automatically active when `common-lib` is included. It handles:
-
-- `ResourceNotFoundException` → 404 Not Found
-- `BadRequestException` → 400 Bad Request
-- `TokenRefreshException` → 403 Forbidden
-- `TooManyRequestsException` → 429 Too Many Requests
-- `BadCredentialsException` → 401 Unauthorized
-- `MethodArgumentNotValidException` → 400 Bad Request (validation errors)
-- `Exception` → 500 Internal Server Error
-
-#### Throwing Custom Exceptions
-
-```java
 import com.edumind.common.exception.ResourceNotFoundException;
 import com.edumind.common.exception.BadRequestException;
-
-@GetMapping("/users/{id}")
-public ResponseEntity<ApiResponse<User>> getUser(@PathVariable Long id) {
-    User user = userService.findById(id)
-        .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-    
-    return ResponseEntity.ok(ApiResponse.success(user));
-}
-
-@PostMapping("/users")
-public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserRequest request) {
-    if (userService.existsByEmail(request.getEmail())) {
-        throw new BadRequestException("Email already exists");
-    }
-    
-    User user = userService.create(request);
-    return ResponseEntity.ok(ApiResponse.success(user));
-}
-```
-
-### Using Security Utilities
-
-#### EncryptionService
-
-```java
-import com.edumind.common.security.EncryptionService;
-import org.springframework.beans.factory.annotation.Autowired;
-
-@Service
-public class UserService {
-    @Autowired
-    private EncryptionService encryptionService;
-    
-    public void save2FASecret(Long userId, String secret) {
-        // Encrypt sensitive data
-        String encryptedSecret = encryptionService.encrypt(secret);
-        userRepository.save2FASecret(userId, encryptedSecret);
-    }
-    
-    public String get2FASecret(Long userId) {
-        String encryptedSecret = userRepository.get2FASecret(userId);
-        // Decrypt when needed
-        return encryptionService.decrypt(encryptedSecret);
-    }
-}
-```
-
-**Configuration:**
-```yaml
-# application.yml
-app:
-  encryption:
-    key: ${AUTH_SERVICE_ENCRYPTION_KEY}  # Service-specific key
-```
-
-#### RateLimitService
-
-```java
-import com.edumind.common.security.RateLimitService;
-import org.springframework.beans.factory.annotation.Autowired;
-
-@Service
-public class AuthService {
-    @Autowired
-    private RateLimitService rateLimitService;
-    
-    public void login(String username, String password) {
-        // Check rate limit
-        if (!rateLimitService.isAllowed(username, 5, 60)) {
-            throw new TooManyRequestsException("Too many login attempts");
-        }
-        
-        // Proceed with login
-        // ...
-    }
-}
-```
-
-### Using Constants
-
-#### ErrorCode
-
-```java
-import com.edumind.common.constants.ErrorCode;
-
-// Error codes are used automatically by GlobalExceptionHandler
-// You can also use them in custom error handling
-if (user == null) {
-    throw new ResourceNotFoundException("User not found");
-    // ErrorCode.RESOURCE_NOT_FOUND will be used automatically
-}
-```
-
-#### ResponseStatus
-
-```java
 import com.edumind.common.constants.ResponseStatus;
 
-@PostMapping("/users")
-public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserRequest request) {
-    User user = userService.create(request);
-    return ResponseEntity.ok(ApiResponse.success(ResponseStatus.CREATED, user));
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<User>> getUser(@PathVariable Long id) {
+        User user = userService.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        return ResponseEntity.ok(ApiResponse.success(user));
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody UserRequest request) {
+        if (userService.existsByEmail(request.getEmail())) {
+            throw new BadRequestException("Email already exists");
+        }
+        User user = userService.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.created(ResponseStatus.CREATED, user));
+    }
 }
 ```
+
+`ResourceNotFoundException` / `BadRequestException` and `@Valid` validation failures are automatically caught by [`GlobalExceptionHandler`](#globalexceptionhandler) and turned into a standard [`ErrorResponse`](#errorresponse) — no manual error handling needed in the controller.
 
 ## Response Models
 
-### ApiResponse<T>
+### ApiResponse&lt;T&gt;
 
 Generic API response wrapper for all successful responses.
 
-**Fields:**
-- `status` (int) - HTTP status code
-- `success` (boolean) - Always `true` for success responses
-- `message` (String) - Success message
-- `data` (T) - Response data (generic type)
-- `timestamp` (LocalDateTime) - Response timestamp
-- `requestId` (String) - Optional request ID for tracing
-- `path` (String) - Optional request path
+**Fields:** `status` (int), `success` (boolean, always `true`), `message` (String), `data` (T), `timestamp` (LocalDateTime), `requestId` (String, optional), `path` (String, optional)
+
+**Factory Methods:**
+```java
+ApiResponse.success(data)                              // 200, default message
+ApiResponse.success("User retrieved successfully", data)
+ApiResponse.created("User created successfully", data) // 201
+```
 
 **Example Response:**
 ```json
@@ -382,50 +234,25 @@ Generic API response wrapper for all successful responses.
   "status": 200,
   "success": true,
   "message": "Success",
-  "data": {
-    "id": 1,
-    "username": "johndoe",
-    "email": "john@example.com"
-  },
-  "timestamp": "2025-01-20T10:30:00"
+  "data": { "id": 1, "username": "johndoe", "email": "john@example.com" },
+  "timestamp": "2026-08-14T10:30:00"
 }
 ```
 
-**Factory Methods:**
-```java
-// Simple success
-ApiResponse.success(data)
-
-// Success with message
-ApiResponse.success("User retrieved successfully", data)
-
-// Created (201)
-ApiResponse.created("User created successfully", data)
-```
-
-### PagedResponse<T>
+### PagedResponse&lt;T&gt;
 
 Paginated response wrapper for list endpoints.
 
-**Fields:**
-- `status` (int) - HTTP status code
-- `success` (boolean) - Always `true`
-- `message` (String) - Success message
-- `data` (List<T>) - List of items
-- `pagination` (PageMetadata) - Pagination metadata
-- `timestamp` (LocalDateTime) - Response timestamp
-- `requestId` (String) - Optional request ID
-- `path` (String) - Optional request path
+**Fields:** `status`, `success` (always `true`), `message`, `data` (`List<T>`), `pagination` (`PageMetadata`), `timestamp`, `requestId`, `path`
 
-**PageMetadata Fields:**
-- `page` (int) - Current page number (0-indexed)
-- `size` (int) - Page size
-- `totalElements` (long) - Total number of elements
-- `totalPages` (int) - Total number of pages
-- `first` (boolean) - Is first page
-- `last` (boolean) - Is last page
-- `hasNext` (boolean) - Has next page
-- `hasPrevious` (boolean) - Has previous page
+**PageMetadata:** `page`, `size`, `totalElements`, `totalPages`, `first`, `last`, `hasNext`, `hasPrevious`
+
+**Factory Methods:**
+```java
+PagedResponse.of(page.getContent(), page.getNumber(), page.getSize(),
+                 page.getTotalElements(), page.getTotalPages())
+PagedResponse.ofList(data) // simple list, no pagination
+```
 
 **Example Response:**
 ```json
@@ -433,78 +260,63 @@ Paginated response wrapper for list endpoints.
   "status": 200,
   "success": true,
   "message": "Success",
-  "data": [
-    {"id": 1, "username": "user1"},
-    {"id": 2, "username": "user2"}
-  ],
+  "data": [{"id": 1, "username": "user1"}, {"id": 2, "username": "user2"}],
   "pagination": {
-    "page": 0,
-    "size": 10,
-    "totalElements": 25,
-    "totalPages": 3,
-    "first": true,
-    "last": false,
-    "hasNext": true,
-    "hasPrevious": false
+    "page": 0, "size": 10, "totalElements": 25, "totalPages": 3,
+    "first": true, "last": false, "hasNext": true, "hasPrevious": false
   },
-  "timestamp": "2025-01-20T10:30:00"
+  "timestamp": "2026-08-14T10:30:00"
 }
-```
-
-**Factory Methods:**
-```java
-// From Spring Data Page
-PagedResponse.of(page.getContent(), page.getNumber(), page.getSize(), 
-                 page.getTotalElements(), page.getTotalPages())
-
-// Simple list (no pagination)
-PagedResponse.ofList(data)
 ```
 
 ### ErrorResponse
 
-Standardized error response format.
+Standardized error response format, built automatically by [`GlobalExceptionHandler`](#globalexceptionhandler) — you normally don't construct it manually.
 
-**Fields:**
-- `status` (int) - HTTP status code
-- `success` (boolean) - Always `false`
-- `error` (String) - Error code (from ErrorCode constants)
-- `message` (String) - Error message
-- `details` (List<String>) - Optional error details
-- `fieldErrors` (Map<String, String>) - Field validation errors
-- `timestamp` (LocalDateTime) - Error timestamp
-- `requestId` (String) - Request ID for tracing
-- `path` (String) - Request path
+**Fields:** `status` (int), `success` (always `false`), `error` (String — human-readable HTTP label, e.g. `"Bad Request"`, `"Not Found"`), `errorCode` (String — machine-readable code from `ErrorCode`, e.g. `"ERR_4000"`), `message`, `details` (`List<String>`, optional), `fieldErrors` (`Map<String,String>`, optional), `timestamp`, `requestId`, `path`, `trace` (String, optional, for debug scenarios)
+
+`error` and `errorCode` always play these fixed roles — `error` is never a code and `errorCode` is never a label. Consumers that need to branch on error type (e.g. a frontend retry/refresh-token flow) should always read `errorCode`, never parse `error`.
+
+**Factory Methods** (for building an error response outside the global handler, e.g. in a service that needs a specific shape directly):
+```java
+ErrorResponse.badRequest("Email already exists")
+ErrorResponse.badRequest("Email already exists", ErrorCode.EMAIL_TAKEN) // errorCode overload
+ErrorResponse.unauthorized("Invalid credentials")
+ErrorResponse.forbidden("Access denied")
+ErrorResponse.notFound("User not found")
+ErrorResponse.conflict("Resource already exists")
+ErrorResponse.internalServerError("Unexpected error")
+
+ErrorResponse.notFound("User not found")   // fluent enrichment
+    .withPath(request.getRequestURI())
+    .withRequestId(requestId);
+```
 
 **Example Response:**
 ```json
 {
   "status": 404,
   "success": false,
-  "error": "ERR_4000",
+  "error": "Not Found",
+  "errorCode": "ERR_4000",
   "message": "User not found with id: 123",
-  "timestamp": "2025-01-20T10:30:00",
+  "timestamp": "2026-08-14T10:30:00",
   "requestId": "abc12345",
   "path": "/api/users/123"
 }
 ```
 
-**Validation Error Example:**
+**Validation Error Example** (`details`/`fieldErrors` populated):
 ```json
 {
   "status": 400,
   "success": false,
-  "error": "ERR_1001",
+  "error": "Bad Request",
+  "errorCode": "ERR_1001",
   "message": "Validation failed for one or more fields",
-  "details": [
-    "email: must be a well-formed email address",
-    "password: size must be between 8 and 20"
-  ],
-  "fieldErrors": {
-    "email": "must be a well-formed email address",
-    "password": "size must be between 8 and 20"
-  },
-  "timestamp": "2025-01-20T10:30:00",
+  "details": ["email: must be a well-formed email address", "password: size must be between 8 and 20"],
+  "fieldErrors": {"email": "must be a well-formed email address", "password": "size must be between 8 and 20"},
+  "timestamp": "2026-08-14T10:30:00",
   "requestId": "abc12345",
   "path": "/api/users"
 }
@@ -514,596 +326,213 @@ Standardized error response format.
 
 Simple message response for operations that don't return data.
 
-**Fields:**
-- `status` (int) - HTTP status code
-- `success` (boolean) - Success status
-- `message` (String) - Response message
-- `timestamp` (LocalDateTime) - Response timestamp
+**Fields:** `status`, `success`, `message`, `timestamp`, `requestId` (optional)
 
-**Example Response:**
-```json
-{
-  "status": 200,
-  "success": true,
-  "message": "User deleted successfully",
-  "timestamp": "2025-01-20T10:30:00"
-}
+**Factory Methods:**
+```java
+MessageResponse.success("User deleted successfully") // 200
+MessageResponse.created("Resource created successfully") // 201
 ```
 
 ## Exception Handling
 
 ### GlobalExceptionHandler
 
-The `GlobalExceptionHandler` is a `@RestControllerAdvice` that automatically handles all exceptions thrown by controllers. It provides:
+A `@RestControllerAdvice` that automatically handles all exceptions thrown by controllers when `common-lib` is on the classpath — no per-service wiring needed. It provides centralized handling, a consistent `ErrorResponse` shape, a generated request ID per error, and structured logging.
 
-- **Centralized Error Handling** - All exceptions handled in one place
-- **Consistent Error Format** - All errors follow the same `ErrorResponse` format
-- **Request ID Generation** - Each error gets a unique request ID for tracing
-- **Logging** - All errors are logged with context
-- **Field Validation** - Special handling for validation errors
+| Exception | HTTP Status | `error` | `errorCode` | Notes |
+|---|---|---|---|---|
+| `ResourceNotFoundException` | 404 | `Not Found` | `ErrorCode.RESOURCE_NOT_FOUND` | Missing resource |
+| `BadRequestException` | 400 | `Bad Request` | `ErrorCode.INVALID_INPUT` | Invalid client input |
+| `FileUploadException` | 400 | `Bad Request` | `ErrorCode.INVALID_INPUT` | File upload failure |
+| `EmailSendException` | 500 | `Internal Server Error` | `ErrorCode.INTERNAL_SERVER_ERROR` | Email delivery failure |
+| `TokenRefreshException` | 403 | `Forbidden` | `ErrorCode.TOKEN_REFRESH_FAILED` | Refresh token invalid/expired |
+| `TooManyRequestsException` | 429 | `Too Many Requests` | *(none)* | Rate limit exceeded |
+| `BadCredentialsException` | 401 | `Unauthorized` | `ErrorCode.INVALID_CREDENTIALS` | Spring Security auth failure |
+| `UsernameNotFoundException` | 404 | `Not Found` | `ErrorCode.RESOURCE_NOT_FOUND` | Spring Security - user lookup failure |
+| `IllegalArgumentException` | 400 | `Bad Request` | `ErrorCode.INVALID_INPUT` | Invalid argument |
+| `MethodArgumentNotValidException` | 400 | `Bad Request` | `ErrorCode.VALIDATION_ERROR` | `@Valid` failure — populates `details`/`fieldErrors` |
+| `TaskRejectedException` | 429 | `Queue Full` | *(none)* | Async task queue saturated (e.g. AI processing) |
+| `Exception` (catch-all) | 500 | `Internal Server Error` | `ErrorCode.INTERNAL_SERVER_ERROR` | Any unhandled exception |
 
-### Handled Exceptions
-
-#### ResourceNotFoundException (404)
-
-```java
-throw new ResourceNotFoundException("User not found with id: 123");
-```
-
-**Response:**
-```json
-{
-  "status": 404,
-  "success": false,
-  "error": "ERR_4000",
-  "message": "User not found with id: 123",
-  "timestamp": "2025-01-20T10:30:00",
-  "requestId": "abc12345",
-  "path": "/api/users/123"
-}
-```
-
-#### BadRequestException (400)
+`error` is always a fixed human-readable label per exception type; `errorCode` is always the matching `ErrorCode` constant (or absent for the two infrastructure-level errors above, which aren't domain error codes).
 
 ```java
+throw new ResourceNotFoundException("User not found with id: " + id);
 throw new BadRequestException("Email already exists");
-```
-
-**Response:**
-```json
-{
-  "status": 400,
-  "success": false,
-  "error": "ERR_1002",
-  "message": "Email already exists",
-  "timestamp": "2025-01-20T10:30:00",
-  "requestId": "abc12345",
-  "path": "/api/users"
-}
-```
-
-#### TokenRefreshException (403)
-
-```java
 throw new TokenRefreshException("Refresh token is invalid or expired");
 ```
 
-**Response:**
-```json
-{
-  "status": 403,
-  "success": false,
-  "error": "ERR_2004",
-  "message": "Refresh token is invalid or expired",
-  "timestamp": "2025-01-20T10:30:00",
-  "requestId": "abc12345",
-  "path": "/api/auth/refresh"
-}
-```
-
-#### TooManyRequestsException (429)
-
-```java
-throw new TooManyRequestsException("Rate limit exceeded");
-```
-
-**Response:**
-```json
-{
-  "status": 429,
-  "success": false,
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded",
-  "timestamp": "2025-01-20T10:30:00"
-}
-```
-
-#### BadCredentialsException (401)
-
-Thrown by Spring Security when authentication fails.
-
-**Response:**
-```json
-{
-  "status": 401,
-  "success": false,
-  "error": "ERR_2001",
-  "message": "Invalid username/email or password",
-  "timestamp": "2025-01-20T10:30:00",
-  "requestId": "abc12345",
-  "path": "/api/auth/login"
-}
-```
-
-#### MethodArgumentNotValidException (400)
-
-Automatically handled when `@Valid` validation fails.
-
-**Response:**
-```json
-{
-  "status": 400,
-  "success": false,
-  "error": "ERR_1001",
-  "message": "Validation failed for one or more fields",
-  "details": [
-    "email: must be a well-formed email address",
-    "password: size must be between 8 and 20"
-  ],
-  "fieldErrors": {
-    "email": "must be a well-formed email address",
-    "password": "size must be between 8 and 20"
-  },
-  "timestamp": "2025-01-20T10:30:00",
-  "requestId": "abc12345",
-  "path": "/api/users"
-}
-```
-
-#### Generic Exception (500)
-
-All unhandled exceptions are caught and returned as 500 errors.
-
-**Response:**
-```json
-{
-  "status": 500,
-  "success": false,
-  "error": "ERR_9000",
-  "message": "An unexpected error occurred. Please try again later.",
-  "timestamp": "2025-01-20T10:30:00",
-  "requestId": "abc12345",
-  "path": "/api/users"
-}
-```
+See [ErrorResponse](#errorresponse) above for the exact JSON shapes (a plain error vs. a validation error with `details`/`fieldErrors`).
 
 ### Custom Exceptions
 
-#### Creating Custom Exceptions
+To add your own exception on top of `common-lib`'s handler:
 
 ```java
-package com.yourpackage.exception;
-
 public class CustomException extends RuntimeException {
-    public CustomException(String message) {
-        super(message);
-    }
-    
-    public CustomException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    public CustomException(String message) { super(message); }
+    public CustomException(String message, Throwable cause) { super(message, cause); }
 }
 ```
-
-#### Adding Handler for Custom Exception
 
 ```java
 @ExceptionHandler(CustomException.class)
-public ResponseEntity<ErrorResponse> handleCustomException(
-        CustomException ex, HttpServletRequest request) {
-    
-    String requestId = generateRequestId();
-    logger.error("❌ [{}] Custom error: {}", requestId, ex.getMessage());
-    
-    ErrorResponse errorResponse = ErrorResponse.builder()
-            .status(HttpStatus.BAD_REQUEST.value())
-            .success(false)
-            .error(ErrorCode.INVALID_INPUT)
-            .message(ex.getMessage())
-            .timestamp(LocalDateTime.now())
-            .requestId(requestId)
-            .path(request.getRequestURI())
-            .build();
-    
+public ResponseEntity<ErrorResponse> handleCustomException(CustomException ex, HttpServletRequest request) {
+    ErrorResponse errorResponse = ErrorResponse.badRequest(ex.getMessage(), ErrorCode.INVALID_INPUT)
+        .withPath(request.getRequestURI());
     return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
 }
 ```
-
-### Exception Best Practices
-
-1. **Use Appropriate Exceptions**
-   - `ResourceNotFoundException` for missing resources
-   - `BadRequestException` for invalid input
-   - `TokenRefreshException` for token issues
-
-2. **Provide Clear Messages**
-   ```java
-   // Good
-   throw new ResourceNotFoundException("User not found with id: " + id);
-   
-   // Bad
-   throw new ResourceNotFoundException("Not found");
-   ```
-
-3. **Include Context**
-   ```java
-   throw new BadRequestException(
-       String.format("Email %s is already registered", email)
-   );
-   ```
-
-4. **Don't Expose Internal Details**
-   - Error messages should be user-friendly
-   - Internal details should only be in logs
-   - Use request ID for tracing
 
 ## Security Utilities
 
 ### EncryptionService
 
-AES/GCM encryption service for encrypting sensitive data (e.g., 2FA secrets, OAuth tokens).
+AES-256/GCM encryption service for encrypting sensitive data (e.g., 2FA secrets, OAuth tokens). Uses per-service keys, a secure random IV per call, and Base64 encoding for storage.
 
-**Features:**
-- AES-256 encryption with GCM mode
-- Per-service encryption keys (key isolation)
-- Secure random IV generation
-- Base64 encoding for storage
-
-**Usage:**
 ```java
 @Autowired
 private EncryptionService encryptionService;
 
-// Encrypt
-String plaintext = "sensitive-data";
-String encrypted = encryptionService.encrypt(plaintext);
-
-// Decrypt
+String encrypted = encryptionService.encrypt("sensitive-data");
 String decrypted = encryptionService.decrypt(encrypted);
 ```
 
 **Configuration:**
 ```yaml
-# application.yml
 app:
   encryption:
-    key: ${AUTH_SERVICE_ENCRYPTION_KEY}  # Service-specific key (32 bytes)
+    key: ${AUTH_SERVICE_ENCRYPTION_KEY}  # service-specific, 32 bytes
 ```
 
-**Security Notes:**
-- Each service should have its own encryption key
-- Keys should be stored securely (environment variables, secrets manager)
-- Never commit keys to version control
-- Use different keys for dev/staging/production
+Each service should use its own key, stored in an env var / secrets manager (never committed), with different keys per environment.
 
 ### RateLimitService
 
-Rate limiting service for preventing abuse.
+In-memory rate limiting with exponential backoff lockout, used for login attempts, 2FA verification, password reset requests, and similar abuse-prone actions.
 
-**Features:**
-- In-memory rate limiting
-- Per-key rate limiting (e.g., per user, per IP)
-- Configurable limits (max attempts, time window)
+**Behavior:** keyed by `Long userId` (not a generic string key) · max **5** failed attempts before lockout · lockout starts at 60s and doubles on each subsequent lockout, capped at 3600s (1 hour) · state is an in-memory `ConcurrentHashMap` — per instance, lost on restart.
 
-**Usage:**
+> Acceptable for dev/test and single-instance deployments. For production with horizontal scaling or cross-service rate limiting, replace with a Redis-backed implementation.
+
 ```java
 @Autowired
 private RateLimitService rateLimitService;
 
-// Check if allowed (5 attempts per 60 seconds)
-String key = "user:" + userId;
-if (!rateLimitService.isAllowed(key, 5, 60)) {
-    throw new TooManyRequestsException("Too many attempts");
-}
+public void login(Long userId, String password) {
+    rateLimitService.checkRateLimit(userId); // throws TooManyRequestsException if locked out
 
-// Record attempt
-rateLimitService.recordAttempt(key);
+    boolean authenticated = /* ... verify password ... */ true;
+    if (!authenticated) {
+        rateLimitService.recordFailedAttempt(userId);
+        throw new BadCredentialsException("Invalid credentials");
+    }
+    rateLimitService.recordSuccessfulAttempt(userId);
+}
 ```
 
-**Parameters:**
-- `key` - Unique identifier (e.g., username, IP address)
-- `maxAttempts` - Maximum number of attempts allowed
-- `windowSeconds` - Time window in seconds
+**API:** `checkRateLimit(userId)` · `recordFailedAttempt(userId)` · `recordSuccessfulAttempt(userId)` (clears state) · `clearLockout(userId)` (admin) · `getRemainingAttempts(userId)` · `isLockedOut(userId)`
+
+## File Upload (Cloudinary)
+
+Cloudinary-backed subsystem for uploading/deleting documents, images, and icons.
+
+- **`CloudinaryConfig`** (`com.edumind.common.config`) — builds the `Cloudinary` bean from properties.
+- **`CloudinaryService`** (`com.edumind.common.service`) — `uploadDocument`, `uploadPdf`, `uploadImage` (default 500x500 limit, or an overload with custom `maxWidth`/`maxHeight`), `uploadIcon` (JPEG/PNG/WEBP/SVG — SVG is sniffed and sanitized before upload), `deleteFile`, `extractPublicId`, `extractResourceType`. Max file size: 10MB.
+- **`FileUploadResponse`** (`com.edumind.common.dto`) — result DTO: `publicId`, `url`, `fileName`, `fileType`, `resourceType`, `size`.
+- **`FileTypeSniffer`** / **`SvgSanitizer`** (`com.edumind.common.util`) — magic-byte content detection (ignoring the client-supplied `Content-Type` header) and XXE-hardened, allowlist-based SVG sanitization.
+
+```java
+@Autowired
+private CloudinaryService cloudinaryService;
+
+// Custom max dimensions, e.g. for course thumbnails
+FileUploadResponse thumb = cloudinaryService.uploadImage(file, "images/thumbnails", 1200, 900);
+
+// Delete by URL
+String publicId = cloudinaryService.extractPublicId(thumb.getUrl());
+String resourceType = cloudinaryService.extractResourceType(thumb.getUrl());
+cloudinaryService.deleteFile(publicId, resourceType);
+```
+
+**Configuration:**
+```yaml
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+```
 
 ## Constants
 
 ### ErrorCode
 
-Standardized error codes used across all services.
+Standardized error codes used across all services, grouped by category:
 
-**Error Code Categories:**
-- **1xxx** - General Errors
-  - `ERR_1000` - General Error
-  - `ERR_1001` - Validation Error
-  - `ERR_1002` - Invalid Input
+| Range | Category | Codes |
+|---|---|---|
+| 1xxx | General | `GENERAL_ERROR` (1000), `VALIDATION_ERROR` (1001), `INVALID_INPUT` (1002) |
+| 2xxx | Authentication | `AUTH_FAILED` (2000), `INVALID_CREDENTIALS` (2001), `TOKEN_EXPIRED` (2002), `TOKEN_INVALID` (2003), `TOKEN_REFRESH_FAILED` (2004), `TOKEN_MISSING` (2005) |
+| 3xxx | Authorization | `ACCESS_DENIED` (3000), `INSUFFICIENT_PERMISSIONS` (3001) |
+| 4xxx | Resource | `RESOURCE_NOT_FOUND` (4000), `RESOURCE_ALREADY_EXISTS` (4001) |
+| 5xxx | User | `USER_NOT_FOUND` (5000), `USERNAME_TAKEN` (5001), `EMAIL_TAKEN` (5002), `USER_INACTIVE` (5003) |
+| 9xxx | Server | `INTERNAL_SERVER_ERROR` (9000), `DATABASE_ERROR` (9002) |
 
-- **2xxx** - Authentication Errors
-  - `ERR_2000` - Authentication Failed
-  - `ERR_2001` - Invalid Credentials
-  - `ERR_2002` - Token Expired
-  - `ERR_2003` - Token Invalid
-  - `ERR_2004` - Token Refresh Failed
-
-- **3xxx** - Authorization Errors
-  - `ERR_3000` - Access Denied
-  - `ERR_3001` - Insufficient Permissions
-
-- **4xxx** - Resource Errors
-  - `ERR_4000` - Resource Not Found
-  - `ERR_4001` - Resource Already Exists
-
-- **5xxx** - User Errors
-  - `ERR_5000` - User Not Found
-  - `ERR_5001` - Username Taken
-  - `ERR_5002` - Email Taken
-  - `ERR_5003` - User Inactive
-
-- **9xxx** - Server Errors
-  - `ERR_9000` - Internal Server Error
-  - `ERR_9002` - Database Error
-
-**Usage:**
-```java
-import com.edumind.common.constants.ErrorCode;
-
-// Error codes are automatically used by GlobalExceptionHandler
-// You can also reference them in custom error handling
-if (user == null) {
-    throw new ResourceNotFoundException("User not found");
-    // ErrorCode.RESOURCE_NOT_FOUND will be used automatically
-}
-```
+(Codes are strings, e.g. `ErrorCode.RESOURCE_NOT_FOUND` = `"ERR_4000"`.) These are applied automatically by `GlobalExceptionHandler`; reference them directly when building an `ErrorResponse` manually.
 
 ### ResponseStatus
 
-Standardized response status messages.
+Standardized response status messages:
 
-**Success Messages:**
-- `SUCCESS` - "Operation completed successfully"
-- `CREATED` - "Resource created successfully"
-- `UPDATED` - "Resource updated successfully"
-- `DELETED` - "Resource deleted successfully"
+- **Success:** `SUCCESS`, `CREATED`, `UPDATED`, `DELETED`
+- **Auth:** `LOGIN_SUCCESS`, `LOGOUT_SUCCESS`, `REGISTER_SUCCESS`, `TOKEN_REFRESHED`
+- **Error:** `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `INTERNAL_ERROR`
 
-**Auth Messages:**
-- `LOGIN_SUCCESS` - "Login successful"
-- `LOGOUT_SUCCESS` - "Logout successful"
-- `REGISTER_SUCCESS` - "Registration successful"
-- `TOKEN_REFRESHED` - "Token refreshed successfully"
-
-**Error Messages:**
-- `INVALID_REQUEST` - "Invalid request"
-- `UNAUTHORIZED` - "Authentication required"
-- `FORBIDDEN` - "Access denied"
-- `NOT_FOUND` - "Resource not found"
-- `INTERNAL_ERROR` - "An unexpected error occurred"
-
-**Usage:**
 ```java
-import com.edumind.common.constants.ResponseStatus;
-
-@PostMapping("/users")
-public ResponseEntity<ApiResponse<User>> createUser(@RequestBody UserRequest request) {
-    User user = userService.create(request);
-    return ResponseEntity.ok(ApiResponse.success(ResponseStatus.CREATED, user));
-}
+return ResponseEntity.ok(ApiResponse.success(ResponseStatus.CREATED, user));
 ```
+
+## Known Issues / Backlog
+
+### RateLimitService is single-instance only — blocker for multi-replica production
+
+`RateLimitService` (see [Security Utilities](#ratelimitservice)) keeps state in an in-memory `ConcurrentHashMap`. This means lockout state is **not shared across service instances** — with multiple replicas behind a load balancer, an attacker can bypass the 5-attempt lockout simply by having requests land on different pods, and all lockout state resets on every restart/deploy.
+
+This is acceptable for local dev, testing, and genuinely single-instance deployments, but is a **real blocker before running auth-service/lms-core-service with more than one replica in production**.
+
+**Follow-up task (not yet scheduled):** replace the in-memory store with a Redis-backed implementation.
+- Keep the exact same public method signatures (`checkRateLimit`, `recordFailedAttempt`, `recordSuccessfulAttempt`, `clearLockout`, `getRemainingAttempts`, `isLockedOut`, all keyed by `Long userId`) so no caller (e.g. auth-service's login flow) needs to change.
+- Store per-user attempt count + lockout-until timestamp in Redis with a TTL matching the lockout window, using atomic operations (e.g. `INCR` + `EXPIRE`, or a Lua script) to avoid race conditions under concurrent requests.
+- Requires Redis to be provisioned and reachable from every service that depends on `common-lib`'s rate limiting (auth-service today) — confirm this exists in the deployment target (docker-compose/k8s) before starting.
 
 ## Best Practices
 
-### Response Models
+**Response Models**
+- Always wrap success responses in `ApiResponse` / `PagedResponse` — never return a raw entity/list from a controller.
+- Provide meaningful `message` values instead of generic ones like `"OK"`.
+- Use the right HTTP status via `ResponseEntity.status(...)`, matched to `ApiResponse.created`/`success`.
 
-1. **Always Use ApiResponse for Success Responses**
-   ```java
-   // Good
-   return ResponseEntity.ok(ApiResponse.success(user));
-   
-   // Bad
-   return ResponseEntity.ok(user);
-   ```
+**Exception Handling**
+- Throw the specific exception (`ResourceNotFoundException`, `BadRequestException`, ...) instead of a generic `RuntimeException`.
+- Include context in messages (e.g. the id/email involved), but never leak internal/stack details to the client — that's what `requestId` and server-side logs are for.
+- Let `GlobalExceptionHandler` build the `ErrorResponse`; don't hand-construct one in a controller unless you're adding a handler for a new exception type.
 
-2. **Use PagedResponse for List Endpoints**
-   ```java
-   // Good
-   return ResponseEntity.ok(PagedResponse.of(
-       page.getContent(), page.getNumber(), page.getSize(),
-       page.getTotalElements(), page.getTotalPages()
-   ));
-   ```
+**Security**
+- Always encrypt sensitive data (2FA secrets, tokens) via `EncryptionService` before persisting it.
+- Use a distinct encryption key per service/environment; never commit keys.
+- Call `RateLimitService.checkRateLimit()` at the start of any abuse-prone endpoint (login, 2FA, password reset).
 
-3. **Provide Meaningful Messages**
-   ```java
-   // Good
-   ApiResponse.success("User created successfully", user)
-   
-   // Bad
-   ApiResponse.success("OK", user)
-   ```
+**Code Organization**
+- Import specific classes (`import com.edumind.common.response.ApiResponse;`), not wildcard imports.
+- Don't duplicate common-lib functionality in a service — extend or contribute back to common-lib instead.
 
-4. **Use Appropriate HTTP Status Codes**
-   ```java
-   // Created resource
-   return ResponseEntity.status(HttpStatus.CREATED)
-       .body(ApiResponse.created("User created", user));
-   
-   // Updated resource
-   return ResponseEntity.ok(ApiResponse.success("User updated", user));
-   ```
-
-### Exception Handling
-
-1. **Use Specific Exceptions**
-   ```java
-   // Good
-   throw new ResourceNotFoundException("User not found with id: " + id);
-   
-   // Bad
-   throw new RuntimeException("Error");
-   ```
-
-2. **Provide Context in Error Messages**
-   ```java
-   // Good
-   throw new BadRequestException(
-       String.format("Email %s is already registered", email)
-   );
-   
-   // Bad
-   throw new BadRequestException("Invalid");
-   ```
-
-3. **Don't Catch and Swallow Exceptions**
-   ```java
-   // Good
-   try {
-       // operation
-   } catch (SpecificException e) {
-       logger.error("Error: {}", e.getMessage(), e);
-       throw new BadRequestException("Operation failed: " + e.getMessage());
-   }
-   
-   // Bad
-   try {
-       // operation
-   } catch (Exception e) {
-       // silently ignore
-   }
-   ```
-
-4. **Let GlobalExceptionHandler Handle Exceptions**
-   - Don't manually create ErrorResponse in controllers
-   - Throw exceptions and let the handler format them
-   - Use request ID for tracing
-
-### Security
-
-1. **Encrypt Sensitive Data**
-   ```java
-   // Always encrypt sensitive data before storing
-   String encrypted = encryptionService.encrypt(plaintext);
-   userRepository.saveSecret(userId, encrypted);
-   ```
-
-2. **Use Service-Specific Encryption Keys**
-   ```yaml
-   # Each service should have its own key
-   app:
-     encryption:
-       key: ${AUTH_SERVICE_ENCRYPTION_KEY}  # Not shared across services
-   ```
-
-3. **Implement Rate Limiting**
-   ```java
-   // Protect sensitive endpoints
-   if (!rateLimitService.isAllowed(key, maxAttempts, windowSeconds)) {
-       throw new TooManyRequestsException("Rate limit exceeded");
-   }
-   ```
-
-### Code Organization
-
-1. **Import from Common Package**
-   ```java
-   // Good
-   import com.edumind.common.response.ApiResponse;
-   import com.edumind.common.exception.ResourceNotFoundException;
-   
-   // Bad
-   import com.edumind.common.*;
-   ```
-
-2. **Don't Duplicate Common Code**
-   - Use common-lib instead of creating duplicate utilities
-   - Extend common-lib if you need additional functionality
-   - Contribute back to common-lib if functionality is reusable
-
-3. **Follow Naming Conventions**
-   - Use `ApiResponse` for all API responses
-   - Use `PagedResponse` for paginated responses
-   - Use `ErrorResponse` for errors (handled automatically)
-
-### Testing
-
-1. **Test Response Formats**
-   ```java
-   @Test
-   void testGetUser() {
-       ResponseEntity<ApiResponse<User>> response = controller.getUser(1L);
-       
-       assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-       assertThat(response.getBody().isSuccess()).isTrue();
-       assertThat(response.getBody().getData()).isNotNull();
-   }
-   ```
-
-2. **Test Exception Handling**
-   ```java
-   @Test
-   void testGetUserNotFound() {
-       assertThrows(ResourceNotFoundException.class, () -> {
-           controller.getUser(999L);
-       });
-   }
-   ```
-
-3. **Test Error Responses**
-   ```java
-   @Test
-   void testValidationError() {
-       // Trigger validation error
-       ResponseEntity<ErrorResponse> response = // ...
-       
-       assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-       assertThat(response.getBody().getError()).isEqualTo(ErrorCode.VALIDATION_ERROR);
-       assertThat(response.getBody().getFieldErrors()).isNotEmpty();
-   }
-   ```
-
-### Versioning
-
-1. **Keep Backward Compatibility**
-   - Don't remove fields from response models
-   - Add new fields as optional
-   - Use versioning for breaking changes
-
-2. **Document Changes**
-   - Update README when adding new features
-   - Document breaking changes
-   - Provide migration guides
-
-### Performance
-
-1. **Use Builder Pattern**
-   ```java
-   // Response models use Lombok @Builder for efficient object creation
-   ApiResponse.builder()
-       .status(200)
-       .success(true)
-       .data(user)
-       .build();
-   ```
-
-2. **Avoid Null Data**
-   ```java
-   // Good - use Optional or empty list
-   ApiResponse.success(Collections.emptyList())
-   
-   // Bad - null data
-   ApiResponse.success(null)
-   ```
+**Versioning**
+- Don't remove or repurpose existing fields in response models; add new fields as optional.
+- Update this README when adding or changing a public class/method in common-lib.
 
 ---
 
-**Last Updated:** 2025-01-20  
+**Last Updated:** 2026-08-14  
 **Version:** 1.0.0-SNAPSHOT  
 **Maintainers:** EduMind Development Team
-

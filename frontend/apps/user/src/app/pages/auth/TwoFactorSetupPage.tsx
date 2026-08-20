@@ -85,10 +85,8 @@ export const TwoFactorSetupPage = () => {
 
     setLoading(true);
     try {
-      // The backend expects code and secret in the request body
       await authService.verify2FASetup({
         code: data.code,
-        secret: setupData.secret,
       });
 
       success("2FA enabled successfully!", "Success");

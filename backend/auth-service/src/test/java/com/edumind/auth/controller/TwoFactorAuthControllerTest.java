@@ -109,11 +109,10 @@ class TwoFactorAuthControllerTest {
             // Given
             TwoFactorVerifyRequest request = new TwoFactorVerifyRequest();
             request.setCode("123456");
-            request.setSecret("JBSWY3DPEHPK3PXP");
 
             TwoFactorStatusResponse response = TwoFactorStatusResponse.enabled(5);
 
-            when(twoFactorAuthService.verify2FA("123456", "JBSWY3DPEHPK3PXP"))
+            when(twoFactorAuthService.verify2FA("123456"))
                     .thenReturn(response);
 
             // When/Then
@@ -134,9 +133,8 @@ class TwoFactorAuthControllerTest {
             // Given
             TwoFactorVerifyRequest request = new TwoFactorVerifyRequest();
             request.setCode("000000");
-            request.setSecret("JBSWY3DPEHPK3PXP");
 
-            when(twoFactorAuthService.verify2FA("000000", "JBSWY3DPEHPK3PXP"))
+            when(twoFactorAuthService.verify2FA("000000"))
                     .thenThrow(new BadRequestException("Invalid verification code"));
 
             // When/Then
@@ -157,7 +155,6 @@ class TwoFactorAuthControllerTest {
         void verify2FA_WithMissingCode_ShouldReturn400() throws Exception {
             // Given
             TwoFactorVerifyRequest request = new TwoFactorVerifyRequest();
-            request.setSecret("JBSWY3DPEHPK3PXP");
             // code is null
 
             // When/Then

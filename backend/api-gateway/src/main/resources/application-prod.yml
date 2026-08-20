@@ -1,0 +1,25 @@
+# Production profile overrides.
+# Activated when SPRING_PROFILES_ACTIVE=prod. Values here are merged on top of
+# application.yml — only settings that must differ in production live here.
+
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+edumind:
+  eureka:
+    security:
+      # No defaults on purpose, mirroring discovery-service's own prod profile: outside Compose
+      # (Kubernetes, systemd, java -jar) nothing enforces these variables, and inheriting
+      # application.yml's eureka/eureka fallback would mean a production deployment silently running
+      # on the development credentials. Startup fails instead.
+      username: ${EUREKA_USERNAME}
+      password: ${EUREKA_PASSWORD}

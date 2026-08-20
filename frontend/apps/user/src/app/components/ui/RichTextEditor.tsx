@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from "react";
+import { BlockNoteSchema, createCodeBlockSpec } from "@blocknote/core";
+import { codeBlockOptions } from "@blocknote/code-block";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
@@ -11,6 +13,12 @@ interface RichTextEditorProps {
   rows?: number;
   borderless?: boolean;
 }
+
+const editorSchema = BlockNoteSchema.create().extend({
+  blockSpecs: {
+    codeBlock: createCodeBlockSpec(codeBlockOptions),
+  },
+});
 
 const getMinHeightClass = (rows?: number) => {
   if (!rows)      return "min-h-[200px]";
@@ -31,6 +39,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const lastEmittedHtml = useRef(value);
 
   const editor = useCreateBlockNote({
+    schema: editorSchema,
     placeholders: {
       default: placeholder,
     },

@@ -16,6 +16,7 @@ import com.edumind.lms.modules.payment.enums.TransactionStatus;
 import com.edumind.lms.modules.payment.gateway.*;
 import com.edumind.lms.modules.payment.gateway.config.PaymentGatewayRegistry;
 import com.edumind.lms.modules.payment.gateway.impl.PayPalGatewayProperties;
+import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
 import com.edumind.lms.modules.payment.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final ApplicationEventPublisher eventPublisher;
     private final PlatformTransactionManager transactionManager;
     private final PayPalGatewayProperties payPalGatewayProperties;
+    private final SepayGatewayProperties sepayGatewayProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -944,7 +946,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
                 // Reset order to PENDING and extend expiration
                 order.setStatus(OrderStatus.PENDING);
-                order.setExpiresAt(LocalDateTime.now().plusMinutes(30));
+                order.setExpiresAt(LocalDateTime.now().plusMinutes(sepayGatewayProperties.getQrExpireMinutes()));
                 orderRepository.save(order);
 
                 // Return null to allow payment processing to continue
@@ -1418,6 +1420,12 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .message("Please complete payment on the payment provider's page.")
                 .redirectUrl(result.getRedirectUrl())
                 .requiresRedirect(true)
+                // Bank transfer details (SePay) - null for gateways that redirect instead
+                .bankCode(result.getBankCode())
+                .bankName(result.getBankName())
+                .bankAccount(result.getBankAccount())
+                .accountName(result.getAccountName())
+                .transferContent(result.getTransferContent())
                 .build();
     }
 

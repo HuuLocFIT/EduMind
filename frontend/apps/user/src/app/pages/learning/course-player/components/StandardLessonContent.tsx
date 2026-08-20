@@ -46,7 +46,21 @@ export const StandardLessonContent: React.FC<StandardLessonContentProps> = ({
           className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6"
         >
           <div>
-            <h2 ref={lessonHeadingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900 mb-2">
+            {/* key: the post-navigation focus effect leaves focus on this
+                heading, and VoiceOver activates controls without moving DOM
+                focus — so without a fresh node per lesson, the next switch
+                would call .focus() on the element that is already
+                activeElement. That is a no-op (no focus event, no AX
+                notification), and VoiceOver re-reads the previous lesson's
+                cached accessible name. The ref is reattached to the new node
+                during the same commit, so the rAF focus in
+                useCoursePlayerLayout still finds it. */}
+            <h2
+              key={lesson.id}
+              ref={lessonHeadingRef}
+              tabIndex={-1}
+              className="text-2xl font-bold text-gray-900 mb-2"
+            >
               {lesson.title}
             </h2>
             {lesson.description && (
@@ -115,7 +129,7 @@ export const StandardLessonContent: React.FC<StandardLessonContentProps> = ({
             {/* AI Lesson Summary */}
             <LessonSummaryPanel lessonId={lesson.id} />
 
-            {/* AI Course Tutor is now accessed via floating button & overlay */}
+            {/* AI Tutor is now accessed via floating button & overlay */}
           </>
         )}
 

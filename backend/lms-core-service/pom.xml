@@ -16,6 +16,13 @@
 	<description>Core LMS business logic - Modular Monolith</description>
 
 	<dependencies>
+		<!-- Authenticates Eureka registration with an Authorization header -->
+		<dependency>
+			<groupId>com.edumind</groupId>
+			<artifactId>eureka-client-security</artifactId>
+			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+
 		<!-- Common Library -->
 		<dependency>
 			<groupId>com.edumind</groupId>
@@ -42,6 +49,12 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- Health, info, and metrics endpoints used by Docker and operations -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
 		<!-- Eureka Client -->

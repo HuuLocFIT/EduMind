@@ -13,6 +13,8 @@ import type {
 } from '@edumind/shared-types';
 import { CourseCurriculumSidebar } from './components/CourseCurriculumSidebar';
 import { CourseAccessErrorDialog } from './components/CourseAccessErrorDialog';
+import { CoursePlayerHeader } from './components/CoursePlayerHeader';
+import { LessonNavigation } from './components/LessonNavigation';
 import { CoursePlayerPage } from './CoursePlayerPage';
 
 const assertNoSeriousViolations = async (container: HTMLElement) => {
@@ -332,6 +334,42 @@ const lessons = [
 ] as LessonResponse[];
 
 describe('CoursePlayer accessibility', () => {
+  it('uses compact player controls on short viewports without changing their accessible names', () => {
+    render(
+      <>
+        <CoursePlayerHeader
+          courseTitle="Accessible React"
+          progressPercentage={40}
+          sidebarOpen={false}
+          sidebarToggleRef={createRef<HTMLButtonElement>()}
+          onExit={vi.fn()}
+          onToggleSidebar={vi.fn()}
+        />
+        <LessonNavigation
+          hasPrevious
+          hasNext
+          onPrevious={vi.fn()}
+          onNext={vi.fn()}
+          previousLessonTitle="Intro"
+          nextLessonTitle="Quiz"
+        />
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: /Exit course player/ })).toHaveClass(
+      '[@media(max-height:32rem)]:h-10',
+    );
+    expect(screen.getByRole('banner')).toHaveClass('[@media(max-height:32rem)]:static');
+    expect(screen.getByRole('button', { name: 'Previous Lesson: Intro' })).toHaveClass(
+      '[@media(max-height:32rem)]:h-10',
+      '[@media(max-height:32rem)]:w-full',
+    );
+    expect(screen.getByRole('button', { name: 'Next Lesson: Quiz' })).toHaveClass(
+      '[@media(max-height:32rem)]:h-10',
+      '[@media(max-height:32rem)]:w-full',
+    );
+  });
+
   it('labels desktop curriculum navigation and exposes semantic lesson lists', () => {
     renderSidebar();
 
@@ -367,15 +405,31 @@ describe('CoursePlayer accessibility', () => {
   it('renders mobile curriculum as a modal, traps focus, and closes on Escape', async () => {
     const { onClose } = renderSidebar({ isDesktop: false });
     const dialog = screen.getByRole('dialog', { name: 'Course Content' });
-    const first = screen.getByRole('button', { name: /Introduction/ });
+    const close = screen.getByRole('button', { name: 'Close course content' });
     const last = screen.getByRole('button', { name: /Knowledge check/ });
 
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(first).toHaveFocus();
+    expect(dialog).toHaveClass(
+      'h-[calc(100dvh-4rem)]',
+      'max-w-sm',
+      'overflow-hidden',
+      'xl:w-80',
+      'xl:max-w-none',
+    );
+    expect(close).toHaveFocus();
+    expect(document.body).toHaveStyle({ overflow: 'hidden' });
     last.focus();
     await userEvent.tab();
-    expect(first).toHaveFocus();
+    expect(close).toHaveFocus();
     await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('provides a visible close action inside the mobile curriculum', async () => {
+    const { onClose } = renderSidebar({ isDesktop: false });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close course content' }));
+
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -444,6 +498,36 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     },
   );
 
+  // The post-navigation focus effect leaves focus ON the lesson heading, and
+  // VoiceOver activates controls without moving DOM focus — so the next lesson
+  // switch would call .focus() on the element that is already activeElement.
+  // That is a no-op: no focus event, no AX focus notification, and VoiceOver
+  // re-reads the accessible name it had cached (the previous lesson's title).
+  // Keying the heading per lesson makes the focus target a fresh node, so
+  // focus always genuinely moves.
+  it('replaces the lesson heading node on a lesson switch so focus always moves', async () => {
+    await renderPage();
+    const firstHeading = screen.getByRole('heading', { level: 2, name: 'Watch the video' });
+    firstHeading.focus();
+    expect(firstHeading).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', { name: /Next Lesson/ }));
+
+    const secondHeading = await screen.findByRole('heading', { level: 2, name: 'Read the guide' });
+    expect(secondHeading).not.toBe(firstHeading);
+    expect(firstHeading).not.toBeInTheDocument();
+    await waitFor(() => expect(secondHeading).toHaveFocus());
+  });
+
+  it('keeps the document title on the current lesson after a lesson switch', async () => {
+    await renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /Next Lesson/ }));
+    await screen.findByRole('heading', { level: 2, name: 'Read the guide' });
+
+    await waitFor(() => expect(document.title).toContain('Read the guide'));
+  });
+
   it('keeps the Mark complete name stable, disabled and aria-busy while completing', async () => {
     let resolveComplete!: (value: LessonProgressResponse) => void;
     vi.mocked(lessonProgressService.completeLesson).mockReturnValue(
@@ -480,13 +564,13 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
 
   it('announces the completed lesson and reconciled percentage', async () => {
     vi.mocked(lessonProgressService.completeLesson).mockResolvedValue({} as any);
-    const { container } = await renderPage();
+    await renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
 
     await waitFor(() => {
-      expect(container.querySelector('.sr-only')).toHaveTextContent(
-        'Watch the video completed. Course progress is 33%.',
+      expect(screen.getByRole('button', { name: 'Go to next lesson now' })).toHaveAccessibleDescription(
+        /Watch the video completed\. Course progress is 33%\./,
       );
     });
   });
@@ -504,26 +588,54 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     expect(screen.queryByText(/Moving to/)).not.toBeInTheDocument();
 
     resolveComplete(completedProgress);
-    await waitFor(() => expect(screen.getByText(/Moving to Read the guide/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Lesson completed. Moving to Read the guide in 10 seconds.'),
+      ).toBeInTheDocument(),
+    );
   });
 
-  it('announces the 5-second auto-advance and supports cancel', async () => {
+  it('announces the 10-second auto-advance and supports cancel', async () => {
     vi.useFakeTimers();
     vi.mocked(lessonProgressService.completeLesson).mockResolvedValue({} as any);
-    const { container } = render(<CoursePlayerPage />);
+    render(<CoursePlayerPage />);
     await settlePage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
     await settlePage();
 
-    expect(
-      screen.getByText('Lesson completed. Moving to Read the guide in 5 seconds.'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Go to next lesson now' })).toBeInTheDocument();
+    const visualCountdown = screen.getByText(
+      'Lesson completed. Moving to Read the guide in 10 seconds.',
+    );
+    expect(visualCountdown).toBeInTheDocument();
+    expect(visualCountdown.closest('[aria-live]')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel auto-advance' }));
+    const completeAnnouncement = screen.getByText(
+      'Watch the video completed. Course progress is 33%. Moving to Read the guide in 10 seconds. To remain on this lesson, activate Cancel auto-advance.',
+    );
+    const goNowButton = screen.getByRole('button', { name: 'Go to next lesson now' });
+    expect(goNowButton).toHaveAttribute('aria-describedby', completeAnnouncement.id);
+
+    await advanceTimersAndFlush(16);
+    expect(goNowButton).toHaveFocus();
+
+    await advanceTimersAndFlush(1000);
+    expect(screen.getByText('Lesson completed. Moving to Read the guide in 9 seconds.')).toBeInTheDocument();
+    expect(completeAnnouncement).toHaveTextContent('Moving to Read the guide in 10 seconds.');
+
+    expect(goNowButton).toBeInTheDocument();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel auto-advance' });
+    cancelButton.focus();
+    // Keyboard activation of a native button dispatches a click with detail 0.
+    fireEvent.click(cancelButton, { detail: 0 });
+    await advanceTimersAndFlush(16);
     expect(screen.queryByText(/Moving to/)).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Watch the video' })).toBeInTheDocument();
+    expect(screen.getByText('Auto-advance cancelled. Staying on the current lesson.')).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Watch the video' })).toHaveFocus();
   });
 
   it('clears a stale auto-advance when the user manually navigates', async () => {
@@ -531,7 +643,11 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     await renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark complete' }));
-    await waitFor(() => expect(screen.getByText(/Moving to/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Lesson completed. Moving to Read the guide in 10 seconds.'),
+      ).toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /Next Lesson/ }));
     await waitFor(() =>
@@ -769,8 +885,9 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
 
     const heading = await screen.findByRole('heading', { name: 'Course completed' });
     await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(container.querySelector('.sr-only')).toHaveTextContent(
-      'Watch the video completed. Course progress is 100%.',
+    expect(screen.getByText('Watch the video completed. Course progress is 100%.')).toHaveAttribute(
+      'role',
+      'status',
     );
   });
 

@@ -28,6 +28,7 @@ import {
   FileText,
   ArrowRight,
   DollarSign,
+  HelpCircle,
 } from "lucide-react";
 
 // ============================================================================
@@ -126,15 +127,26 @@ export const TeacherDashboardPage: React.FC = () => {
 
       {/* Trial Alert */}
       {isTrialTeacher && (
-        <Alert
-          variant={isTrialExpired ? "error" : trialDaysRemaining && trialDaysRemaining <= 7 ? "warning" : "info"}
-          title={isTrialExpired ? "Trial Period Expired" : "Trial Period Active"}
-          message={
-            isTrialExpired
-              ? "Your trial period has ended. Please contact support to continue using the platform."
-              : `You have ${trialDaysRemaining} days remaining in your trial period. Make the most of it!`
-          }
-        />
+        <>
+          <Alert
+            variant={isTrialExpired ? "error" : trialDaysRemaining && trialDaysRemaining <= 7 ? "warning" : "info"}
+            title={isTrialExpired ? "Trial Period Expired" : "Trial Period Active"}
+            message={
+              isTrialExpired
+                ? "Your trial period has ended. Please contact support to continue using the platform."
+                : `You have ${trialDaysRemaining} days remaining in your trial period. Make the most of it!`
+            }
+          />
+          {isTrialExpired && (
+            <a
+              href="mailto:support@edumind.com"
+              className="inline-flex items-center gap-1 text-sm text-blue-600 underline hover:text-blue-800 hover:no-underline"
+            >
+              <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" />
+              Contact Support
+            </a>
+          )}
+        </>
       )}
 
       {/* Analytics Error */}

@@ -42,7 +42,7 @@ graph TB
     end
 
     subgraph Groq["Groq Whisper API"]
-        GroqAPI["whisper-large-v3-turbo<br>25MB limit, 28,800s/day free"]
+        GroqAPI["whisper-large-v3-turbo<br>25 MB application limit"]
     end
 
     subgraph SourceResolvers["Transcription Source Resolvers"]
@@ -105,16 +105,23 @@ graph TB
     YtExt --> YtDlp
     CldExt --> GroqAPI
     YtDlp --> GroqAPI
+    GroqAPI --> Caption["WebVTT builder +<br>Cloudinary raw upload<br>lesson.video_caption_url"]
     TransProc --> Event
 ```
 
+**Note on `GroqAPI --> Caption`**: this edge only fires when Groq is actually invoked (the `AudioFile` path — Cloudinary videos or YouTube-audio-fallback). The YouTube auto-caption fast path (`YtExt` returning `DirectText` directly) never calls Groq and therefore never produces a WebVTT caption — only plain transcript text. See §3.1.2.
+
 ### Key Design Principles
 
-- **Async Job Pattern**: All generation tasks (`EMBEDDING`, `LESSON_SUMMARY`, `QUIZ_GENERATION`, `TRANSCRIPTION`) return `202 Accepted` immediately with a `jobId`. Clients poll `GET /api/ai/jobs/{id}` for status.
+- **Async Job Pattern — not uniform across features**: All four job types (`EMBEDDING`, `LESSON_SUMMARY`, `QUIZ_GENERATION`, `TRANSCRIPTION`) are tracked in `ai.ai_job_logs` through the same state machine, but the *client-facing contract* differs:
+  - **Client-initiated & pollable** — `QUIZ_GENERATION` and `TRANSCRIPTION`: the triggering request returns `202 Accepted` with a `jobId`, and the caller polls `GET /api/ai/jobs/{id}`.
+  - **Event-driven, internal tracking only** — `EMBEDDING` and `LESSON_SUMMARY`: a job row is created and state-machined the same way, but **no endpoint ever returns that per-lesson jobId to a caller**. The only client-facing surface is the admin bulk-reindex endpoints (`/admin/reindex-embeddings`, `/admin/reindex-summaries`), which return a plain count string, not job IDs. A caller who wants to know "is this lesson's summary ready yet" has to poll `GET /ai/summaries/lesson/{id}` and treat `404` as "not ready", not a real job-status check.
+  - **No job concept at all** — RAG chat (sync or SSE): a direct synchronous response or stream, nothing written to `ai_job_logs`.
 - **Event-Driven Triggers**: Embedding and summary generation fire automatically after lesson content is committed to the database via `@TransactionalEventListener(AFTER_COMMIT)`. Three sources publish `LessonContentUpdatedEvent`: (1) lesson creation with non-blank `articleContent`, (2) lesson update when `articleContent` changes, and (3) transcription completion via `LessonWriteService`.
 - **ACL Enforcement**: Every endpoint validates enrollment (student) or course ownership (instructor) via cross-module API contracts — never direct repository imports.
 - **Graceful Degradation**: `GEMINI_API_KEY` is optional at startup. The `ChatClient` and `EmbeddingModel` beans are `@ConditionalOnProperty` — the application boots without them. Similarly, `GROQ_API_KEY` is optional; transcription endpoint returns errors only when called.
 - **Sequential Transcription**: `whisperTaskExecutor` (size=1, queue=10) serializes Groq API calls to stay within the 20 req/min rate limit. Groq 429 responses flip the job to `DELAYED`; `TranscriptionRetryScheduler` re-queues every 30 seconds.
+- **Retry policy is transcription-specific, not universal**: `DELAYED` + scheduled retry only exists for `TRANSCRIPTION` (Groq 429s). `AsyncQuizProcessor` and `AsyncEmbeddingProcessor`/`AsyncSummaryProcessor` make a single attempt each — any exception (including a missing `EmbeddingModel` bean) goes straight to `FAILED`, with no automatic re-attempt. Recovery requires re-triggering the original action (re-save the lesson, regenerate the quiz, or run the admin reindex).
 
 ---
 
@@ -153,26 +160,35 @@ stateDiagram-v2
 
 ## 3. Workflow 1 — Auto-Transcription (Groq Whisper)
 
-Teachers paste a Cloudinary video URL or a YouTube URL and select the spoken language (`vi` or `en`, default `en`). The system extracts text, writes it into the lesson's `articleContent`, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
+Teachers upload a lesson video to Cloudinary (or, less commonly, paste a YouTube URL — see [Appendix A](#appendix-a--historical-strategy-youtube-extraction)) and select the spoken language. The request accepts only `en` or `vi`; omitting `language` uses `en`. Bean validation rejects any other value before a transcription job is created. The system extracts a transcript, writes it into the lesson's `articleContent`, generates a WebVTT caption file from Groq's per-segment timestamps, and publishes `LessonContentUpdatedEvent` — automatically triggering embedding and summary generation.
 
-**Why Groq instead of local Whisper**: The VPS has ~600 MB RAM left after the Spring Boot stack. Whisper medium needs 2 GB; Whisper base needs ~500 MB and is unstable under load. Groq API is free (28,800 s audio/day), ~10× faster than local inference, and consumes ≈ 0 MB VPS RAM.
+**Why Groq instead of local Whisper**: the target VPS has approximately 600 MB of RAM available after the Spring Boot services are running. Hosting Whisper locally was therefore not operationally viable: the medium model needs roughly 2 GB of memory, while even the base model needs around 500 MB and leaves too little headroom for stable application traffic. Groq-hosted Whisper avoids that VPS memory cost and, in project testing, completed transcription substantially faster than local inference. This was the deciding trade-off: depend on an external provider so the existing low-memory deployment can support transcription reliably. Provider pricing, quotas, retention, and service limits remain external dependencies and may change independently of this repository.
 
-### 3.1 High-Level Transcription Flow
+**Why Cloudinary upload-first is the current production path**: an earlier iteration let teachers paste an arbitrary YouTube URL and relied on `yt-dlp` to fetch captions or audio server-side. On the VPS this hits YouTube's anti-bot/IP-reputation blocking and `yt-dlp` can fail silently or time out. The reliable path teachers actually use in production is: upload the video file to Cloudinary via the existing signed chunked-upload pipeline (see [`docs/workflows/video_upload_workflows.md`](./video_upload_workflows.md)), then transcribe from the resulting `res.cloudinary.com` URL. The code still fully supports YouTube URLs — the `TranscriptionSourceResolver` strategy pattern and `yt-dlp` integration are unmodified and reachable through the same endpoint — but that path is now the fallback/historical option, documented in the appendix.
+
+### 3.1 Current Production Workflow (Cloudinary Upload-First)
 
 ```mermaid
 sequenceDiagram
     participant Teacher
-    participant Controller as AiController<br>POST /ai/transcribe/lessons/{lessonId}
+    participant UploadFlow as Video Upload Pipeline<br/>(video_upload_workflows.md)
+    participant DB as course.lessons
+    participant Controller as AiController<br/>POST /ai/transcribe/lessons/{lessonId}
     participant TransSvc as WhisperTranscriptionServiceImpl
     participant LessonQuerySvc as LessonQueryService
     participant JobRepo as AiJobLogRepository
     participant Executor as whisperTaskExecutor<br>(size=1, queue=10)
     participant Resolver as TranscriptionSourceResolver
+    participant CldExt as CloudinaryAudioExtractor
+    participant GroqAPI as Groq Whisper API
     participant LessonWriteSvc as LessonWriteService
     participant EventBus as Spring Event Bus
-    participant DB as ai.ai_job_logs
+    participant JobDB as ai.ai_job_logs
 
-    Teacher->>Controller: POST { videoUrl, language? } (TEACHER role)
+    Teacher->>UploadFlow: Upload video file (MP4/WebM/MOV)
+    UploadFlow->>DB: videoUrl = https://res.cloudinary.com/...mp4
+
+    Teacher->>Controller: POST { videoUrl: lesson.videoUrl, language? } (TEACHER role)
     Controller->>TransSvc: requestTranscription(lessonId, videoUrl, language, userId)
 
     TransSvc->>LessonQuerySvc: getLessonInfo(lessonId)
@@ -190,65 +206,40 @@ sequenceDiagram
 
     Note over Executor: Runs on whisperTaskExecutor — single thread<br>serialises all Groq calls
 
-    Executor->>DB: update status=PROCESSING, startedAt=now
+    Executor->>JobDB: update status=PROCESSING, startedAt=now
     Executor->>Resolver: resolve(videoUrl)
-    Note over Resolver: Detects URL type and delegates<br>to correct AudioExtractor
+    Resolver->>CldExt: extract(cloudinaryUrl)
+    Note over CldExt: URL-transform only — no ffmpeg,<br>no server-side decoding (§3.1.2)
+    CldExt-->>Executor: AudioFile(tempFile)
 
-    alt TranscriptionInput.DirectText (YouTube captions)
-        Resolver-->>Executor: DirectText(text)
-        Note over Executor: No Groq call needed — free path
-    else TranscriptionInput.AudioFile (download required)
-        Resolver-->>Executor: AudioFile(tempFile)
-        Executor->>Executor: validate size < 25 MB
-        alt size > 25 MB
-            Executor->>DB: status=FAILED, errorMessage
-        else size OK
-            Executor->>Executor: sendToGroq(tempFile)
+    Executor->>Executor: validate size < 25 MB (checked AFTER download)
+    alt size > 25 MB
+        Executor->>JobDB: status=FAILED, errorMessage
+    else size OK
+        Executor->>GroqAPI: sendToGroq(tempFile) — response_format=verbose_json
+        GroqAPI-->>Executor: { text, segments[] }
+        opt segments non-empty
+            Executor->>Executor: buildVtt(segments) → WEBVTT content
+            Executor->>Executor: uploadVttToCloudinary(vtt) [non-fatal on failure]
+            Executor->>LessonWriteSvc: updateCaptionUrl(lessonId, captionUrl)
+            Note over LessonWriteSvc: Does NOT publish LessonContentUpdatedEvent —<br>captions don't trigger re-embedding
         end
     end
 
     Executor->>LessonWriteSvc: updateArticleContent(lessonId, transcript)
-    LessonWriteSvc->>EventBus: publish LessonContentUpdatedEvent [AFTER_COMMIT]
-    Note over EventBus: Auto-triggers embedding + summary generation
+    LessonWriteSvc->>EventBus: publish LessonContentUpdatedEvent [AFTER_COMMIT]<br/>(only if articleContent actually changed)
+    Note over EventBus: Auto-triggers embedding + summary generation (Workflows 2 & 3)
 
-    Executor->>DB: status=COMPLETED, completedAt=now
+    Executor->>JobDB: status=COMPLETED, completedAt=now
     Executor->>Executor: Files.deleteIfExists(tempFile) [finally block]
 
     Teacher->>Controller: GET /api/ai/jobs/{jobId}
     Controller-->>Teacher: { status: COMPLETED }
 ```
 
-### 3.2 Source Resolution Strategy (Strategy Pattern)
+#### 3.1.1 Cloudinary Audio Extraction
 
-`TranscriptionSourceResolver` detects the URL type and delegates to the appropriate `AudioExtractor` implementation.
-
-```
-TranscriptionSourceResolver.resolve(url)
-  │
-  ├─ url.contains("res.cloudinary.com") ?
-  │    └─→ CloudinaryAudioExtractor.extract(url)
-  │         └─→ TranscriptionInput.AudioFile(tempFile)
-  │
-  ├─ url.contains("youtube.com/watch") or "youtu.be/" ?
-  │    └─→ YouTubeTranscriptExtractor.extract(url)
-  │         ├─ [Phase A] yt-dlp --write-auto-sub --skip-download → .vtt file
-  │         │    ├─ VTT found & non-empty → TranscriptionInput.DirectText(parsedText)
-  │         │    └─ VTT empty / not found → fallback to Phase B
-  │         └─ [Phase B] YtDlpAudioDownloader.download(url) → TranscriptionInput.AudioFile(mp3)
-  │
-  └─ else → BadRequestException("Unsupported URL type")
-```
-
-**`TranscriptionInput`** is a sealed interface with two permitted records:
-
-| Variant | Type | Description |
-|---------|------|-------------|
-| `DirectText(String text)` | No Groq call | YouTube auto-captions extracted from `.vtt` — free, instant |
-| `AudioFile(Path tempFile)` | Groq API call | Downloaded audio file requiring Whisper transcription |
-
-### 3.3 Cloudinary Audio Extraction
-
-Cloudinary supports server-side media transformation via URL parameters. The extractor inserts transformation parameters right after `/upload/` — **no server-side processing, no VPS RAM usage**.
+Cloudinary supports server-side media transformation via URL parameters. `CloudinaryAudioExtractor` inserts transformation parameters right after `/upload/` — **no ffmpeg, no server-side decoding, no VPS RAM usage**. The transformed URL is downloaded (plain `java.net.URL` stream, not Cloudinary's SDK) to a local temp file and returned as `TranscriptionInput.AudioFile`.
 
 ```
 Original:   https://res.cloudinary.com/demo/video/upload/sample.mp4
@@ -259,62 +250,78 @@ Transformed: https://res.cloudinary.com/demo/video/upload/vc_none,ac_mp3,br_32k/
                                                           br_32k   = bitrate 32 kbps → ~14 MB/hour
 ```
 
-The transformed URL is then downloaded to a temp file and returned as `TranscriptionInput.AudioFile`.
+#### 3.1.2 Groq API Call
 
-### 3.4 YouTube Extraction Flow
-
-```mermaid
-sequenceDiagram
-    participant Extractor as YouTubeTranscriptExtractor
-    participant YtDlp as yt-dlp binary
-    participant Downloader as YtDlpAudioDownloader
-    participant TmpDir as /tmp
-
-    Extractor->>YtDlp: yt-dlp --write-auto-sub --sub-lang en --skip-download -o /tmp/ytdlp_sub_{uuid}_{%(id)s} <url>
-    YtDlp-->>TmpDir: *.en.vtt (if captions exist)
-
-    Extractor->>TmpDir: findGeneratedVtt(prefix)
-
-    alt .vtt found
-        Extractor->>Extractor: parseVttToText(vtt)
-        Note over Extractor: Strip WEBVTT header, timestamps,<br>NOTE blocks, HTML tags<br>Deduplicate consecutive identical lines
-        alt Parsed text non-empty
-            Extractor-->>Caller: DirectText(transcript)
-            Note over Extractor: Files.deleteIfExists(vtt) in finally
-        else Parsed text blank
-            Extractor->>Downloader: download(url) — fallback
-        end
-    else No .vtt file
-        Extractor->>Downloader: download(url) — fallback
-    end
-
-    Downloader->>YtDlp: yt-dlp -x --audio-format mp3 --audio-quality 32K -o /tmp/ytdlp_audio_{uuid}.%(ext)s <url>
-    YtDlp-->>TmpDir: ytdlp_audio_{uuid}.mp3
-    Downloader-->>Caller: AudioFile(/tmp/ytdlp_audio_{uuid}.mp3)
-```
-
-**Timeouts**:
-- Caption download: 5 minutes
-- Audio download: 10 minutes
-
-### 3.5 Groq API Call
-
-Groq's API is OpenAI-compatible (`/openai/v1/audio/transcriptions`). The `RestClient` bean is pre-configured with `Authorization: Bearer <GROQ_API_KEY>` via `GroqClientConfig`.
+Groq's API is OpenAI-compatible (`/openai/v1/audio/transcriptions`). The `RestClient` bean is pre-configured with `Authorization: Bearer <GROQ_API_KEY>` via `GroqClientConfig`. The 25 MB size check happens **after** the audio has already been downloaded/extracted — a large file is fetched first, then rejected if it exceeds the Groq limit.
 
 ```
 POST https://api.groq.com/openai/v1/audio/transcriptions
 Content-Type: multipart/form-data
 
-file     = <audio file>
-model    = whisper-large-v3-turbo
-language = <per-request value: "vi" or "en"; falls back to ai.groq.language config (default "en")>
+file            = <audio file>
+model           = whisper-large-v3-turbo
+language        = <per-request value: "vi" or "en"; falls back to ai.groq.language config (default "en")>
+response_format = verbose_json
 
-Response: { "text": "transcribed content..." }
+Response: {
+  "text": "transcribed content...",
+  "segments": [
+    { "start": 0.0, "end": 4.2, "text": "Welcome to this lesson..." },
+    { "start": 4.2, "end": 9.8, "text": "Today we will cover..." }
+  ]
+}
 ```
+
+`response_format=verbose_json` is requested specifically to get per-segment timestamps — the plain `text` field alone would not be enough to build captions.
+
+The API validates `language` as `en` or `vi`. A missing value defaults to `en`; unsupported values return a request-validation error and are not submitted to Groq.
 
 **HTTP 429 handling**: The `RestClient` status handler detects `429 Too Many Requests` and throws `GroqRateLimitException`. The async processor catches it, sets `status=DELAYED`, and stores `nextRetryAt = now + 60s`.
 
-### 3.6 Rate Limit & Retry Scheduler
+#### 3.1.3 WebVTT Caption Generation
+
+This is real, shipped code (added after the initial transcription feature, via migration `V37__Add_video_caption_url_to_lessons.sql`) — not just a documented aspiration:
+
+1. `sendToGroq` extracts the `segments` array from the Groq response.
+2. `buildVtt(segments)` / `formatVttTime(...)` construct a standard `WEBVTT` file with `HH:MM:SS.mmm --> HH:MM:SS.mmm` cue timing, one cue per segment, skipping blank-text segments.
+3. `uploadVttToCloudinary(vttContent)` uploads the VTT bytes as a Cloudinary **raw** resource (`folder=captions`, `public_id=lesson_{lessonId}_caption`, `overwrite=true`), returning `secure_url`.
+4. `lessonWriteService.updateCaptionUrl(lessonId, captionUrl)` persists the URL to `lesson.video_caption_url`.
+
+**Important caveats**:
+- This path only exists when Groq is actually invoked. The YouTube auto-caption fast path (Appendix A) returns a `DirectText` transcript with no timestamps and never produces a VTT file.
+- Caption upload failure is **non-fatal** — it's caught, logged as a warning, and does not affect the transcript/`articleContent` save, which succeeds or fails independently.
+- `updateCaptionUrl` deliberately does **not** publish `LessonContentUpdatedEvent` — captions are a presentation-layer artifact and don't trigger re-embedding/re-summarization.
+
+#### 3.1.4 Post-Transcription Event Chain
+
+When transcription completes successfully, `LessonWriteService.updateArticleContent()` is called. This:
+
+1. Persists the transcript to `lesson.article_content`
+2. Detects content changed (old ≠ new)
+3. Publishes `LessonContentUpdatedEvent` after the transaction commits (only if content actually changed)
+4. `AiEventListener` picks up the event on the `taskExecutor` thread
+5. Triggers **embedding generation** and **summary generation** sequentially inside the listener (both are fire-and-forget from the listener's perspective — see §1 for why neither returns a jobId the caller can poll)
+
+```
+transcription COMPLETED
+  └─→ LessonWriteService.updateArticleContent(lessonId, transcript)
+        └─→ [AFTER_COMMIT] LessonContentUpdatedEvent
+              └─→ AiEventListener.onLessonContentUpdated()
+                    ├─→ AiSummaryService.requestSummaryGeneration(lesson)  [Workflow 3]
+                    └─→ EmbeddingService.requestEmbedding(lesson)          [Workflow 2]
+```
+
+#### 3.1.5 File Lifecycle & Disk Safety
+
+All temp files created during transcription are deleted in `finally` blocks to prevent disk leaks. The WebVTT content itself is never written to a temp file — it's built as a string and uploaded directly to Cloudinary.
+
+| File | Created by | Deleted in |
+|------|-----------|------------|
+| Cloudinary-extracted MP3 | `CloudinaryAudioExtractor` | `WhisperTranscriptionServiceImpl.processTranscriptionAsync` finally |
+| `ytdlp_sub_*_*.en.vtt` (Appendix A only) | `YouTubeTranscriptExtractor` | `YouTubeTranscriptExtractor.extract` finally |
+| `ytdlp_audio_*.mp3` (Appendix A only) | `YtDlpAudioDownloader` | `WhisperTranscriptionServiceImpl.processTranscriptionAsync` finally |
+
+#### 3.1.6 Rate Limit & Retry Scheduler
 
 ```mermaid
 sequenceDiagram
@@ -340,36 +347,9 @@ sequenceDiagram
     end
 ```
 
-### 3.7 Post-Transcription Event Chain
+This is the *only* automatic retry mechanism anywhere in the AI module — it exists solely because Groq's rate limit is easy to hit with real usage. Quiz generation, embedding, and summary generation have no equivalent (see §1).
 
-When transcription completes successfully, `LessonWriteService.updateArticleContent()` is called. This:
-
-1. Persists the transcript to `lesson.article_content`
-2. Detects content changed (old ≠ new)
-3. Publishes `LessonContentUpdatedEvent` after the transaction commits
-4. `AiEventListener` picks up the event on `taskExecutor` thread
-5. Triggers **embedding generation** + **summary generation** in parallel (Workflows 4 and 2)
-
-```
-transcription COMPLETED
-  └─→ LessonWriteService.updateArticleContent(lessonId, transcript)
-        └─→ [AFTER_COMMIT] LessonContentUpdatedEvent
-              └─→ AiEventListener.onLessonContentUpdated()
-                    ├─→ EmbeddingService.requestEmbedding(lesson)   [Workflow 4]
-                    └─→ AiSummaryService.requestSummaryGeneration(lesson) [Workflow 2]
-```
-
-### 3.8 File Lifecycle & Disk Safety
-
-All temp files created during transcription are deleted in `finally` blocks to prevent disk leaks:
-
-| File | Created by | Deleted in |
-|------|-----------|------------|
-| `cld_*.mp3` | `CloudinaryAudioExtractor` | `WhisperTranscriptionServiceImpl.processTranscriptionAsync` finally |
-| `ytdlp_sub_*_*.en.vtt` | `YouTubeTranscriptExtractor` | `YouTubeTranscriptExtractor.extract` finally |
-| `ytdlp_audio_*.mp3` | `YtDlpAudioDownloader` | `WhisperTranscriptionServiceImpl.processTranscriptionAsync` finally |
-
-### 3.9 Concurrency & Thread Pool
+#### 3.1.7 Concurrency & Thread Pool
 
 ```yaml
 ai:
@@ -381,62 +361,22 @@ ai:
 
 `whisperTaskExecutor` is configured as **size=1** (single thread). This serialises all Groq API calls, avoiding concurrent requests that would quickly exhaust the 20 req/min Groq rate limit. The queue holds up to 10 pending jobs; additional requests beyond queue capacity trigger `TaskRejectedException` and are kept `DELAYED` for the scheduler.
 
-### 3.10 Updated Strategy: Cloudinary Upload-First (Production)
-
-> **Context**: The YouTube extraction path described in sections 3.1–3.4 was blocked by anti-bot protection when running on VPS. `yt-dlp` could no longer download audio from YouTube videos in a server environment, making the YouTube strategy unreliable in production.
->
-> Sections 3.1–3.9 remain as-is for reference — the code still supports YouTube URLs and the strategy pattern is intact. However, the **recommended production path** is described here.
-
-**New approach**: Teachers no longer paste external video URLs into the transcription form. Instead, they upload the video file directly to Cloudinary via the signed chunked-upload pipeline (see [`docs/workflows/video_upload_workflows.md`](./video_upload_workflows.md)). Once the upload is confirmed, the lesson has a `videoUrl` pointing to a Cloudinary-hosted MP4. The teacher then triggers auto-transcription using that stored URL.
-
-```mermaid
-sequenceDiagram
-    participant Teacher
-    participant UploadFlow as Video Upload Pipeline<br/>(video_upload_workflows.md)
-    participant DB as course.lessons
-    participant AiController as AiController<br/>POST /ai/transcribe/lessons/{id}
-    participant TransSvc as WhisperTranscriptionServiceImpl
-    participant Resolver as TranscriptionSourceResolver
-    participant CldExt as CloudinaryAudioExtractor
-    participant GroqAPI as Groq Whisper API
-
-    Teacher->>UploadFlow: Upload video file (MP4/WebM/MOV)
-    UploadFlow->>DB: videoUrl = https://res.cloudinary.com/...mp4<br/>videoUploadStatus = READY
-
-    Teacher->>AiController: POST { videoUrl: lesson.videoUrl, language: "vi"|"en" }
-    AiController->>TransSvc: requestTranscription(lessonId, videoUrl, language, userId)
-
-    TransSvc->>Resolver: resolve(videoUrl)
-    Note over Resolver: url.contains("res.cloudinary.com")<br/>→ CloudinaryAudioExtractor path
-
-    Resolver->>CldExt: extract(cloudinaryUrl)
-    CldExt->>CldExt: Insert vc_none,ac_mp3,br_32k transformation into URL
-    Note over CldExt: https://res.cloudinary.com/.../upload/<br/>vc_none,ac_mp3,br_32k/{publicId}.mp3<br/>~14 MB/hour audio — no VPS processing
-
-    CldExt-->>TransSvc: AudioFile(tempFile)
-    TransSvc->>GroqAPI: POST /openai/v1/audio/transcriptions<br/>model=whisper-large-v3-turbo, language=<selected>
-    GroqAPI-->>TransSvc: { text: "transcript..." }
-
-    TransSvc->>DB: lesson.articleContent = transcript
-    Note over TransSvc: Publishes LessonContentUpdatedEvent<br/>→ auto-triggers Embedding + Summary (Workflows 4 & 2)
-```
-
-**Why this works without VPS processing**: Cloudinary performs the video-to-audio transformation on their CDN via URL parameters (`vc_none,ac_mp3,br_32k`). The VPS only downloads the resulting lightweight MP3 (~14 MB/hour) and sends it to Groq — no video decoding, no ffmpeg, no local transcoding.
-
-**Current production recommendation**:
+### 3.2 Path Comparison
 
 | Path | Status | Notes |
 |------|--------|-------|
-| Cloudinary URL (`res.cloudinary.com`) | **Recommended** | Reliable; Cloudinary on-the-fly audio extraction |
-| YouTube URL (`youtube.com`, `youtu.be`) | Not recommended on VPS | Anti-bot blocking; yt-dlp may fail silently |
+| Cloudinary URL (`res.cloudinary.com`) | **Current production path** | Reliable; Cloudinary on-the-fly audio extraction; generates WebVTT captions |
+| YouTube URL (`youtube.com`, `youtu.be`) | Historical / optional, see [Appendix A](#appendix-a--historical-strategy-youtube-extraction) | Anti-bot blocking on VPS; `yt-dlp` may fail silently; no VTT captions on the auto-caption fast path |
 
-The full strategy pattern (sections 3.1–3.9) remains in code and can be re-enabled if the deployment environment changes (e.g., residential IP, proxy, or YouTube API key).
+The full strategy pattern remains in code (`TranscriptionSourceResolver`, `YouTubeTranscriptExtractor`, `YtDlpAudioDownloader`) and can be used again if the deployment environment changes (e.g., residential IP, proxy, or a YouTube-approved API key).
 
 ---
 
 ## 4. Workflow 2 — Lesson Embedding
 
 Lesson embeddings power the RAG Chat feature. They are generated automatically whenever lesson content is available — on creation (if `articleContent` is supplied) or on update (when content changes) — and stored as 768-dimensional vectors in `ai.lesson_embeddings` using the `pgvector` extension.
+
+> **No client-facing job endpoint for this feature.** An `AiJobLog` row is created and state-machined per lesson (§2), but there is no per-lesson HTTP endpoint that returns that jobId to a caller — this is purely internal bookkeeping for the event-driven pipeline below. The only client-visible trigger is the admin bulk endpoint `POST /admin/reindex-embeddings` (§4.4), which returns a count, not job IDs.
 
 ### 4.1 Trigger Flow — Event-Driven Embedding
 
@@ -454,23 +394,24 @@ sequenceDiagram
 
     Instructor->>LessonService: Create lesson with articleContent, OR update articleContent
     LessonService->>LessonService: Commit transaction
-    LessonService->>EventBus: publish LessonContentUpdatedEvent(lessonId, userId)
-    Note over EventBus: AFTER_COMMIT — fires only after DB commit succeeds<br/>Triggers on: create (non-blank content) | update (content changed) | transcription done
+    LessonService->>EventBus: publish LessonContentUpdatedEvent(source, lesson)
+    Note over EventBus: AFTER_COMMIT — fires only after DB commit succeeds<br/>Triggers on: create (non-blank content) | update (content changed) | transcription done<br/>Event carries only the Lesson entity — no userId
 
-    EventBus->>AiEventListener: onLessonContentUpdated()
-    AiEventListener->>EmbeddingService: requestEmbedding(lessonId, userId)
-    EmbeddingService->>JobService: createJob(EMBEDDING, lessonId, userId)
-    JobService-->>EmbeddingService: AiJobLog (PENDING)
-    EmbeddingService->>AsyncProc: process(jobId, lessonId) [@Async]
-    EmbeddingService-->>AiEventListener: returns (fire-and-forget)
+    EventBus->>AiEventListener: onLessonContentUpdated(event)
+    alt articleContent is blank
+        AiEventListener->>AiEventListener: skip — no job created
+    else articleContent present
+        AiEventListener->>EmbeddingService: requestEmbedding(lesson)
+        Note over EmbeddingService: systemUserId hardcoded to 0L —<br/>event-driven jobs are attributed to system user 0, not the editing instructor
+        EmbeddingService->>LessonService: getLessonInfo(lessonId) — resolve courseId
+        EmbeddingService->>JobService: createJob(EMBEDDING, lessonId, systemUserId=0)
+        JobService-->>EmbeddingService: AiJobLog (PENDING)
+        EmbeddingService->>AsyncProc: process(jobId, lessonId, courseId, articleContent) [@Async]
+        EmbeddingService-->>AiEventListener: returns (fire-and-forget)
 
-    Note over AsyncProc: Runs on ai-executor thread pool<br/>core=2, max=5, queue=50
+        Note over AsyncProc: Runs on ai-executor thread pool<br/>core=2, max=5, queue=50
 
-    AsyncProc->>JobService: updateStatus(PROCESSING)
-    AsyncProc->>LessonService: getLessonContent(lessonId)
-    alt Content is blank
-        AsyncProc->>JobService: updateStatus(FAILED, "no content")
-    else Content exists
+        AsyncProc->>JobService: updateStatus(PROCESSING)
         AsyncProc->>AsyncProc: splitIntoChunks(content)<br/>window=500 words, step=450 words
         AsyncProc->>DB: deleteByLessonId(lessonId) — idempotent cleanup
         loop For each chunk
@@ -551,11 +492,26 @@ sequenceDiagram
 
 **Use case**: Run after initial deployment to backfill embeddings and summaries for existing lessons, or after a bulk content migration.
 
+### 4.5 Lesson Deletion Cleanup
+
+`AiEventListener` also handles `LessonDeletedEvent` (published by the course module, `@TransactionalEventListener(AFTER_COMMIT)` + `@Async("taskExecutor")`):
+
+```
+LessonDeletedEvent(lesson)
+  → AiEventListener.onLessonDeleted(event)
+     → lessonEmbeddingRepository.deleteByLessonId(lessonId)
+     → lessonSummaryRepository.deleteByLessonId(lessonId)
+```
+
+Deleting a lesson removes its `ai.lesson_embeddings` chunks and `ai.lesson_summaries` row, preventing stale AI data (and RAG search hits) for a lesson that no longer exists. Generated quizzes and quiz attempts are not cleaned up by this listener.
+
 ---
 
 ## 5. Workflow 3 — Lesson Summary Generation
 
-Lesson summaries provide structured learning aids (`summaryText`, `keyPoints[]`, `vocabulary[]`). They are co-triggered by the same `LessonContentUpdatedEvent` as embeddings, running in parallel on separate async threads.
+Lesson summaries provide structured learning aids (`summaryText`, `keyPoints[]`, `vocabulary[]`). They are co-triggered by the same `LessonContentUpdatedEvent` as embeddings: `AiEventListener.onLessonContentUpdated()` calls `requestSummaryGeneration()` then `requestEmbedding()` sequentially, but each dispatches its `@Async` processor immediately and returns, so the two generations effectively run concurrently on the `aiTaskExecutor` thread pool.
+
+> **No client-facing trigger endpoint at all.** Unlike quiz generation and transcription, there is no `POST` endpoint to request a summary on demand — generation only happens via the event above, or in bulk via the admin `POST /admin/reindex-summaries` endpoint (§4.4). The only read endpoint is `GET /ai/summaries/lesson/{lessonId}` (§5.3), which returns `404` until the async job finishes — a caller has no way to distinguish "still generating" from "will never be generated" without a job-status endpoint.
 
 ### 5.1 Trigger Flow
 
@@ -573,8 +529,9 @@ sequenceDiagram
     EventBus->>AiEventListener: onLessonContentUpdated() [AFTER_COMMIT]
     Note over AiEventListener: Fires BOTH requestEmbedding<br/>AND requestSummaryGeneration in parallel
 
-    AiEventListener->>SummaryService: requestSummaryGeneration(lessonId, userId)
-    SummaryService->>JobService: createJob(LESSON_SUMMARY, lessonId, userId)
+    AiEventListener->>SummaryService: requestSummaryGeneration(lesson)
+    Note over SummaryService: userId hardcoded to 0L (system) — comment in code:<br/>"Auto-triggered by event listener, system user id = 0L"
+    SummaryService->>JobService: createJob(LESSON_SUMMARY, lessonId, userId=0)
     JobService-->>SummaryService: AiJobLog (PENDING)
     SummaryService->>AsyncProc: process(jobId, lessonId) [@Async]
 
@@ -621,17 +578,18 @@ sequenceDiagram
     participant Client
     participant Controller as AiController
     participant SummaryService as AiSummaryServiceImpl
+    participant LessonQueryService
     participant EnrollmentQueryService
-    participant CourseQueryService
     participant DB as ai.lesson_summaries
 
     Client->>Controller: GET /api/ai/summaries/lesson/{lessonId}
-    Controller->>SummaryService: getSummaryByLesson(userId, lessonId)
+    Controller->>SummaryService: getSummaryByLesson(lessonId, userId)
 
-    SummaryService->>EnrollmentQueryService: isEnrolled(userId, courseId)
-    SummaryService->>CourseQueryService: isInstructor(userId, courseId)
+    SummaryService->>LessonQueryService: getLessonInfo(lessonId) — resolve instructorId + courseId
+    SummaryService->>SummaryService: check lessonInfo.instructorId().equals(userId)
+    SummaryService->>EnrollmentQueryService: isEnrolledAndActive(courseId, userId)
 
-    alt Neither enrolled nor instructor
+    alt Neither instructor nor actively enrolled
         SummaryService-->>Controller: throw 403 Forbidden
     else Authorized
         SummaryService->>DB: findByLessonId(lessonId)
@@ -736,20 +694,21 @@ sequenceDiagram
     participant AttemptRepo as QuizAttemptRepository
 
     Student->>Controller: GET /api/ai/quizzes/lesson/{lessonId}/take
-    Controller->>QuizService: getLatestQuizForStudent(userId, lessonId)
+    Controller->>QuizService: getLatestQuizForStudent(lessonId, userId)
 
-    QuizService->>EnrollmentQueryService: isEnrolled(userId, courseId)
+    QuizService->>EnrollmentQueryService: isEnrolledAndActive(courseId, userId)
     alt Not enrolled
         QuizService-->>Controller: throw 403 Forbidden
     end
 
-    QuizService->>QuizRepo: findTopByLessonIdOrderByCreatedAtDesc(lessonId)
+    QuizService->>QuizRepo: findByLessonIdOrderByCreatedAtDesc(lessonId)
+    Note over QuizService: Repository returns a List — service takes .get(0) as the latest quiz
     alt No quiz generated yet
         QuizService-->>Controller: throw 404 Not Found
     end
 
-    QuizService->>QuizService: mapToStudentView(questions)
-    Note over QuizService: Strips correctIndex & explanation<br/>Returns StudentQuizQuestionDto only
+    QuizService->>QuizService: toStudentResponse(quiz)
+    Note over QuizService: Builds a GeneratedQuizResponse/QuizQuestionDto with correctIndex hardcoded to 0<br/>(the unused StudentQuizQuestionDto class is dead code, not the real response type)
 
     QuizService-->>Controller: { quizId, questions[{ question, options[] }] }
     Controller-->>Student: 200 OK (no answers exposed)
@@ -764,7 +723,8 @@ sequenceDiagram
     QuizService->>QuizService: scoreAnswers(answers, correctIndices)
     Note over QuizService: score = count(answers[i] == correctIndex[i])
 
-    QuizService->>AttemptRepo: save(QuizAttempt { score, total, percentage, answers as JSONB })
+    QuizService->>AttemptRepo: save(QuizAttempt { score, total, answers as JSONB })
+    Note over QuizService: percentage is computed on the fly (score/total*100)<br/>for the response — not a persisted column
 
     QuizService-->>Controller: QuizAttemptResponse
     Controller-->>Student: 200 OK {<br>  score, totalQuestions, percentage,<br>  questions[{ question, options, correctIndex, explanation }]<br>}
@@ -801,6 +761,8 @@ sequenceDiagram
 | `options[]` | ✅ | ✅ | ✅ |
 | `correctIndex` | ❌ hidden | ✅ revealed | ✅ |
 | `explanation` | ❌ hidden | ✅ revealed | ✅ |
+
+> **Implementation note**: `AiQuizServiceImpl.toStudentResponse()` masks answers by rebuilding each question with `correctIndex=0` — a real index value, not a `null`/`-1` "no answer" sentinel. This is a real (code-commented) footgun: a client that naively trusts `correctIndex` from the `/take` response rather than treating it as always-masked could be misled into thinking option 0 is correct. The frontend must ignore `correctIndex` entirely until the post-submission response.
 
 ---
 
@@ -852,9 +814,9 @@ sequenceDiagram
     RagService->>VectorDB: findTopK(courseId, queryVector, k=5)<br>ORDER BY embedding <=> :queryVector LIMIT 5
     VectorDB-->>RagService: List<LessonChunkProjection><br>{ lessonId, chunkText, distance }
 
-    Note over RagService: Step 5 — Classify Confidence
-    RagService->>RagService: avgDistance = mean(distances)
-    Note over RagService: HIGH:   avgDistance < 0.30<br>MEDIUM: 0.30 ≤ avgDistance < 0.60<br>GAP:    avgDistance ≥ 0.60
+    Note over RagService: Step 5 — Classify Confidence (top-1 chunk, not an average)
+    RagService->>RagService: topDistance = chunks[0].distance
+    Note over RagService: HIGH:   topDistance ≤ 0.30<br>MEDIUM: 0.30 < topDistance ≤ 0.60<br>GAP:    topDistance > 0.60 (or zero chunks retrieved)
 
     alt Confidence = GAP
         Note over RagService: Step 6 — Log Knowledge Gap
@@ -879,6 +841,8 @@ sequenceDiagram
 
 ### 7.2 SSE Streaming Flow
 
+`RagServiceImpl.chatStream()` returns a **`Flux<ServerSentEvent<String>>`** (Spring WebFlux reactive style) — not a classic `SseEmitter`. It's wrapped in `Flux.defer(...)` so that pre-checks (ACL, rate limit, missing `ChatClient`/`EmbeddingModel` beans) throw during *subscription* rather than at call time; this avoids a documented interaction problem where `ExceptionHandlerExceptionResolver` and a `text/event-stream` response otherwise produce a misleading result at the transport level.
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -889,66 +853,71 @@ sequenceDiagram
 
     Client->>Controller: POST /api/ai/chat/courses/{courseId}/stream<br>Accept: text/event-stream
 
-    Note over Controller: Same ACL, rate limit, embed, vector search,<br>confidence classification as sync flow (steps 1-8)
+    Note over Controller: Same ACL, rate limit, embed, vector search,<br>confidence classification as sync flow (steps 1-8) —<br>but deferred until subscription (Flux.defer)
 
     Controller->>RagService: chatStream(userId, courseId, request)
-    RagService-->>Controller: SseEmitter
+    RagService-->>Controller: Flux<ServerSentEvent<String>>
 
-    Note over SecurityCtx: WebMvcConfig wraps async threads with<br>DelegatingSecurityContextRunnable<br>Preserves JWT SecurityContext across thread boundary
+    Note over SecurityCtx: WebMvcConfig wraps the async MVC dispatch executor with<br>DelegatingSecurityContextRunnable/Callable<br>Preserves JWT SecurityContext across the thread boundary
 
     Controller-->>Client: HTTP 200, Content-Type: text/event-stream
 
-    RagService->>ChatModel: stream(prompt) → Flux<String>
-
-    Note over RagService: Sends metadata first
-    RagService-->>Client: event: metadata<br>data: { "sourceLessons": [...], "confidenceTier": "HIGH" }
+    RagService->>ChatModel: chatClient.prompt(prompt).stream().content() → Flux<String>
 
     loop Token streaming
         ChatModel-->>RagService: token chunk
-        RagService-->>Client: data: {token}
+        RagService-->>Client: event: chunk<br>data: {token}
     end
 
-    RagService-->>Client: data: [DONE]
-    RagService->>RagService: emitter.complete()
+    Note over RagService: Metadata is appended AFTER all chunks via<br>Flux.concat(chunkEvents, metadataEvent) — NOT sent first
+    RagService-->>Client: event: metadata<br>data: { "sourceLessons": [...], "confidenceTier": "HIGH" }
 
-    alt Error during streaming
-        RagService-->>Client: event: error<br>data: { "message": "Rate limit exceeded" }
-        RagService->>RagService: emitter.completeWithError()
+    alt Error during token streaming
+        RagService-->>Client: event: error<br>data: { "message": "..." } (via onErrorResume on the chunk Flux)
+    end
+
+    alt Error before any tokens (ACL / rate limit / missing beans)
+        RagService-->>Client: event: error<br>data: { "message": "Daily AI chat limit exceeded (20/day)." | ... }
     end
 ```
+
+There is no `[DONE]` sentinel and no explicit `emitter.complete()` call in this implementation — the `Flux` simply completes when its underlying publisher completes, which is standard WebFlux behavior, not something the service code manages manually.
 
 ### 7.3 Confidence Tier Classification
 
-Confidence is determined by the average cosine distance of the top-5 retrieved chunks. Cosine distance is in the range `[0, 2]` where `0` = identical vectors.
+Confidence is determined by the cosine distance of the **single closest (top-1) retrieved chunk**, not an average across the top-5 — the other four chunks retrieved in §7.1 step 4 are used as prompt context, but only the nearest one drives the tier decision. Cosine distance is in the range `[0, 2]` where `0` = identical vectors.
 
 ```
-avgDistance = mean(chunk.distance for top-5 chunks)
+topDistance = chunks[0].distance   (chunks ordered by ascending distance; GAP if zero chunks retrieved)
 
 ┌─────────────────┬────────────────────┬───────────────────────────────────────┐
 │ Tier            │ Condition          │ Behaviour                             │
 ├─────────────────┼────────────────────┼───────────────────────────────────────┤
-│ HIGH            │ avgDistance < 0.30 │ Strong semantic match; answer is      │
+│ HIGH            │ topDistance ≤ 0.30 │ Strong semantic match; answer is      │
 │                 │                    │ grounded in course material            │
 ├─────────────────┼────────────────────┼───────────────────────────────────────┤
-│ MEDIUM          │ 0.30 ≤ dist < 0.60 │ Partial match; answer may be relevant │
+│ MEDIUM          │ 0.30 < dist ≤ 0.60 │ Partial match; answer may be relevant │
 │                 │                    │ but user is warned                     │
 ├─────────────────┼────────────────────┼───────────────────────────────────────┤
-│ GAP             │ avgDistance ≥ 0.60 │ No relevant content found; question   │
-│                 │                    │ logged to knowledge_gap_questions;     │
+│ GAP             │ topDistance > 0.60 │ No relevant content found; question   │
+│                 │ or no chunks found │ logged to knowledge_gap_questions;     │
 │                 │                    │ Gemini told to acknowledge the gap     │
 └─────────────────┴────────────────────┴───────────────────────────────────────┘
 ```
 
+Knowledge-gap logging happens identically in both the sync (`chat()`) and streaming (`chatStream()`) code paths whenever the tier resolves to `GAP` — the streaming path logs it before the metadata event is emitted.
+
 ### 7.4 Rate Limiting Detail
 
-Rate limiting is enforced per user per day using a PostgreSQL UPSERT — atomic and race-condition-free.
+Rate limiting is enforced per user per day using a PostgreSQL UPSERT — atomic and race-condition-free. `RateLimitHelper.incrementAndGet()` runs in its own `@Transactional(propagation = REQUIRES_NEW)` transaction, so the increment commits immediately and survives even if the outer chat request later fails or rolls back — a user can't get a "free" retry by triggering a downstream error after the count was incremented.
 
 ```sql
--- RateLimitHelper.incrementAndGet()
-INSERT INTO ai.ai_rate_limits (user_id, limit_date, message_count)
-VALUES (:userId, CURRENT_DATE, 1)
+-- RateLimitHelper.incrementAndGet(userId)
+INSERT INTO ai.ai_rate_limits (user_id, limit_date, message_count, updated_at)
+VALUES (?, CURRENT_DATE, 1, NOW())
 ON CONFLICT (user_id, limit_date)
-DO UPDATE SET message_count = ai.ai_rate_limits.message_count + 1
+DO UPDATE SET message_count = ai_rate_limits.message_count + 1,
+              updated_at = NOW()
 RETURNING message_count;
 ```
 
@@ -956,8 +925,8 @@ RETURNING message_count;
 |---------|-------|
 | Daily limit | 20 queries / user / day |
 | Reset | Midnight (new `limit_date` row) |
-| Enforcement | Pre-call; increments before Gemini call |
-| Error | `429 Too Many Requests` |
+| Enforcement | Pre-call; increments before Gemini call, in its own committed transaction |
+| Error | `429 Too Many Requests` (sync) / `event: error` (stream) |
 
 ### 7.5 SSE Security Context Propagation
 
@@ -972,18 +941,46 @@ sequenceDiagram
     RequestThread->>WebMvcConfig: configureAsyncSupport()
     Note over WebMvcConfig: Registers DelegatingSecurityContextAsyncTaskExecutor<br>core=4, max=10, queue=50, timeout=5min
 
-    RequestThread->>AsyncThread: spawn (via SseEmitter)
+    RequestThread->>AsyncThread: spawn (async MVC dispatch for the Flux<ServerSentEvent> response)
     WebMvcConfig->>AsyncThread: copy SecurityContext from parent thread
 
     AsyncThread->>AsyncThread: SecurityContextHolder.getContext() ✅
     Note over AsyncThread: JWT principal available inside SSE stream
 ```
 
+### 7.6 Frontend SSE Consumption (`apps/user`)
+
+The RAG chat SSE stream is consumed by `chatStream()` in [`ai.service.ts`](../../frontend/apps/user/src/app/services/ai.service.ts) and rendered by [`AiChatPanel.tsx`](../../frontend/apps/user/src/app/components/learning/AiChatPanel.tsx). These are real, verified implementation details worth documenting since the streaming UX quality depends entirely on them:
+
+- **Leading-whitespace-preserving token parsing**: `data:` lines are sliced with `.slice(5)` (cutting only the `"data:"` prefix), not the SSE-spec-typical `.slice(6)` which would also strip the single leading space — doing that would merge tokens like `" distinguishes"` into `"distinguishes"` when concatenated.
+- **Multiline `data:` handling**: multiple `data:` lines within one event are accumulated and joined with `"\n"` before dispatch, per the SSE spec. A byte-buffer carries partial lines across `reader.read()` chunks so a split in the middle of a line is never lost.
+- **Recognized event types**: `event: metadata` → parsed JSON `{ sourceLessons, confidenceTier }`; `event: error` → parsed JSON `{ message }`, surfaced as an `SseStreamError`; anything else with a `data:` line (including the backend's `event: chunk`) is treated as a raw token and passed to `onChunk`.
+- **Typewriter buffering**: incoming tokens are appended to a ref (not React state) and drained into visible state by a single `setInterval` at **16ms (~60fps)**, revealing 3 characters per tick normally or up to 12/tick if the undisplayed backlog exceeds 80 characters — so a burst of tokens catches up instead of visibly lagging.
+- **Sync fallback is narrowly scoped**: on a stream error, the client falls back to a one-shot non-streaming request **only if zero chunks were received before the error**. If any partial text had already streamed, it shows "Response may be incomplete. Please try again if needed." and stops — it does not retry or auto-resubmit.
+- **No auto-resubmission of partial responses**: on `AbortError` (e.g. the user sends a new message or closes the panel mid-stream) or a post-partial-content error, whatever text had accumulated is committed as the final message and streaming stops. The user must manually resend to get a complete answer.
+- **Completed-message memoization**: finished message bubbles are wrapped in `React.memo` so they don't re-render while a later message streams. The actively-streaming bubble is **deliberately excluded** from memoization — it re-renders every typewriter tick, but that's isolated to the one component, not the whole message list.
+- **Partial Sentry instrumentation — a real gap, not full lifecycle coverage**: breadcrumbs are recorded on stream *start* and on a pre-stream `fetch()` network failure. There is **no** breadcrumb on a per-token basis, on a server-sent `event: error`, or on normal stream completion — anyone extending this instrumentation should not assume the full lifecycle is already covered.
+- **Cancellation**: a single `AbortController` per chat panel is aborted before starting a new stream (so sending a new message cancels any in-flight one) and on panel close/unmount; its `signal` is forwarded into the underlying `fetch()` call.
+
 ---
 
 ## 8. Cross-Cutting Concerns
 
-### 8.1 ACL Enforcement Matrix
+### 8.1 External provider data and privacy
+
+AI features are optional at startup, but enabling and invoking them sends application data to external providers:
+
+| Feature | Provider | Data submitted |
+|---------|----------|----------------|
+| RAG chat | Google Gemini | Current student question, recent question/answer history, matched lesson chunks, and a confidence hint |
+| Summaries and quizzes | Google Gemini | Lesson title and lesson content, truncated by the prompt builder |
+| Transcription | Groq | Extracted audio bytes, selected model, response format, and `en`/`vi` language code |
+
+The application does not intentionally add profile fields such as name, email, or username to these requests. However, lesson content, questions, conversation history, and audio are free-form inputs and may themselves contain personal or confidential data. There is currently no automatic PII detection or redaction before submission. Deployments must account for provider retention, data-residency, access-control, and contractual requirements.
+
+Internal numeric user IDs are used locally for authorization and rate-limit accounting; they are not added to provider prompts by the current implementation.
+
+### 8.2 ACL Enforcement Matrix
 
 | Feature | Endpoint | Instructor | Enrolled Student | Notes |
 |---------|----------|:----------:|:----------------:|-------|
@@ -1002,7 +999,7 @@ sequenceDiagram
 
 All ACL checks use cross-module API interfaces (`LessonQueryService`, `EnrollmentQueryService`, `CourseQueryService`) — no direct imports of other modules' repositories.
 
-### 8.2 Thread Pool Configuration
+### 8.3 Thread Pool Configuration
 
 ```yaml
 # application.yml — AI async executors
@@ -1026,7 +1023,7 @@ WebMvcConfig:
   timeout: 300_000ms                     # 5 minutes max SSE connection
 ```
 
-### 8.3 Gemini Configuration
+### 8.4 Gemini Configuration
 
 ```yaml
 # application.yml
@@ -1046,7 +1043,7 @@ spring:
       max-attempts: 1                    # No auto-retry; processors handle failures
 ```
 
-### 8.4 Groq Configuration
+### 8.5 Groq Configuration
 
 ```yaml
 # application.yml
@@ -1083,14 +1080,18 @@ CREATE INDEX ON ai.lesson_embeddings
     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 ```
 
+**Related column outside the `ai` schema**: `course.lessons.video_caption_url` (migration `V37__Add_video_caption_url_to_lessons.sql`) stores the WebVTT caption URL produced by transcription (§3.1.3). It lives in the `course` schema, not `ai`, because it's a lesson presentation attribute written via `LessonWriteService.updateCaptionUrl()`, not an AI-pipeline artifact.
+
 ### `ai.ai_rate_limits`
 
 ```sql
 CREATE TABLE ai.ai_rate_limits (
     id            BIGSERIAL PRIMARY KEY,
-    user_id       BIGINT NOT NULL,
-    limit_date    DATE NOT NULL,
-    message_count INT DEFAULT 0,
+    user_id       BIGINT    NOT NULL,
+    limit_date    DATE      NOT NULL DEFAULT CURRENT_DATE,
+    message_count INT       NOT NULL DEFAULT 0,
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, limit_date)        -- Enforces one row per user per day
 );
 ```
@@ -1118,14 +1119,13 @@ CREATE TABLE ai.ai_job_logs (
 
 ```sql
 CREATE TABLE ai.knowledge_gap_questions (
-    id               BIGSERIAL PRIMARY KEY,
-    user_id          BIGINT NOT NULL,
-    course_id        BIGINT NOT NULL,
-    question_text    TEXT NOT NULL,
-    confidence_score DOUBLE PRECISION,  -- avgDistance at time of query
-    asked_at         TIMESTAMP DEFAULT now()
+    id         BIGSERIAL PRIMARY KEY,
+    course_id  BIGINT      NOT NULL,
+    question   TEXT        NOT NULL,
+    asked_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+No `user_id` or `confidence_score` column — the log is anonymous and only records that a `GAP`-tier question was asked in a given course (`RagServiceImpl` calls `KnowledgeGapQuestion.builder().courseId(courseId).question(question).build()`).
 
 ### `ai.lesson_summaries`
 
@@ -1144,30 +1144,33 @@ CREATE TABLE ai.lesson_summaries (
 
 ```sql
 CREATE TABLE ai.generated_quizzes (
-    id                      UUID PRIMARY KEY,
-    lesson_id               BIGINT NOT NULL,
-    job_id                  UUID,                        -- Reference back to the triggering job
-    questions               JSONB,                       -- QuizQuestionDto[]
-    source_lesson_ids_json  TEXT,                        -- JSON array of source lesson IDs used for generation; null = single-lesson (anchor only)
-    created_at              TIMESTAMP DEFAULT now()
+    id                     BIGSERIAL PRIMARY KEY,
+    lesson_id              BIGINT    NOT NULL,
+    job_id                 BIGINT    NOT NULL REFERENCES ai.ai_job_logs(id),
+    questions_json         JSONB     NOT NULL,             -- QuizQuestionDto[]
+    source_lesson_ids_json TEXT,                           -- JSON array of source lesson IDs used for generation (added in V38); null = single-lesson (anchor only)
+    created_at             TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at             TIMESTAMP NOT NULL DEFAULT NOW()
 );
 ```
+`id` and `job_id` are `BIGINT`/IDENTITY, not `UUID`.
 
 ### `ai.quiz_attempts`
 
 ```sql
 CREATE TABLE ai.quiz_attempts (
     id           BIGSERIAL PRIMARY KEY,
-    quiz_id      UUID NOT NULL,
-    lesson_id    BIGINT NOT NULL,
-    student_id   BIGINT NOT NULL,
-    answers      JSONB,                    -- int[] (selected option indices)
-    score        INT,
-    total        INT,
-    percentage   DOUBLE PRECISION,
-    attempted_at TIMESTAMP DEFAULT now()
+    student_id   BIGINT    NOT NULL,
+    lesson_id    BIGINT    NOT NULL,
+    quiz_id      BIGINT    NOT NULL REFERENCES ai.generated_quizzes(id),
+    score        INT       NOT NULL,
+    total        INT       NOT NULL,
+    answers_json JSONB     NOT NULL,                -- array of chosen answer indices
+    completed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 ```
+`quiz_id` is a `BIGINT` FK, not `UUID`. There is no persisted `percentage` column — the percentage is computed on the fly from `score`/`total` in `AiQuizServiceImpl` and never stored.
 
 ---
 
@@ -1208,9 +1211,11 @@ All endpoints are under `/api/ai/**` (proxied through API Gateway on port 8080).
 
 | Method | Path | Auth | Response | Description |
 |--------|------|------|----------|-------------|
-| `POST` | `/ai/transcribe/lessons/{lessonId}` | Teacher (course owner) | `202 { jobId }` | Request transcription from Cloudinary or YouTube URL |
+| `POST` | `/ai/transcribe/lessons/{lessonId}` | Teacher (course owner) | `202 { jobId }` | Request transcription from a Cloudinary video URL (current production path, §3.1) or YouTube URL (Appendix A) |
 
 Request body: `{ "videoUrl": "https://...", "language": "vi" | "en" }` — `language` is optional; defaults to `"en"` if omitted.
+
+**Side effect**: on success, in addition to updating `articleContent`, this endpoint may also populate `lesson.video_caption_url` with a WebVTT caption (§3.1.3) — but only when the Groq/audio path is used; the YouTube auto-caption fast path never produces a caption URL.
 
 ### RAG Chat
 
@@ -1246,6 +1251,7 @@ Request body: `{ "videoUrl": "https://...", "language": "vi" | "en" }` — `lang
 | yt-dlp not installed | Binary not found on PATH | `IOException("yt-dlp binary not found")`; Job → `FAILED` |
 | yt-dlp timeout | Video download exceeds 10 minutes | `IOException("Command timed out")`; Job → `FAILED` |
 | Scheduler queue full | `whisperTaskExecutor` queue at capacity | Job kept `DELAYED`, `nextRetryAt = now + 30s` |
+| WebVTT upload to Cloudinary fails | Cloudinary raw-upload error while saving the caption | **Non-fatal** — caught and logged as a warning; `articleContent`/transcript save and job `COMPLETED` status are unaffected; `lesson.video_caption_url` simply stays unset |
 
 ### RAG Chat Errors
 
@@ -1289,7 +1295,7 @@ The `Files.deleteIfExists(tempFile)` call is in `finally` so it runs even if the
 
 ### Security Context in Async Threads
 
-All async AI threads (SSE streaming via `SseEmitter`) require access to the JWT `SecurityContext` to call cross-module services that check the current user. `WebMvcConfig` registers a `DelegatingSecurityContextAsyncTaskExecutor` that copies the parent thread's context into each spawned thread.
+All async AI threads (SSE streaming via the `Flux<ServerSentEvent<String>>` response, §7.2) require access to the JWT `SecurityContext` to call cross-module services that check the current user. `WebMvcConfig` registers a `DelegatingSecurityContextAsyncTaskExecutor` that copies the parent thread's context into each spawned thread.
 
 ### Cross-Module API Contracts
 
@@ -1297,13 +1303,14 @@ The AI module never imports internal classes from the `course` module. It depend
 
 ```
 modules/course/api/
-  ├── LessonQueryService       (getLessonInfo, getLessonContent, findLesson, isInstructorOfLesson)
-  ├── LessonWriteService       (updateArticleContent) ← added for transcription
-  ├── EnrollmentQueryService   (isEnrolled)
-  └── CourseQueryService       (isInstructor, findCourse)
+  ├── LessonQueryService       (getLessonInfo, findAllWithArticleContent)
+  ├── LessonWriteService       (updateArticleContent, updateCaptionUrl) ← added for transcription
+  ├── EnrollmentQueryService   (isStudentEnrolled, isStudentEnrolledExcludingDropped, isEnrolledAndActive, findEnrolledCourseIds, getEnrollmentInfo)
+  └── CourseQueryService       (getCourseInfo, getCourseInfoBatch)
 ```
+There is no `isInstructor`/`findCourse` method — instructor checks are done inline by callers via `courseQueryService.getCourseInfo(courseId).map(info -> info.instructorId().equals(userId))`, and similarly for `LessonQueryService.getLessonInfo(...).instructorId()`.
 
-`LessonWriteService.updateArticleContent()` is the write-side contract. It saves the transcript, then publishes `LessonContentUpdatedEvent` (only if content changed), which drives the downstream embedding and summary pipelines.
+`LessonWriteService.updateArticleContent()` is the write-side contract. It saves the transcript, then publishes `LessonContentUpdatedEvent` (only if content changed), which drives the downstream embedding and summary pipelines. `updateCaptionUrl()` is a separate, narrower write path used only for the WebVTT caption URL (§3.1.3) — it does **not** publish `LessonContentUpdatedEvent`.
 
 Implementations live in `course/api/impl/` — hidden behind the interface boundary.
 
@@ -1323,5 +1330,81 @@ The `<=>` operator computes cosine distance (not similarity). A lower value = mo
 
 ---
 
-**Last Updated**: 2026-03-04 — Added lesson-creation trigger for `LessonContentUpdatedEvent` (`LessonServiceImpl.createLesson`)
-**Status**: Core functionality complete (Embedding, Summary, Quiz, RAG Chat, Auto-Transcription)
+## Appendix A — Historical Strategy: YouTube Extraction
+
+> This path is fully implemented and still reachable through the same `POST /ai/transcribe/lessons/{id}` endpoint — `TranscriptionSourceResolver` still checks for `youtube.com`/`youtu.be` URLs and dispatches to it. It is documented here as an appendix, not the main flow, because it was superseded by the Cloudinary upload-first path (§3.2) after anti-bot blocking made it unreliable on the production VPS. It could be re-enabled without code changes if the deployment environment changes (residential IP, proxy, or a YouTube-approved API key).
+
+### A.1 Source Resolution Strategy (Strategy Pattern)
+
+`TranscriptionSourceResolver` detects the URL type and delegates to the appropriate `AudioExtractor` implementation — this is the same resolver used by the Cloudinary path in §3.1, shown here in full:
+
+```
+TranscriptionSourceResolver.resolve(url)
+  │
+  ├─ url.contains("res.cloudinary.com") ?
+  │    └─→ CloudinaryAudioExtractor.extract(url)          [current production path, §3.1.1]
+  │         └─→ TranscriptionInput.AudioFile(tempFile)
+  │
+  ├─ url.contains("youtube.com/watch") or "youtu.be/" ?
+  │    └─→ YouTubeTranscriptExtractor.extract(url)
+  │         ├─ [Phase A] yt-dlp --write-auto-sub --skip-download → .vtt file
+  │         │    ├─ VTT found & non-empty → TranscriptionInput.DirectText(parsedText)
+  │         │    └─ VTT empty / not found → fallback to Phase B
+  │         └─ [Phase B] YtDlpAudioDownloader.download(url) → TranscriptionInput.AudioFile(mp3)
+  │
+  └─ else → BadRequestException("Unsupported URL type")
+```
+
+**`TranscriptionInput`** is a sealed interface with two permitted records:
+
+| Variant | Type | Description |
+|---------|------|-------------|
+| `DirectText(String text)` | No Groq call | YouTube auto-captions extracted from `.vtt` — free, instant, **plain text only, no timestamps, no WebVTT caption generated** |
+| `AudioFile(Path tempFile)` | Groq API call | Downloaded/extracted audio file requiring Whisper transcription — this is the only variant that can produce a WebVTT caption (§3.1.3) |
+
+### A.2 YouTube Extraction Flow
+
+```mermaid
+sequenceDiagram
+    participant Extractor as YouTubeTranscriptExtractor
+    participant YtDlp as yt-dlp binary
+    participant Downloader as YtDlpAudioDownloader
+    participant TmpDir as /tmp
+
+    Extractor->>YtDlp: yt-dlp --write-auto-sub --sub-lang en --skip-download -o /tmp/ytdlp_sub_{uuid}_{%(id)s} <url>
+    YtDlp-->>TmpDir: *.en.vtt (if captions exist)
+
+    Extractor->>TmpDir: findGeneratedVtt(prefix)
+
+    alt .vtt found
+        Extractor->>Extractor: parseVttToText(vtt)
+        Note over Extractor: Strip WEBVTT header, timestamps,<br>NOTE blocks, HTML tags<br>Deduplicate consecutive identical lines
+        alt Parsed text non-empty
+            Extractor-->>Caller: DirectText(transcript)
+            Note over Extractor: Files.deleteIfExists(vtt) in finally
+        else Parsed text blank
+            Extractor->>Downloader: download(url) — fallback
+        end
+    else No .vtt file
+        Extractor->>Downloader: download(url) — fallback
+    end
+
+    Downloader->>YtDlp: yt-dlp -x --audio-format mp3 --audio-quality 32K -o /tmp/ytdlp_audio_{uuid}.%(ext)s <url>
+    YtDlp-->>TmpDir: ytdlp_audio_{uuid}.mp3
+    Downloader-->>Caller: AudioFile(/tmp/ytdlp_audio_{uuid}.mp3)
+```
+
+**Timeouts**:
+- Caption download (Phase A): 5 minutes
+- Audio download (Phase B): 10 minutes
+
+Both `ProcessBuilder` invocations drain output on a virtual thread; a non-zero exit code or timeout throws `IOException`, and a missing `yt-dlp` binary produces a friendly "yt-dlp binary not found... brew install yt-dlp" message rather than a raw stack trace.
+
+### A.3 Why This Is No Longer the Recommended Path
+
+YouTube's anti-bot / IP-reputation protections block or throttle `yt-dlp` requests originating from common VPS/datacenter IP ranges. In production this manifests as `yt-dlp` silently returning no captions and no audio, or timing out — with no way to distinguish "video has no captions" from "YouTube blocked this request" from the job's `errorMessage` alone. The Cloudinary upload-first path (§3.1) has no equivalent failure mode since Cloudinary is the platform's own storage and transformation is done server-side by Cloudinary itself, not by scraping a third party.
+
+---
+
+**Last Updated**: 2026-08-09 — Corrected against actual implementation: documented WebVTT caption generation (§3.1.3, previously entirely undocumented); reordered Workflow 1 so the Cloudinary upload-first path leads and YouTube/yt-dlp moved to Appendix A; clarified that only `QUIZ_GENERATION`/`TRANSCRIPTION` return a client-pollable jobId while `EMBEDDING`/`LESSON_SUMMARY` are event-driven and internally tracked only; corrected the RAG SSE section to the real `Flux<ServerSentEvent<String>>` implementation (event types `chunk`/`metadata`/`error`, metadata sent after chunks, not before; removed unverified `SseEmitter`/`data: [DONE]` framing); corrected confidence-tier classification to use the top-1 chunk's distance, not an average of the top-5; added a Frontend SSE Consumption section (§7.6).
+**Status**: Core functionality complete (Embedding, Summary, Quiz, RAG Chat, Auto-Transcription incl. WebVTT captions)

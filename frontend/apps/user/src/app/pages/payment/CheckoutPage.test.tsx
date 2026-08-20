@@ -681,6 +681,23 @@ describe('CheckoutPage', () => {
       expect(screen.getAllByText('100.00 US dollars')).toHaveLength(2);
     });
 
+    it('contains payment methods within the card at narrow widths', () => {
+      (useCheckoutPreview as any).mockReturnValue({ data: mockCartPreviewData, isLoading: false, error: null });
+
+      render(<CheckoutPage />);
+
+      const group = screen.getByRole('group', { name: 'Payment Method' });
+      const paypalOption = screen.getByRole('radio', { name: /PayPal/i }).closest('label');
+
+      expect(group).toHaveClass('min-w-0', 'max-w-full');
+      expect(paypalOption).toHaveClass(
+        'box-border',
+        'min-w-0',
+        'max-w-full',
+        'overflow-hidden',
+      );
+    });
+
     it('exposes understandable amounts and hides decorative security icons', () => {
       const previewWithAdjustments = {
         ...mockCartPreviewData,
@@ -719,8 +736,8 @@ describe('CheckoutPage', () => {
 
       await user.click(screen.getByRole('button', { name: /Complete Order/i }));
 
-      const alert = screen.getByRole('alert');
-      expect(alert).toHaveTextContent('Select a payment method');
+      const alert = screen.getByText(/Select a payment method/);
+      expect(alert).toHaveAttribute('role', 'status');
       expect(screen.getByRole('heading', { name: 'Unable to place order' })).toHaveFocus();
       expect(mockCheckoutMutate).not.toHaveBeenCalled();
     });
@@ -761,7 +778,7 @@ describe('CheckoutPage', () => {
 
       const heading = screen.getByRole('heading', { level: 1, name: 'Checkout Error' });
       await waitFor(() => expect(heading).toHaveFocus());
-      expect(screen.getByRole('alert')).toHaveTextContent('valid course');
+      expect(screen.getByText(/valid course/)).toHaveAttribute('role', 'status');
       expect(screen.getByRole('button', { name: 'Return to Courses' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /(?:Place|Complete) Order/i })).not.toBeInTheDocument();
       expect(useDirectCheckoutPreview).toHaveBeenCalledWith(0, false);

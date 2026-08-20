@@ -16,6 +16,12 @@ import { signal } from '@angular/core';
  * These tests focus on the component's logic without requiring template resolution.
  * We instantiate the component directly and test its methods and state management.
  */
+type LoginComponentInternals = {
+  fb: FormBuilder;
+  authService: unknown;
+  router: unknown;
+};
+
 describe('LoginComponent', () => {
   let component: LoginComponent;
   let mockAuthService: {
@@ -83,9 +89,10 @@ describe('LoginComponent', () => {
     component = Object.create(LoginComponent.prototype);
     
     // Inject dependencies manually
-    (component as any).fb = formBuilder;
-    (component as any).authService = mockAuthService;
-    (component as any).router = mockRouter;
+    const internals = component as unknown as LoginComponentInternals;
+    internals.fb = formBuilder;
+    internals.authService = mockAuthService;
+    internals.router = mockRouter;
     
     // Initialize signals using Angular's signal function
     component.showPassword = signal(false);

@@ -18,6 +18,8 @@ interface FileUploadProps {
   onFilesChange: (files: UploadedFile[]) => void;
   helperText?: string;
   required?: boolean;
+  /** Hide the built-in selected-files list, e.g. when the parent renders its own list. */
+  hideFileList?: boolean;
 }
 
 export const FileUpload = ({
@@ -29,6 +31,7 @@ export const FileUpload = ({
   onFilesChange,
   helperText,
   required = false,
+  hideFileList = false,
 }: FileUploadProps) => {
   const generatedId = useId();
   const inputId = `${generatedId}-file-upload`;
@@ -143,7 +146,7 @@ export const FileUpload = ({
       )}
 
       {/* File List */}
-      {files.length > 0 && (
+      {!hideFileList && files.length > 0 && (
         <div className="mt-4 space-y-2">
           {files.map((fileItem, index) => (
             <div

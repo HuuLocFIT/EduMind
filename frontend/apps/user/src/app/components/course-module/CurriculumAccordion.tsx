@@ -20,6 +20,16 @@ const formatMinutesToLabel = (minutes?: number | null) => {
   return `${mins}m`;
 };
 
+const formatMinutesToAccessibleLabel = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return null;
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const parts = [];
+  if (hrs > 0) parts.push(`${hrs} ${hrs === 1 ? "hour" : "hours"}`);
+  if (mins > 0) parts.push(`${mins} ${mins === 1 ? "minute" : "minutes"}`);
+  return parts.join(" ");
+};
+
 const formatSecondsToLabel = (seconds?: number | null) => {
   if (!seconds || seconds <= 0) return null;
   const mins = Math.floor(seconds / 60);
@@ -150,7 +160,10 @@ export const CurriculumAccordion: React.FC<{
                       {durationLabel && (
                         <span className="inline-flex items-center gap-1">
                           <Clock aria-hidden="true" focusable="false" className="w-3.5 h-3.5" />
-                          {durationLabel}
+                          <span className="sr-only">
+                            {formatMinutesToAccessibleLabel(section.totalDurationMinutes)}
+                          </span>
+                          <span aria-hidden="true">{durationLabel}</span>
                         </span>
                       )}
                     </div>

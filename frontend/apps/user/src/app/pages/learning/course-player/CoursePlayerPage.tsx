@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useModal } from '@edumind/user-ui';
 import { LessonContentSkeleton } from '../../../components/route-skeletons/LessonContentSkeleton';
@@ -21,6 +21,7 @@ import { AutoAdvanceBanner } from './components/AutoAdvanceBanner';
 import { AiTutorOverlay } from './components/AiTutorOverlay';
 import { CourseNotFound } from './components/CourseNotFound';
 import { CourseLessonContent } from './components/CourseLessonContent';
+import { useCoursePlayerReadySignal } from './CoursePlayerBoot';
 import { findLessonProgress, htmlToPlainText } from './course-player.utils';
 import type { CompletionSource } from './course-player.types';
 import {
@@ -39,8 +40,9 @@ export const CoursePlayerPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const quizModal = useModal();
+  const signalReady = useCoursePlayerReadySignal();
 
-  const AUTO_ADVANCE_SECONDS = 5;
+  const AUTO_ADVANCE_SECONDS = 10;
 
   // Owned here (rather than inside useLessonNavigation) because
   // useCoursePlayerLayout also needs its value, and useLessonNavigation needs
@@ -66,6 +68,23 @@ export const CoursePlayerPage: React.FC = () => {
     confirmedCourseComplete,
     reconcileEnrollmentProgress,
   } = useCoursePlayerData({ courseSlug, currentLesson, searchParams, setSearchParams, setCurrentLesson });
+
+  // Tells CoursePlayerBoot (the Suspense-external skeleton owner) it can
+  // reveal this page and drop its own skeleton. Intentionally `!loading`
+  // alone — no `&& currentLesson` — so the accessError/CourseNotFound
+  // early-return branches below also get uncovered by the `hidden` toggle;
+  // gating on `currentLesson` too would leave Boot's skeleton stuck forever
+  // for those branches. This is a one-way latch (see CoursePlayerBoot.tsx),
+  // so it's safe to call on every render once loading clears.
+  // useLayoutEffect (not useEffect): pageMetadata below is also gated on
+  // `!loading`, so the render where loading flips false already mounts this
+  // page's own <title> while Boot's skeleton (and its <title>) is still up.
+  // A layout effect flips `ready` synchronously before the browser paints,
+  // closing that window instead of leaving two hoisted <title>s visible for
+  // one passive-effect tick.
+  useLayoutEffect(() => {
+    if (!loading) signalReady();
+  }, [loading, signalReady]);
 
   const redirectCountdown = useAccessErrorRedirect(accessError, navigate);
 
@@ -130,7 +149,10 @@ export const CoursePlayerPage: React.FC = () => {
   const { autoAdvance, startAutoAdvance, clearAutoAdvance, cancelAutoAdvance } = useAutoAdvance({
     delaySeconds: AUTO_ADVANCE_SECONDS,
     onAdvance: (nextLesson, options) => navigation.selectLesson(nextLesson, options),
-    onCancelFocus: () => layout.focusLessonHeading(),
+    onCancelFocus: () => {
+      announceAutoAdvanceCancelled();
+      layout.focusLessonHeading();
+    },
     isDesktop: layout.isDesktop,
     resetKey: courseSlug,
   });
@@ -178,6 +200,7 @@ export const CoursePlayerPage: React.FC = () => {
     completionReconcileError,
     completionReconcileInFlight,
     completionAnnouncement,
+    announceAutoAdvanceCancelled,
     completeLesson,
   } = useLessonCompletion({
     currentLesson,
@@ -189,6 +212,7 @@ export const CoursePlayerPage: React.FC = () => {
     onProgressChange: setAllLessonProgress,
     onEnrollmentChange: setEnrollment,
     reconcileEnrollmentProgress,
+    autoAdvanceDelaySeconds: AUTO_ADVANCE_SECONDS,
     startAutoAdvance,
     clearAutoAdvance,
     stopAutosave,
@@ -231,7 +255,12 @@ export const CoursePlayerPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const pageMetadata = (
+  // Only rendered once loading clears: while `loading` is true this page is
+  // still mounted-but-hidden under CoursePlayerBoot, which is rendering its
+  // own SeoMetaTags-bearing skeleton — mounting both at once would hoist two
+  // <title> tags simultaneously (React 19 hoists head tags regardless of
+  // hidden DOM ancestors).
+  const pageMetadata = !loading ? (
     <SeoMetaTags
       title={currentLesson?.title ?? course?.title ?? 'Course Player'}
       description={
@@ -241,7 +270,7 @@ export const CoursePlayerPage: React.FC = () => {
       }
       noIndex
     />
-  );
+  ) : null;
 
   // Access error modal – shown when user is DROPPED/SUSPENDED or not properly enrolled
   if (accessError) {
@@ -278,7 +307,7 @@ export const CoursePlayerPage: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col ${
+      className={`relative flex min-h-screen w-full max-w-full flex-col overflow-x-clip ${
         rootContentType === ContentType.VIDEO ? 'bg-gray-900' : 'bg-white'
       }`}
     >
@@ -297,6 +326,13 @@ export const CoursePlayerPage: React.FC = () => {
         onExit={() => navigate(USER_ROUTES.LEARNING)}
         onToggleSidebar={() => layout.setSidebarOpen(!layout.sidebarOpen)}
         loading={loading}
+        trailingAction={resolvedCourseId !== null ? (
+          <AiTutorOverlay
+            courseId={resolvedCourseId}
+            hidden={layout.sidebarOpen && !layout.isDesktop}
+            anchorToPlayerHeader
+          />
+        ) : null}
       />
 
       <div className="flex relative flex-1">
@@ -318,6 +354,7 @@ export const CoursePlayerPage: React.FC = () => {
             <AutoAdvanceBanner
               nextLessonTitle={autoAdvance.nextLesson.title}
               secondsRemaining={autoAdvance.secondsRemaining}
+              announcement={completionAnnouncement}
               onGoNow={() => {
                 clearAutoAdvance();
                 navigation.selectLesson(autoAdvance.nextLesson, {
@@ -396,6 +433,8 @@ export const CoursePlayerPage: React.FC = () => {
             hasNext={!loading && !!navigation.nextLesson}
             onPrevious={navigation.navigatePrevious}
             onNext={navigation.navigateNext}
+            previousLessonTitle={navigation.previousLesson?.title}
+            nextLessonTitle={navigation.nextLesson?.title}
           />
         </div>
 
@@ -444,12 +483,11 @@ export const CoursePlayerPage: React.FC = () => {
         />
       )}
 
-      {/* AI Course Tutor: floating pill + overlay panel */}
-      {resolvedCourseId !== null && <AiTutorOverlay courseId={resolvedCourseId} />}
-
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {navigation.lessonAnnouncement}
-        {completionAnnouncement}
+      </div>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {autoAdvance ? '' : completionAnnouncement}
       </div>
     </div>
   );

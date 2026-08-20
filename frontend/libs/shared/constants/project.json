@@ -12,7 +12,8 @@
       "options": {
         "main": "libs/shared/constants/src/index.ts",
         "tsConfig": "libs/shared/constants/tsconfig.lib.json",
-        "outputPath": "libs/shared/constants/dist"
+        "outputPath": "libs/shared/constants/dist",
+        "rootDir": "libs/shared/constants/src"
       }
     },
     "lint": {

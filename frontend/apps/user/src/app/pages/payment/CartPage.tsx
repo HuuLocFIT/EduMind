@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Card, Button, Loading, PriceTag, ConfirmDialog, useToast } from "@edumind/user-ui";
 import { useCart, useRemoveFromCart, useClearCart } from "../../hooks/useCart";
+import { useRemovalAnnouncement } from "../../hooks/useRemovalAnnouncement";
 import { useCartStore } from "../../stores/cart.store";
 import { CartItem } from "../../components/payment-module";
 import { ShoppingCart, Trash2, ArrowRight, ArrowLeft, AlertTriangle } from "lucide-react";
@@ -9,9 +10,12 @@ import { USER_ROUTES } from "@edumind/shared-utils";
 import { useMemo } from "react";
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
+const accessibleCurrencyAmount = (amount: number, currency: string): string =>
+  `${amount.toFixed(2)} ${currency === "USD" ? "US dollars" : currency}`;
+
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
-  const { success: showSuccess, error: showError } = useToast();
+  const { success: showSuccess, error: showError, showToast } = useToast();
 
   // Server state
   const { data: cart, isLoading, error, refetch } = useCart();
@@ -26,28 +30,27 @@ export const CartPage: React.FC = () => {
   // Dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
   const [coursePendingRemoval, setCoursePendingRemoval] = React.useState<number | null>(null);
-  const [pendingRemovalFocus, setPendingRemovalFocus] = React.useState<{ courseId: number; index: number } | null>(null);
-  const [removalAnnouncement, setRemovalAnnouncement] = React.useState("");
-  const removalAnnouncementTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const removalFocusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const emptyHeadingRef = React.useRef<HTMLHeadingElement>(null);
   const itemListRef = React.useRef<HTMLUListElement>(null);
+
+  const items = useMemo(() => cart?.items || [], [cart?.items]);
+  const subtotal = cart?.subtotal || 0;
+  const discount = cart?.discountTotal || 0;
+  const totalAmount = cart?.totalAmount || 0;
+  const currency = cart?.currency || "USD";
+
+  const { announcement: removalAnnouncement, scheduleRemovalFeedback } = useRemovalAnnouncement({
+    items,
+    getFocusRoot: () => itemListRef.current,
+    fallbackRefs: [emptyHeadingRef, cartHeadingRef],
+  });
 
   // ScrollToTop handles client-side route changes but intentionally skips the
   // initial route. Focus here as well so a directly loaded cart page gives
   // keyboard and screen-reader users immediate page context.
   useEffect(() => {
     cartHeadingRef.current?.focus({ preventScroll: true });
-  }, []);
-
-  useEffect(() => () => {
-    if (removalAnnouncementTimerRef.current) {
-      clearTimeout(removalAnnouncementTimerRef.current);
-    }
-    if (removalFocusTimerRef.current) {
-      clearTimeout(removalFocusTimerRef.current);
-    }
   }, []);
 
   // Sync server data to local store
@@ -58,6 +61,13 @@ export const CartPage: React.FC = () => {
   }, [cart, setCart]);
 
   const handleRemove = (courseId: number) => {
+    // Headless UI's Dialog restores focus to whatever was focused right
+    // before it opened once it closes. Left alone, that target is this row's
+    // own remove button, which the optimistic removal unmounts before the
+    // restore runs — so focus is dropped instead of handed to the successor
+    // row. Moving focus to the stable page heading first gives the restore
+    // something that's still there.
+    cartHeadingRef.current?.focus({ preventScroll: true });
     setCoursePendingRemoval(courseId);
   };
 
@@ -73,22 +83,15 @@ export const CartPage: React.FC = () => {
       onSuccess: () => {
         setCoursePendingRemoval(null);
         const message = `${removedItem.courseTitle} removed from cart. New total: $${newTotal.toFixed(2)} ${currency}.`;
-        // Keep the existing visible confirmation toast.
-        showSuccess(message);
+        // Keep the existing visible confirmation toast, but silence it for
+        // assistive technology: ToastContainer is itself a polite live region,
+        // and the sr-only region below announces this same sentence with the
+        // timing screen readers actually need.
+        showToast(message, { variant: "success", silent: true });
 
-        // While the confirmation dialog runs its 300 ms exit transition,
-        // Headless UI keeps the page behind it inert. Announcing immediately
-        // would therefore be missed by VoiceOver. Update this stable live
-        // region only after the dialog has left the accessibility tree.
-        setRemovalAnnouncement("");
-        if (removalAnnouncementTimerRef.current) {
-          clearTimeout(removalAnnouncementTimerRef.current);
-        }
-        removalAnnouncementTimerRef.current = setTimeout(() => {
-          setRemovalAnnouncement(message);
-          removalAnnouncementTimerRef.current = null;
-        }, 350);
-        setPendingRemovalFocus({ courseId, index: removedIndex });
+        // Focus move and announcement are sequenced inside the hook — they must
+        // never land in the same tick or VoiceOver drops the announcement.
+        scheduleRemovalFeedback({ courseId, index: removedIndex, message });
       },
       onError: (err: Error) => {
         showError(err.message || "Failed to remove item");
@@ -121,12 +124,6 @@ export const CartPage: React.FC = () => {
     navigate(USER_ROUTES.CHECKOUT);
   };
 
-  const items = useMemo(() => cart?.items || [], [cart?.items]);
-  const subtotal = cart?.subtotal || 0;
-  const discount = cart?.discountTotal || 0;
-  const totalAmount = cart?.totalAmount || 0;
-  const currency = cart?.currency || "USD";
-
   // Check for unavailable items
   const unavailableItems = useMemo(
     () => items.filter((item) => item.isAvailable === false),
@@ -134,23 +131,6 @@ export const CartPage: React.FC = () => {
   );
   const hasUnavailableItems = unavailableItems.length > 0;
   const availableItemsCount = items.length - unavailableItems.length;
-
-  useEffect(() => {
-    if (!pendingRemovalFocus || items.some((item) => item.courseId === pendingRemovalFocus.courseId)) return;
-
-    if (removalFocusTimerRef.current) clearTimeout(removalFocusTimerRef.current);
-    // Do not focus the page while the confirmation dialog still makes it
-    // inert. Otherwise VoiceOver/WebKit may move to an unrelated button.
-    removalFocusTimerRef.current = setTimeout(() => {
-      const remaining = itemListRef.current?.querySelectorAll<HTMLElement>("[data-cart-item]");
-      const targetIndex = Math.min(pendingRemovalFocus.index, Math.max((remaining?.length || 1) - 1, 0));
-      const target = remaining?.[targetIndex];
-      const focusTarget = target?.querySelector<HTMLElement>("a, button") || emptyHeadingRef.current || cartHeadingRef.current;
-      focusTarget?.focus({ preventScroll: true });
-      removalFocusTimerRef.current = null;
-    }, 350);
-    setPendingRemovalFocus(null);
-  }, [items, pendingRemovalFocus]);
 
   return (
     <>
@@ -267,31 +247,33 @@ export const CartPage: React.FC = () => {
                     Order Summary
                   </h2>
 
-                  <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                  <dl className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-600">Subtotal ({items.length} items):</span>
-                      <span className="font-medium text-gray-900">
-                        ${subtotal.toFixed(2)}
-                      </span>
+                      <dt className="text-gray-600">Subtotal ({items.length} items)</dt>
+                      <dd className="font-medium text-gray-900">
+                        <span aria-hidden="true">${subtotal.toFixed(2)} {currency}</span>
+                        <span className="sr-only">{accessibleCurrencyAmount(subtotal, currency)}</span>
+                      </dd>
                     </div>
 
                     {discount > 0 && (
                       <div className="flex items-center justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600">Discount:</span>
-                        <span className="font-medium text-green-700">
-                          -${discount.toFixed(2)}
-                        </span>
+                        <dt className="text-gray-600">Discount</dt>
+                        <dd className="font-medium text-green-700">
+                          <span aria-hidden="true">-${discount.toFixed(2)} {currency}</span>
+                          <span className="sr-only">Minus {accessibleCurrencyAmount(discount, currency)}</span>
+                        </dd>
                       </div>
                     )}
 
-                    <div className="pt-2 sm:pt-3 border-t">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm sm:text-base font-semibold text-gray-900">Total:</span>
-                        <PriceTag price={totalAmount} size="lg" />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{currency}</p>
+                    <div className="flex items-center justify-between pt-2 sm:pt-3 border-t">
+                      <dt className="text-sm sm:text-base font-semibold text-gray-900">Total</dt>
+                      <dd>
+                        <span aria-hidden="true"><PriceTag price={totalAmount} size="lg" /></span>
+                        <span className="sr-only">{accessibleCurrencyAmount(totalAmount, currency)}</span>
+                      </dd>
                     </div>
-                  </div>
+                  </dl>
 
                   {/* Checkout Button */}
                   <Button
@@ -329,7 +311,7 @@ export const CartPage: React.FC = () => {
                   <div className="mt-3 lg:hidden text-center">
                     <button
                       onClick={() => navigate(USER_ROUTES.COURSES)}
-                      className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 text-sm text-blue-600 hover:text-blue-700 hover:underline"
                     >
                       ← Continue Shopping
                     </button>

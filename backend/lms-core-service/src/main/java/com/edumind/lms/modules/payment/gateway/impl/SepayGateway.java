@@ -204,8 +204,24 @@ public class SepayGateway implements PaymentGateway {
                 .exchangeRate(exchangeRate)
                 .redirectUrl(qrUrl)
                 .requiresRedirect(true)
+                // Transfer details in structured form so the frontend can render a
+                // readable/copyable alternative to the QR image (WCAG 1.1.1).
+                .bankCode(properties.getBankCode())
+                .bankName(resolveBankName())
+                .bankAccount(properties.getBankAccount())
+                .accountName(properties.getAccountName())
+                .transferContent(transferContent)
                 .processedAt(LocalDateTime.now())
                 .build();
+    }
+
+    /**
+     * Human-readable bank name for display, falling back to the bank code when
+     * no display name is configured.
+     */
+    private String resolveBankName() {
+        String bankName = properties.getBankName();
+        return (bankName != null && !bankName.isBlank()) ? bankName : properties.getBankCode();
     }
 
     /**

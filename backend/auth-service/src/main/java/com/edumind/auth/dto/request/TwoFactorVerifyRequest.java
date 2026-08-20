@@ -16,6 +16,4 @@ public class TwoFactorVerifyRequest {
     @NotBlank(message = "TOTP code is required")
     @Pattern(regexp = "^[0-9]{6}$", message = "TOTP code must be 6 digits")
     private String code;
-
-    private String secret; // Temporary secret from setup (not stored yet)
 }

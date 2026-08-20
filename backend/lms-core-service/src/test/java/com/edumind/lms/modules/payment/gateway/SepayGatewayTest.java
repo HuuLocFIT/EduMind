@@ -1,6 +1,8 @@
 package com.edumind.lms.modules.payment.gateway;
 
 import com.edumind.lms.modules.payment.gateway.GatewayPaymentRequest;
+import com.edumind.lms.modules.payment.gateway.GatewayPaymentResult;
+import com.edumind.lms.modules.payment.gateway.GatewayResultStatus;
 import com.edumind.lms.modules.payment.gateway.impl.SepayGateway;
 import com.edumind.lms.modules.payment.gateway.impl.SepayGatewayProperties;
 import com.edumind.lms.modules.payment.gateway.impl.sepay.SepayWebhookPayload;
@@ -42,6 +44,44 @@ class SepayGatewayTest {
         lenient().when(properties.getApiKey()).thenReturn("test-api-key");
 
         sepayGateway = new SepayGateway(properties);
+    }
+
+    @Nested
+    @DisplayName("processPayment Transfer Details Tests")
+    class ProcessPaymentTransferDetailsTests {
+
+        @Test
+        @DisplayName("Should return bank transfer details so the frontend can render a text alternative to the QR image")
+        void testProcessPayment_ReturnsTransferDetails() {
+            // Given
+            when(properties.getBankName()).thenReturn("MB Bank");
+
+            // When
+            GatewayPaymentResult result =
+                    sepayGateway.processPayment(createPaymentRequest("ORD-202602-0001", 100000L));
+
+            // Then
+            assertThat(result.getStatus()).isEqualTo(GatewayResultStatus.REQUIRES_ACTION);
+            assertThat(result.getBankCode()).isEqualTo("MB");
+            assertThat(result.getBankName()).isEqualTo("MB Bank");
+            assertThat(result.getBankAccount()).isEqualTo("1234567890");
+            assertThat(result.getAccountName()).isEqualTo("Test Account");
+            assertThat(result.getTransferContent()).isEqualTo("EDUMIND ORD-202602-0001");
+        }
+
+        @Test
+        @DisplayName("Should fall back to the bank code when no display bank name is configured")
+        void testProcessPayment_BankNameFallsBackToBankCode() {
+            // Given
+            when(properties.getBankName()).thenReturn("");
+
+            // When
+            GatewayPaymentResult result =
+                    sepayGateway.processPayment(createPaymentRequest("ORD-202602-0002", 100000L));
+
+            // Then
+            assertThat(result.getBankName()).isEqualTo("MB");
+        }
     }
 
     @Nested

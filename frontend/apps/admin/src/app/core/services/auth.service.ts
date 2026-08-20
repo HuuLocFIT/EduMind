@@ -2,14 +2,16 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
-import { catchError, finalize, switchMap, tap } from 'rxjs/operators';
+import { catchError, finalize, map, switchMap, tap } from 'rxjs/operators';
 import * as Sentry from '@sentry/angular';
 import { environment } from '../../../environments/environment';
-import type {
-  LoginRequest,
-  JwtResponse,
-  RefreshTokenResponse,
-  User,
+import {
+  JwtResponseSchema,
+  RefreshTokenResponseSchema,
+  type LoginRequest,
+  type JwtResponse,
+  type RefreshTokenResponse,
+  type User,
 } from '@edumind/shared-types';
 import { UserRole } from '@edumind/shared-constants';
 import { AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
@@ -61,9 +63,10 @@ export class AuthService {
             throw this.createError('Invalid response from server', 500);
           }
 
-          this.validateAdminRole(response.user);
-          this.handleAuthSuccess(response);
-          return of(response);
+          const validated = JwtResponseSchema.parse(response);
+          this.validateAdminRole(validated.user);
+          this.handleAuthSuccess(validated);
+          return of(validated);
         }),
         catchError((error) => this.handleError(error)),
         finalize(() => this.isLoading.set(false))
@@ -88,6 +91,7 @@ export class AuthService {
         { withCredentials: true }
       )
       .pipe(
+        map((response) => RefreshTokenResponseSchema.parse(response)),
         tap((response) => {
           // Update access token
           localStorage.setItem(this.TOKEN_KEY, response.accessToken);

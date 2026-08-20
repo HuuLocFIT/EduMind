@@ -116,6 +116,29 @@ describe('My Learning component accessibility', () => {
     expect(onContinue).toHaveBeenCalledOnce();
   });
 
+  it('stacks enrollment metadata above full-width actions on narrow screens', () => {
+    render(
+      <EnrollmentCardNew
+        enrollment={enrollment}
+        isHovered={false}
+        onMouseEnter={vi.fn()}
+        onMouseLeave={vi.fn()}
+        onContinue={vi.fn()}
+        onViewDetails={vi.fn()}
+      />,
+    );
+
+    const enrollmentMetadata = screen.getByText('Enrolled Jan 1, 2026', { selector: 'p' });
+    const footer = enrollmentMetadata.parentElement;
+    const actions = screen.getByRole('button', { name: 'View details for Accessible React' }).parentElement;
+    const continueButton = screen.getByTestId('continue-learning-button');
+
+    expect(footer).toHaveClass('flex-col', 'sm:flex-row', 'min-w-0');
+    expect(actions).toHaveClass('w-full', 'min-w-0', 'sm:w-auto');
+    expect(continueButton).toHaveClass('flex-1', 'sm:flex-none', 'sm:group-hover:scale-105');
+    expect(continueButton).not.toHaveClass('group-hover:scale-105');
+  });
+
   it('has no serious Axe violations in every tab state', async () => {
     const user = userEvent.setup();
     const Wrapper = () => {
@@ -124,7 +147,7 @@ describe('My Learning component accessibility', () => {
     };
     const { container } = render(<Wrapper />);
 
-    for (const name of ['All, 3 courses', 'In Progress, 2 courses', 'Completed, 1 course']) {
+    for (const name of ['All, 3 courses', 'Active, 2 courses', 'Completed, 1 course']) {
       await user.click(screen.getByRole('tab', { name }));
       await assertNoSeriousViolations(container);
     }

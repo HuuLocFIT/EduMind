@@ -231,6 +231,19 @@ public class LessonController {
         return ResponseEntity.ok(ApiResponse.success("Video upload state reset successfully", null));
     }
 
+    @DeleteMapping("/resource-uploads")
+    @PreAuthorize("@teacherSecurity.isActiveTeacher()")
+    public ResponseEntity<ApiResponse<Void>> deleteResourceUpload(
+            @RequestParam Long courseId,
+            @RequestParam String url,
+            Authentication authentication) {
+
+        Long instructorId = extractUserId(authentication);
+        lessonService.deleteResourceUpload(courseId, url, instructorId);
+
+        return ResponseEntity.ok(ApiResponse.success("Resource deleted successfully", null));
+    }
+
     // Helper methods
     private Long extractUserId(Authentication authentication) {
         return Long.parseLong(authentication.getName());

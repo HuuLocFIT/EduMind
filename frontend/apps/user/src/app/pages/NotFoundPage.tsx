@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@edumind/user-ui";
-import { FileQuestion, Home, Search } from "lucide-react";
+import { FileQuestion, HelpCircle, Home, Search } from "lucide-react";
 import { USER_ROUTES } from "@edumind/shared-utils";
 import { SeoMetaTags } from "../components/Seo/SeoMetaTags";
 
@@ -48,12 +48,16 @@ export const NotFoundPage: React.FC = () => {
         </div>
 
         {/* Help Link */}
-        {/* <div className="mt-8 text-sm text-gray-500">
-          Need help?{" "}
-          <a href="/support" className="text-blue-600 hover:text-blue-800">
+        <div className="mt-8 flex items-center justify-center gap-1 text-sm text-gray-500">
+          <span>Need help?</span>
+          <a
+            href="mailto:support@edumind.com"
+            className="inline-flex items-center gap-1 text-blue-600 underline hover:text-blue-800 hover:no-underline"
+          >
+            <HelpCircle aria-hidden="true" className="w-4 h-4" />
             Contact Support
           </a>
-        </div> */}
+        </div>
       </div>
       </div>
     </>

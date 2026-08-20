@@ -82,11 +82,9 @@ flowchart TB
 flowchart TB
     subgraph LMSCore["LMS Core Service (Modular Monolith)"]
         subgraph Modules["Business Modules"]
-            CourseM["Course Module<br/>course schema"]
-            EnrollM["Enrollment Module<br/>course schema"]
-            ReviewM["Review Module<br/>course schema"]
+            CourseM["Course Module<br/>course schema<br/>(incl. enrollment + review sub-domains)"]
             PaymentM["Payment Module<br/>payment schema"]
-            GamifyM["Gamification Module<br/>gamification schema"]
+            AiM["AI Module<br/>ai schema<br/>(see below)"]
         end
 
         subgraph Controllers["REST Controllers"]
@@ -96,6 +94,8 @@ flowchart TB
             OrderCtrl["Order Controller<br/>/orders/**"]
             InvoiceCtrl["Invoice Controller<br/>/invoices/**"]
             EarningCtrl["Earning Controller<br/>/teacher/earnings/**"]
+            PayoutCtrl["Payout Controller<br/>/payouts/**"]
+            RefundCtrl["Refund Controller<br/>/refunds/**"]
             ReviewCtrl["Review Controller<br/>/reviews/**"]
             WebhookCtrl["Webhook Controller<br/>/payments/webhook/**"]
         end
@@ -103,7 +103,7 @@ flowchart TB
         subgraph Integrations["Integrations"]
             PayGateway["Payment Gateway Adapter<br/>Mock / PayPal / SePay"]
             InvoiceGen["Invoice Generator<br/>iText PDF"]
-            AuthClient["Auth Client<br/>Feign Client"]
+            UserClient["User Client<br/>Feign Client → auth-service"]
         end
 
         subgraph Repos["Data Access"]
@@ -124,11 +124,13 @@ flowchart TB
     OrderCtrl --> PaymentM
     InvoiceCtrl --> InvoiceGen
     EarningCtrl --> PaymentM
-    ReviewCtrl --> ReviewM
+    PayoutCtrl --> PaymentM
+    RefundCtrl --> PaymentM
+    ReviewCtrl --> CourseM
     WebhookCtrl --> PayGateway
 
     PaymentM --> PayGateway
-    PaymentM --> EnrollM
+    PaymentM --> CourseM
     PayGateway --> PaymentGW
 
     CourseM --> CourseRepo
@@ -142,77 +144,121 @@ flowchart TB
 
 | Module | Database Schema | Responsibility |
 |--------|-----------------|----------------|
-| **Course Module** | `course` | CRUD for Courses, Sections, Lessons, Categories. |
-| **Enrollment Module** | `course` | Student enrollments, progress tracking, completion. |
-| **Review Module** | `course` | Course reviews, ratings, instructor replies. |
-| **Payment Module** | `payment` | Shopping cart, checkout, orders, invoices, instructor earnings. |
-| **Gamification Module** | `gamification` | (Future) Badges, points, leaderboards. |
+| **Course Module** | `course` | CRUD for Courses, Sections, Lessons, Categories, plus the enrollment and review sub-domains (progress tracking, completion, ratings, instructor replies) — these are packages inside the single `course` module, not separate top-level modules. |
+| **Payment Module** | `payment` | Shopping cart, checkout, orders, invoices, instructor earnings, payouts, refunds. |
+| **AI Module** | `ai` | RAG chat, lesson embeddings, summaries, quiz generation, transcription — see [AI Module Components](#ai-module-components-lms-core-service) below. |
 
 ### Key Design Pattern: Payment Gateway Adapter
 
 The payment system uses the **Strategy Pattern** to support multiple gateways:
 - **MockGateway**: For local development and testing.
 - **PayPalGateway**: For production payments (configurable).
-- **SePayGateway**: For Vietnam-specific payments (configurable).
+- **SepayGateway**: For Vietnam-specific payments (configurable).
 
 ---
 
-## AI Service Components (🚧 Planned)
+## AI Module Components (LMS Core Service)
 
 ```mermaid
 flowchart TB
-    subgraph AIService["🤖 AI Service (Planned)"]
-        subgraph Controllers["REST Controllers"]
-            ChatCtrl["Chat Controller<br/>/ai/chat/**"]
-            RecommendCtrl["Recommendation Controller<br/>/ai/recommend/**"]
-            ContentCtrl["Content Generation Controller<br/>/ai/generate/**"]
+    subgraph AIModule["AI Module (ai schema, inside LMS Core Service)"]
+        AiCtrl["AI Controller<br/>/api/ai/**"]
+
+        subgraph Services["Core Services"]
+            JobSvc["AiJobService<br/>Job state machine"]
+            RagSvc["RagService<br/>Chat + SSE stream"]
+            EmbedSvc["EmbeddingService<br/>Chunk + embed lessons"]
+            SummarySvc["AiSummaryService<br/>Structured summaries"]
+            QuizSvc["AiQuizService<br/>Quiz generation + scoring"]
+            WhisperSvc["WhisperTranscriptionService<br/>whisperTaskExecutor"]
+            RateLimit["RateLimitHelper<br/>ai_rate_limits, 20/day"]
         end
 
-        subgraph Core["Core Services"]
-            RAGEngine["RAG Engine<br/>LangChain + Vector DB"]
-            LLMAdapter["LLM Adapter<br/>OpenAI / Gemini / Local"]
-            EmbeddingSvc["Embedding Service<br/>Text Embeddings"]
-            PromptMgr["Prompt Manager<br/>Template Engine"]
+        subgraph AsyncProc["Async Processors (aiTaskExecutor)"]
+            AsyncEmbed["AsyncEmbeddingProcessor"]
+            AsyncSummary["AsyncSummaryProcessor"]
+            AsyncQuiz["AsyncQuizProcessor"]
         end
 
-        subgraph DataAccess["Data Access"]
-            VectorDB[(Vector Database<br/>Pinecone / Qdrant)]
-            Cache[(Redis Cache<br/>Response Caching)]
+        subgraph Transcription["Transcription Helpers"]
+            SourceResolver["TranscriptionSourceResolver"]
+            CloudExtractor["CloudinaryAudioExtractor"]
+            YtDownloader["YtDlpAudioDownloader"]
+            YtTranscript["YouTubeTranscriptExtractor"]
+            RetryScheduler["TranscriptionRetryScheduler<br/>polls every 30s"]
+        end
+
+        subgraph Scheduling["Scheduling & Events"]
+            ReindexSched["ReindexScheduler"]
+            AiListener["AiEventListener<br/>LessonContentUpdatedEvent<br/>LessonDeletedEvent"]
+        end
+
+        subgraph Persistence["Data Access (ai schema)"]
+            JobLogs[("ai_job_logs")]
+            Embeddings[("lesson_embeddings<br/>VECTOR(768), ivfflat")]
+            Summaries[("lesson_summaries")]
+            Quizzes[("generated_quizzes")]
+            Attempts[("quiz_attempts")]
+            RateLimits[("ai_rate_limits")]
+            GapQuestions[("knowledge_gap_questions")]
         end
     end
 
-    subgraph External["External LLM Providers"]
-        OpenAI["OpenAI API"]
-        Gemini["Google Gemini"]
-        LocalLLM["Local LLM<br/>Ollama"]
+    subgraph External["External Systems"]
+        Gemini["Google Gemini<br/>ChatClient + EmbeddingModel"]
+        Groq["Groq<br/>Whisper REST API"]
+        Cloud["Cloudinary<br/>Lesson video/audio"]
+        YtDlp["yt-dlp CLI<br/>YouTube audio"]
     end
 
-    ChatCtrl --> RAGEngine
-    RecommendCtrl --> RAGEngine
-    ContentCtrl --> LLMAdapter
+    AiCtrl --> JobSvc
+    AiCtrl --> RagSvc
+    AiCtrl --> EmbedSvc
+    AiCtrl --> SummarySvc
+    AiCtrl --> QuizSvc
+    AiCtrl --> WhisperSvc
 
-    RAGEngine --> EmbeddingSvc
-    RAGEngine --> VectorDB
-    RAGEngine --> LLMAdapter
-    LLMAdapter --> PromptMgr
+    RagSvc --> RateLimit
+    RagSvc --> Embeddings
+    RagSvc --> GapQuestions
+    RagSvc --> Gemini
 
-    LLMAdapter --> OpenAI
-    LLMAdapter --> Gemini
-    LLMAdapter -.-> LocalLLM
+    EmbedSvc --> AsyncEmbed
+    SummarySvc --> AsyncSummary
+    QuizSvc --> AsyncQuiz
+    AsyncEmbed --> Embeddings
+    AsyncEmbed --> Gemini
+    AsyncSummary --> Summaries
+    AsyncSummary --> Gemini
+    AsyncQuiz --> Quizzes
+    AsyncQuiz --> Attempts
+    AsyncQuiz --> Gemini
 
-    RAGEngine --> Cache
+    WhisperSvc --> SourceResolver
+    SourceResolver --> CloudExtractor
+    SourceResolver --> YtTranscript
+    YtTranscript --> YtDownloader
+    CloudExtractor --> Cloud
+    YtDownloader --> YtDlp
+    WhisperSvc --> Groq
+    WhisperSvc --> RetryScheduler
+    WhisperSvc --> JobLogs
 
-    style AIService fill:#fffbe6,stroke:#ffc107
+    ReindexSched --> EmbedSvc
+    ReindexSched --> SummarySvc
+    AiListener --> EmbedSvc
+    AiListener --> SummarySvc
 ```
 
-### Planned AI Features
+### Implemented AI Features
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **AI Chat Assistant** | Conversational AI for learning assistance | 🚧 Planned |
-| **Course Recommendations** | ML-powered personalized suggestions | 🚧 Planned |
-| **Content Generation** | AI-assisted course descriptions, quizzes | 🚧 Planned |
-| **RAG (Retrieval Augmented Generation)** | Context-aware answers from course content | 🚧 Planned |
+| **RAG Chat Assistant** | Vector search over lesson embeddings, context-aware answers streamed via SSE (or sync). Rate-limited to 20 queries/day/user; low-confidence answers logged as knowledge gaps. | ✅ Active |
+| **Lesson Embeddings** | Auto-triggered by `LessonContentUpdatedEvent`. Splits content into 500-word chunks (50-word overlap), embeds via Gemini `gemini-embedding-001` (768 dims), stores in `ai.lesson_embeddings` with an ivfflat index. | ✅ Active |
+| **Lesson Summaries** | Generates structured JSON summaries (summary text, key points, vocabulary), upserted into `ai.lesson_summaries`. | ✅ Active |
+| **Quiz Generation** | Async job generates multiple-choice questions; students receive questions without `correctIndex`/`explanation`, full answers returned after submission with scoring. | ✅ Active |
+| **Transcription** | Groq Whisper (`whisper-large-v3-turbo`) transcribes Cloudinary lesson video/audio or YouTube sources (auto-captions first, falls back to `yt-dlp` audio download). Rate-limit hits set job to `DELAYED`, retried by `TranscriptionRetryScheduler`. | ✅ Active |
 
 ---
 

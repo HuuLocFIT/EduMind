@@ -72,6 +72,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const lastNonZeroVolumeRef = useRef(1);
     const settingsPanelRef = useRef<HTMLDivElement>(null);
     const settingsBtnRef = useRef<HTMLButtonElement>(null);
+    const fullscreenBtnRef = useRef<HTMLButtonElement>(null);
 
     // Expose raw HTMLVideoElement to parent
     useImperativeHandle(forwardedRef, () => videoEl.current!, []);
@@ -176,6 +177,19 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       return () => document.removeEventListener('fullscreenchange', onFsChange);
     }, []);
 
+    // Escaping out of fullscreen drops focus to <body> and scrolls the page to
+    // the top. Focus the button back synchronously (one focus move = one screen
+    // reader announcement) and skip the initial mount so page load doesn't
+    // steal focus. VoiceOver also reads the window title here — a WebKit
+    const isFirstFsRenderRef = useRef(true);
+    useEffect(() => {
+      if (isFirstFsRenderRef.current) {
+        isFirstFsRenderRef.current = false;
+        return;
+      }
+      fullscreenBtnRef.current?.focus({ preventScroll: true });
+    }, [isFullscreen]);
+
     // ── Fetch VTT as blob URL (avoids crossOrigin on video breaking duration) ─
 
     useEffect(() => {
@@ -243,6 +257,53 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       document.addEventListener('mousedown', onClickOutside);
       return () => document.removeEventListener('mousedown', onClickOutside);
     }, [showSettings]);
+
+    // ── Settings menu keyboard navigation ─────────────────────────────────────
+    // Menu items are the only <button>s inside the panel; roving focus moves
+    // between them with Arrow keys, Escape closes and returns focus to the gear.
+
+    const getSettingsMenuItems = useCallback(() => {
+      return Array.from(
+        settingsPanelRef.current?.querySelectorAll('button') ?? [],
+      ) as HTMLButtonElement[];
+    }, []);
+
+    const closeSettingsAndRefocusTrigger = useCallback(() => {
+      setShowSettings(false);
+      settingsBtnRef.current?.focus();
+    }, []);
+
+    const handleSettingsPanelKeyDown = useCallback(
+      (e: React.KeyboardEvent) => {
+        const items = getSettingsMenuItems();
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSettingsAndRefocusTrigger();
+          return;
+        }
+        if (!items.length) return;
+        const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          e.stopPropagation();
+          items[(currentIndex + 1 + items.length) % items.length].focus();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          e.stopPropagation();
+          items[(currentIndex - 1 + items.length) % items.length].focus();
+        }
+      },
+      [getSettingsMenuItems, closeSettingsAndRefocusTrigger],
+    );
+
+    // Move focus into the panel (onto the selected item) whenever it opens.
+    useEffect(() => {
+      if (!showSettings) return;
+      const items = getSettingsMenuItems();
+      const selected = items.find((el) => el.getAttribute('aria-checked') === 'true');
+      (selected ?? items[0])?.focus();
+    }, [showSettings, getSettingsMenuItems]);
 
     // Cleanup timer on unmount
     useEffect(() => {
@@ -381,6 +442,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       v.playbackRate = speed;
       setPlaybackSpeed(speed);
       setShowSettings(false);
+      settingsBtnRef.current?.focus();
     }, []);
 
     const cycleSpeed = useCallback(() => {
@@ -397,6 +459,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         setIsQualitySwitching(true);
         setSelectedQuality(quality);
         setShowSettings(false);
+        settingsBtnRef.current?.focus();
       },
       [selectedQuality],
     );
@@ -492,7 +555,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         ref={containerRef}
         role="group"
         aria-label="Video player"
-        className={`relative mx-auto w-full bg-black aspect-video max-h-[calc(100vh-180px)] xl:max-h-[calc(100vh-220px)] select-none outline-none group ${
+        className={`group relative mx-auto aspect-video w-full max-w-full bg-black max-h-[calc(100vh-180px)] [@media(max-height:32rem)]:max-h-[calc(100dvh-8rem)] select-none outline-none xl:max-h-[calc(100vh-220px)] ${
           controlsVisible ? 'cursor-default' : 'cursor-none'
         }`}
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- custom keyboard-accessible player widget; role="group" groups video+controls, tabIndex enables the documented arrow/space/m shortcuts
@@ -575,16 +638,23 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           {showSettings && (
             <div
               ref={settingsPanelRef}
+              id="video-settings-menu"
+              role="menu"
+              aria-label="Playback settings"
+              tabIndex={-1}
+              onKeyDown={handleSettingsPanelKeyDown}
               className="absolute bottom-16 right-3 pointer-events-auto bg-black/90 rounded-lg p-3 min-w-[160px] z-10 shadow-xl border border-white/10"
             >
               {/* Speed */}
               <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-2">
                 Speed
               </p>
-              <div className="flex flex-wrap gap-1 mb-3">
+              <div role="group" aria-label="Playback speed" className="flex flex-wrap gap-1 mb-3">
                 {SPEEDS.map((s) => (
                   <button
                     key={s}
+                    role="menuitemradio"
+                    aria-checked={playbackSpeed === s}
                     onClick={() => changeSpeed(s)}
                     className={`px-2 py-0.5 text-xs rounded transition-colors ${
                       playbackSpeed === s
@@ -604,10 +674,12 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                   <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-2">
                     Quality
                   </p>
-                  <div className="flex gap-1">
+                  <div role="group" aria-label="Video quality" className="flex gap-1">
                     {(['480p', '720p'] as const).map((q) => (
                       <button
                         key={q}
+                        role="menuitemradio"
+                        aria-checked={selectedQuality === q}
                         onClick={() => switchQuality(q)}
                         className={`px-2 py-0.5 text-xs rounded transition-colors ${
                           selectedQuality === q
@@ -675,7 +747,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               <span
                 role="timer"
                 aria-label={`Elapsed time ${seekValuetext}`}
-                className="text-white text-xs tabular-nums whitespace-nowrap"
+                className="whitespace-nowrap text-xs tabular-nums text-white [@media(max-width:360px)_and_(max-height:32rem)]:sr-only"
               >
                 {formatTime(currentTime)}{' '}
                 <span className="text-white/50">/</span>{' '}
@@ -761,12 +833,16 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 onClick={() => setShowSettings((v) => !v)}
                 className={`h-8 w-8 inline-flex items-center justify-center rounded-md border border-transparent transition-colors ${showSettings ? 'text-white' : 'text-white/70 hover:text-white'}`}
                 aria-label="Settings"
+                aria-haspopup="menu"
+                aria-expanded={showSettings}
+                aria-controls="video-settings-menu"
               >
                 <Settings className={`w-4 h-4 transition-transform duration-300 ${showSettings ? 'rotate-45' : ''}`} aria-hidden="true" />
               </button>
 
               {/* Fullscreen */}
               <button
+                ref={fullscreenBtnRef}
                 onClick={toggleFullscreen}
                 className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-transparent text-white/70 hover:text-white transition-colors"
                 aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}

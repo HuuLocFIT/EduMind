@@ -190,6 +190,27 @@ public class LessonServiceImpl implements LessonService {
         int newTotal = Math.max(0, currentTotalLessons - 1);
         course.setTotalLessons(newTotal);
 
+        // Best-effort Cloudinary cleanup so deleting a lesson doesn't orphan its assets
+        if (lesson.getVideoPublicId() != null) {
+            try {
+                cloudinaryService.deleteFile(lesson.getVideoPublicId(), "video");
+                log.info("Deleted Cloudinary video: {}", lesson.getVideoPublicId());
+            } catch (Exception e) {
+                log.warn("Failed to delete Cloudinary video {}: {}", lesson.getVideoPublicId(), e.getMessage());
+            }
+        }
+        if (lesson.getResources() != null) {
+            for (var resource : lesson.getResources()) {
+                try {
+                    String publicId = cloudinaryService.extractPublicId(resource.getUrl());
+                    cloudinaryService.deleteFile(publicId, "raw");
+                    log.info("Deleted Cloudinary resource: {}", publicId);
+                } catch (Exception e) {
+                    log.warn("Failed to delete Cloudinary resource {}: {}", resource.getUrl(), e.getMessage());
+                }
+            }
+        }
+
         lessonRepository.delete(lesson);
 
         // Recalculate duration hours
@@ -516,6 +537,29 @@ public class LessonServiceImpl implements LessonService {
             lesson.setVideoUploadStatus(VideoUploadStatus.FAILED);
             lessonRepository.save(lesson);
             log.info("Video upload state reset to FAILED for lesson {}", lessonId);
+        }
+    }
+
+    @Override
+    public void deleteResourceUpload(Long courseId, String url, Long instructorId) {
+        log.info("Deleting resource upload for course {} by instructor {}", courseId, instructorId);
+
+        Course course = courseService.getCourseById(courseId);
+
+        if (!course.getInstructorId().equals(instructorId)) {
+            throw new UnauthorizedException("You can only delete resources from your own courses");
+        }
+
+        String publicId = cloudinaryService.extractPublicId(url);
+        if (publicId == null || !publicId.startsWith("lessons/resources/")) {
+            throw new BadRequestException("Invalid resource URL");
+        }
+
+        try {
+            cloudinaryService.deleteFile(publicId, "raw");
+            log.info("Deleted Cloudinary resource: {}", publicId);
+        } catch (Exception e) {
+            log.warn("Failed to delete Cloudinary resource {}: {}", publicId, e.getMessage());
         }
     }
 

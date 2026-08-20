@@ -193,7 +193,7 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
 ### Step 4: Access services
 
-- **Discovery Service Dashboard**: http://localhost:8761
+- **Discovery Service Dashboard**: http://localhost:8761 (HTTP Basic: `EUREKA_USERNAME` / `EUREKA_PASSWORD`, default `eureka` / `eureka`)
 - **API Gateway**: http://localhost:8080
 - **Auth Service**: http://localhost:8081
 - **LMS Core Service**: http://localhost:8083
@@ -234,7 +234,8 @@ docker compose down -v --rmi all
 | `REDIS_HOST` | redis | Redis hostname (in Docker network) |
 | `REDIS_PORT` | 6379 | Redis port |
 | `REDIS_PASSWORD` | - | Redis password (if any) |
-| `EUREKA_DEFAULT_ZONE` | http://discovery-service:8761/eureka/ | Eureka server URL |
+| `EUREKA_DEFAULT_ZONE` | http://discovery-service:${DISCOVERY_SERVER_PORT}/eureka/ | Eureka server URL. No credentials: clients send an `Authorization` header instead |
+| `EUREKA_USERNAME` / `EUREKA_PASSWORD` | `eureka` / `eureka` in dev, required in prod | Registry credentials, passed to the server and to every client |
 
 ### Auth Service
 
@@ -304,7 +305,7 @@ docker compose logs discovery-service
 docker network inspect backend_edumind-network
 
 # Check Eureka dashboard
-curl http://localhost:8761/eureka/apps
+curl -u eureka:eureka http://localhost:8761/eureka/apps
 ```
 
 ### 4. Port is already in use

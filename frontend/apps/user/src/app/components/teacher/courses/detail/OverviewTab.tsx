@@ -44,11 +44,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ course }) => {
         </div>
         <div className="bg-white rounded-lg border p-4">
           <div className="flex items-center gap-2 text-gray-600 mb-1">
-            <Clock className="w-4 h-4" />
+            <Clock className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm">Duration</span>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {course.durationHours ?? 0}h
+            <span className="sr-only">{`${course.durationHours ?? 0} hours`}</span>
+            <span aria-hidden="true">{course.durationHours ?? 0}h</span>
           </p>
         </div>
       </div>

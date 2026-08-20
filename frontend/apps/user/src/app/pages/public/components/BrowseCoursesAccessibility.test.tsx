@@ -96,6 +96,24 @@ describe("Browse courses accessibility", () => {
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 
+  it("allows the search input to shrink without pushing its submit button off-screen", () => {
+    render(
+      <BrowseHeroSection
+        value=""
+        onInputChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
+
+    const input = screen.getByRole("textbox", { name: "Search courses" });
+    const form = screen.getByRole("search");
+
+    expect(form).toHaveClass("w-full", "min-w-0");
+    expect(input).toHaveClass("min-w-0", "flex-1");
+    expect(screen.getByRole("button", { name: "Search" })).toHaveClass("flex-shrink-0");
+  });
+
   it("announces an empty result update and provides a recovery action", () => {
     render(
       <BrowseCourseList
@@ -108,6 +126,43 @@ describe("Browse courses accessibility", () => {
     expect(screen.getByRole("status")).toHaveTextContent("0 courses found");
     expect(screen.getByRole("heading", { name: "No courses found" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear All Filters" })).toBeInTheDocument();
+  });
+
+  it("moves focus to the empty-state heading after settled empty results are requested", () => {
+    const { rerender } = render(
+      <BrowseCourseList {...listProps} activeFiltersCount={2} isFetching />
+    );
+
+    const heading = screen.getByRole("heading", { name: "No courses found" });
+    rerender(
+      <BrowseCourseList
+        {...listProps}
+        activeFiltersCount={2}
+        focusRequest={1}
+        isFetching
+      />
+    );
+    expect(heading).not.toHaveFocus();
+
+    rerender(
+      <BrowseCourseList
+        {...listProps}
+        activeFiltersCount={2}
+        focusRequest={1}
+      />
+    );
+    expect(heading).toHaveFocus();
+
+    const clearFiltersButton = screen.getByRole("button", { name: "Clear All Filters" });
+    clearFiltersButton.focus();
+    rerender(
+      <BrowseCourseList
+        {...listProps}
+        activeFiltersCount={2}
+        focusRequest={1}
+      />
+    );
+    expect(clearFiltersButton).toHaveFocus();
   });
 
   it("announces the visible result range as a sentence", () => {

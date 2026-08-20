@@ -20,7 +20,34 @@ function readCodeLanguage(element: HTMLElement): string {
   for (const cls of Array.from(element.classList)) {
     if (cls.startsWith('language-')) candidates.push(cls.slice('language-'.length));
   }
+  const block = element.closest<HTMLElement>('[data-content-type="codeBlock"]');
+  if (block && block !== element) {
+    candidates.push(block.getAttribute('data-language') ?? '');
+  }
   return candidates.find((c) => c.length > 0) ?? '';
+}
+
+const CODE_LANGUAGE_NAMES: Record<string, string> = {
+  js: 'JavaScript',
+  javascript: 'JavaScript',
+  ts: 'TypeScript',
+  typescript: 'TypeScript',
+  py: 'Python',
+  python: 'Python',
+  html: 'HTML',
+  css: 'CSS',
+  json: 'JSON',
+  jsx: 'JSX',
+  tsx: 'TSX',
+  sql: 'SQL',
+  bash: 'Bash',
+  shell: 'Shell',
+  text: 'Plain text',
+};
+
+function displayCodeLanguage(language: string): string {
+  if (!language) return 'Language not specified';
+  return CODE_LANGUAGE_NAMES[language.toLowerCase()] ?? language;
 }
 
 /**
@@ -58,11 +85,21 @@ function normalizeLessonHtml(html: string): string {
     // legitimate `lang` attributes on surrounding prose.
     pre.removeAttribute('lang');
     pre.querySelectorAll('code[lang]').forEach((code) => code.removeAttribute('lang'));
+    const displayLanguage = displayCodeLanguage(language);
     pre.setAttribute('role', 'region');
     pre.setAttribute(
       'aria-label',
-      language ? `Code example, ${language}` : 'Code example, language not specified',
+      `Code example, ${displayLanguage}`,
     );
+
+    // Keep BlockNote's <pre><code> structure intact. The visible badge is
+    // decorative for assistive technology because the region already exposes
+    // the same context through its accessible name.
+    const badge = doc.createElement('span');
+    badge.className = 'article-viewer__code-language';
+    badge.setAttribute('aria-hidden', 'true');
+    badge.textContent = `Code example — ${displayLanguage}`;
+    pre.before(badge);
   });
 
   return doc.body.innerHTML;
@@ -78,7 +115,7 @@ export const ArticleViewer: React.FC<ArticleViewerProps> = ({ html, title }) => 
         'loading', // keep loading="lazy" after sanitize
         'data-content-type', 'data-level', 'data-text-alignment',
         'data-text-color', 'data-background-color', 'data-checked',
-        'role', 'aria-label', 'lang',
+        'role', 'aria-label', 'aria-hidden', 'lang',
       ],
     });
   }, [html]);

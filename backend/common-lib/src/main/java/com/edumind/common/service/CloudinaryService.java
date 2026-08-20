@@ -5,6 +5,7 @@ import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import com.edumind.common.dto.FileUploadResponse;
 import com.edumind.common.exception.FileUploadException;
+import com.edumind.common.util.DocumentTypeSniffer;
 import com.edumind.common.util.FileTypeSniffer;
 import com.edumind.common.util.SvgSanitizer;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,16 @@ public class CloudinaryService {
             "image/jpeg", "image/png", "image/webp", "image/svg+xml"
     );
 
+    // Sniff-based document allowlist. The client-supplied Content-Type header is never used to
+    // gate this decision, since it is fully attacker-controlled.
+    private static final java.util.Set<String> ALLOWED_DOCUMENT_TYPES = java.util.Set.of(
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/zip"
+    );
+
     private final Cloudinary cloudinary;
 
     /**
@@ -37,19 +48,26 @@ public class CloudinaryService {
         validateFile(file);
 
         try {
+            byte[] bytes = file.getBytes();
+            String sniffed = DocumentTypeSniffer.sniff(bytes);
+
+            if (sniffed == null || !ALLOWED_DOCUMENT_TYPES.contains(sniffed)) {
+                throw new FileUploadException("Only PDF, DOCX, PPTX, XLSX, and ZIP documents are allowed");
+            }
+
             String originalFilename = file.getOriginalFilename();
             String extension = "";
             if (originalFilename != null && originalFilename.contains(".")) {
                 extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
 
-            String publicId = folder + "/" + UUID.randomUUID().toString() + extension;
+            String publicId = UUID.randomUUID().toString() + extension;
 
             log.info("🔄 Uploading document to Cloudinary: {}", originalFilename);
 
             @SuppressWarnings("unchecked")
             Map<String, Object> uploadResult = cloudinary.uploader().upload(
-                    file.getBytes(),
+                    bytes,
                     ObjectUtils.asMap(
                             "public_id", publicId,
                             "folder", folder,

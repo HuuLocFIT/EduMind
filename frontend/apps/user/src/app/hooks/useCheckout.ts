@@ -107,8 +107,8 @@ export const useCancelPayment = () => {
   });
 };
 
-// Order expires after 30 minutes
-const ORDER_EXPIRATION_MS = 30 * 60 * 1000; // 30 minutes in milliseconds
+// Order expires after 15 minutes (matches backend payment.sepay.qr-expire-minutes)
+const ORDER_EXPIRATION_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
 const DEFAULT_POLLING_INTERVAL_MS = 3000; // 3 seconds
 
 /**
@@ -116,7 +116,7 @@ const DEFAULT_POLLING_INTERVAL_MS = 3000; // 3 seconds
  * Polls every interval until payment is confirmed via webhook
  *
  * Features:
- * - Automatically stops polling after 30 minutes (order expiration)
+ * - Automatically stops polling after 15 minutes (order expiration)
  * - Stops polling when status becomes COMPLETED, FAILED, CANCELLED, or REFUNDED
  * - Handles pending status for async payments (SePay bank transfer)
  */
@@ -159,7 +159,7 @@ export const usePaymentStatus = (
     refetchInterval: (query) => {
       const data = query.state.data;
 
-      // Check if polling has exceeded max duration (30 minutes)
+      // Check if polling has exceeded max duration (15 minutes)
       const startTime = pollingStartTimeRef.current || Date.now();
       const elapsed = Date.now() - startTime;
 

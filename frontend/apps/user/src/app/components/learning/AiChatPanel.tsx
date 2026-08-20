@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -143,6 +143,7 @@ const UserMessageBubble = React.memo(function UserMessageBubble({
       className={`flex justify-end${isPairStart ? ' mt-3' : ''}`}
     >
       <div className="min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed shadow-sm bg-indigo-600 text-white rounded-br-sm">
+        <span className="sr-only">You: </span>
         <p className="whitespace-pre-wrap m-0">{content}</p>
       </div>
     </div>
@@ -159,6 +160,7 @@ const CompletedAiMessageBubble = React.memo(function CompletedAiMessageBubble({
     <div className="flex justify-start">
       {AiAvatar}
       <div className={aiBubbleClass}>
+        <span className="sr-only">AI: </span>
         <div className="text-gray-800 break-words w-full">
           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
             {msg.content}
@@ -186,18 +188,19 @@ function StreamingAiMessageBubble({
     <div className="flex justify-start">
       {AiAvatar}
       <div className={aiBubbleClass}>
+        <span className="sr-only">AI: </span>
         {isWaiting ? (
           <div className="flex items-center gap-1 py-1">
-            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce [animation-delay:-0.3s]" />
-            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
-            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce" />
+            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce motion-reduce:animate-none [animation-delay:-0.3s]" />
+            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce motion-reduce:animate-none [animation-delay:-0.15s]" />
+            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-bounce motion-reduce:animate-none" />
           </div>
         ) : (
           <div className="text-gray-800 break-words w-full">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={markdownComponents}>
               {displayText}
             </ReactMarkdown>
-            <span className="inline-block w-[7px] h-[1em] ml-[1px] align-baseline bg-gray-400 animate-pulse" />
+            <span className="inline-block w-[7px] h-[1em] ml-[1px] align-baseline bg-gray-400 animate-pulse motion-reduce:animate-none" />
           </div>
         )}
         {sourceLessons && sourceLessons.length > 0 && (
@@ -222,11 +225,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
   );
   const messages = storedMessages ?? [];
   const addMessage = useAiChatStore((state) => state.addMessage);
+  const removeLastMessage = useAiChatStore((state) => state.removeLastMessage);
   const updateLastAiMessage = useAiChatStore((state) => state.updateLastAiMessage);
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Announced once via aria-live when a stream finishes — screen reader users
+  // get a single "done" cue instead of being read every typewriter tick.
+  const [announcement, setAnnouncement] = useState('');
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
@@ -235,6 +242,15 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
   const prevIsLoadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Grows the textarea with its content up to max-h-24 since it's rows={1}
+  // and resize-none — the browser won't do this on its own.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  }, [input]);
 
   // Typewriter: targetTextRef accumulates raw SSE text; setInterval drips it into
   // streamingDisplayText so large backend chunks feel smooth.
@@ -321,10 +337,30 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
     return pairs.slice(-4);
   };
 
-  const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+  // Retries resend the same question without re-adding a duplicate user bubble —
+  // lastFailedQuestion is only populated on a hard failure (see failWith below).
+  // Kept as state (not a ref) so its appearance can drive a focus-management effect.
+  const [lastFailedQuestion, setLastFailedQuestion] = useState<string | null>(null);
+  const retryButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // Sending disables the textarea/button, which blurs focus to <body> if either was
+  // focused when Enter/Send was pressed. Move focus back somewhere useful once the
+  // request settles: onto Retry when the request failed hard, otherwise back to the
+  // input — never leave focus stranded outside the panel.
+  const wasLoadingForFocusRef = useRef(false);
+  useEffect(() => {
+    const wasLoading = wasLoadingForFocusRef.current;
+    wasLoadingForFocusRef.current = isLoading;
+    if (!wasLoading || isLoading) return;
+
+    if (lastFailedQuestion) {
+      retryButtonRef.current?.focus();
+    } else if (!panelRef.current?.contains(document.activeElement)) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, lastFailedQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runChatRequest = (trimmed: string) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     if (typewriterIntervalRef.current) {
       clearInterval(typewriterIntervalRef.current);
@@ -333,14 +369,13 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
     targetTextRef.current = '';
     setStreamingDisplayText('');
 
-    const userMessage: AiChatMessage = { role: 'user', content: trimmed };
-    addMessage(courseId, userMessage);
     const aiPlaceholder: AiChatMessage = { role: 'ai', content: '' };
     addMessage(courseId, aiPlaceholder);
 
-    setInput('');
     setIsLoading(true);
     setError(null);
+    setAnnouncement('');
+    setLastFailedQuestion(null);
 
     let receivedChunks = false;
 
@@ -352,6 +387,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    // A hard failure drops the empty AI placeholder bubble (nothing was ever produced
+    // for it) and records the question so the Retry action can resend it.
+    const failWith = (message: string) => {
+      removeLastMessage(courseId);
+      setLastFailedQuestion(trimmed);
+      setError(message);
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    };
 
     aiService
       .chatStream(courseId, payload, {
@@ -388,28 +433,25 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
           if (err instanceof Response) {
             if (err.status === 429) {
-              setError('Daily question limit reached (20/day). Try again tomorrow.');
+              failWith('Daily question limit reached (20/day). Try again tomorrow.');
             } else if (err.status === 401) {
-              setError('Your session has expired. Please refresh the page and log in again.');
+              failWith('Your session has expired. Please refresh the page and log in again.');
             } else if (err.status === 403) {
-              setError("You don't have access to AI chat for this course.");
+              failWith("You don't have access to AI chat for this course.");
             } else {
-              setError('Something went wrong. Please try again.');
+              failWith('Something went wrong. Please try again.');
             }
-            setIsLoading(false);
-            abortControllerRef.current = null;
             return;
           }
 
           if (err instanceof SseStreamError) {
-            setError(err.message || 'Something went wrong. Please try again.');
-            setIsLoading(false);
-            abortControllerRef.current = null;
+            failWith(err.message || 'Something went wrong. Please try again.');
             return;
           }
 
           if (receivedChunks) {
             setError('Response may be incomplete. Please try again if needed.');
+            setAnnouncement('AI tutor response ended early and may be incomplete.');
             setIsLoading(false);
             abortControllerRef.current = null;
             return;
@@ -424,18 +466,18 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
                 sourceLessons: response.sourceLessons,
               }));
               setError(null);
+              setAnnouncement('AI tutor response ready.');
+              setIsLoading(false);
+              abortControllerRef.current = null;
             } catch (fallbackErr: unknown) {
               const status = (fallbackErr as { response?: { status?: number } })?.response?.status;
               if (status === 429) {
-                setError('Daily question limit reached (20/day). Try again tomorrow.');
+                failWith('Daily question limit reached (20/day). Try again tomorrow.');
               } else if (status === 403) {
-                setError("You don't have access to AI chat for this course.");
+                failWith("You don't have access to AI chat for this course.");
               } else {
-                setError('Something went wrong. Please try again.');
+                failWith('Something went wrong. Please try again.');
               }
-            } finally {
-              setIsLoading(false);
-              abortControllerRef.current = null;
             }
           })();
         },
@@ -449,12 +491,29 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
           targetTextRef.current = '';
           setStreamingDisplayText('');
           setIsLoading(false);
+          setAnnouncement('AI tutor response ready.');
           abortControllerRef.current = null;
         },
       })
       .catch(() => {
         // Errors handled in onError
       });
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
+
+    const userMessage: AiChatMessage = { role: 'user', content: trimmed };
+    addMessage(courseId, userMessage);
+    setInput('');
+    runChatRequest(trimmed);
+  };
+
+  const handleRetry = () => {
+    const trimmed = lastFailedQuestion;
+    if (!trimmed || isLoading) return;
+    runChatRequest(trimmed);
   };
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
@@ -489,21 +548,20 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       aria-modal="true"
       aria-labelledby="ai-course-tutor-title"
       aria-describedby="ai-course-tutor-description"
-      className="fixed bottom-20 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)]
-                 bg-white rounded-2xl shadow-2xl border flex flex-col md:bottom-24 md:right-[336px]"
+      className="fixed inset-x-0 bottom-0 top-16 z-50 flex h-[calc(100dvh-4rem)] min-h-0 w-full max-w-none flex-col overflow-hidden border bg-white shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-6 sm:top-auto sm:h-[520px] sm:max-h-[calc(100dvh-6rem)] sm:w-96 sm:max-w-[calc(100vw-2rem)] sm:rounded-2xl md:right-[336px]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-full bg-indigo-50">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3 [@media(max-height:32rem)]:px-3 [@media(max-height:32rem)]:py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="shrink-0 rounded-full bg-indigo-50 p-2 [@media(max-height:32rem)]:p-1.5">
             <Sparkles aria-hidden="true" className="w-5 h-5 text-indigo-600" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 id="ai-course-tutor-title" className="font-semibold text-gray-900 flex items-center gap-2">
-              AI Course Tutor
+              AI Tutor
               <MessageCircle aria-hidden="true" className="w-4 h-4 text-gray-500" />
             </h3>
-            <p id="ai-course-tutor-description" className="text-xs text-gray-500">
+            <p id="ai-course-tutor-description" className="text-xs text-gray-500 [@media(max-height:32rem)]:sr-only">
               Ask questions about this course. Answers are based on the course lessons.
             </p>
           </div>
@@ -511,7 +569,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
         <button
           type="button"
           onClick={handleCloseClick}
-          aria-label="Close AI Course Tutor"
+          aria-label="Close AI Tutor"
           className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
         >
           <X aria-hidden="true" className="w-4 h-4 text-gray-500" />
@@ -521,7 +579,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 bg-gray-50 flex flex-col gap-2"
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-gray-50 px-4 py-3 [@media(max-height:32rem)]:p-2"
       >
         {messages.length === 0 && !isLoading && (
           <p className="text-sm text-gray-500">
@@ -567,34 +625,50 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
         <div ref={bottomRef} />
       </div>
 
-      {error && <p className="text-xs text-red-600 px-4 mb-2">{error}</p>}
+      {/* Announced once when a stream finishes — not wrapped around the streaming
+          bubble itself, so token-by-token updates are never read aloud. */}
+      <div aria-live="polite" role="status" className="sr-only">
+        {announcement}
+      </div>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 px-4 mb-2">
+          <p role={lastFailedQuestion ? 'alert' : undefined} className="text-xs text-red-600 m-0">{error}</p>
+          {lastFailedQuestion && (
+            <button
+              ref={retryButtonRef}
+              type="button"
+              onClick={handleRetry}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 underline flex-shrink-0"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Input */}
-      <div className="flex items-end gap-2 px-4 py-3 border-t bg-white flex-shrink-0">
+      <div className="flex min-w-0 flex-shrink-0 items-end gap-2 border-t bg-white px-4 py-3 [@media(max-height:32rem)]:p-2">
         <textarea
           ref={inputRef}
-          aria-label="Ask the AI Course Tutor a question"
-          rows={2}
-          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none overflow-y-auto min-h-[56px]"
-          placeholder="Type your question... (Enter to send, Shift+Enter for new line)"
+          aria-label="Ask the AI Tutor a question"
+          rows={1}
+          className="min-h-11 min-w-0 max-h-24 flex-1 resize-none overflow-y-auto rounded-md border border-gray-300 px-3 py-2 text-sm leading-6 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 [@media(max-height:32rem)]:max-h-12"
+          placeholder="Type your question..."
           value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            e.target.style.height = 'auto';
-            e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-          }}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isLoading}
+          readOnly={isLoading}
         />
         <Button
           variant="primary"
           onClick={handleSend}
           disabled={isLoading || !input.trim()}
-          className="flex items-center gap-1 flex-shrink-0"
+          className="flex h-11 flex-shrink-0 items-center gap-1 [@media(max-height:32rem)]:px-3 [@media(max-height:32rem)]:py-2 [@media(max-height:32rem)]:h-auto"
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
               Sending
             </>
           ) : (

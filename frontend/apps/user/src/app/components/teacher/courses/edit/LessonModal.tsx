@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from "react";
-import { FileText, Wand2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { FileText, Wand2, X as XIcon } from "lucide-react";
 
 const stripHtml = (html: string) => {
   const div = document.createElement('div');
   div.innerHTML = html;
   return div.textContent || div.innerText || '';
 };
+
 import { ContentType } from "@edumind/shared-constants";
-import type { LessonResponse } from "@edumind/shared-types";
-import { Modal, Button, Input, Textarea } from "@edumind/user-ui";
+import type { LessonResponse, LessonResource } from "@edumind/shared-types";
+import { formatFileSize } from "@edumind/shared-utils";
+import { Modal, Button, Input, Textarea, FileUpload, useToast, type UploadedFile } from "@edumind/user-ui";
 import { RichTextEditor } from "../../../ui/RichTextEditor";
+import { highlightArticleCodeBlocks } from "../../../ui/article-code-highlight";
 import { VideoDropZone } from "./VideoDropZone";
+import { fileUploadService } from "../../../../services/file-upload.service";
+import { teacherCourseService } from "../../../../services/teacher-course.service";
 
 export type LessonFormData = {
   title: string;
@@ -21,11 +26,13 @@ export type LessonFormData = {
   articleContent: string;
   isPreview: boolean;
   isMandatory: boolean;
+  resources: LessonResource[];
 };
 
 interface LessonModalProps {
   isOpen: boolean;
   onClose: () => void;
+  courseId: number;
   editingLesson: { sectionId: number; lesson?: LessonResponse } | null;
   onSave: (formData: LessonFormData) => void;
   saving: boolean;
@@ -37,6 +44,7 @@ interface LessonModalProps {
 export const LessonModal: React.FC<LessonModalProps> = ({
   isOpen,
   onClose,
+  courseId,
   editingLesson,
   onSave,
   saving,
@@ -50,6 +58,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   const descriptionInputId = React.useId();
   const previewInputId = React.useId();
   const mandatoryInputId = React.useId();
+  const { error: showError } = useToast();
   const [form, setForm] = useState<LessonFormData>({
     title: "",
     description: "",
@@ -59,12 +68,17 @@ export const LessonModal: React.FC<LessonModalProps> = ({
     articleContent: "",
     isPreview: false,
     isMandatory: true,
+    resources: [],
   });
+  const [uploadingResources, setUploadingResources] = useState(false);
+  const [highlighting, setHighlighting] = useState(false);
+  const processedResourceFilesRef = useRef<Set<File>>(new Set());
 
   // Initialize form when modal opens or lesson changes
   useEffect(() => {
     if (!isOpen) return;
     const lesson = editingLesson?.lesson;
+    processedResourceFilesRef.current = new Set();
     setForm({
       title: lesson?.title ?? "",
       description: lesson?.description ?? "",
@@ -74,8 +88,73 @@ export const LessonModal: React.FC<LessonModalProps> = ({
       articleContent: lesson?.articleContent ?? "",
       isPreview: lesson?.isPreview ?? false,
       isMandatory: lesson?.isMandatory ?? true,
+      resources: lesson?.resources ?? [],
     });
   }, [isOpen, editingLesson?.lesson]);
+
+  const handleResourceFilesChange = async (files: UploadedFile[]) => {
+    // FileUpload reports the full cumulative selection on every change, so only
+    // upload files we haven't already processed to avoid duplicate uploads.
+    const newFiles = files.filter(
+      (f) => f.status !== "error" && !processedResourceFilesRef.current.has(f.file)
+    );
+    if (newFiles.length === 0) return;
+
+    newFiles.forEach((f) => processedResourceFilesRef.current.add(f.file));
+
+    setUploadingResources(true);
+    try {
+      for (const item of newFiles) {
+        try {
+          const result = await fileUploadService.uploadFile(item.file, "lessons/resources");
+          const extension = item.file.name.split(".").pop() ?? "";
+          const type = (result.fileType || extension).toUpperCase();
+          const resource: LessonResource = {
+            title: item.file.name,
+            url: result.url,
+            type,
+            size: result.size,
+          };
+          // Merge each successful upload immediately so a later failure in the
+          // same batch never discards already-uploaded files.
+          setForm((p) => ({ ...p, resources: [...p.resources, resource] }));
+        } catch (err: any) {
+          processedResourceFilesRef.current.delete(item.file);
+          showError(err.message || `Failed to upload ${item.file.name}`);
+        }
+      }
+    } finally {
+      setUploadingResources(false);
+    }
+  };
+
+  // Code blocks are syntax-highlighted once, here, so the student bundle never
+  // has to ship a highlighter and lesson code is coloured on first paint.
+  // A highlighter failure must not cost the teacher their edit, so the plain
+  // content is saved instead.
+  const handleSave = async () => {
+    if (highlighting) return;
+    if (!form.articleContent) {
+      onSave(form);
+      return;
+    }
+    setHighlighting(true);
+    try {
+      const articleContent = await highlightArticleCodeBlocks(form.articleContent);
+      onSave({ ...form, articleContent });
+    } catch {
+      onSave(form);
+    } finally {
+      setHighlighting(false);
+    }
+  };
+
+  const handleRemoveResource = (url: string) => {
+    setForm((p) => ({ ...p, resources: p.resources.filter((r) => r.url !== url) }));
+    teacherCourseService.deleteLessonResource(courseId, url).catch((err: any) => {
+      showError(err.message || "Failed to delete resource file");
+    });
+  };
 
   // Sync videoUrl/videoDuration when upload completes (parent refreshes editingLesson.lesson)
   useEffect(() => {
@@ -226,6 +305,52 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           />
         </div>
 
+        <div>
+          <FileUpload
+            accept=".pdf,.docx,.pptx,.xlsx,.zip"
+            multiple
+            maxSize={10}
+            maxFiles={5}
+            hideFileList
+            label="Attach Resources"
+            helperText={
+              uploadingResources
+                ? "Uploading..."
+                : "PDF, DOCX, PPTX, XLSX, or ZIP — max 10MB each, up to 5 files"
+            }
+            onFilesChange={handleResourceFilesChange}
+          />
+          {form.resources.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {form.resources.map((resource) => (
+                <div
+                  key={resource.url}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{resource.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {resource.type}
+                        {typeof resource.size === "number" ? ` · ${formatFileSize(resource.size)}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${resource.title}`}
+                    onClick={() => handleRemoveResource(resource.url)}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
+                  >
+                    <XIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-lg">
           <label aria-label="Free Preview" htmlFor={previewInputId} className="flex items-center gap-2 cursor-pointer">
             <input
@@ -262,8 +387,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           </Button>
           <Button
             variant="primary"
-            onClick={() => onSave(form)}
-            isLoading={saving}
+            onClick={handleSave}
+            isLoading={saving || highlighting}
             className="bg-green-600 hover:bg-green-700"
           >
             {editingLesson?.lesson ? "Update Lesson" : "Create Lesson"}

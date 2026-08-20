@@ -20,7 +20,7 @@ import { ForgotPasswordPage } from './ForgotPasswordPage';
 
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
@@ -41,7 +41,7 @@ vi.mock('@edumind/user-ui', () => ({
     <div>
       {label && <label htmlFor={id}>{label}</label>}
       <input id={id} {...props} aria-invalid={!!error} />
-      {error && <span role="alert">{error}</span>}
+      {error && <span>{error}</span>}
       {helperText && <span>{helperText}</span>}
     </div>
   ),
@@ -56,6 +56,7 @@ vi.mock('lucide-react', () => ({
   ArrowLeft: () => <span>←</span>,
   CheckCircle: () => <span>✓</span>,
   GraduationCap: () => <span>🎓</span>,
+  HelpCircle: () => <span>?</span>,
 }));
 
 const renderForgotPasswordPage = () => {
@@ -144,10 +145,12 @@ describe('ForgotPasswordPage', () => {
       await user.type(screen.getByPlaceholderText('your@email.com'), 'invalid-email');
       await user.click(screen.getByRole('button', { name: /send reset link/i }));
 
-      // On invalid email, the form should not submit and the API should not be called.
-      await waitFor(() => {
-        expect(mockForgotPassword).not.toHaveBeenCalled();
-      });
+      const summary = await screen.findByRole('alert');
+      expect(screen.getByPlaceholderText('your@email.com')).toHaveFocus();
+      expect(summary).toHaveTextContent('1 error');
+      expect(summary).toHaveTextContent('Invalid email address');
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(mockForgotPassword).not.toHaveBeenCalled();
     });
 
     it('should show error for empty email', async () => {

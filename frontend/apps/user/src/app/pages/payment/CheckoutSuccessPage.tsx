@@ -145,14 +145,14 @@ export const CheckoutSuccessPage: React.FC = () => {
       <>
         {pageMetadata}
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center" role="status" aria-live="polite">
+        <Card className="max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Clock className="w-8 h-8 text-amber-600" aria-hidden="true" />
           </div>
           <h1 ref={resultHeadingRef} tabIndex={-1} className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none">
             Payment Is Being Confirmed
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p role="status" className="text-gray-600 mb-6">
             We have not received final confirmation yet. Check your orders again shortly.
           </p>
           {orderNumber && <p className="text-sm text-gray-600 mb-6">Order Number: <span className="font-mono font-semibold">{orderNumber}</span></p>}
@@ -171,20 +171,19 @@ export const CheckoutSuccessPage: React.FC = () => {
       <>
         {pageMetadata}
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center" role="alert" aria-labelledby="capture-error-heading">
+        <Card className="max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <XCircle className="w-8 h-8 text-red-600" aria-hidden="true" />
           </div>
 
           <h1
-            id="capture-error-heading"
             ref={resultHeadingRef}
             tabIndex={-1}
             className="text-2xl font-bold text-gray-900 mb-2 focus:outline-none"
           >
             Payment Failed
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p role="status" className="text-gray-600 mb-6">
             {errorMessage || "We couldn't complete your payment. Please try again."}
           </p>
 
@@ -230,9 +229,6 @@ export const CheckoutSuccessPage: React.FC = () => {
         >
           Payment Successful!
         </h1>
-        <p className="sr-only" role="status" aria-live="polite">
-          Payment completed successfully.
-        </p>
         <p className="text-gray-600 mb-6">
           Thank you for your purchase. Your order has been confirmed.
         </p>

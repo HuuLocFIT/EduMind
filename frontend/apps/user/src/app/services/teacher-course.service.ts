@@ -240,6 +240,12 @@ export const teacherCourseService = {
     );
   },
 
+  async deleteLessonResource(courseId: number, url: string): Promise<void> {
+    await apiClient.delete(TEACHER_PORTAL_ENDPOINTS.LESSON_RESOURCE_DELETE, {
+      params: { courseId, url },
+    });
+  },
+
   // ==========================================================================
   // STUDENTS (Enrollments)
   // ==========================================================================

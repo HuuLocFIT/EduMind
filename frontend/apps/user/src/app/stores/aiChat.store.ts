@@ -18,6 +18,7 @@ interface AiChatState {
 
   getMessages: (courseId: number) => AiChatMessage[];
   addMessage: (courseId: number, message: AiChatMessage) => void;
+  removeLastMessage: (courseId: number) => void;
   clearCourse: (courseId: number) => void;
   updateLastAiMessage: (
     courseId: number,
@@ -52,6 +53,22 @@ export const useAiChatStore = create<AiChatState>()(
             chatsByCourse: {
               ...state.chatsByCourse,
               [key]: capped,
+            },
+          };
+        }),
+
+      removeLastMessage: (courseId) =>
+        set((state) => {
+          const key = courseId.toString();
+          const existing = state.chatsByCourse[key] || [];
+          if (existing.length === 0) {
+            return state;
+          }
+
+          return {
+            chatsByCourse: {
+              ...state.chatsByCourse,
+              [key]: existing.slice(0, -1),
             },
           };
         }),

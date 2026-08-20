@@ -147,7 +147,7 @@ class TwoFactorAuthServiceTest {
 
             // When/Then
             BadRequestException exception = assertThrows(BadRequestException.class,
-                    () -> twoFactorAuthService.verify2FA("123456", "secret"));
+                    () -> twoFactorAuthService.verify2FA("123456"));
 
             assertEquals("2FA is already enabled", exception.getMessage());
         }
@@ -158,14 +158,16 @@ class TwoFactorAuthServiceTest {
             // Given
             setupSecurityContext();
             testUser.setIs2faEnabled(false);
+            testUser.setTwoFactorSecret("encryptedSecret");
 
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(encryptionService.decrypt("encryptedSecret")).thenReturn("invalidSecret");
             doNothing().when(rateLimitService).checkRateLimit(anyLong());
             doNothing().when(rateLimitService).recordFailedAttempt(anyLong());
 
-            // When/Then - Using reflection to mock verifyCode to return false
+            // When/Then
             BadRequestException exception = assertThrows(BadRequestException.class,
-                    () -> twoFactorAuthService.verify2FA("000000", "invalidSecret"));
+                    () -> twoFactorAuthService.verify2FA("000000"));
 
             assertEquals("Invalid verification code", exception.getMessage());
             verify(rateLimitService).recordFailedAttempt(1L);
@@ -184,7 +186,7 @@ class TwoFactorAuthServiceTest {
 
             // When/Then
             assertThrows(ResourceNotFoundException.class,
-                    () -> twoFactorAuthService.verify2FA("123456", "secret"));
+                    () -> twoFactorAuthService.verify2FA("123456"));
         }
     }
 

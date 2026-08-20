@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import type { FieldErrors } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle, HelpCircle } from "lucide-react";
 
 import {
   Button,
@@ -26,6 +27,8 @@ function ForgotPasswordPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState("");
   const [resendMessage, setResendMessage] = useState("");
+  const [validationAnnouncement, setValidationAnnouncement] = useState("");
+  const validationAnnouncementTimerRef = useRef<number | null>(null);
   const confirmationHeadingRef = useRef<HTMLHeadingElement>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -39,6 +42,9 @@ function ForgotPasswordPage() {
   });
 
   const email = watch("email");
+  const validationMessages = [errors.email?.message].filter(
+    (message): message is string => Boolean(message),
+  );
 
   useEffect(() => {
     if (emailSent) confirmationHeadingRef.current?.focus();
@@ -48,7 +54,14 @@ function ForgotPasswordPage() {
     if (error) requestAnimationFrame(() => errorSummaryRef.current?.focus());
   }, [error]);
 
+  useEffect(() => () => {
+    if (validationAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(validationAnnouncementTimerRef.current);
+    }
+  }, []);
+
   const onSubmit = async (data: ForgotPasswordFormData) => {
+    setValidationAnnouncement("");
     setError("");
     setIsLoading(true);
 
@@ -62,6 +75,23 @@ function ForgotPasswordPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onInvalid = (invalidErrors: FieldErrors<ForgotPasswordFormData>) => {
+    setError("");
+    setValidationAnnouncement("");
+    if (validationAnnouncementTimerRef.current !== null) {
+      window.clearTimeout(validationAnnouncementTimerRef.current);
+    }
+    const messages = [invalidErrors.email?.message].filter(
+      (message): message is string => typeof message === "string",
+    );
+    validationAnnouncementTimerRef.current = window.setTimeout(() => {
+      setValidationAnnouncement(
+        `${messages.length} ${messages.length === 1 ? "error" : "errors"}. ${messages.join(". ")}`,
+      );
+      validationAnnouncementTimerRef.current = null;
+    }, 300);
   };
 
   const handleResend = async () => {
@@ -160,12 +190,35 @@ function ForgotPasswordPage() {
         </div>
 
         {/* Error Alert */}
-        {error && (
-          <AuthErrorSummary ref={errorSummaryRef} message={error} className="mb-4" />
+        {validationAnnouncement && (
+          <p className="sr-only" role="alert" aria-atomic="true">
+            {validationAnnouncement}
+          </p>
+        )}
+        {(validationMessages.length > 0 || error) && (
+          <AuthErrorSummary
+            ref={errorSummaryRef}
+            role={validationMessages.length > 0 ? "group" : "alert"}
+            title={
+              validationMessages.length > 0
+                ? `${validationMessages.length} ${validationMessages.length === 1 ? "error" : "errors"}`
+                : undefined
+            }
+            message={
+              validationMessages.length > 0 ? (
+                <ul className="mt-1 list-disc pl-5">
+                  {validationMessages.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              ) : error
+            }
+            className="mb-4"
+          />
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4" noValidate>
           <Input
             id="forgot-email"
             label="Email Address"
@@ -198,13 +251,14 @@ function ForgotPasswordPage() {
       </div>
 
       {/* Help Text */}
-      <p className="mt-6 text-center text-xs text-gray-500">
-        Having trouble? Contact{" "}
+      <p className="mt-6 flex items-center justify-center gap-1 text-xs text-gray-500">
+        <span>Having trouble?</span>
         <a
           href="mailto:support@edumind.com"
-          className="text-blue-600 hover:underline"
+          className="inline-flex items-center gap-1 text-blue-600 underline hover:text-blue-800 hover:no-underline"
         >
-          support@edumind.com
+          <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" />
+          Contact Support
         </a>
       </p>
     </div>

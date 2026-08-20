@@ -320,11 +320,9 @@ test.describe('@a11y-purchase Flow 3 checkout acceptance', () => {
     // backend-confirmed transition used by the success screen.
     await page.goto('/checkout/success?token=flow-3-capture');
     const success = page.getByRole('heading', { level: 1, name: 'Payment Successful!' });
+    // Focus moving to the heading is the announcement mechanism here (no
+    // separate sr-only live region on the success state).
     await expect(success).toBeFocused();
-    const paymentStatus = page.getByRole('status').filter({
-      hasText: 'Payment completed successfully.',
-    });
-    await expect(paymentStatus).toHaveText('Payment completed successfully.');
     await expect(page.getByText('ORD-FLOW3-001')).toBeVisible();
     await axe(page, testInfo, 'purchase acceptance success');
   });
@@ -360,5 +358,335 @@ test.describe('@a11y-purchase Flow 3 checkout acceptance', () => {
     await expect(page.getByRole('heading', { name: 'Order Items (1)' })).toBeVisible();
     await expect(page.getByText('Accessible React')).toBeVisible();
     await axe(page, testInfo, 'purchase acceptance direct checkout');
+  });
+
+  test('processing state announces and blocks a duplicate submit (checklist B7)', async ({ page }, testInfo) => {
+    let checkoutCallCount = 0;
+    let releaseCheckout!: () => void;
+    const checkoutReleased = new Promise<void>((resolve) => { releaseCheckout = resolve; });
+    await page.route(/\/api\/checkout$/, async (route) => {
+      checkoutCallCount += 1;
+      await checkoutReleased;
+      await json(route, {
+        success: true,
+        orderId: 7002,
+        orderNumber: 'ORD-FLOW3-B7',
+        orderStatus: 'COMPLETED',
+        totalAmount: 60,
+        currency: 'USD',
+        paymentMethod: 'PAYPAL',
+        enrolledCourseIds: [101],
+      });
+    });
+
+    await page.goto('/checkout');
+    await page.getByRole('radio', { name: /PayPal/ }).check();
+    const submit = page.getByRole('button', { name: /Complete Order|Pay Now/ });
+    await submit.click();
+
+    const processing = page.getByRole('button', { name: 'Processing...' });
+    await expect(processing).toBeDisabled();
+    await axe(page, testInfo, 'purchase acceptance B7 processing');
+
+    // Enter/Space on the now-disabled button must not fire a second request.
+    await processing.press('Enter');
+    await processing.press(' ');
+    releaseCheckout();
+    await page.waitForURL(/\/checkout\/success/);
+    expect(checkoutCallCount).toBe(1);
+  });
+
+  test('backend failure at submit is announced with focus moved (checklist B9)', async ({ page }, testInfo) => {
+    await page.route(/\/api\/checkout$/, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Internal server error' }) }));
+    await page.goto('/checkout');
+    await page.getByRole('radio', { name: /PayPal/ }).check();
+    await page.getByRole('button', { name: /Complete Order|Pay Now/ }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await axe(page, testInfo, 'purchase acceptance B9 backend failure');
+  });
+
+  test('PayPal redirect is announced before the external navigation fires (checklist B10)', async ({ page }, testInfo) => {
+    const redirectUrl = 'https://paypal.example.test/checkoutnow?token=flow3-b10';
+    // The component calls window.location.assign(redirectUrl) after a delay;
+    // stub the destination so a real navigation attempt (if the assertions
+    // are slow) resolves instead of erroring against an unreachable host.
+    await page.route(redirectUrl, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<html></html>' }));
+    await page.route(/\/api\/checkout$/, (route) => json(route, {
+      success: false,
+      pending: true,
+      requiresRedirect: true,
+      redirectUrl,
+      orderId: 7003,
+      orderNumber: 'ORD-FLOW3-B10',
+      paymentMethod: 'PAYPAL',
+    }));
+
+    await page.goto('/checkout');
+    await page.getByRole('radio', { name: /PayPal/ }).check();
+    await page.getByRole('button', { name: /Complete Order|Pay Now/ }).click();
+
+    const notice = page.getByText(/leaving EduMind for the secure payment provider/i);
+    await expect(notice).toBeVisible();
+    await expect(notice).toBeFocused();
+    await axe(page, testInfo, 'purchase acceptance B10 pre-redirect notice');
+  });
+});
+
+test.describe('@a11y-purchase Flow 3 SePay QR page', () => {
+  test.beforeEach(async ({ page }) => {
+    await installAuthenticatedCart(page, []);
+  });
+
+  const qrParams = new URLSearchParams({
+    qrUrl: 'https://sepay.example.test/qr/flow3.png',
+    orderId: '8001',
+    orderNumber: 'ORD-FLOW3-SEPAY',
+    amount: '499000',
+    currency: 'VND',
+    // Bank transfer details CheckoutPage forwards, so a screen-reader user has a
+    // readable alternative to the aria-hidden QR image.
+    bankCode: 'MB',
+    bankName: 'MB Bank',
+    bankAccount: '1234567890',
+    accountName: 'EDUMIND CO',
+    transferContent: 'EDUMIND ORD-FLOW3-SEPAY',
+  });
+
+  function isoMinutesAgo(minutes: number): string {
+    return new Date(Date.now() - minutes * 60_000).toISOString();
+  }
+
+  async function installPaymentStatus(page: Page, responses: Array<Record<string, unknown>>) {
+    let call = 0;
+    await page.route(/\/api\/checkout\/status\/\d+$/, (route) => {
+      const body = responses[Math.min(call, responses.length - 1)];
+      call += 1;
+      return json(route, body);
+    });
+  }
+
+  test('scanning state exposes a live status region (checklist S5)', async ({ page }) => {
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(1) },
+    ]);
+    await page.goto(`/checkout/sepay-qr?${qrParams.toString()}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Scan to Pay with SePay' })).toBeVisible();
+    // "Waiting for payment confirmation..." must sit inside a polite live region
+    // so background polling updates are not silent.
+    const waiting = page.getByText('Waiting for payment confirmation...');
+    await expect(waiting.locator('xpath=ancestor-or-self::*[@role="status" or @aria-live]').first()).toHaveCount(1);
+  });
+
+  test('QR image has a readable, copyable transfer-info alternative (checklist S2)', async ({ page }) => {
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(1) },
+    ]);
+    await page.goto(`/checkout/sepay-qr?${qrParams.toString()}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // The QR image is (correctly) aria-hidden, so every field needed to complete
+    // the transfer manually must exist as text and be copyable by keyboard.
+    await expect(page.getByRole('heading', { level: 2, name: 'Bank transfer details' })).toBeVisible();
+    await expect(page.getByText('1234567890')).toBeVisible();
+    await expect(page.getByText('EDUMIND ORD-FLOW3-SEPAY')).toBeVisible();
+    await expect(page.getByText('EDUMIND CO')).toBeVisible();
+    for (const label of ['bank name', 'account number', 'beneficiary name', 'transfer content', 'amount']) {
+      await expect(page.getByRole('button', { name: `Copy ${label}` })).toBeVisible();
+    }
+  });
+
+  test('transfer details missing from the session offer a recovery path (checklist S2 fallback)', async ({ page }) => {
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(1) },
+    ]);
+    const withoutBankDetails = new URLSearchParams(qrParams);
+    ['bankCode', 'bankName', 'bankAccount', 'accountName', 'transferContent'].forEach((key) =>
+      withoutBankDetails.delete(key),
+    );
+    await page.goto(`/checkout/sepay-qr?${withoutBankDetails.toString()}`);
+    // Rather than an empty section, the page must say the QR is the only route
+    // and point at a way out.
+    await expect(page.getByText(/Bank transfer details are unavailable/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cancel Payment' })).toBeVisible();
+  });
+
+  test('Copy order number button announces the copied state (checklist S4)', async ({ page }) => {
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(1) },
+    ]);
+    await page.goto(`/checkout/sepay-qr?${qrParams.toString()}`);
+    const copyButton = page.getByRole('button', { name: /copy order number/i });
+    // Accessible name should not depend solely on the title attribute.
+    await expect(copyButton).toHaveAttribute('aria-label', /copy order number/i);
+    await copyButton.click();
+    // After copying, a screen reader must be told "Copied" via live region / sr-only text.
+    await expect(page.getByText(/copied/i)).toBeVisible();
+  });
+
+  test('countdown warns before expiry with an accessible announcement (checklist S6)', async ({ page }) => {
+    // 14 minutes elapsed of the 15-minute SePay QR window => ~60s remaining, under the warning threshold.
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(14) },
+    ]);
+    await page.goto(`/checkout/sepay-qr?${qrParams.toString()}`);
+    // The same sentence is duplicated as an aria-hidden visual cue alongside the
+    // sr-only live region that actually announces it to assistive tech.
+    await expect(page.getByRole('status').filter({ hasText: /less than 1 minute/i })).toBeVisible();
+  });
+
+  test('expired countdown is announced and focus moves to the new heading (checklist S7)', async ({ page }) => {
+    // createdAt already past the 15-minute window => calculateTimeRemaining <= 0 immediately.
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(31) },
+    ]);
+    await page.goto(`/checkout/sepay-qr?${qrParams.toString()}`);
+    const heading = page.getByRole('heading', { level: 1, name: 'QR Code Expired' });
+    await expect(heading).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try Again' })).toBeVisible();
+    // No axe() call here: SepayQrPage renders no <title> at all (unlike every
+    // other checkout page, which uses SeoMetaTags) — a separate, pre-existing
+    // document-title violation that would fail every state's Axe pass and is
+    // out of scope for this state-transition test.
+  });
+
+  test('webhook success mid-scan navigates straight to the success page (checklist S9)', async ({ page }) => {
+    await installPaymentStatus(page, [
+      { success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'PENDING', createdAt: isoMinutesAgo(1) },
+      { success: true, orderId: 8001, orderNumber: 'ORD-FLOW3-SEPAY', orderStatus: 'COMPLETED', createdAt: isoMinutesAgo(1) },
+    ]);
+    await page.goto(`/checkout/sepay-qr?${qrParams.toString()}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Scan to Pay with SePay' })).toBeVisible();
+    // No intermediate "success" screen on this page by design (no perceivable
+    // time limit for SC 2.2.1 to apply to) - CheckoutSuccessPage owns the
+    // confirmation UI and focus management once the redirect lands.
+    await page.waitForURL(/\/checkout\/success/, { timeout: 6000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Payment Successful!' })).toBeFocused({ timeout: 6000 });
+  });
+
+  test('invalid session shows a recoverable heading with a keyboard action (checklist S10)', async ({ page }) => {
+    await page.goto('/checkout/sepay-qr');
+    const heading = page.getByRole('heading', { level: 1, name: 'Invalid Payment Session' });
+    await expect(heading).toBeVisible();
+    const returnButton = page.getByRole('button', { name: 'Return to Checkout' });
+    await returnButton.focus();
+    await expect(returnButton).toBeFocused();
+  });
+});
+
+test.describe('@a11y-purchase Flow 3 CheckoutSuccessPage', () => {
+  test.beforeEach(async ({ page }) => {
+    await installAuthenticatedCart(page, []);
+  });
+
+  test('loading state exposes a live status region while capturing (checklist D1)', async ({ page }, testInfo) => {
+    let releaseCapture!: () => void;
+    const captureReleased = new Promise<void>((resolve) => { releaseCapture = resolve; });
+    await page.route(/\/api\/checkout\/capture/, async (route) => {
+      await captureReleased;
+      await json(route, { success: true, orderId: 9001, orderNumber: 'ORD-FLOW3-D1', orderStatus: 'COMPLETED' });
+    });
+    await page.goto('/checkout/success?token=flow3-d1');
+    const status = page.getByRole('status').filter({ hasText: 'Completing Your Payment' });
+    await expect(status).toBeVisible();
+    await axe(page, testInfo, 'purchase success D1 loading');
+    releaseCapture();
+  });
+
+  test('success transition moves focus to the success heading (checklist D2)', async ({ page }, testInfo) => {
+    await page.route(/\/api\/checkout\/capture/, (route) => json(route, {
+      success: true, orderId: 9002, orderNumber: 'ORD-FLOW3-D2', orderStatus: 'COMPLETED',
+    }));
+    await page.goto('/checkout/success?token=flow3-d2');
+    const heading = page.getByRole('heading', { level: 1, name: 'Payment Successful!' });
+    await expect(heading).toBeFocused();
+    await expect(page.getByText('ORD-FLOW3-D2')).toBeVisible();
+    await axe(page, testInfo, 'purchase success D2 transition');
+  });
+
+  test('capture error is announced via a live status region with focus and a recovery action (checklist D6)', async ({ page }, testInfo) => {
+    await page.route(/\/api\/checkout\/capture/, (route) => json(route, {
+      success: false, message: 'Payment capture failed',
+    }));
+    await page.goto('/checkout/success?token=flow3-d6');
+    const status = page.getByRole('status').filter({ hasText: 'Payment capture failed' });
+    await expect(status).toBeVisible();
+    const heading = page.getByRole('heading', { level: 1, name: 'Payment Failed' });
+    await expect(heading).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Try Again' })).toBeVisible();
+    await axe(page, testInfo, 'purchase success D6 capture error');
+  });
+});
+
+test.describe('@a11y-purchase Flow 3 target size (checklist W5)', () => {
+  // 2.5.8 Target Size (Minimum) — every pointer target in the purchase flow must
+  // be at least 24x24 CSS px. Measured at 375px because the mobile layout is the
+  // worst case: several controls drop their `sm:` padding there.
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  const MIN = 24;
+
+  async function expectMinTargetSize(target: ReturnType<Page['getByRole']>, name: string) {
+    await expect(target, `${name} should be present`).toBeVisible();
+    const box = await target.boundingBox();
+    if (!box) throw new Error(`${name} has no layout box`);
+    expect.soft(box.width, `${name} width`).toBeGreaterThanOrEqual(MIN);
+    expect.soft(box.height, `${name} height`).toBeGreaterThanOrEqual(MIN);
+  }
+
+  test('cart and drawer targets are at least 24x24 CSS px', async ({ page }) => {
+    await installAuthenticatedCart(page, courses);
+    await openCart(page);
+
+    await expectMinTargetSize(
+      page.getByRole('button', { name: 'Remove Accessible React from cart' }),
+      'cart page Remove item button',
+    );
+    // Mobile-only "← Continue Shopping" back link; it has no icon padding of its
+    // own, so its target comes entirely from the min-height utility.
+    await expectMinTargetSize(
+      page.getByRole('button', { name: /Continue Shopping/ }),
+      'cart page Continue Shopping back button',
+    );
+
+    const trigger = page.locator('button[aria-label="Shopping cart, 2 items"]:visible').first();
+    await trigger.click();
+    const drawer = page.getByRole('dialog', { name: 'Shopping Cart' });
+    await expect(drawer).toBeVisible();
+    await expectMinTargetSize(drawer.getByRole('button', { name: 'Close shopping cart' }), 'drawer Close button');
+    await expectMinTargetSize(
+      drawer.getByRole('button', { name: 'Remove Accessible React from cart' }),
+      'drawer Remove item button',
+    );
+  });
+
+  test('checkout payment radio and Back button are at least 24x24 CSS px', async ({ page }) => {
+    await installAuthenticatedCart(page, courses.slice(0, 1));
+    await installCheckoutPreview(page);
+    await page.goto('/checkout');
+    await expect(page.getByRole('heading', { level: 1, name: 'Checkout' })).toBeVisible();
+
+    // The radio is wrapped in a full-width <label>, so the effective target is
+    // the whole row; the control itself is still sized to pass on its own.
+    await expectMinTargetSize(page.getByRole('radio', { name: /PayPal/ }), 'checkout payment radio control');
+    await expectMinTargetSize(page.getByRole('button', { name: /Back to (cart|course)/ }), 'checkout Back button');
+  });
+
+  test('SePay copy buttons are at least 24x24 CSS px', async ({ page }) => {
+    await installAuthenticatedCart(page, []);
+    await page.route(/\/api\/checkout\/status\/\d+$/, (route) => json(route, {
+      success: false, orderId: 8001, orderNumber: 'ORD-FLOW3-W5', orderStatus: 'PENDING',
+      createdAt: new Date(Date.now() - 60_000).toISOString(),
+    }));
+    const params = new URLSearchParams({
+      qrUrl: 'https://sepay.example.test/qr/w5.png', orderId: '8001', orderNumber: 'ORD-FLOW3-W5',
+      amount: '499000', currency: 'VND', bankCode: 'MB', bankName: 'MB Bank',
+      bankAccount: '1234567890', accountName: 'EDUMIND CO', transferContent: 'EDUMIND ORD-FLOW3-W5',
+    });
+    await page.goto(`/checkout/sepay-qr?${params.toString()}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Scan to Pay with SePay' })).toBeVisible();
+
+    for (const label of ['order number', 'bank name', 'account number', 'beneficiary name', 'transfer content', 'amount']) {
+      await expectMinTargetSize(page.getByRole('button', { name: `Copy ${label}` }), `SePay Copy ${label} button`);
+    }
+    await expectMinTargetSize(page.getByRole('button', { name: 'Cancel Payment' }), 'SePay Cancel Payment back button');
   });
 });

@@ -11,6 +11,7 @@ COPY api-gateway/pom.xml /app/api-gateway/pom.xml
 COPY auth-service/pom.xml /app/auth-service/pom.xml
 COPY common-lib/pom.xml /app/common-lib/pom.xml
 COPY discovery-service/pom.xml /app/discovery-service/pom.xml
+COPY eureka-client-security/pom.xml /app/eureka-client-security/pom.xml
 COPY lms-core-service/pom.xml /app/lms-core-service/pom.xml
 
 # Download dependencies (cached if POMs don't change)
@@ -18,6 +19,7 @@ RUN mvn dependency:go-offline -B -pl api-gateway -am
 
 # Copy source for module to build/dependencies
 COPY common-lib/src /app/common-lib/src
+COPY eureka-client-security/src /app/eureka-client-security/src
 COPY api-gateway/src /app/api-gateway/src
 
 # Build application (skip tests to build faster)

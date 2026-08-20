@@ -1,10 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import {
   HttpClient,
-  HttpRequest,
-  HttpResponse,
-  HttpErrorResponse,
-  HTTP_INTERCEPTORS,
   provideHttpClient,
   withInterceptors,
 } from '@angular/common/http';
@@ -23,7 +19,6 @@ describe('authInterceptor', () => {
   let httpClient: HttpClient;
   let httpMock: HttpTestingController;
   let authService: AuthService;
-  let router: Router;
 
   // Helper to create a valid JWT token
   const createValidToken = (): string => {
@@ -56,7 +51,6 @@ describe('authInterceptor', () => {
     httpClient = TestBed.inject(HttpClient);
     httpMock = TestBed.inject(HttpTestingController);
     authService = TestBed.inject(AuthService);
-    router = TestBed.inject(Router);
   });
 
   afterEach(() => {
@@ -120,7 +114,6 @@ describe('authInterceptor', () => {
     });
 
     it('should clone request correctly without mutating original', () => {
-      const originalRequest = new HttpRequest('GET', '/api/test');
       const token = createValidToken();
       localStorage.setItem('admin_auth_token', token);
 
@@ -201,7 +194,6 @@ describe('authInterceptor', () => {
     it('should attempt token refresh on 401 error', async () => {
       const refreshResponse = {
         accessToken: createValidToken(),
-        user: { id: 1, username: 'admin' },
       };
 
       const promise = httpClient.get('/api/protected').toPromise();
@@ -243,7 +235,6 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
-        user: { id: 1, username: 'admin' },
       };
 
       const promise = httpClient.get('/api/protected').toPromise();
@@ -269,7 +260,6 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
-        user: { id: 1, username: 'admin' },
       };
 
       // Make two concurrent requests
@@ -335,7 +325,6 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
-        user: { id: 1, username: 'admin' },
       };
       // unwrapApiResponse only unwraps responses with status and success (ApiResponse envelope)
       const wrappedResponse = {
@@ -409,7 +398,6 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
-        user: { id: 1, username: 'admin' },
       };
 
       // Make three concurrent requests
@@ -449,7 +437,7 @@ describe('authInterceptor', () => {
       
       // Small delay to ensure first request triggers refresh before second
       await new Promise(resolve => setTimeout(resolve, 10));
-      const promise2 = httpClient.get('/api/resource2').toPromise();
+      httpClient.get('/api/resource2').toPromise();
 
       // Both fail with 401
       const req1 = httpMock.expectOne('/api/resource1');
@@ -479,7 +467,6 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
-        user: { id: 1, username: 'admin' },
       };
 
       // Make multiple requests that will trigger refresh

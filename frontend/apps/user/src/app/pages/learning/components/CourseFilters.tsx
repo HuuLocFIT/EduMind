@@ -19,7 +19,7 @@ export const CourseFilters: React.FC<CourseFiltersProps> = ({
 }) => {
   const tabs = [
     { key: 'all' as const, label: 'All', count: stats?.total ?? 0 },
-    { key: 'active' as const, label: 'In Progress', count: stats?.active ?? 0 },
+    { key: 'active' as const, label: 'Active', count: stats?.active ?? 0 },
     { key: 'completed' as const, label: 'Completed', count: stats?.completed ?? 0 },
   ];
 
@@ -32,14 +32,14 @@ export const CourseFilters: React.FC<CourseFiltersProps> = ({
         </div>
       <TabsList
         aria-labelledby="my-courses-heading"
-        className="flex items-center gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-slate-200"
+        className="items-center gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-slate-200"
       >
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.key}
             value={tab.key}
             aria-label={`${tab.label}, ${tab.count} ${tab.count === 1 ? 'course' : 'courses'}`}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap ${
               activeFilter === tab.key
                 ? '!border-blue-800 !bg-blue-800 !text-white shadow-md'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -47,6 +47,7 @@ export const CourseFilters: React.FC<CourseFiltersProps> = ({
           >
             {tab.label}
             <span
+              aria-hidden="true"
               className={`text-xs px-1.5 py-0.5 rounded-full ${
                 activeFilter === tab.key ? 'bg-white/20' : 'bg-slate-200'
               }`}

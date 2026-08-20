@@ -105,7 +105,7 @@ export const authService = {
     return response.data;
   },
 
-  async verify2FASetup(data: Verify2FACodeRequest & { secret?: string }): Promise<MessageResponse> {
+  async verify2FASetup(data: Verify2FACodeRequest): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
       AUTH_ENDPOINTS.VERIFY_2FA,
       data

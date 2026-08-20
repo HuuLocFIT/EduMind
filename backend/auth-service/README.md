@@ -14,7 +14,6 @@ Authentication and Authorization Service for EduMind Platform - A microservice r
 - [Database Migrations](#database-migrations)
 - [Demo Users](#demo-users)
 - [Troubleshooting](#troubleshooting)
-- [Docker Guide](../DOCKER.md)
 
 
 ## Overview
@@ -35,22 +34,22 @@ Auth Service is a Spring Boot microservice that handles:
 
 ## Features
 
-- ✅ **JWT-based Authentication** - Secure token-based authentication
-- ✅ **OAuth2 Integration** - Google OAuth2 login
-- ✅ **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes and backup codes
-- ✅ **Email Verification** - Email verification on registration
-- ✅ **Password Reset** - Secure password reset via email
-- ✅ **Role-Based Access Control (RBAC)** - Admin, Teacher, Student, Guest roles
-- ✅ **Admin User Management** - Create, update, delete, enable/disable users with pagination
-- ✅ **Admin Role Management** - Assign and update user roles
-- ✅ **Admin Application Review** - Review, approve, or reject teacher applications
-- ✅ **Trial Teacher Management** - View trial teachers and upgrade to full teachers
-- ✅ **User Filtering & Search** - Filter users by role with pagination support
-- ✅ **Teacher Application System** - Teachers can apply and get approved by admins
-- ✅ **Trial System** - Trial period management for teachers (30-day trial)
-- ✅ **File Upload** - Profile picture and document upload via Cloudinary
-- ✅ **Service Discovery** - Integrated with Eureka Discovery Service
-- ✅ **Database Migrations** - Flyway for version-controlled database schema
+- **JWT-based Authentication** - Secure token-based authentication
+- **OAuth2 Integration** - Google OAuth2 login
+- **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes and backup codes
+- **Email Verification** - Email verification on registration
+- **Password Reset** - Secure password reset via email
+- **Role-Based Access Control (RBAC)** - Admin, Teacher, Student roles
+- **Admin User Management** - Create, update, delete, enable/disable users with pagination
+- **Admin Role Management** - Assign and update user roles
+- **Admin Application Review** - Review, approve, or reject teacher applications
+- **Trial Teacher Management** - View trial teachers and upgrade to full teachers
+- **User Filtering & Search** - Filter users by role with pagination support
+- **Teacher Application System** - Teachers can apply and get approved by admins
+- **Trial System** - Trial period management for teachers (30-day trial)
+- **File Upload** - Profile picture and document upload via Cloudinary
+- **Service Discovery** - Integrated with Eureka Discovery Service
+- **Database Migrations** - Flyway for version-controlled database schema
 
 ## Prerequisites
 
@@ -128,11 +127,13 @@ export AUTH_DB_PASSWORD="postgres"
 
 # JWT Configuration
 export JWT_SECRET="your-super-secret-jwt-key-minimum-32-characters-long-for-security"
-export JWT_EXPIRATION="86400000"  # 24 hours in milliseconds
+export JWT_EXPIRATION="900000"  # 15 minutes in milliseconds
 export JWT_REFRESH_EXPIRATION="604800000"  # 7 days in milliseconds
 
 # Eureka Discovery Service
 export EUREKA_DEFAULT_ZONE="http://localhost:8761/eureka/"
+export EUREKA_USERNAME="eureka"    # registry is protected by HTTP Basic
+export EUREKA_PASSWORD="eureka"
 
 # Email Configuration (Gmail SMTP)
 export MAIL_HOST="smtp.gmail.com"
@@ -145,7 +146,7 @@ export MAIL_ENABLED="true"
 # Google OAuth2 Configuration
 export GOOGLE_CLIENT_ID="your-google-client-id"
 export GOOGLE_CLIENT_SECRET="your-google-client-secret"
-export GOOGLE_REDIRECT_URI="{baseUrl}/api/auth/login/oauth2/code/google" 
+export GOOGLE_REDIRECT_URI="{baseUrl}/api/auth/login/oauth2/code/google"
 
 # Cloudinary Configuration (for file uploads)
 export CLOUDINARY_CLOUD_NAME="your-cloud-name"
@@ -163,12 +164,18 @@ export GATEWAY_URL="http://localhost:8080"
 
 # Service Port (optional, default: 8081)
 export AUTH_SERVICE_PORT="8081"
+
+# Production profile (leave unset for local dev)
+export SPRING_PROFILES_ACTIVE=""       # set to "prod" in production
+export COOKIE_SECURE="false"           # must be "true" in production (refresh-token cookie requires HTTPS)
 ```
 
 **Important Notes:**
 - `JWT_SECRET`: Must be at least 32 characters long for HS256 algorithm
 - `MAIL_PASSWORD`: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833), not your regular password
 - `AUTH_SERVICE_ENCRYPTION_KEY`: Must be exactly 32 characters for AES-256 for Auth Service
+- `SPRING_PROFILES_ACTIVE=prod`: Activates `application-prod.yml`, which disables SQL logging, quiets framework log levels to `INFO`, and hides `/actuator/health` details from unauthenticated callers
+- `COOKIE_SECURE=true`: Required in production so the `refreshToken` cookie is only ever sent over HTTPS; `docker-compose.prod.yml` already sets both of these for the containerized deployment
 
 ## Configuration
 
@@ -177,6 +184,11 @@ export AUTH_SERVICE_PORT="8081"
 The main configuration file is located at:
 ```
 src/main/resources/application.yml
+```
+
+Production-only overrides live in a separate profile file, merged on top of `application.yml` when `SPRING_PROFILES_ACTIVE=prod`:
+```
+src/main/resources/application-prod.yml
 ```
 
 Key configuration sections:
@@ -199,9 +211,9 @@ All sensitive values should be provided via environment variables (see Setup Ins
 We enable `flyway-maven-plugin` for direct CLI schema management.
 
 **1. Create Migrations**
-Use the root helper:
+Create a new versioned SQL file in `src/main/resources/db/migration/` using Flyway's naming convention:
 ```bash
-../scripts/create-migration.sh
+touch src/main/resources/db/migration/V20__Describe_your_change.sql
 ```
 
 **2. Migrate Database**
@@ -210,6 +222,9 @@ mvn flyway:migrate
 ```
 
 **3. Reset Database**
+
+> **Development only — destructive:** `flyway:clean` removes every object in the configured schema. Never run it against production or any database containing data you need to preserve.
+
 ```bash
 mvn flyway:clean
 ```
@@ -225,10 +240,10 @@ mvn flyway:info
 ### Prerequisites Check
 
 Before starting, ensure:
-1. ✅ PostgreSQL is running and accessible
-2. ✅ Eureka Discovery Service is running on port 8761
-3. ✅ All required environment variables are set
-4. ✅ Database `edumind_auth` exists
+1. PostgreSQL is running and accessible
+2. Eureka Discovery Service is running on port 8761
+3. All required environment variables are set
+4. Database `edumind_auth` exists
 
 ### Start the Service
 
@@ -257,8 +272,8 @@ Run the `AuthServiceApplication.java` main class from your IDE.
 
 1. **Check Logs**: You should see:
    ```
-   🚀 Starting Auth Service...
-   ✅ Auth Service started successfully on port 8081
+   Starting Auth Service...
+   Auth Service started successfully on port 8081
    ```
 
 2. **Check Health Endpoint**:
@@ -330,18 +345,27 @@ Content-Type: application/json
 }
 ```
 
-**Response (Normal Login):**
+**Response (Normal Login):** `refreshToken` is set via an HTTP-only cookie, never in the response body.
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "refresh-token-here",
-  "tokenType": "Bearer",
-  "userId": 1,
-  "username": "johndoe",
-  "email": "john@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "roles": ["ROLE_STUDENT"]
+  "status": 200,
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "roles": ["ROLE_STUDENT"],
+      "isActive": true,
+      "isEmailVerified": true,
+      "is2faEnabled": false
+    }
+  }
 }
 ```
 
@@ -365,30 +389,32 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
+**Response:** same shape as normal login above (`ApiResponse<JwtResponse>`, `refreshToken` set via cookie).
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "refresh-token-here",
-  "tokenType": "Bearer",
-  "userId": 1,
-  "username": "johndoe",
-  "email": "john@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "roles": ["ROLE_STUDENT"]
+  "status": 200,
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "roles": ["ROLE_STUDENT"]
+    }
+  }
 }
 ```
 
 #### Refresh Token
 ```http
 POST /auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "refresh-token-here"
-}
 ```
+No request body — the refresh token is read from the `refreshToken` HTTP-only cookie (`@CookieValue(name = "refreshToken", required = false)`), not from the request body.
 
 **Response:**
 ```json
@@ -398,14 +424,15 @@ Content-Type: application/json
   "message": "Token refreshed successfully",
   "data": {
     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "new-refresh-token-here",
     "tokenType": "Bearer",
-    "userId": 1,
-    "username": "johndoe",
-    "email": "john@example.com",
-    "firstName": "John",
-    "lastName": "Doe",
-    "roles": ["ROLE_STUDENT"]
+    "user": {
+      "id": 1,
+      "username": "johndoe",
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "roles": ["ROLE_STUDENT"]
+    }
   }
 }
 ```
@@ -599,10 +626,11 @@ Authorization: Bearer {token}
 Content-Type: application/json
 
 {
-  "code": "123456",
-  "secret": "JBSWY3DPEHPK3PXP"
+  "code": "123456"
 }
 ```
+
+The secret is never sent by the client here — it's read back from the encrypted value stored on the user during `/auth/2fa/setup`, so a code can only be verified against the secret the server itself issued.
 
 **Response:**
 ```json
@@ -906,7 +934,7 @@ Content-Type: application/json
 }
 ```
 
-**Access:** Student or Guest only
+**Access:** Student only
 
 #### Get My Application
 ```http
@@ -1093,7 +1121,7 @@ src/main/resources/db/migration/
 - `V2__Create_roles_table.sql` - Roles table
 - `V3__Create_user_roles_table.sql` - User-Role mapping
 - `V4__Create_refresh_tokens_table.sql` - Refresh tokens
-- `V5__Insert_default_roles.sql` - Default roles (ADMIN, TEACHER, STUDENT, GUEST)
+- `V5__Insert_default_roles.sql` - Default roles (ADMIN, TEACHER, STUDENT, GUEST — GUEST later removed by V19)
 - `V6__Insert_demo_users.sql` - Demo users for testing
 - `V7__Create_teacher_applications_table.sql` - Teacher applications
 - `V8__Add_trial_fields_to_users.sql` - Trial period fields
@@ -1104,6 +1132,9 @@ src/main/resources/db/migration/
 - `V14__Create_password_reset_tokens.sql` - Password reset tokens
 - `V15__Add_2fa_fields_to_users.sql` - Two-factor authentication
 - `V16__Add_oauth2_fields_to_users.sql` - OAuth2 integration
+- `V17__Add_bio_to_users.sql` - User bio field
+- `V18__Add_deleted_at_to_users.sql` - Soft-delete support
+- `V19__Remove_guest_role.sql` - Removes the obsolete demo guest account and the unused `ROLE_GUEST` role
 
 ### Running Migrations
 
@@ -1131,9 +1162,8 @@ The service includes demo users for testing (inserted via migration `V6__Insert_
 | Admin | `admin@edumind.com` | `password123` | Full system access |
 | Teacher | `teacher@edumind.com` | `password123` | Teacher account |
 | Student | `student@edumind.com` | `password123` | Student account |
-| Guest | `guest@edumind.com` | `password123` | Guest account |
 
-**⚠️ Warning**: These are demo accounts. Change passwords in production!
+**Warning**: These are demo accounts. Change passwords in production!
 
 ## Troubleshooting
 
@@ -1161,7 +1191,7 @@ com.netflix.discovery.shared.transport.TransportException: Cannot execute reques
 **Solution:**
 - Ensure Eureka Discovery Service is running on port 8761
 - Check `EUREKA_DEFAULT_ZONE` environment variable
-- Verify network connectivity: `curl http://localhost:8761/eureka/`
+- Verify network connectivity: `curl -u eureka:eureka http://localhost:8761/eureka/apps` (a `401` means wrong credentials, not a network problem)
 
 #### 3. JWT token validation fails
 
@@ -1230,6 +1260,8 @@ Logs are written to:
 logs/auth-service.log
 ```
 
+This directory is gitignored (`**/logs/`, `*.log*`) and must not be committed — rotated log files were previously checked in by mistake and have since been removed from the repo.
+
 To view logs in real-time:
 ```bash
 tail -f logs/auth-service.log
@@ -1272,5 +1304,4 @@ For issues or questions, please contact the development team or create an issue 
 
 ---
 
-**Last Updated**: 2025-01-20
-
+**Last Updated**: 2026-08-12

@@ -64,6 +64,7 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
   resultsAnnouncement = "",
 }) => {
   const resultsSummaryRef = useRef<HTMLParagraphElement>(null);
+  const emptyStateHeadingRef = useRef<HTMLHeadingElement>(null);
   const handledFocusRequestRef = useRef(0);
   const resultsSummaryText = totalElements === 0
     ? "0 courses found"
@@ -82,9 +83,13 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
       !isFetching
     ) {
       handledFocusRequestRef.current = focusRequest;
-      resultsSummaryRef.current?.focus();
+      if (courses.length === 0) {
+        emptyStateHeadingRef.current?.focus();
+      } else {
+        resultsSummaryRef.current?.focus();
+      }
     }
-  }, [focusRequest, isFetching]);
+  }, [courses.length, focusRequest, isFetching]);
 
   return (
     <section className="flex-1" aria-labelledby="course-results-heading" aria-busy={isFetching}>
@@ -195,7 +200,11 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Sparkles className="w-10 h-10 text-gray-400" aria-hidden="true" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3
+              ref={emptyStateHeadingRef}
+              tabIndex={-1}
+              className="text-xl font-semibold text-gray-900 mb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 rounded"
+            >
               No courses found
             </h3>
             <p className="text-gray-600 mb-6">
@@ -236,7 +245,7 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
               <>
                 <button
                   onClick={() => onPageChange(0)}
-                  className="w-10 h-10 rounded-lg transition-all hover:bg-gray-100 text-gray-700 font-medium"
+                  className="w-10 h-10 rounded-lg transition-all motion-reduce:transition-none hover:bg-gray-100 text-gray-700 font-medium"
                   aria-label="Go to page 1"
                 >
                   1
@@ -260,10 +269,10 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
                   <button
                     key={i}
                     onClick={() => onPageChange(i)}
-                    className={`w-10 h-10 rounded-lg transition-all font-medium ${
+                    className={`w-10 h-10 rounded-lg transition-all motion-reduce:transition-none font-medium ${
                       page === i
-                        ? "bg-blue-600 text-white shadow-md scale-105"
-                        : "hover:bg-gray-100 text-gray-700 hover:scale-105"
+                        ? "bg-blue-600 text-white shadow-md scale-105 motion-reduce:scale-100"
+                        : "hover:bg-gray-100 text-gray-700 hover:scale-105 motion-reduce:hover:scale-100"
                     }`}
                     aria-label={`Go to page ${i + 1}`}
                     aria-current={page === i ? "page" : undefined}

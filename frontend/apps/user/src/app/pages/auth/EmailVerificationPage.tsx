@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle, Mail, GraduationCap } from "lucide-react";
+import { CheckCircle, XCircle, Mail, GraduationCap, HelpCircle } from "lucide-react";
 import { authService } from '../../services/auth.service';
 
 import { Button, Card, Alert, useToast } from "@edumind/user-ui";
@@ -214,12 +214,13 @@ function EmailVerificationPage() {
       </Card>
 
       {/* Help Text */}
-      <p className="mt-6 text-center text-xs text-gray-500">
-        Having trouble?{" "}
+      <p className="mt-6 flex items-center justify-center gap-1 text-xs text-gray-500">
+        <span>Having trouble?</span>
         <a
           href="mailto:support@edumind.com"
-          className="text-blue-600 hover:underline"
+          className="inline-flex items-center gap-1 text-blue-600 underline hover:text-blue-800 hover:no-underline"
         >
+          <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" />
           Contact Support
         </a>
       </p>

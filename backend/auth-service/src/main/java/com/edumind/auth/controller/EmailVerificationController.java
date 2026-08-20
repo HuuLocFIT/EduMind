@@ -24,7 +24,7 @@ public class EmailVerificationController {
      */
     @GetMapping("/verify-email")
     public ResponseEntity<ApiResponse<String>> verifyEmail(@RequestParam String token) {
-        logger.info("📥 GET /auth/verify-email - Token: {}", token);
+        logger.info("GET /auth/verify-email");
 
         emailVerificationService.verifyEmail(token);
 

@@ -53,7 +53,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
   return (
     <article
       data-testid="enrollment-card"
-      className={`bg-white rounded-2xl border overflow-hidden transition-all duration-300 group ${
+      className={`group max-w-full overflow-hidden rounded-2xl border bg-white transition-all duration-300 ${
         isSuspended
           ? 'opacity-70 border-amber-300 bg-amber-50'
           : 'border-slate-200 hover:shadow-xl hover:border-blue-200'
@@ -137,7 +137,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
         </div>
 
         {/* Course Info */}
-        <div className="flex-1 p-5 flex flex-col">
+        <div className="flex min-w-0 flex-1 flex-col p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0 pr-4">
               <h3 id={`course-${enrollment.id}-title`} className="text-lg font-bold text-slate-900 mb-1.5 group-hover:text-blue-600 transition-colors line-clamp-2">
@@ -194,16 +194,16 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
           </div>
 
           {/* CTA */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="flex items-center gap-2 text-sm text-slate-500">
               <Calendar className="w-4 h-4" aria-hidden="true" />
               {enrollmentText}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto">
               <button
                 onClick={onViewDetails}
                 aria-label={`View details for ${enrollment.courseTitle}`}
-                className="text-slate-500 hover:text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors text-sm font-medium"
+                className="min-w-0 flex-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 sm:flex-none"
               >
                 Details
               </button>
@@ -211,7 +211,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
                 <button
                   disabled
                   aria-label={`${enrollment.courseTitle} is suspended`}
-                  className="bg-slate-200 text-slate-500 px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 cursor-not-allowed"
+                  className="flex min-w-0 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 sm:flex-none"
                 >
                   <Lock className="w-4 h-4" aria-hidden="true" />
                   Suspended
@@ -221,7 +221,7 @@ export const EnrollmentCardNew: React.FC<EnrollmentCardNewProps> = ({
                   data-testid="continue-learning-button"
                   onClick={onContinue}
                   aria-label={`${progressPercentage === 0 ? 'Start' : 'Continue'} learning ${enrollment.courseTitle}`}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-blue-500/25 group-hover:scale-105"
+                  className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 sm:flex-none sm:group-hover:scale-105"
                 >
                   {progressPercentage === 0 ? 'Start' : 'Continue'}
                   <ChevronRight className="w-4 h-4" aria-hidden="true" />

@@ -151,11 +151,15 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await toggle.click();
     await expect(password).toHaveAttribute('type', 'text');
     await expect(password).toHaveValue('Password123');
-    await expect(page.getByRole('button', { name: 'Hide password' })).toHaveAttribute('aria-pressed', 'true');
+    const hidePassword = page.getByRole('button', { name: 'Hide password' });
+    await expect(hidePassword).not.toHaveAttribute('aria-pressed');
+    await expect(hidePassword).toBeFocused();
     await checkA11y(page, { stateName: 'auth login password revealed', testInfo });
 
-    await page.getByRole('button', { name: 'Hide password' }).click();
+    await hidePassword.click();
     await expect(password).toHaveAttribute('type', 'password');
+    await expect(password).toHaveValue('Password123');
+    await expect(page.getByRole('button', { name: 'Show password' })).toBeFocused();
     await checkA11y(page, { stateName: 'auth login password hidden again', testInfo });
 
     await page.getByLabel('Username or Email').fill('student@example.test');
@@ -200,6 +204,28 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await checkA11y(page, { stateName: 'auth login server error', testInfo });
   });
 
+  test('login validation summary announces only current errors', async ({ page }, testInfo) => {
+    await installAuthFixtures(page);
+    await page.goto('/login');
+
+    await page.getByRole('button', { name: 'Sign In' }).click();
+    const alert = page.getByRole('alert');
+    await expect(page.getByLabel('Username or Email')).toBeFocused();
+    await expect(alert).toContainText('2 errors');
+    await expect(alert).toContainText('Username or email is required');
+    await expect(alert).toContainText('Password is required');
+    await expect(page.getByRole('alert')).toHaveCount(1);
+
+    await page.getByLabel('Username or Email').fill('student');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+    await expect(page.getByLabel('Password', { exact: true })).toBeFocused();
+    await expect(alert).toContainText('1 error');
+    await expect(alert).not.toContainText('Username or email is required');
+    await expect(alert).toContainText('Password is required');
+    await expect(page.getByRole('alert')).toHaveCount(1);
+    await checkA11y(page, { stateName: 'auth login validation summary', testInfo });
+  });
+
   test('signup associates requirements and errors, then announces success', async ({ page }, testInfo) => {
     await installAuthFixtures(page, { signup: 'success' });
     await page.goto('/signup');
@@ -216,7 +242,10 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
 
     await page.getByRole('button', { name: 'Create Account' }).click();
     await expect(username).toHaveAttribute('aria-invalid', 'true');
+    const signupAlert = page.getByRole('alert');
     await expect(username).toBeFocused();
+    await expect(signupAlert).toContainText('3 errors');
+    await expect(page.getByRole('alert')).toHaveCount(1);
     await checkA11y(page, { stateName: 'auth signup validation errors', testInfo });
 
     await username.fill('a11y_student');
@@ -241,7 +270,11 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await email.fill('not-an-email');
     await page.getByRole('button', { name: 'Send Reset Link' }).click();
     await expect(email).toHaveAttribute('aria-invalid', 'true');
+    const forgotAlert = page.getByRole('alert');
     await expect(email).toBeFocused();
+    await expect(forgotAlert).toContainText('1 error');
+    await expect(forgotAlert).toContainText('Invalid email address');
+    await expect(page.getByRole('alert')).toHaveCount(1);
     await checkA11y(page, { stateName: 'auth forgot password validation error', testInfo });
 
     await email.fill('student@example.test');

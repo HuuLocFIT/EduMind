@@ -1,8 +1,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CartPage } from './CartPage';
+import { DIALOG_EXIT_MS, FOCUS_SETTLE_MS } from '../../hooks/useRemovalAnnouncement';
 import { useCart, useRemoveFromCart, useClearCart } from '../../hooks/useCart';
 import { useCartStore } from '../../stores/cart.store';
 import { USER_ROUTES } from '@edumind/shared-utils';
@@ -58,6 +59,7 @@ vi.mock('lucide-react', () => ({
 describe('CartPage', () => {
   const mockShowSuccess = vi.fn();
   const mockShowError = vi.fn();
+  const mockShowToast = vi.fn();
   
   const mockRefetch = vi.fn();
   const mockSetCart = vi.fn();
@@ -73,6 +75,7 @@ describe('CartPage', () => {
     (useToast as any).mockReturnValue({
       success: mockShowSuccess,
       error: mockShowError,
+      showToast: mockShowToast,
     });
 
     (useCartStore as any).mockReturnValue({
@@ -178,41 +181,114 @@ describe('CartPage', () => {
     
     // Summary check
     const summary = screen.getByRole('region', { name: 'Order Summary' });
-    expect(within(summary).getByText('Subtotal (2 items):')).toBeInTheDocument();
-    expect(within(summary).getByText('$100.00')).toBeInTheDocument();
-    expect(within(summary).getByText('Total:')).toBeInTheDocument();
+    expect(within(summary).getByText('Subtotal (2 items)')).toBeInTheDocument();
+    expect(within(summary).getByText('$100.00 USD')).toBeInTheDocument();
+    expect(within(summary).getByText('Total')).toBeInTheDocument();
+    expect(within(summary).getAllByText('100.00 US dollars')).toHaveLength(2);
+
+    const definitionList = summary.querySelector('dl');
+    expect(definitionList).not.toBeNull();
+    expect(
+      Array.from(definitionList!.children).every((child) =>
+        child.matches('div') &&
+        Array.from(child.children).every((item) => item.matches('dt, dd')),
+      ),
+    ).toBe(true);
   });
 
   it('handles remove item interaction', async () => {
     const user = userEvent.setup();
-    (useCart as any).mockReturnValue({ 
+    (useCart as any).mockReturnValue({
       data: { items: [{ courseId: 1, courseTitle: 'React 101' }] },
-      isLoading: false 
+      isLoading: false
     });
-    
-    render(<CartPage />);
-    
+
+    const { rerender } = render(<CartPage />);
+
     await user.click(screen.getByText('Remove React 101'));
     await user.click(screen.getByText('Confirm'));
     expect(mockRemoveMutate).toHaveBeenCalled();
     // Verify callback handling via mock logic if needed, but basic call is enough here
     const mutateCallArgs = mockRemoveMutate.mock.calls[0];
     expect(mutateCallArgs[0]).toBe(1);
-    
+
     // Simulate success callback execution
-    mutateCallArgs[1].onSuccess();
-    expect(mockShowSuccess).toHaveBeenCalledTimes(1);
-    expect(mockShowSuccess).toHaveBeenCalledWith(
+    await act(async () => mutateCallArgs[1].onSuccess());
+    // The visible toast must not announce: ToastContainer is itself a polite
+    // live region and would read the same sentence a second time.
+    expect(mockShowToast).toHaveBeenCalledTimes(1);
+    expect(mockShowToast).toHaveBeenCalledWith(
       'React 101 removed from cart. New total: $0.00 USD.',
+      { variant: 'success', silent: true },
     );
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+
     const removalStatus = screen.getByRole('status');
     expect(removalStatus).toHaveAttribute('aria-live', 'polite');
     expect(removalStatus).toHaveAttribute('aria-atomic', 'true');
-    await waitFor(() => {
+
+    (useCart as any).mockReturnValue({ data: { items: [] }, isLoading: false });
+    rerender(<CartPage />);
+
+    await waitFor(
+      () => {
+        expect(removalStatus).toHaveTextContent(
+          'React 101 removed from cart. New total: $0.00 USD.',
+        );
+      },
+      { timeout: 3000 },
+    );
+    expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toHaveFocus();
+  });
+
+  it('announces the removal only after focus has already moved', async () => {
+    // Regression guard for the VoiceOver failure behind checklist row A4:
+    // when the focus move and the live-region update land in the same tick,
+    // WebKit preempts the polite queue and the announcement is never spoken.
+    vi.useFakeTimers();
+    try {
+      const initialCart = {
+        items: [
+          { courseId: 1, courseTitle: 'React 101', effectivePrice: 40 },
+          { courseId: 2, courseTitle: 'Advanced TS', effectivePrice: 60 },
+        ],
+        subtotal: 100,
+        totalAmount: 100,
+        currency: 'USD',
+      };
+      (useCart as any).mockReturnValue({ data: initialCart, isLoading: false });
+
+      const { rerender } = render(<CartPage />);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove React 101' }));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      const mutationOptions = mockRemoveMutate.mock.calls[0][1];
+      act(() => mutationOptions.onSuccess());
+
+      (useCart as any).mockReturnValue({
+        data: { ...initialCart, items: [initialCart.items[1]], subtotal: 60, totalAmount: 60 },
+        isLoading: false,
+      });
+      rerender(<CartPage />);
+
+      const removalStatus = screen.getByRole('status');
+      const successor = screen.getByRole('button', { name: 'Remove Advanced TS' });
+
+      // Focus lands first, and the live region is still empty at that point.
+      act(() => vi.advanceTimersByTime(DIALOG_EXIT_MS));
+      expect(successor).toHaveFocus();
+      expect(removalStatus).toHaveTextContent('');
+
+      // Only once the focus utterance has had time to start does the sentence
+      // reach the live region.
+      act(() => vi.advanceTimersByTime(FOCUS_SETTLE_MS));
       expect(removalStatus).toHaveTextContent(
-        'React 101 removed from cart. New total: $0.00 USD.',
+        'React 101 removed from cart. New total: $60.00 USD.',
       );
-    });
+      expect(successor).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('moves focus only after the removed item is absent from the rendered cart', async () => {
