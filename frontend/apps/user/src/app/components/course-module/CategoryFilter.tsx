@@ -95,7 +95,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onClick={() => onSelectCategory(category.id)}
+                    onChange={() => onSelectCategory(category.id)}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <span className="flex-1 text-sm text-gray-700">

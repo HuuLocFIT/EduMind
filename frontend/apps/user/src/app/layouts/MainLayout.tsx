@@ -687,19 +687,9 @@ export const MainLayout: React.FC = () => {
               <h2 id="footer-support" className="font-semibold text-gray-900 mb-2 sm:mb-4" style={{ fontSize: 'inherit' }}>Support</h2>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <span>
-                    Help Center
-                  </span>
-                </li>
-                <li>
                   <a href="mailto:support@edumind.com" className="hover:text-blue-600">
                     Contact Us
                   </a>
-                </li>
-                <li>
-                  <span>
-                    FAQ
-                  </span>
                 </li>
               </ul>
             </section>
@@ -711,11 +701,6 @@ export const MainLayout: React.FC = () => {
                   <Link to={USER_ROUTES.TERMS} className="hover:text-blue-600">
                     Terms of Service
                   </Link>
-                </li>
-                <li>
-                  <span>
-                    Privacy Policy
-                  </span>
                 </li>
               </ul>
             </section>
