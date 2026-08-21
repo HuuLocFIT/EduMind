@@ -64,16 +64,9 @@ public class CourseAuditEventListener {
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleCourseArchived(CourseArchivedEvent event) {
-        log.warn("[AUDIT] Course archived: courseId={}, courseTitle={}, instructorId={}, archivedByUserId={}",
-                event.getCourseId(), event.getCourseTitle(), event.getInstructorId(), event.getArchivedByUserId());
-        // TODO: trigger notification when notification module is ready
-    }
-
-    @Async("taskExecutor")
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void handleCourseDeleted(CourseDeletedEvent event) {
-        log.warn("[AUDIT] Course deleted: courseId={}, courseTitle={}, instructorId={}, softDelete={}",
-                event.getCourseId(), event.getCourseTitle(), event.getInstructorId(), event.isSoftDelete());
+        log.warn("[AUDIT] Course archived: courseId={}, courseTitle={}, instructorId={}, actorId={}, role={}, previousStatus={}, reason={}, protectedEnrollments={}",
+                event.getCourseId(), event.getCourseTitle(), event.getInstructorId(), event.getArchivedByUserId(),
+                event.getActorRole(), event.getPreviousStatus(), event.getReason(), event.getProtectedEnrollmentCount());
         // TODO: trigger notification when notification module is ready
     }
 

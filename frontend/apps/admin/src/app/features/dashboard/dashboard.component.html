@@ -180,12 +180,10 @@
             <span class="w-2 h-2 rounded-full bg-success-500"></span>
             {{ stats()!.publishedCourses }} live
           </span>
-          @if (stats()!.pendingReviewCourses > 0) {
-            <span class="inline-flex items-center gap-1 text-xs text-warning-600 font-medium">
-              <span class="w-2 h-2 rounded-full bg-warning-500"></span>
-              {{ stats()!.pendingReviewCourses }} in review
-            </span>
-          }
+          <span class="inline-flex items-center gap-1 text-xs text-neutral-600 font-medium">
+            <span class="w-2 h-2 rounded-full bg-neutral-400"></span>
+            {{ stats()!.archivedCourses }} archived
+          </span>
         </div>
       </app-stat-card>
 
@@ -257,20 +255,17 @@
         <p class="text-xs text-neutral-400 mt-1.5">Total {{ formatCurrency(stats()!.totalRevenue) }}</p>
       </div>
 
-      <!-- Pending Review -->
-      <div class="bg-white rounded-xl border border-neutral-200 p-4"
-           [class.border-amber-200]="stats()!.pendingReviewCourses > 0">
-        <p class="text-xs text-neutral-500 font-medium uppercase tracking-wide">Pending Review</p>
-        <p class="text-2xl font-bold mt-1.5 tabular-nums"
-           [class]="stats()!.pendingReviewCourses > 0 ? 'text-amber-600' : 'text-neutral-900'">
-          {{ stats()!.pendingReviewCourses | number }}
+      <!-- Archived Courses -->
+      <div class="bg-white rounded-xl border border-neutral-200 p-4">
+        <p class="text-xs text-neutral-500 font-medium uppercase tracking-wide">Archived Courses</p>
+        <p class="text-2xl font-bold text-neutral-900 mt-1.5 tabular-nums">
+          {{ stats()!.archivedCourses | number }}
         </p>
         <div class="mt-2.5 bg-neutral-100 rounded-full h-1.5 overflow-hidden">
-          <div class="h-1.5 rounded-full transition-all duration-500"
-               [class]="stats()!.pendingReviewCourses > 0 ? 'bg-amber-400' : 'bg-neutral-200'"
-               [style.width]="stats()!.totalCourses > 0 ? (stats()!.pendingReviewCourses / stats()!.totalCourses * 100) + '%' : '0%'"></div>
+          <div class="h-1.5 rounded-full bg-neutral-400 transition-all duration-500"
+               [style.width]="stats()!.totalCourses > 0 ? (stats()!.archivedCourses / stats()!.totalCourses * 100) + '%' : '0%'"></div>
         </div>
-        <p class="text-xs text-neutral-400 mt-1.5">Courses awaiting review</p>
+        <p class="text-xs text-neutral-400 mt-1.5">Read-only courses retained for learners</p>
       </div>
 
     </div>

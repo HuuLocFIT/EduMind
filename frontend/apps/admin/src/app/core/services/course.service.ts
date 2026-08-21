@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { COURSE_ENDPOINTS } from '@edumind/shared-utils';
+import { ADMIN_ENDPOINTS, COURSE_ENDPOINTS } from '@edumind/shared-utils';
 import {
   CourseDetailResponse,
   CourseDetailResponseSchema,
@@ -28,10 +28,11 @@ export class CourseService {
 
   private readonly http = inject(HttpClient);
 
-  deleteCourse(id: number): Observable<void> {
-    return this.http.delete<void>(
-      `${this.API_URL}${COURSE_ENDPOINTS.DELETE(id)}`
-    );
+  archiveCourse(id: number, reason: string): Observable<CourseResponse> {
+    return this.http.post<CourseResponse>(
+      `${this.API_URL}${COURSE_ENDPOINTS.ARCHIVE(id)}`,
+      { reason },
+    ).pipe(map((response) => CourseResponseSchema.parse(response)));
   }
 
   getCourseById(id: number): Observable<CourseDetailResponse> {
@@ -74,6 +75,24 @@ export class CourseService {
       `${this.API_URL}${COURSE_ENDPOINTS.FILTER}`,
       { params }
     ).pipe(map((response: CoursePagedResponse) => CoursePagedResponseSchema.parse(response)));
+  }
+
+  getAdminCourses(options: {
+    categoryIds?: number[];
+    levels?: string[];
+    status?: string;
+    keyword?: string;
+    page?: number;
+    size?: number;
+  }): Observable<CoursePagedResponse> {
+    let params = this.buildFilterParams(options);
+    if (options.status) {
+      params = params.set('status', options.status);
+    }
+    return this.http.get<CoursePagedResponse>(
+      `${this.API_URL}${ADMIN_ENDPOINTS.COURSES}`,
+      { params },
+    ).pipe(map((response) => CoursePagedResponseSchema.parse(response)));
   }
 
   getCoursesByCategory(
@@ -195,4 +214,3 @@ export class CourseService {
     return params;
   }
 }
-

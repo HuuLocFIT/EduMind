@@ -137,13 +137,13 @@ export const TeacherCourseDetailPage: React.FC = () => {
               Publish
             </Button>
           )}
-          <Button
+          {course.status !== CourseStatus.ARCHIVED && <Button
             variant="outline"
             onClick={() => navigate(TeacherRouteHelpers.courseEdit(course.id))}
             leftIcon={<Edit className="w-4 h-4" />}
           >
             Edit Course
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -173,7 +173,7 @@ export const TeacherCourseDetailPage: React.FC = () => {
         <CurriculumTab
           courseId={course.id}
           sections={sections}
-          onEdit={() =>
+          onEdit={course.status === CourseStatus.ARCHIVED ? undefined : () =>
             navigate(TeacherRouteHelpers.courseEdit(course.id, "curriculum"))
           }
         />

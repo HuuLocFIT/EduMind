@@ -50,7 +50,6 @@ public class DashboardServiceImpl implements DashboardService {
         // Course stats
         long totalCourses = courseRepository.count();
         long publishedCourses = courseRepository.countByStatus(CourseStatus.PUBLISHED);
-        long pendingReviewCourses = courseRepository.countByStatus(CourseStatus.PENDING_REVIEW);
         long draftCourses = courseRepository.countByStatus(CourseStatus.DRAFT);
         long archivedCourses = courseRepository.countByStatus(CourseStatus.ARCHIVED);
 
@@ -86,7 +85,6 @@ public class DashboardServiceImpl implements DashboardService {
                 .completedEnrollments(completedEnrollments)
                 .totalCourses(totalCourses)
                 .publishedCourses(publishedCourses)
-                .pendingReviewCourses(pendingReviewCourses)
                 .draftCourses(draftCourses)
                 .archivedCourses(archivedCourses)
                 .totalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO)

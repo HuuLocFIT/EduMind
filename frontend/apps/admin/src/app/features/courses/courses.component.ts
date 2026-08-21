@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
 import { catchError, debounceTime, switchMap } from 'rxjs/operators';
@@ -17,17 +18,19 @@ import {
   BadgeComponent,
   ButtonComponent,
   CardComponent,
-  ConfirmDialogComponent,
   DataTableComponent,
+  ModalComponent,
   type TableColumn,
   MultiSelectComponent,
   SearchBarComponent,
+  SelectComponent,
+  TextareaComponent,
   type SelectOption,
 } from '@edumind/admin-ui';
 import { CourseService, type CoursePagedResponse } from '../../core/services/course.service';
 import { CategoryService } from '../../core/services/category.service';
 import { CourseResponse } from '@edumind/shared-types';
-import { CourseLevel } from '@edumind/shared-constants';
+import { CourseLevel, CourseStatus } from '@edumind/shared-constants';
 import { StatusVariantPipe } from './status-variant.pipe';
 import { EnumLabelPipe } from '../../shared/pipes/enum-label.pipe';
 import { injectAsyncState, injectMediaQuery, injectModal, injectPagination, formatEnumLabel } from '../../core/utils';
@@ -39,6 +42,7 @@ type CourseRow = CourseResponse;
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterLink,
     CardComponent,
     ButtonComponent,
@@ -46,8 +50,10 @@ type CourseRow = CourseResponse;
     AlertComponent,
     DataTableComponent,
     SearchBarComponent,
+    SelectComponent,
     MultiSelectComponent,
-    ConfirmDialogComponent,
+    ModalComponent,
+    TextareaComponent,
     StatusVariantPipe,
     EnumLabelPipe,
   ],
@@ -73,20 +79,30 @@ export class CoursesComponent implements OnInit {
 
   isMobile = injectMediaQuery('(max-width: 768px)');
 
-  private deleteModal = injectModal<CourseRow>();
-  showDeleteModal = this.deleteModal.isOpen;
-  selectedCourse = this.deleteModal.data;
+  private archiveModal = injectModal<CourseRow>();
+  showArchiveModal = this.archiveModal.isOpen;
+  selectedCourse = this.archiveModal.data;
+  archiveReason = signal('');
+  archiveReasonError = signal('');
 
   // ── Filters ───────────────────────────────────────────────────────────────
   searchQuery = signal('');
   selectedCategories = signal<number[]>([]);
   selectedLevels = signal<string[]>([]);
+  selectedStatus = signal('');
 
   categoriesOptions = signal<SelectOption[]>([]);
   levelOptions: SelectOption[] = Object.values(CourseLevel).map((level) => ({
     value: level,
     label: formatEnumLabel(level),
   }));
+  statusOptions: SelectOption[] = [
+    { value: '', label: 'All' },
+    ...Object.values(CourseStatus).map((status) => ({
+      value: status,
+      label: formatEnumLabel(status),
+    })),
+  ];
 
   // ── Data ─────────────────────────────────────────────────────────────────
   courses = signal<CourseRow[]>([]);
@@ -115,9 +131,10 @@ export class CoursesComponent implements OnInit {
           const page = this.currentPage() - 1;
           const categoryIds = this.selectedCategories().length > 0 ? this.selectedCategories() : undefined;
           const levels = this.selectedLevels().length > 0 ? this.selectedLevels() : undefined;
+          const status = this.selectedStatus() || undefined;
 
           return this.courseService
-            .filterCourses({ keyword: this.searchQuery() || undefined, categoryIds, levels, page, size: this.pageSize })
+            .getAdminCourses({ keyword: this.searchQuery() || undefined, categoryIds, levels, status, page, size: this.pageSize })
             .pipe(
               catchError(() => {
                 this.errorMessage.set('Failed to load courses');
@@ -192,27 +209,46 @@ export class CoursesComponent implements OnInit {
     this.filter$.next();
   }
 
+  onStatusChange(value: string | number): void {
+    this.selectedStatus.set(String(value));
+    this.pagination.resetPage();
+    this.filter$.next();
+  }
+
   onPageChange(page: number): void {
     this.pagination.goToPage(page);
     this.filter$.next();
   }
 
-  openDeleteModal(course: CourseRow): void {
-    this.deleteModal.open(course);
+  openArchiveModal(course: CourseRow): void {
+    this.archiveReason.set('');
+    this.archiveReasonError.set('');
+    this.archiveModal.open(course);
   }
 
-  deleteCourse(): void {
+  closeArchiveModal(): void {
+    this.archiveModal.close();
+    this.archiveReason.set('');
+    this.archiveReasonError.set('');
+  }
+
+  archiveCourse(): void {
     const course = this.selectedCourse();
     if (!course) return;
+    const reason = this.archiveReason().trim();
+    if (!reason) {
+      this.archiveReasonError.set('Archive reason is required');
+      return;
+    }
 
     this.async.execute(
-      this.courseService.deleteCourse(course.id),
+      this.courseService.archiveCourse(course.id, reason),
       {
         submitting: true,
-        successMsg: 'Course deleted successfully',
-        errorMsg: 'Failed to delete course',
+        successMsg: 'Course archived successfully',
+        errorMsg: 'Failed to archive course',
         onSuccess: () => {
-          this.deleteModal.close();
+          this.closeArchiveModal();
           this.filter$.next();
         },
       },

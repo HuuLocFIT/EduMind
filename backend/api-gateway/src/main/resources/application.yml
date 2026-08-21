@@ -114,6 +114,21 @@ spring:
                       requestedTokens: 1
                 - RewritePath=/api/admin/enrollment-reports(?<segment>/?.*), /admin/enrollment-reports${segment}
 
+            # Admin Course Routes (in LMS-CORE-SERVICE — must be before admin-service)
+            - id: admin-courses-service
+              uri: lb://LMS-CORE-SERVICE
+              predicates:
+                - Path=/api/admin/courses/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@ipKeyResolver}"
+                    redis-rate-limiter:
+                      replenishRate: 10
+                      burstCapacity: 20
+                      requestedTokens: 1
+                - RewritePath=/api/admin/courses(?<segment>/?.*), /admin/courses${segment}
+
             # Admin Service Routes (also in AUTH-SERVICE)
             - id: admin-service
               uri: lb://AUTH-SERVICE

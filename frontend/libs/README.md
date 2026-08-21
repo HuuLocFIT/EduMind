@@ -137,7 +137,7 @@ export const PROVIDER = {
 ```ts
 ContentType      // VIDEO | ARTICLE | QUIZ | RESOURCE
 CourseLevel      // BEGINNER | INTERMEDIATE | ADVANCED | ALL_LEVELS
-CourseStatus     // DRAFT | PENDING_REVIEW | PUBLISHED | ARCHIVED
+CourseStatus     // DRAFT | PUBLISHED | ARCHIVED
 EnrollmentStatus // ACTIVE | COMPLETED | SUSPENDED | EXPIRED | DROPPED
 ```
 
@@ -188,8 +188,8 @@ AI_ENDPOINTS.CHAT_STREAM(courseId)      // '/api/ai/chat/courses/42/stream'
 |----------|----------|
 | `AUTH_ENDPOINTS` | Login, signup, logout, refresh, 2FA, OAuth2, password reset, email verification |
 | `USER_ENDPOINTS` | Profile, avatar, change password |
-| `TEACHER_PORTAL_ENDPOINTS` | Full CRUD for courses, sections, lessons; student list; reviews |
-| `COURSE_ENDPOINTS` | Public course listing, search, filter, publish |
+| `TEACHER_PORTAL_ENDPOINTS` | Course create, update, publish, and archive; section and lesson management; student list; reviews |
+| `COURSE_ENDPOINTS` | Public course listing, search, filter, detail, publish, and archive |
 | `CATEGORY_ENDPOINTS` | CRUD + toggle status |
 | `ENROLLMENT_ENDPOINTS` | My enrollments, check, suspend, activate |
 | `LESSON_PROGRESS_ENDPOINTS` | Start, watch, complete |
@@ -198,7 +198,7 @@ AI_ENDPOINTS.CHAT_STREAM(courseId)      // '/api/ai/chat/courses/42/stream'
 | `CHECKOUT_ENDPOINTS`, `ORDER_ENDPOINTS` | Checkout flow |
 | `INVOICE_ENDPOINTS` | Download, view, list |
 | `EARNING_ENDPOINTS`, `PAYOUT_ENDPOINTS`, `REFUND_ENDPOINTS` | Teacher financials |
-| `ADMIN_ENDPOINTS` | User, course, teacher, student management; applications |
+| `ADMIN_ENDPOINTS` | User, admin course listing, teacher and student management; applications |
 | `AI_ENDPOINTS` | Quiz generation, job polling, chat stream, transcription, summaries |
 
 Helper functions:
@@ -484,9 +484,9 @@ columns: TableColumn<Course>[] = [
 
 <app-confirm-dialog
   [isOpen]="confirmOpen"
-  title="Delete course?"
+  title="Delete category?"
   message="This action cannot be undone."
-  (confirm)="onDelete()"
+  (confirm)="deleteCategory()"
   (cancel)="confirmOpen = false"
 />
 ```

@@ -98,6 +98,10 @@ public class Course extends BaseEntity {
     private Integer totalReviews = 0;
 
     private LocalDateTime publishedAt;
+    private LocalDateTime archivedAt;
+    private Long archivedBy;
+    @Column(columnDefinition = "TEXT")
+    private String archiveReason;
 
     // Relationships
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -7,6 +7,7 @@ import com.edumind.lms.modules.course.dto.response.UserPublicProfileResponse;
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.enums.CourseLevel;
 import com.edumind.lms.modules.course.enums.CourseStatus;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.exception.*;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.CourseSpecifications;
@@ -15,7 +16,6 @@ import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.event.CourseArchivedEvent;
 import com.edumind.lms.modules.course.event.CourseCreatedEvent;
-import com.edumind.lms.modules.course.event.CourseDeletedEvent;
 import com.edumind.lms.modules.course.event.CoursePublishedEvent;
 import com.edumind.lms.modules.course.event.CourseUpdatedEvent;
 import com.edumind.lms.shared.client.UserClient;
@@ -97,6 +97,9 @@ public class CourseServiceImpl implements CourseService {
         Course existingCourse = getCourseById(courseId);
         validateCourseOwnership(courseId, instructorId);
 
+        if (existingCourse.getStatus() == CourseStatus.ARCHIVED) {
+            throw new ConflictException("Archived courses are read-only");
+        }
         boolean isPublished = existingCourse.getStatus() == CourseStatus.PUBLISHED;
 
         if (isPublished) {
@@ -130,9 +133,8 @@ public class CourseServiceImpl implements CourseService {
         // Validate ownership
         validateCourseOwnership(courseId, instructorId);
 
-        // Check if already published
-        if (course.getStatus() == CourseStatus.PUBLISHED) {
-            throw new CourseAlreadyPublishedException(courseId);
+        if (course.getStatus() != CourseStatus.DRAFT) {
+            throw new ConflictException("Only draft courses can be published");
         }
 
         // Validate course is ready to publish (has content)
@@ -162,17 +164,37 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    public Course archiveCourse(Long courseId, Long userId, String userRole) {
+    public Course archiveCourse(Long courseId, Long userId, String userRole, String reason) {
         log.info("Archiving course: {} by user: {} with role: {}", courseId, userId, userRole);
 
         Course course = getCourseById(courseId);
 
+        if (course.getStatus() == CourseStatus.ARCHIVED) {
+            return course;
+        }
+
+        boolean isAdmin = "ADMIN".equals(userRole);
+        String normalizedReason = reason == null ? null : reason.trim();
+        if (isAdmin && (normalizedReason == null || normalizedReason.isEmpty())) {
+            throw new BadRequestException("Archive reason is required for administrators");
+        }
+
         // Validate authorization
-        if (!"ADMIN".equals(userRole) && !course.getInstructorId().equals(userId)) {
+        if (!isAdmin && !course.getInstructorId().equals(userId)) {
             throw new UnauthorizedException("Not authorized to archive this course");
         }
 
+        long protectedEnrollmentCount = enrollmentRepository.countByCourseIdAndStatusIn(courseId,
+                List.of(EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED, EnrollmentStatus.SUSPENDED));
+        if (!isAdmin && protectedEnrollmentCount > 0) {
+            throw new ConflictException("Course has protected enrollments and must be archived by an administrator");
+        }
+
+        String previousStatus = course.getStatus().name();
         course.setStatus(CourseStatus.ARCHIVED);
+        course.setArchivedAt(LocalDateTime.now());
+        course.setArchivedBy(userId);
+        course.setArchiveReason(normalizedReason);
         Course archivedCourse = courseRepository.save(course);
 
         eventPublisher.publishEvent(new CourseArchivedEvent(
@@ -180,45 +202,11 @@ public class CourseServiceImpl implements CourseService {
                 courseId,
                 course.getTitle(),
                 course.getInstructorId(),
-                userId
+                userId, userRole, previousStatus, normalizedReason, protectedEnrollmentCount
         ));
 
         log.info("Course archived successfully: {}", courseId);
         return archivedCourse;
-    }
-
-    @Override
-    @Transactional
-    public void deleteCourse(Long courseId, Long userId, String userRole) {
-        log.info("Deleting course: {} by user: {} with role: {}", courseId, userId, userRole);
-
-        Course course = getCourseById(courseId);
-
-        // Validate authorization
-        if (!"ADMIN".equals(userRole) && !course.getInstructorId().equals(userId)) {
-            throw new UnauthorizedException("Not authorized to delete this course");
-        }
-
-        // Don't allow deleting published courses with enrollments
-        if (course.getStatus() == CourseStatus.PUBLISHED) {
-            long enrollmentCount = enrollmentRepository.countByCourseId(courseId);
-            if (enrollmentCount > 0) {
-                throw new BadRequestException("Cannot delete course with active enrollments. Archive it instead.");
-            }
-        }
-
-        course.setStatus(CourseStatus.ARCHIVED);
-        courseRepository.save(course);
-
-        eventPublisher.publishEvent(new CourseDeletedEvent(
-                this,
-                courseId,
-                course.getTitle(),
-                course.getInstructorId(),
-                true
-        ));
-
-        log.info("Course archived (soft-delete): {}", courseId);
     }
 
     @Override
@@ -256,6 +244,17 @@ public class CourseServiceImpl implements CourseService {
     public Page<Course> getInstructorCoursesByStatus(Long instructorId, CourseStatus status, Pageable pageable) {
         log.debug("Getting courses for instructor: {} with status: {}", instructorId, status);
         return courseRepository.findByInstructorIdAndStatus(instructorId, status, pageable);
+    }
+
+    @Override
+    public Page<Course> getAdminCourses(List<Long> categoryIds, List<CourseLevel> levels,
+            CourseStatus status, String keyword, Pageable pageable) {
+        Specification<Course> spec = Specification.where(null);
+        if (status != null) spec = spec.and(CourseSpecifications.hasStatus(status));
+        if (categoryIds != null && !categoryIds.isEmpty()) spec = spec.and(CourseSpecifications.inCategories(categoryIds));
+        if (levels != null && !levels.isEmpty()) spec = spec.and(CourseSpecifications.inLevels(levels));
+        if (keyword != null && !keyword.isBlank()) spec = spec.and(CourseSpecifications.hasKeyword(keyword));
+        return courseRepository.findAll(spec, pageable);
     }
 
     @Override

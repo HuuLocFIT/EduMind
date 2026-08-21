@@ -14,7 +14,6 @@ export const CourseLevel = {
 
 export const CourseStatus = {
   DRAFT: "DRAFT",
-  PENDING_REVIEW: "PENDING_REVIEW",
   PUBLISHED: "PUBLISHED",
   ARCHIVED: "ARCHIVED",
 } as const;
@@ -33,4 +32,3 @@ export const VideoUploadStatus = {
   READY: "READY",
   FAILED: "FAILED",
 } as const;
-

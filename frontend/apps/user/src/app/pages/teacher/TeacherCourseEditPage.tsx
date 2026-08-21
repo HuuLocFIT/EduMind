@@ -21,6 +21,7 @@ import {
   type TabId,
 } from "../../components/teacher/courses/edit";
 import { ArrowLeft } from "lucide-react";
+import { CourseStatus } from "@edumind/shared-constants";
 
 export const TeacherCourseEditPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -83,6 +84,25 @@ export const TeacherCourseEditPage: React.FC = () => {
 
   if (!course) {
     return <Alert variant="error" title="Error" message="Course not found" />;
+  }
+
+  if (course.status === CourseStatus.ARCHIVED) {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => navigate(TeacherRouteHelpers.courseDetail(course.id))}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Course
+        </button>
+        <Alert
+          variant="info"
+          title="Archived course"
+          message="This course is read-only. View its details, learners, reviews, and analytics from the course page."
+        />
+      </div>
+    );
   }
 
   return (

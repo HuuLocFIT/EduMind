@@ -30,12 +30,10 @@ public interface CourseService {
     /**
      * Archive course (TEACHER/ADMIN)
      */
-    Course archiveCourse(Long courseId, Long userId, String userRole);
+    Course archiveCourse(Long courseId, Long userId, String userRole, String reason);
 
-    /**
-     * Delete course (TEACHER - own courses, ADMIN - any)
-     */
-    void deleteCourse(Long courseId, Long userId, String userRole);
+    Page<Course> getAdminCourses(List<Long> categoryIds, List<CourseLevel> levels,
+            CourseStatus status, String keyword, Pageable pageable);
 
     /**
      * Get course by ID (PUBLIC for published, TEACHER for own drafts)

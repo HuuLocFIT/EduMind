@@ -26,7 +26,7 @@ vi.mock('@edumind/shared-utils', () => ({
       `/api/courses/instructor/${instructorId}/picker`,
     COURSE_CREATE: '/api/courses',
     COURSE_UPDATE: (courseId: string | number) => `/api/courses/${courseId}`,
-    COURSE_DELETE: (courseId: string | number) => `/api/courses/${courseId}`,
+    COURSE_ARCHIVE: (courseId: string | number) => `/api/courses/${courseId}/archive`,
     COURSE_DETAIL: (courseId: string | number) => `/api/courses/${courseId}`,
     COURSE_PUBLISH: (courseId: string | number) => `/api/courses/${courseId}/publish`,
     SECTIONS: (courseId: string | number) => `/api/sections/courses/${courseId}`,
@@ -89,6 +89,37 @@ describe('teacherCourseService', () => {
       const result = await teacherCourseService.getCoursePicker(42);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('archiveCourse', () => {
+    it('archives a course with a trimmed optional reason and parses the response', async () => {
+      const archivedCourse = {
+        id: 1,
+        title: 'Course One',
+        slug: 'course-one',
+        status: 'ARCHIVED',
+        instructorId: 42,
+        instructorName: 'Teacher',
+        categoryId: 2,
+        categoryName: 'Technology',
+        level: 'BEGINNER',
+        language: 'English',
+        price: 0,
+        currency: 'USD',
+        hasCertificate: false,
+        hasSubtitles: false,
+        createdAt: '2026-08-20T00:00:00Z',
+        updatedAt: '2026-08-21T00:00:00Z',
+      };
+      vi.mocked(apiClient.post).mockResolvedValue({ data: archivedCourse });
+
+      const result = await teacherCourseService.archiveCourse(1, '  Outdated  ');
+
+      expect(apiClient.post).toHaveBeenCalledWith('/api/courses/1/archive', {
+        reason: 'Outdated',
+      });
+      expect(result.status).toBe('ARCHIVED');
     });
   });
 });

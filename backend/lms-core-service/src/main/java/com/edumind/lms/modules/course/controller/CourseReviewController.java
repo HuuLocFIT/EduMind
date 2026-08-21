@@ -234,8 +234,14 @@ public class CourseReviewController {
 
     @PostMapping("/{reviewId}/approve")
     @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
-    public ResponseEntity<ApiResponse<ReviewResponse>> approveReview(@PathVariable Long reviewId) {
-        CourseReview review = reviewService.approveReview(reviewId);
+    public ResponseEntity<ApiResponse<ReviewResponse>> approveReview(
+            @PathVariable Long reviewId,
+            Authentication authentication) {
+        Long userId = extractUserId(authentication);
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+
+        CourseReview review = reviewService.approveReview(reviewId, userId, isAdmin);
         return ResponseEntity.ok(ApiResponse.success(
                 "Review approved successfully",
                 toResponse(review)
@@ -244,8 +250,14 @@ public class CourseReviewController {
 
     @DeleteMapping("/{reviewId}/reject")
     @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
-    public ResponseEntity<ApiResponse<Void>> rejectReview(@PathVariable Long reviewId) {
-        reviewService.rejectReview(reviewId);
+    public ResponseEntity<ApiResponse<Void>> rejectReview(
+            @PathVariable Long reviewId,
+            Authentication authentication) {
+        Long userId = extractUserId(authentication);
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+
+        reviewService.rejectReview(reviewId, userId, isAdmin);
         return ResponseEntity.ok(ApiResponse.success("Review rejected and deleted", null));
     }
 

@@ -83,17 +83,21 @@ public interface CourseReviewService {
     Page<CourseReview> getPendingReviews(Pageable pageable);
 
     /**
-     * Approve review (admin/instructor only)
+     * Approve review (admin, or the instructor who owns the reviewed course)
      * @param reviewId Review ID
+     * @param userId ID of the acting user
+     * @param isAdmin whether the acting user is an admin (bypasses ownership check)
      * @return Approved review
      */
-    CourseReview approveReview(Long reviewId);
+    CourseReview approveReview(Long reviewId, Long userId, boolean isAdmin);
 
     /**
-     * Reject review (admin/instructor only)
+     * Reject review (admin, or the instructor who owns the reviewed course)
      * @param reviewId Review ID
+     * @param userId ID of the acting user
+     * @param isAdmin whether the acting user is an admin (bypasses ownership check)
      */
-    void rejectReview(Long reviewId);
+    void rejectReview(Long reviewId, Long userId, boolean isAdmin);
 
     /**
      * Admin force-delete review (for moderation - spam/inappropriate content)

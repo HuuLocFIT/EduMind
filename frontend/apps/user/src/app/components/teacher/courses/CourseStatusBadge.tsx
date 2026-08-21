@@ -1,6 +1,6 @@
 import React from "react";
 import { CourseStatus } from "@edumind/shared-constants";
-import { FileText, Clock, CheckCircle, Archive } from "lucide-react";
+import { FileText, CheckCircle, Archive } from "lucide-react";
 
 interface CourseStatusBadgeProps {
   status: string;
@@ -16,12 +16,6 @@ const statusConfig: Record<
     text: "text-gray-700",
     icon: <FileText className="w-3 h-3" />,
     label: "Draft",
-  },
-  [CourseStatus.PENDING_REVIEW]: {
-    bg: "bg-amber-100",
-    text: "text-amber-700",
-    icon: <Clock className="w-3 h-3" />,
-    label: "Pending Review",
   },
   [CourseStatus.PUBLISHED]: {
     bg: "bg-green-100",

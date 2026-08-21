@@ -121,8 +121,12 @@ export const teacherCourseService = {
     return CourseResponseSchema.parse(response.data);
   },
 
-  async deleteCourse(courseId: number): Promise<void> {
-    await apiClient.delete(TEACHER_PORTAL_ENDPOINTS.COURSE_DELETE(courseId));
+  async archiveCourse(courseId: number, reason?: string): Promise<CourseResponse> {
+    const response = await apiClient.post<CourseResponse>(
+      `/api/courses/${courseId}/archive`,
+      reason?.trim() ? { reason: reason.trim() } : {}
+    );
+    return CourseResponseSchema.parse(response.data);
   },
 
   async publishCourse(courseId: number): Promise<CourseResponse> {

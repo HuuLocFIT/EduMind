@@ -91,6 +91,11 @@
             } @else {
               <p>Published: <span class="text-neutral-700">Not published</span></p>
             }
+            @if (c.status === 'ARCHIVED') {
+              <p>Archived: <span class="text-neutral-700">{{ c.archivedAt | date:'medium' }}</span></p>
+              <p>Archived by: <span class="text-neutral-700">{{ c.archivedBy ?? 'Unknown' }}</span></p>
+              <p>Reason: <span class="text-neutral-700">{{ c.archiveReason || 'Not provided' }}</span></p>
+            }
             <p>Created: <span class="text-neutral-700">{{ c.createdAt | date:'medium' }}</span></p>
             <p>Updated: <span class="text-neutral-700">{{ c.updatedAt | date:'medium' }}</span></p>
           </div>
