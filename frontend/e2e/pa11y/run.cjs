@@ -12,6 +12,12 @@ const {responseForApi} = require('./fixtures.cjs');
 const isCi = process.argv.includes('--ci');
 const reportDirectory = path.resolve(process.cwd(), config.reportDirectory);
 
+// Endpoints that are POST/PUT for backend/API-design reasons but are actually
+// read-only (compute-and-return, no persisted mutation) — the initial render
+// of an authenticated page can depend on one of these succeeding, so the
+// generic "block every non-GET write" rule below must not 405 them.
+const SAFE_NON_GET_READS = [/\/checkout\/preview$/, /\/checkout\/direct\/preview$/];
+
 async function preparePage(browser, route) {
   const page = await browser.newPage();
   if (route.requiresAuth) {
@@ -50,7 +56,18 @@ async function preparePage(browser, route) {
     const isApi = url.pathname.startsWith('/api/');
 
     try {
-      if (isApi && request.method() !== 'GET') {
+      if (isApi && request.method() === 'OPTIONS') {
+        // The browser sends a CORS preflight ahead of any cross-origin
+        // request carrying an Authorization header (every authenticated
+        // route here). Answering it with 405 — as the "block writes" branch
+        // below would — fails the preflight and silently drops the real
+        // request, which starved every `requiresAuth` route's data fetch.
+        await request.respond({status: 204, headers: fixtureCorsHeaders()});
+      } else if (
+        isApi &&
+        request.method() !== 'GET' &&
+        !SAFE_NON_GET_READS.some((pattern) => pattern.test(url.pathname))
+      ) {
         await request.respond({
           status: 405,
           contentType: 'application/json',
@@ -82,6 +99,8 @@ function fixtureCorsHeaders() {
   return {
     'access-control-allow-origin': new URL(config.baseUrl).origin,
     'access-control-allow-credentials': 'true',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'access-control-allow-headers': 'Authorization, Content-Type',
   };
 }
 
@@ -123,13 +142,27 @@ async function main() {
 
   const results = [];
   let scanFailed = false;
+  let budgetExceeded = false;
   try {
     for (const route of config.routes) {
       process.stdout.write(`Pa11y: ${route.path} ... `);
       try {
         const result = await scanRoute(browser, route);
         results.push(result);
-        console.log(`${result.issues.length} issue(s)`);
+        const maxIssues = route.maxIssues ?? 0;
+        if (result.issues.length > maxIssues) {
+          budgetExceeded = true;
+          console.log(
+            `${result.issues.length} issue(s) — EXCEEDS budget of ${maxIssues} for "${route.name}"`,
+          );
+        } else {
+          console.log(`${result.issues.length} issue(s) (budget: ${maxIssues})`);
+          if (result.issues.length < maxIssues) {
+            console.log(
+              `  note: "${route.name}" is under budget — consider lowering maxIssues to ${result.issues.length} in e2e/pa11y/config.cjs`,
+            );
+          }
+        }
       } catch (error) {
         scanFailed = true;
         const message = error instanceof Error ? error.stack || error.message : String(error);
@@ -167,10 +200,9 @@ async function main() {
     'utf8',
   );
 
-  const issueCount = results.reduce((total, result) => total + result.issues.length, 0);
   console.log(`Pa11y reports: ${reportDirectory}`);
   if (scanFailed) process.exitCode = 1;
-  else if (issueCount > 0) process.exitCode = 2;
+  else if (budgetExceeded) process.exitCode = 2;
 }
 
 function escapeHtml(value) {

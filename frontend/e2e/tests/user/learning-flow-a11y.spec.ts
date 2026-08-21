@@ -1,5 +1,4 @@
-import { expect, type Page } from '@playwright/test';
-import { test as authTest } from '../../fixtures/auth.fixture.js';
+import { expect, test, type Page } from '@playwright/test';
 import { checkA11y } from '../../utils/accessibility.js';
 import { CoursePlayerPage } from '../../page-objects/user/CoursePlayerPage.js';
 
@@ -104,7 +103,45 @@ const envelope = (data: unknown, pagination?: object) => ({
   ...(pagination ? { pagination } : {}),
 });
 
+const fixtureUser = {
+  id: 101,
+  username: 'a11y_student',
+  email: 'student@example.test',
+  roles: ['STUDENT'],
+  isActive: true,
+  isEmailVerified: true,
+  is2faEnabled: false,
+  isTrial: false,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+};
+const fixtureAccessToken = 'learning-a11y-fixture-token';
+
+/**
+ * Seeds an already-authenticated session directly into localStorage instead
+ * of logging in against a real backend (see auth.fixture.ts's loginViaApi,
+ * which this mirrors). Keeps this suite deterministic and backend-independent
+ * like the other three *-flow-a11y suites.
+ */
+async function seedAuthenticatedSession(page: Page) {
+  await page.addInitScript(
+    ({ user, accessToken }) => {
+      localStorage.setItem(
+        'auth-storage',
+        JSON.stringify({
+          state: { user, accessToken, isAuthenticated: true, isLoading: false, error: null },
+          version: 0,
+        }),
+      );
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('user', JSON.stringify(user));
+    },
+    { user: fixtureUser, accessToken: fixtureAccessToken },
+  );
+}
+
 async function installCoursePlayerFixtures(page: Page, enrolled = true) {
+  await seedAuthenticatedSession(page);
   let currentEnrollment = { ...enrollment };
   let currentProgress = progress.map((item) => ({ ...item }));
   let failNextProgressSave = false;
@@ -126,6 +163,24 @@ async function installCoursePlayerFixtures(page: Page, enrolled = true) {
     const pathname = new URL(request.url()).pathname;
     const fulfill = (data: unknown, pagination?: object) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(envelope(data, pagination)) });
 
+    // The header cart badge (MainLayout) fetches these on every page boot,
+    // regardless of route — must be mocked or the app's 401 → refresh → logout
+    // flow (api-client.service.ts) clears auth state and redirects to /login.
+    if (pathname.endsWith('/cart/count')) return fulfill(0);
+    if (pathname.endsWith('/cart')) {
+      return fulfill({
+        id: 1,
+        userId: fixtureUser.id,
+        items: [],
+        itemCount: 0,
+        subtotal: 0,
+        discountTotal: 0,
+        totalAmount: 0,
+        currency: 'USD',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+    }
     if (pathname.endsWith(`/courses/slug/${slug}`)) return fulfill(course);
     if (pathname.endsWith(`/sections/courses/${courseId}`)) return fulfill(sections);
     if (pathname.endsWith(`/lessons/courses/${courseId}`)) return fulfill(lessons);
@@ -203,10 +258,10 @@ async function installCoursePlayerFixtures(page: Page, enrolled = true) {
   };
 }
 
-authTest.describe('@a11y-learning Course player structure and navigation', () => {
-  authTest('Flow 4 keyboard journey covers learning filters, media, retry and completion', async ({ studentPage }, testInfo) => {
-    await studentPage.setViewportSize({ width: 1440, height: 900 });
-    await studentPage.addInitScript(() => {
+test.describe('@a11y-learning Course player structure and navigation', () => {
+  test('Flow 4 keyboard journey covers learning filters, media, retry and completion', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() => {
       HTMLMediaElement.prototype.play = function play() {
         this.dispatchEvent(new Event('play'));
         return Promise.resolve();
@@ -215,64 +270,64 @@ authTest.describe('@a11y-learning Course player structure and navigation', () =>
         this.dispatchEvent(new Event('pause'));
       };
     });
-    const fixture = await installCoursePlayerFixtures(studentPage);
+    const fixture = await installCoursePlayerFixtures(page);
 
-    await studentPage.goto('/learning');
-    await expect(studentPage.getByRole('heading', { name: 'My Courses' })).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'my learning populated all courses', testInfo });
+    await page.goto('/learning');
+    await expect(page.getByRole('heading', { name: 'My Courses' })).toBeVisible();
+    await checkA11y(page, { stateName: 'my learning populated all courses', testInfo });
 
-    const allTab = studentPage.getByRole('tab', { name: /^All,/ });
+    const allTab = page.getByRole('tab', { name: /^All,/ });
     await allTab.focus();
     await allTab.press('ArrowRight');
-    const inProgressTab = studentPage.getByRole('tab', { name: /^Active,/ });
+    const inProgressTab = page.getByRole('tab', { name: /^Active,/ });
     await expect(inProgressTab).toBeFocused();
     await expect(inProgressTab).toHaveAttribute('aria-selected', 'true');
-    await expect(studentPage.getByRole('list', { name: 'active courses' })).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'my learning in-progress courses', testInfo });
+    await expect(page.getByRole('list', { name: 'active courses' })).toBeVisible();
+    await checkA11y(page, { stateName: 'my learning in-progress courses', testInfo });
 
-    const continueLearning = studentPage.getByRole('button', { name: `Continue learning ${course.title}` });
+    const continueLearning = page.getByRole('button', { name: `Continue learning ${course.title}` });
     await continueLearning.focus();
     await continueLearning.press('Enter');
-    await expect(studentPage).toHaveURL(new RegExp(`/learning/${slug}`));
+    await expect(page).toHaveURL(new RegExp(`/learning/${slug}`));
 
-    const player = new CoursePlayerPage(studentPage);
-    await expect(studentPage.getByRole('heading', { level: 1, name: course.title })).toBeVisible();
+    const player = new CoursePlayerPage(page);
+    await expect(page.getByRole('heading', { level: 1, name: course.title })).toBeVisible();
     await expect(player.lessonItems.nth(0)).toHaveAttribute('aria-current', 'step');
     await expect(player.lessonItems.nth(0)).toHaveAccessibleName(/Completed/);
     await expect(player.lessonItems.nth(2)).toBeEnabled();
-    await checkA11y(studentPage, { stateName: 'course player completed and available lessons', testInfo });
+    await checkA11y(page, { stateName: 'course player completed and available lessons', testInfo });
 
     await player.lessonItems.nth(1).press('Enter');
     await expect(player.lessonHeading).toHaveText('Player overview');
     await expect(player.lessonHeading).toBeFocused();
 
-    const videoPlayer = studentPage.getByRole('group', { name: 'Video player' });
+    const videoPlayer = page.getByRole('group', { name: 'Video player' });
     await videoPlayer.focus();
     await videoPlayer.press('k');
-    await expect(studentPage.getByRole('button', { name: 'Pause video' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pause video' })).toBeVisible();
     await videoPlayer.press('ArrowRight');
     await videoPlayer.press('m');
-    await expect(studentPage.getByRole('button', { name: 'Unmute video' })).toBeVisible();
-    const captions = studentPage.getByRole('button', { name: 'Captions' });
+    await expect(page.getByRole('button', { name: 'Unmute video' })).toBeVisible();
+    const captions = page.getByRole('button', { name: 'Captions' });
     await captions.focus();
     await captions.press('Enter');
     await expect(captions).toHaveAttribute('aria-pressed', 'true');
-    await expect(studentPage.locator('video track[kind="captions"]')).toHaveCount(1);
-    await checkA11y(studentPage, { stateName: 'course player keyboard-operated captioned video', testInfo });
+    await expect(page.locator('video track[kind="captions"]')).toHaveCount(1);
+    await checkA11y(page, { stateName: 'course player keyboard-operated captioned video', testInfo });
 
     fixture.failNextProgressSave();
-    await studentPage.clock.install();
-    await studentPage.locator('video').evaluate((element) => {
+    await page.clock.install();
+    await page.locator('video').evaluate((element) => {
       const video = element as HTMLVideoElement;
       Object.defineProperty(video, 'duration', { configurable: true, value: 60 });
       video.currentTime = 12;
       video.dispatchEvent(new Event('loadedmetadata'));
       video.dispatchEvent(new Event('timeupdate'));
     });
-    await studentPage.clock.fastForward(10_000);
-    const saveError = studentPage.getByRole('alert').filter({ hasText: /progress could not be saved/i });
+    await page.clock.fastForward(10_000);
+    const saveError = page.getByRole('alert').filter({ hasText: /progress could not be saved/i });
     await expect(saveError).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'course player progress save error', testInfo });
+    await checkA11y(page, { stateName: 'course player progress save error', testInfo });
     await saveError.getByRole('button', { name: 'Retry saving video progress' }).press('Enter');
     await expect(saveError).toHaveCount(0);
     expect(fixture.progressSavePayloads).toHaveLength(2);
@@ -281,27 +336,27 @@ authTest.describe('@a11y-learning Course player structure and navigation', () =>
     await player.markCompleteButton.focus();
     await player.markCompleteButton.press('Enter');
     await expect(
-      studentPage.getByRole('button', { name: 'Go to next lesson now' })
+      page.getByRole('button', { name: 'Go to next lesson now' })
     ).toHaveAccessibleDescription('Player overview completed. Course progress is 67%. Moving to Knowledge check in 10 seconds. To remain on this lesson, activate Cancel auto-advance.');
-    await expect(studentPage.getByText('Course Progress: 67%')).toBeVisible();
+    await expect(page.getByText('Course Progress: 67%')).toBeVisible();
     await expect(player.lessonItems.nth(1)).toHaveAccessibleName(/Completed/);
-    await checkA11y(studentPage, { stateName: 'course player completion updated progress', testInfo });
+    await checkA11y(page, { stateName: 'course player completion updated progress', testInfo });
 
     await player.lessonItems.nth(2).press('Enter');
     await expect(player.lessonHeading).toHaveText('Knowledge check');
     await expect(player.lessonHeading).toBeFocused();
-    await expect(studentPage.getByRole('group', { name: /Which interaction supports keyboard users/ })).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'course player selected quiz lesson', testInfo });
+    await expect(page.getByRole('group', { name: /Which interaction supports keyboard users/ })).toBeVisible();
+    await checkA11y(page, { stateName: 'course player selected quiz lesson', testInfo });
   });
 
-  authTest('desktop curriculum supports Axe, accordion, current lesson and focus navigation', async ({ studentPage }, testInfo) => {
-    await studentPage.setViewportSize({ width: 1440, height: 900 });
-    await installCoursePlayerFixtures(studentPage);
-    await studentPage.goto(`/learning/${slug}`);
+  test('desktop curriculum supports Axe, accordion, current lesson and focus navigation', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await installCoursePlayerFixtures(page);
+    await page.goto(`/learning/${slug}`);
 
-    const player = new CoursePlayerPage(studentPage);
-    await expect(studentPage.getByRole('heading', { level: 1, name: course.title })).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'course player desktop selected article', testInfo });
+    const player = new CoursePlayerPage(page);
+    await expect(page.getByRole('heading', { level: 1, name: course.title })).toBeVisible();
+    await checkA11y(page, { stateName: 'course player desktop selected article', testInfo });
 
     const sectionToggle = player.sectionToggle(/Introduction/);
     await expect(sectionToggle).toHaveAttribute('aria-expanded', 'true');
@@ -313,32 +368,32 @@ authTest.describe('@a11y-learning Course player structure and navigation', () =>
     await expect(player.lessonHeading).toHaveText('Player overview');
     await expect(player.lessonHeading).toBeFocused();
     await expect(player.lessonItems.nth(1)).toHaveAttribute('aria-current', 'step');
-    await checkA11y(studentPage, { stateName: 'course player desktop selected video', testInfo });
+    await checkA11y(page, { stateName: 'course player desktop selected video', testInfo });
   });
 
-  authTest('mobile drawer traps focus while open, closes on Escape, and restores focus', async ({ studentPage }, testInfo) => {
-    await studentPage.setViewportSize({ width: 390, height: 844 });
-    await installCoursePlayerFixtures(studentPage);
-    await studentPage.goto(`/learning/${slug}`);
+  test('mobile drawer traps focus while open, closes on Escape, and restores focus', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installCoursePlayerFixtures(page);
+    await page.goto(`/learning/${slug}`);
 
-    const player = new CoursePlayerPage(studentPage);
+    const player = new CoursePlayerPage(page);
     await expect(player.sidebarToggle).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'course player mobile drawer closed', testInfo });
+    await checkA11y(page, { stateName: 'course player mobile drawer closed', testInfo });
     await player.sidebarToggle.focus();
     await player.sidebarToggle.press('Enter');
-    await expect(studentPage.getByRole('dialog', { name: 'Course Content' })).toBeVisible();
-    await checkA11y(studentPage, { stateName: 'course player mobile drawer open', testInfo });
-    await studentPage.keyboard.press('Escape');
-    await expect(studentPage.getByRole('dialog', { name: 'Course Content' })).toHaveCount(0);
+    await expect(page.getByRole('dialog', { name: 'Course Content' })).toBeVisible();
+    await checkA11y(page, { stateName: 'course player mobile drawer open', testInfo });
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Course Content' })).toHaveCount(0);
     await expect(player.sidebarToggle).toBeFocused();
   });
 
-  authTest('access error is an Axe-clean recovery dialog', async ({ studentPage }, testInfo) => {
-    await installCoursePlayerFixtures(studentPage, false);
-    await studentPage.goto(`/learning/${slug}`);
-    const dialog = studentPage.getByRole('alertdialog', { name: 'Enrollment required' });
+  test('access error is an Axe-clean recovery dialog', async ({ page }, testInfo) => {
+    await installCoursePlayerFixtures(page, false);
+    await page.goto(`/learning/${slug}`);
+    const dialog = page.getByRole('alertdialog', { name: 'Enrollment required' });
     await expect(dialog).toBeVisible();
-    await expect(studentPage.getByRole('button', { name: 'Go Now' })).toBeFocused();
-    await checkA11y(studentPage, { stateName: 'course player enrollment required', testInfo });
+    await expect(page.getByRole('button', { name: 'Go Now' })).toBeFocused();
+    await checkA11y(page, { stateName: 'course player enrollment required', testInfo });
   });
 });

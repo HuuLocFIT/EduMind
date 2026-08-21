@@ -113,6 +113,14 @@ async function installAuthFixtures(
       return;
     }
 
+    if (pathname.endsWith('/auth/password/validate-token')) {
+      // ResetPasswordPage validates the token on mount before showing the
+      // form; every fixture token here is treated as valid at check time so
+      // the reset outcome itself (below) is what the test actually exercises.
+      await json(route, { status: 200, success: true, data: { email: 'student@example.test' } });
+      return;
+    }
+
     if (pathname.endsWith('/auth/password/reset')) {
       if (outcomes.reset === 'success') {
         await json(route, {
@@ -286,10 +294,13 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
 
     await email.fill('student@example.test');
     await page.getByRole('button', { name: 'Send Reset Link' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Check Your Email' })).toBeFocused();
-    await expect(
-      page.getByRole('main').getByRole('status').filter({ hasText: /reset instructions/i }),
-    ).toBeVisible();
+    const confirmationHeading = page.getByRole('heading', { level: 1, name: 'Check Your Email' });
+    await expect(confirmationHeading).toBeFocused();
+    // The confirmation detail is exposed via aria-describedby (role="text"),
+    // not a role="status" live region — see ForgotPasswordPage.tsx for why
+    // VoiceOver needs the description tied to the heading's initial focus
+    // instead of a freshly-mounted live region.
+    await expect(confirmationHeading).toHaveAccessibleDescription(/reset instructions/i);
     await expect(page.getByRole('link', { name: 'Back to Login' })).toHaveAttribute('href', '/login');
     await checkA11y(page, { stateName: 'auth forgot password success', testInfo });
 

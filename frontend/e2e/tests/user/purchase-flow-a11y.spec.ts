@@ -201,9 +201,9 @@ test.describe('@a11y-purchase cart and drawer', () => {
     await openCart(page);
 
     await expect(page.getByRole('list', { name: 'Courses in your cart' })).toBeVisible();
-    await expect(page.getByText('Subtotal (2 items):')).toBeVisible();
-    await expect(page.getByText('Discount:')).toBeVisible();
-    await expect(page.getByText('Total:')).toBeVisible();
+    await expect(page.getByText('Subtotal (2 items)', { exact: true })).toBeVisible();
+    await expect(page.getByText('Discount', { exact: true })).toBeVisible();
+    await expect(page.getByText('Total', { exact: true })).toBeVisible();
     for (const course of courses) {
       await expect(page.locator(`a[href="/courses/${course.courseSlug}"]`)).toHaveCount(1);
       await expect(page.getByRole('button', { name: `Remove ${course.courseTitle} from cart` })).toHaveCount(1);
@@ -224,12 +224,15 @@ test.describe('@a11y-purchase cart and drawer', () => {
     await dialog.getByRole('button', { name: 'Remove course' }).click();
     await expect(page.getByRole('link', { name: 'Practical TypeScript' })).toBeFocused();
     const removalMessage = 'Accessible React removed from cart. New total: $40.00 USD.';
-    const removalAnnouncement = page.getByRole('status').filter({ hasText: removalMessage });
+    // Scoped to main: the same message is also pushed through the visible
+    // toast (rendered outside main, silenced via aria-hidden for AT), whose
+    // role="status" wrapper still matches a plain hasText DOM-text filter.
+    const removalAnnouncement = page.getByRole('main').getByRole('status').filter({ hasText: removalMessage });
     await expect(removalAnnouncement).toHaveCount(1);
     await expect(removalAnnouncement).toHaveText(removalMessage);
     await expect(page.getByText('1 course in your cart')).toBeVisible();
     const orderSummary = page.getByRole('region', { name: 'Order Summary' });
-    await expect(orderSummary.getByText('Total:', { exact: true })).toBeVisible();
+    await expect(orderSummary.getByText('Total', { exact: true })).toBeVisible();
     await expect(orderSummary).toContainText('$40.00');
   });
 

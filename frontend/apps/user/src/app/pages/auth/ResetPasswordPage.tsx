@@ -121,11 +121,12 @@ function ResetPasswordPage() {
       });
       setResetSuccess(true);
     } catch (err: any) {
+      const errorMessage =
+        err?.message || "Failed to reset password. Please try again.";
       if (err?.status === 400) {
+        setError(errorMessage);
         setTokenState('invalid');
       } else {
-        const errorMessage =
-          err?.message || "Failed to reset password. Please try again.";
         setError(errorMessage);
       }
     } finally {

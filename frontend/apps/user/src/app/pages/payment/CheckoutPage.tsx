@@ -520,6 +520,7 @@ export const CheckoutPage: React.FC = () => {
             <Card className="min-w-0 max-w-full overflow-hidden p-4 sm:p-6">
               <h2 id="payment-method-heading" className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Payment Method</h2>
               <fieldset aria-labelledby="payment-method-heading" className="min-w-0 max-w-full">
+              <legend className="sr-only">Payment Method</legend>
               <div className="space-y-2 sm:space-y-3">
                 {PAYMENT_METHODS.map((method) => {
                   const Icon = method.icon;
