@@ -13,7 +13,7 @@ export class DiscoverFlowPage {
     this.skipLink = page.getByRole('link', { name: 'Skip to main content' });
     this.browseLink = page
       .locator('#main-content')
-      .getByRole('link', { name: 'Browse Courses', exact: true })
+      .getByRole('link', { name: 'Explore courses', exact: true })
       .first();
     this.searchInput = page.getByRole('textbox', { name: 'Search courses' });
     this.beginnerFilter = page.getByRole('checkbox', { name: 'Beginner', exact: true });
@@ -34,6 +34,7 @@ export class DiscoverFlowPage {
   }
 
   async keyboardNavigateToBrowse() {
+    await expect(this.browseLink).toBeVisible();
     for (let tabs = 0; tabs < 30; tabs += 1) {
       await this.page.keyboard.press('Tab');
       if (await this.browseLink.evaluate((element) => element === document.activeElement)) {
@@ -42,7 +43,7 @@ export class DiscoverFlowPage {
         return;
       }
     }
-    throw new Error('Browse Courses did not receive focus within 30 Tab presses.');
+    throw new Error('Explore courses did not receive focus within 30 Tab presses.');
   }
 
   async searchAndFilter() {
