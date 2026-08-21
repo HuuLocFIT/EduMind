@@ -25,7 +25,7 @@ export const PublicCourseSearch: React.FC<PublicCourseSearchProps> = ({
   <form
     role="search"
     aria-label="Search EduMind courses"
-    className={`rounded-2xl border border-white/25 bg-white/10 p-1.5 shadow-xl backdrop-blur-md ${className}`}
+    className={`w-full min-w-0 rounded-2xl border border-white/25 bg-white/10 p-1.5 shadow-xl backdrop-blur-md ${className}`}
     onSubmit={(event) => {
       event.preventDefault();
       onSubmit();

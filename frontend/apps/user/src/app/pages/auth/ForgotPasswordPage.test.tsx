@@ -507,8 +507,10 @@ describe('ForgotPasswordPage', () => {
       // Scoped, not screen.findByRole('alert') alone: the confirmation view
       // always also shows the persistent "link expires in 1 hour" info alert,
       // so an unscoped query is ambiguous once a resend error alert appears too.
-      const alerts = await screen.findAllByRole('alert');
-      expect(alerts.some((el) => /network error/i.test(el.textContent ?? ''))).toBe(true);
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.some((el) => /network error/i.test(el.textContent ?? ''))).toBe(true);
+      });
       expect(resend).not.toHaveAttribute('aria-disabled');
 
       mockForgotPassword.mockResolvedValueOnce({ success: true });
