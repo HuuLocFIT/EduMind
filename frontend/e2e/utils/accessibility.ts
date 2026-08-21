@@ -66,6 +66,20 @@ async function waitForStableUi(page: Page): Promise<void> {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
+    // Two rAF ticks confirm a paint happened, but a CSS transition (e.g. a
+    // tab's background/text color animating in after a click/keypress) can
+    // still be mid-flight at that point. Axe then samples the interpolated,
+    // non-final color, which can occasionally land just under a contrast
+    // threshold and fail/flake spuriously. Wait out any running transitions
+    // too, bounded so a genuinely infinite/looping animation (e.g. a
+    // spinner) can't hang the scan.
+    const runningAnimations = document
+      .getAnimations()
+      .filter((animation) => animation.playState === 'running');
+    await Promise.race([
+      Promise.all(runningAnimations.map((animation) => animation.finished.catch(() => undefined))),
+      new Promise((resolve) => setTimeout(resolve, 400)),
+    ]);
   });
 }
 

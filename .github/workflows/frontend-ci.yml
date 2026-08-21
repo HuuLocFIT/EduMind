@@ -80,7 +80,9 @@ jobs:
         run: npx playwright test --config=e2e/playwright.utilities.config.ts
 
       # Deterministic fixtures/mocks only (see e2e/ACCESSIBILITY_TESTING.md) —
-      # no backend is started or required for this suite.
+      # no backend is started or required for this suite, and no E2E_* account
+      # env vars need to be set: global-setup.ts degrades to a warning when
+      # they're absent instead of failing (see e2e/global-setup.ts).
       - name: Four-flow accessibility suite (Playwright + axe-core)
         run: npm run test:a11y
         env:
