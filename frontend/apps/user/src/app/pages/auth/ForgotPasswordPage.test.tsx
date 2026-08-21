@@ -518,8 +518,8 @@ describe('ForgotPasswordPage', () => {
     });
 
     it('produces no act()/setState-after-unmount warnings when unmounted during an active cooldown', async () => {
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       mockForgotPassword.mockResolvedValue({ success: true });
