@@ -5,6 +5,7 @@ import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.PasswordResetTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
+import com.edumind.common.exception.TooManyRequestsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,9 @@ class PasswordResetServiceTest {
     @Mock
     private HttpServletRequest httpRequest;
 
+    @Mock
+    private PasswordResetRateLimiter rateLimiter;
+
     @InjectMocks
     private PasswordResetService passwordResetService;
 
@@ -81,8 +85,9 @@ class PasswordResetServiceTest {
         @DisplayName("Should create token and send email when user exists")
         void requestPasswordReset_Success() {
             // Given
+            when(rateLimiter.hashEmail(VALID_EMAIL)).thenReturn("some-hash");
+            when(rateLimiter.incrementAndGet("some-hash")).thenReturn(1);
             when(userRepository.findByEmail(VALID_EMAIL)).thenReturn(Optional.of(testUser));
-            when(tokenRepository.countByUserAndUsedFalse(testUser)).thenReturn(0);
             when(httpRequest.getHeader("X-Forwarded-For")).thenReturn(null);
             when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
             when(httpRequest.getHeader("User-Agent")).thenReturn("JUnit-Agent");
@@ -108,6 +113,8 @@ class PasswordResetServiceTest {
         @DisplayName("Should do nothing if user does not exist (Silent fail)")
         void requestPasswordReset_UserNotFound() {
             // Given
+            when(rateLimiter.hashEmail(INVALID_EMAIL)).thenReturn("invalid-hash");
+            when(rateLimiter.incrementAndGet("invalid-hash")).thenReturn(1);
             when(userRepository.findByEmail(INVALID_EMAIL)).thenReturn(Optional.empty());
 
             // When
@@ -122,15 +129,33 @@ class PasswordResetServiceTest {
         @DisplayName("Should throw exception if too many requests")
         void requestPasswordReset_TooManyRequests() {
             // Given
-            when(userRepository.findByEmail(VALID_EMAIL)).thenReturn(Optional.of(testUser));
-            when(tokenRepository.countByUserAndUsedFalse(testUser)).thenReturn(3);
+            when(rateLimiter.hashEmail(VALID_EMAIL)).thenReturn("some-hash");
+            when(rateLimiter.incrementAndGet("some-hash")).thenReturn(4); // MAX_RESET_REQUESTS_PER_HOUR + 1
 
             // When/Then
-            BadRequestException ex = assertThrows(BadRequestException.class, () ->
+            TooManyRequestsException ex = assertThrows(TooManyRequestsException.class, () ->
                 passwordResetService.requestPasswordReset(VALID_EMAIL, httpRequest));
-            
+
             assertEquals("Too many password reset requests. Please try again later.", ex.getMessage());
+            verify(userRepository, never()).findByEmail(anyString());
             verify(tokenRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Should throw exception if too many requests, even for a non-existent email (no user-enumeration oracle)")
+        void requestPasswordReset_TooManyRequests_NonExistentEmail() {
+            // Given
+            when(rateLimiter.hashEmail(INVALID_EMAIL)).thenReturn("invalid-hash");
+            when(rateLimiter.incrementAndGet("invalid-hash")).thenReturn(4); // MAX_RESET_REQUESTS_PER_HOUR + 1
+
+            // When/Then
+            TooManyRequestsException ex = assertThrows(TooManyRequestsException.class, () ->
+                passwordResetService.requestPasswordReset(INVALID_EMAIL, httpRequest));
+
+            assertEquals("Too many password reset requests. Please try again later.", ex.getMessage());
+            verify(userRepository, never()).findByEmail(anyString());
+            verify(tokenRepository, never()).save(any());
+            verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString(), anyString());
         }
     }
 

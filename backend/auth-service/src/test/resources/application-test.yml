@@ -76,6 +76,8 @@ app:
     password-reset-expiration: 3600000
     token-expiration: 86400000
     refresh-expiration: 604800000
+    password-reset-limiter:
+      hmac-key: test-password-reset-limiter-hmac-key-for-testing-only
   cookie:
     secure: false
     same-site: Lax

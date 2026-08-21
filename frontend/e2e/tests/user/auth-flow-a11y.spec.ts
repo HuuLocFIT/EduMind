@@ -261,6 +261,13 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
   });
 
   test('forgot-password covers validation, success, resend, and back link', async ({ page }, testInfo) => {
+    // Install the fake clock before any navigation/interaction so the
+    // 60s resend cooldown (a real `setInterval` started on first success)
+    // is tracked by it from the moment it's created. Playwright's clock
+    // ticks in step with real time until paused/advanced, so the earlier
+    // validation flow (which relies on a real 300ms `setTimeout`) still
+    // behaves exactly as before.
+    await page.clock.install();
     await installAuthFixtures(page, { forgot: 'success' });
     await page.goto('/forgot-password');
     const email = page.getByLabel('Email Address');
@@ -286,7 +293,17 @@ test.describe('@a11y @a11y-auth Flow 2: authentication', () => {
     await expect(page.getByRole('link', { name: 'Back to Login' })).toHaveAttribute('href', '/login');
     await checkA11y(page, { stateName: 'auth forgot password success', testInfo });
 
-    await page.getByRole('button', { name: 'Resend Email' }).click();
+    const resendButton = page.getByRole('button', { name: 'Resend Email' });
+    await expect(resendButton).toHaveAttribute('aria-disabled', 'true');
+    await checkA11y(page, { stateName: 'auth forgot password cooldown', testInfo });
+
+    // Jump the faked clock 60s forward instead of waiting in real time;
+    // this fires the cooldown's setInterval ticks synchronously and clears it.
+    await page.clock.runFor(60_000);
+    await expect(resendButton).not.toHaveAttribute('aria-disabled');
+    await expect(resendButton).not.toHaveAttribute('aria-describedby');
+
+    await resendButton.click();
     await expect(
       page.getByRole('main').getByRole('status').filter({ hasText: /sent again/i }),
     ).toBeVisible();
