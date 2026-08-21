@@ -4,6 +4,7 @@ interface CourseGridSkeletonProps {
   /** Number of placeholder cards to render. */
   count?: number;
   columns?: 2 | 3 | 4;
+  className?: string;
 }
 
 const gridClasses: Record<NonNullable<CourseGridSkeletonProps["columns"]>, string> = {
@@ -49,9 +50,10 @@ const CardSkeleton: React.FC = () => (
 export const CourseGridSkeleton: React.FC<CourseGridSkeletonProps> = ({
   count = 9,
   columns = 3,
+  className = "",
 }) => (
   <div
-    className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6`}
+    className={`grid ${gridClasses[columns]} gap-3 sm:gap-4 lg:gap-6 ${className}`}
     aria-hidden="true"
     inert
   >

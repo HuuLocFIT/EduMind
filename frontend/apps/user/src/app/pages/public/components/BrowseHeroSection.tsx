@@ -1,5 +1,6 @@
 import React from 'react';
-import { Sparkles, Search, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { PublicCourseSearch } from './PublicCourseSearch';
 
 interface BrowseHeroSectionProps {
   value: string;
@@ -30,48 +31,17 @@ export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
             Browse Courses
           </h1>
           <p className="text-blue-100 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-            Discover thousands of expert-led courses to advance your skills and achieve your goals.
+            Discover expert-led courses to build practical skills and move toward your goals.
           </p>
         </div>
         <div className="w-full max-w-2xl mx-auto">
-          <div className="bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
-             <form
-               role="search"
-               onSubmit={(e) => {
-                 e.preventDefault();
-                 onSubmit();
-               }}
-               className="flex w-full min-w-0 items-center rounded-xl bg-white p-1.5 shadow-sm"
-             >
-               <Sparkles className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" aria-hidden="true" />
-               <label htmlFor="course-search-input" className="sr-only">Search courses</label>
-               <input
-                 id="course-search-input"
-                 type="text"
-                 value={value}
-                 onChange={(e) => onInputChange(e.target.value)}
-                 placeholder="Search for courses, skills, or teachers..."
-                 className="h-12 min-w-0 flex-1 border-none bg-transparent px-2 text-base text-gray-900 outline-none placeholder:text-gray-400 sm:px-4"
-               />
-               {value && (
-                 <button
-                   type="button"
-                   onClick={onClear}
-                   aria-label="Clear course search"
-                   className="h-10 w-10 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-                 >
-                   <X className="w-5 h-5" aria-hidden="true" />
-                 </button>
-               )}
-               <button
-                 type="submit"
-                 aria-label="Search"
-                 className="bg-blue-600 text-white rounded-lg h-10 w-10 flex items-center justify-center hover:bg-blue-700 transition-colors flex-shrink-0"
-               >
-                 <Search className="w-5 h-5" aria-hidden="true" />
-               </button>
-             </form>
-          </div>
+          <PublicCourseSearch
+            id="course-search-input"
+            value={value}
+            onInputChange={onInputChange}
+            onSubmit={onSubmit}
+            onClear={onClear}
+          />
         </div>
       </div>
     </header>
