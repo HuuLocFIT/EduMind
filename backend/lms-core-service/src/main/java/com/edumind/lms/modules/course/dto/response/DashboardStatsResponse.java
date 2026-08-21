@@ -23,7 +23,6 @@ public class DashboardStatsResponse {
     // Courses
     private Long totalCourses;
     private Long publishedCourses;
-    private Long pendingReviewCourses;
     private Long draftCourses;
     private Long archivedCourses;
 

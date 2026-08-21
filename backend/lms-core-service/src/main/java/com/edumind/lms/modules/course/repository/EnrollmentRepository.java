@@ -95,6 +95,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
      */
     long countByCourseIdAndStatus(Long courseId, EnrollmentStatus status);
 
+    long countByCourseIdAndStatusIn(Long courseId, List<EnrollmentStatus> statuses);
+
     /**
      * Find expiring enrollments
      */

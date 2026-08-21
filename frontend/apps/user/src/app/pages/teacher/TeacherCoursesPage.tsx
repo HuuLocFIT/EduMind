@@ -4,14 +4,17 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../stores/auth.store";
 import { teacherCourseService } from '../../services/teacher-course.service';
 import { TEACHER_ROUTES, TeacherRouteHelpers } from "@edumind/shared-utils";
-import type { CourseResponse } from "@edumind/shared-types";
+import type {
+  CoursePagedResponse,
+  CourseResponse,
+} from "@edumind/shared-types";
 import { Button, Alert, useModal, useToast } from "@edumind/user-ui";
 import {
   CourseCard,
   GridSkeleton,
   ListSkeleton,
   FiltersBar,
-  DeleteModal,
+  ArchiveModal,
   EmptyState,
   Pagination,
   type ViewMode,
@@ -27,11 +30,11 @@ export const TeacherCoursesPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { success: showSuccess, error: showError } = useToast();
-  const deleteModal = useModal();
+  const archiveModal = useModal();
 
   // State
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [courseToDelete, setCourseToDelete] = useState<CourseResponse | null>(
+  const [courseToArchive, setCourseToArchive] = useState<CourseResponse | null>(
     null
   );
 
@@ -112,23 +115,17 @@ export const TeacherCoursesPage: React.FC = () => {
     setSearchParams(newParams);
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: async (courseId: number) => {
-      await teacherCourseService.deleteCourse(courseId);
-      return courseId;
-    },
-    onMutate: async (courseId) => {
+  const archiveMutation = useMutation({
+    mutationFn: ({ courseId, reason }: { courseId: number; reason?: string }) =>
+      teacherCourseService.archiveCourse(courseId, reason),
+    onSuccess: async (archivedCourse) => {
       const listKey = queryKeys.teacherCourses.list(user?.id, pagination.page, pagination.size);
-      await queryClient.cancelQueries({ queryKey: listKey });
-      const previous = queryClient.getQueryData<any>(listKey);
-      queryClient.setQueryData(listKey, (old: any) => {
-        if (!old) return old;
-        const next = { ...old, data: (old.data || []).filter((c: CourseResponse) => c.id !== courseId) };
-        return next;
-      });
-      return { previous, listKey };
-    },
-    onSuccess: async () => {
+      queryClient.setQueryData<CoursePagedResponse>(listKey, (old) => old ? {
+        ...old,
+        data: old.data.map((course: CourseResponse) =>
+          course.id === archivedCourse.id ? archivedCourse : course
+        ),
+      } : old);
       await queryClient.invalidateQueries({
         queryKey: queryKeys.teacherCourses.all,
         exact: false,
@@ -137,20 +134,16 @@ export const TeacherCoursesPage: React.FC = () => {
         queryKey: queryKeys.courses.all,
         exact: false,
       });
-      showSuccess("Course deleted successfully");
-      deleteModal.close();
-      setCourseToDelete(null);
+      showSuccess("Course archived successfully");
+      archiveModal.close();
+      setCourseToArchive(null);
     },
-    onError: (err: any, _courseId, context) => {
-      if (context?.previous && context.listKey) {
-        queryClient.setQueryData(context.listKey, context.previous);
-      }
-      showError(err.message || "Failed to delete course");
-    },
-    onSettled: (_data, _error, _vars, context) => {
-      if (context?.listKey) {
-        queryClient.invalidateQueries({ queryKey: context.listKey });
-      }
+    onError: (err: any) => {
+      const status = err?.response?.status;
+      const backendMessage = err?.response?.data?.message;
+      showError(status === 409
+        ? "This course has protected students and must be archived by an administrator. Please contact an admin."
+        : backendMessage || err.message || "Failed to archive course");
     },
   });
 
@@ -162,12 +155,12 @@ export const TeacherCoursesPage: React.FC = () => {
     onMutate: async (courseId) => {
       const listKey = queryKeys.teacherCourses.list(user?.id, pagination.page, pagination.size);
       await queryClient.cancelQueries({ queryKey: listKey });
-      const previous = queryClient.getQueryData<any>(listKey);
-      queryClient.setQueryData(listKey, (old: any) => {
+      const previous = queryClient.getQueryData<CoursePagedResponse>(listKey);
+      queryClient.setQueryData<CoursePagedResponse>(listKey, (old) => {
         if (!old) return old;
         const next = {
           ...old,
-          data: (old.data || []).map((c: CourseResponse) =>
+          data: old.data.map((c: CourseResponse) =>
             c.id === courseId ? { ...c, status: "PUBLISHED" } : c
           ),
         };
@@ -199,18 +192,18 @@ export const TeacherCoursesPage: React.FC = () => {
     },
   });
 
-  const handleDelete = () => {
-    if (!courseToDelete) return;
-    deleteMutation.mutate(courseToDelete.id);
+  const handleArchive = (reason?: string) => {
+    if (!courseToArchive) return;
+    archiveMutation.mutate({ courseId: courseToArchive.id, reason });
   };
 
   const handlePublish = (course: CourseResponse) => {
     publishMutation.mutate(course.id);
   };
 
-  const openDeleteModal = (course: CourseResponse) => {
-    setCourseToDelete(course);
-    deleteModal.open();
+  const openArchiveModal = (course: CourseResponse) => {
+    setCourseToArchive(course);
+    archiveModal.open();
   };
 
   return (
@@ -272,7 +265,7 @@ export const TeacherCoursesPage: React.FC = () => {
                 navigate(TeacherRouteHelpers.courseDetail(course.id))
               }
               onEdit={() => navigate(TeacherRouteHelpers.courseEdit(course.id))}
-              onDelete={() => openDeleteModal(course)}
+              onArchive={() => openArchiveModal(course)}
               onPublish={() => handlePublish(course)}
             />
           ))}
@@ -288,7 +281,7 @@ export const TeacherCoursesPage: React.FC = () => {
                 navigate(TeacherRouteHelpers.courseDetail(course.id))
               }
               onEdit={() => navigate(TeacherRouteHelpers.courseEdit(course.id))}
-              onDelete={() => openDeleteModal(course)}
+              onArchive={() => openArchiveModal(course)}
               onPublish={() => handlePublish(course)}
             />
           ))}
@@ -306,13 +299,12 @@ export const TeacherCoursesPage: React.FC = () => {
         />
       )}
 
-      {/* Delete Confirmation Modal */}
-      <DeleteModal
-        isOpen={deleteModal.isOpen}
-        onClose={deleteModal.close}
-        course={courseToDelete}
-        onConfirm={handleDelete}
-        deleting={deleteMutation.isPending}
+      <ArchiveModal
+        isOpen={archiveModal.isOpen}
+        onClose={archiveModal.close}
+        course={courseToArchive}
+        onConfirm={handleArchive}
+        archiving={archiveMutation.isPending}
       />
     </div>
   );

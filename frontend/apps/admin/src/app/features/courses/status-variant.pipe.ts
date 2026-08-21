@@ -8,7 +8,6 @@ export class StatusVariantPipe implements PipeTransform {
   transform(status: CourseResponse['status']): BadgeVariant {
     const mapping: Record<(typeof CourseStatus)[keyof typeof CourseStatus], BadgeVariant> = {
       DRAFT: 'secondary',
-      PENDING_REVIEW: 'warning',
       PUBLISHED: 'success',
       ARCHIVED: 'secondary',
     };

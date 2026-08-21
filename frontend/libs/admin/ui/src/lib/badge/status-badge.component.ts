@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BadgeComponent, BadgeVariant } from './badge.component';
 
-export type CourseStatus = 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'ARCHIVED' | 'REJECTED';
+export type CourseStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'REJECTED';
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
 export type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type EnrollmentStatus = 'ACTIVE' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED';
@@ -26,7 +26,6 @@ export class StatusBadgeComponent {
   private statusConfig: Record<string, { variant: BadgeVariant; label: string }> = {
     // Course Status
     DRAFT: { variant: 'secondary', label: 'Draft' },
-    PENDING_REVIEW: { variant: 'warning', label: 'Pending Review' },
     PUBLISHED: { variant: 'success', label: 'Published' },
     ARCHIVED: { variant: 'default', label: 'Archived' },
     REJECTED: { variant: 'error', label: 'Rejected' },

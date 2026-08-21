@@ -71,7 +71,6 @@ export class CourseDetailComponent implements OnInit {
   getStatusVariant(status: CourseStatusValue): 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'default' {
     const mapping: Record<CourseStatusValue, 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'default'> = {
       DRAFT: 'secondary',
-      PENDING_REVIEW: 'warning',
       PUBLISHED: 'success',
       ARCHIVED: 'secondary',
     };

@@ -1,6 +1,6 @@
 # EduMind Admin Dashboard
 
-A production-grade Angular 20 admin panel for the EduMind LMS platform. Manages teacher applications, student accounts, course moderation, category configuration, enrollment reports, and financial operations (refunds and instructor payouts).
+A production-grade Angular 20 admin panel for the EduMind LMS platform. Manages teacher applications, student accounts, course management and archival, category configuration, enrollment reports, and financial operations (refunds and instructor payouts).
 
 ---
 
@@ -327,9 +327,11 @@ Full CRUD with inline client-side search. Slug is auto-generated from the name f
 
 ### Courses (`/courses`, `/courses/:id`)
 
-`CoursesComponent` is a paginated, filterable data grid. Columns are defined declaratively with `@ViewChild` template references for custom cell rendering, enabling type-safe cell templates without wrapper directives. Responsive breakpoint detection uses `window.matchMedia` with a registered listener cleaned up in `ngOnDestroy`.
+`CoursesComponent` is a paginated, filterable data grid backed by the admin-only `GET /api/admin/courses` endpoint. Server-side filters cover keyword, category, level, and lifecycle status (`DRAFT`, `PUBLISHED`, or `ARCHIVED`). Columns are defined declaratively with `@ViewChild` template references for custom cell rendering, enabling type-safe cell templates without wrapper directives. Responsive breakpoint detection uses `window.matchMedia` with a registered listener cleaned up in `ngOnDestroy`.
 
-`CourseDetailComponent` is a read-only detail view loaded from route params.
+Administrators can archive any non-archived course after supplying a required, non-blank reason. There is no course delete action, and archived rows expose only View.
+
+`CourseDetailComponent` powers the read-only `/courses/:id` route. It loads the selected course from the route parameter and presents its publishing information, pricing, instructor and category, learner and rating totals, description, curriculum structure, duration, thumbnail, SEO metadata, and certificate/subtitle availability. For archived courses it also displays the archive timestamp, actor, and reason.
 
 ---
 
@@ -454,7 +456,7 @@ npx nx test admin src/app/core/services/auth.service.spec.ts
 
 ### Current coverage scope
 
-Only **5 spec files** exist in the entire app, all within the auth slice: `auth.interceptor.spec.ts`, `auth.service.spec.ts`, `auth.guard.spec.ts`, `guest.guard.spec.ts`, `login.component.spec.ts`. There is currently **no test coverage** for categories, courses, students, teachers, enrollment-reports, payments, the dashboard, or their backing services. The patterns below describe how the existing auth tests are structured — they are the convention to follow when adding tests elsewhere, not evidence that coverage is broad today.
+The app currently has **6 spec files**: five in the auth slice (`auth.interceptor.spec.ts`, `auth.service.spec.ts`, `auth.guard.spec.ts`, `guest.guard.spec.ts`, and `login.component.spec.ts`) plus `course.service.spec.ts`, which covers the admin course listing and archive contracts. Categories, students, teachers, enrollment reports, payments, and the dashboard still have no focused unit coverage. The patterns below describe the existing conventions; they are not evidence that coverage is broad today.
 
 ### End-to-End & Accessibility
 

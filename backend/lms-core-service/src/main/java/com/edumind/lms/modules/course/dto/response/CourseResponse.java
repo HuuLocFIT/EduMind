@@ -48,6 +48,9 @@ public class CourseResponse {
     // Status
     private CourseStatus status;
     private LocalDateTime publishedAt;
+    private LocalDateTime archivedAt;
+    private Long archivedBy;
+    private String archiveReason;
 
     // Features
     private Boolean hasCertificate;

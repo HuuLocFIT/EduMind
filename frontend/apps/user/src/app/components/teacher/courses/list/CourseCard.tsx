@@ -6,7 +6,7 @@ import {
   MoreVertical,
   Eye,
   Edit,
-  Trash2,
+  Archive,
   BookOpen,
   Users,
   Star,
@@ -21,7 +21,7 @@ interface CourseCardProps {
   viewMode: ViewMode;
   onView: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onArchive: () => void;
   onPublish: () => void;
 }
 
@@ -30,13 +30,13 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   viewMode,
   onView,
   onEdit,
-  onDelete,
+  onArchive,
   onPublish,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const canPublish = course.status === CourseStatus.DRAFT;
-  const canDelete = course.status !== CourseStatus.PUBLISHED;
+  const isArchived = course.status === CourseStatus.ARCHIVED;
 
   if (viewMode === "list") {
     return (
@@ -123,15 +123,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                 >
                   <Eye className="w-4 h-4" /> View Details
                 </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onEdit();
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Edit className="w-4 h-4" /> Edit Course
-                </button>
+                {!isArchived && <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Edit className="w-4 h-4" /> Edit Course
+                  </button>}
                 {canPublish && (
                   <button
                     onClick={() => {
@@ -143,15 +143,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                     <Send className="w-4 h-4" /> Publish
                   </button>
                 )}
-                {canDelete && (
+                {!isArchived && (
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      onDelete();
+                      onArchive();
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
-                    <Trash2 className="w-4 h-4" /> Delete
+                    <Archive className="w-4 h-4" /> Archive
                   </button>
                 )}
               </div>
@@ -192,13 +192,13 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           >
             <Eye className="w-5 h-5 text-gray-700" />
           </button>
-          <button
-            onClick={onEdit}
-            className="p-2 bg-white rounded-lg hover:bg-gray-100"
-            title="Edit"
-          >
-            <Edit className="w-5 h-5 text-gray-700" />
-          </button>
+          {!isArchived && <button
+              onClick={onEdit}
+              className="p-2 bg-white rounded-lg hover:bg-gray-100"
+              title="Edit"
+            >
+              <Edit className="w-5 h-5 text-gray-700" />
+            </button>}
         </div>
       </div>
 
@@ -280,15 +280,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                   >
                     <Eye className="w-4 h-4" /> View Details
                   </button>
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onEdit();
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" /> Edit Course
-                  </button>
+                  {!isArchived && <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onEdit();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Edit className="w-4 h-4" /> Edit Course
+                    </button>}
                   {canPublish && (
                     <button
                       onClick={() => {
@@ -300,15 +300,15 @@ export const CourseCard: React.FC<CourseCardProps> = ({
                       <Send className="w-4 h-4" /> Publish
                     </button>
                   )}
-                  {canDelete && (
+                  {!isArchived && (
                     <button
                       onClick={() => {
                         setMenuOpen(false);
-                        onDelete();
+                        onArchive();
                       }}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" /> Delete
+                      <Archive className="w-4 h-4" /> Archive
                     </button>
                   )}
                 </div>
@@ -320,4 +320,3 @@ export const CourseCard: React.FC<CourseCardProps> = ({
     </div>
   );
 };
-

@@ -229,11 +229,15 @@ public class CourseReviewServiceImpl implements CourseReviewService {
 
     @Override
     @Transactional
-    public CourseReview approveReview(Long reviewId) {
+    public CourseReview approveReview(Long reviewId, Long userId, boolean isAdmin) {
         log.info("Approving review {}", reviewId);
 
         CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
+
+        if (!isAdmin && !review.getCourse().getInstructorId().equals(userId)) {
+            throw new UnauthorizedException("You can only moderate reviews on your own courses");
+        }
 
         // Only update if not already approved
         if (!review.getIsApproved()) {
@@ -259,11 +263,15 @@ public class CourseReviewServiceImpl implements CourseReviewService {
 
     @Override
     @Transactional
-    public void rejectReview(Long reviewId) {
+    public void rejectReview(Long reviewId, Long userId, boolean isAdmin) {
         log.info("Rejecting review {}", reviewId);
 
         CourseReview review = reviewRepository.findByIdWithAssociations(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with ID: " + reviewId));
+
+        if (!isAdmin && !review.getCourse().getInstructorId().equals(userId)) {
+            throw new UnauthorizedException("You can only moderate reviews on your own courses");
+        }
 
         // If review was approved, refresh aggregates after removal
         Course course = review.getCourse();

@@ -2,12 +2,14 @@ package com.edumind.lms.modules.course.service;
 
 import com.edumind.lms.modules.course.entity.Course;
 import com.edumind.lms.modules.course.entity.Section;
+import com.edumind.lms.modules.course.enums.CourseStatus;
 import com.edumind.lms.modules.course.event.SectionCreatedEvent;
 import com.edumind.lms.modules.course.event.SectionDeletedEvent;
 import com.edumind.lms.modules.course.event.SectionUpdatedEvent;
 import com.edumind.lms.modules.course.repository.CourseRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
 import com.edumind.lms.shared.exception.BadRequestException;
+import com.edumind.lms.shared.exception.ConflictException;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class SectionServiceImpl implements SectionService {
         // Get course and verify ownership
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with ID: " + courseId));
+        validateMutable(course);
 
         if (!course.getInstructorId().equals(instructorId)) {
             throw new UnauthorizedException("You can only create sections for your own courses");
@@ -66,6 +69,7 @@ public class SectionServiceImpl implements SectionService {
 
         Section section = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + sectionId));
+        validateMutable(section.getCourse());
 
         // Verify ownership
         if (!section.getCourse().getInstructorId().equals(instructorId)) {
@@ -94,6 +98,7 @@ public class SectionServiceImpl implements SectionService {
 
         Section section = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + sectionId));
+        validateMutable(section.getCourse());
 
         // Verify ownership
         if (!section.getCourse().getInstructorId().equals(instructorId)) {
@@ -129,6 +134,7 @@ public class SectionServiceImpl implements SectionService {
         // Verify course ownership
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with ID: " + courseId));
+        validateMutable(course);
 
         if (!course.getInstructorId().equals(instructorId)) {
             throw new UnauthorizedException("You can only reorder sections of your own courses");
@@ -182,5 +188,10 @@ public class SectionServiceImpl implements SectionService {
         sectionRepository.saveAll(sectionsToUpdate);
 
         log.info("Sections reordered successfully");
+    }
+    private void validateMutable(Course course) {
+        if (course.getStatus() == CourseStatus.ARCHIVED) {
+            throw new ConflictException("Archived courses are read-only");
+        }
     }
 }

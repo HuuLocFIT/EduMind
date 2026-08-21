@@ -4,6 +4,7 @@ import com.edumind.lms.config.security.TeacherSecurity;
 import com.edumind.lms.config.security.JwtTokenProvider;
 import com.edumind.lms.modules.course.service.CategoryService;
 import com.edumind.lms.modules.course.service.CourseService;
+import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.InstructorNameResolver;
 import com.edumind.lms.modules.course.util.CategoryMapper;
 import com.edumind.lms.modules.course.util.CourseMapper;
@@ -62,6 +63,9 @@ class CourseControllerTest {
 
     @MockBean
     private InstructorNameResolver instructorNameResolver;
+
+    @MockBean
+    private EnrollmentRepository enrollmentRepository;
 
     @MockBean(name = "teacherSecurity")
     private TeacherSecurity teacherSecurity;

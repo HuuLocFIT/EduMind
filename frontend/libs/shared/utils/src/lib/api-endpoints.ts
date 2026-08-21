@@ -92,7 +92,7 @@ export const COURSE_ENDPOINTS = {
   LIST: `${API_BASE_PATH}/courses`,
   CREATE: `${API_BASE_PATH}/courses`,
   UPDATE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
-  DELETE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  ARCHIVE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}/archive`,
   PUBLISH: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}/publish`,
   DETAIL: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
   DETAIL_BY_SLUG: (slug: string) => `${API_BASE_PATH}/courses/slug/${slug}`,
@@ -140,7 +140,7 @@ export const TEACHER_PORTAL_ENDPOINTS = {
   // Course CRUD
   COURSE_CREATE: `${API_BASE_PATH}/courses`,
   COURSE_UPDATE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
-  COURSE_DELETE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
+  COURSE_ARCHIVE: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}/archive`,
   COURSE_DETAIL: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}`,
   COURSE_PUBLISH: (courseId: string | number) => `${API_BASE_PATH}/courses/${courseId}/publish`,
   
@@ -445,7 +445,6 @@ export const ADMIN_ENDPOINTS = {
   COURSE_CREATE: `${API_BASE_PATH}/admin/courses`,
   COURSE_DETAIL: (courseId: string | number) => `${API_BASE_PATH}/admin/courses/${courseId}`,
   COURSE_UPDATE: (courseId: string | number) => `${API_BASE_PATH}/admin/courses/${courseId}`,
-  COURSE_DELETE: (courseId: string | number) => `${API_BASE_PATH}/admin/courses/${courseId}`,
 
   // Teachers Management
   TEACHERS: `${API_BASE_PATH}/admin/teachers`,

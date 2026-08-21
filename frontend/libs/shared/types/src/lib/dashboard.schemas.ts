@@ -20,7 +20,6 @@ export const DashboardStatsSchema = z.object({
   // Courses
   totalCourses: z.number().int().nonnegative(),
   publishedCourses: z.number().int().nonnegative(),
-  pendingReviewCourses: z.number().int().nonnegative(),
   draftCourses: z.number().int().nonnegative(),
   archivedCourses: z.number().int().nonnegative(),
 

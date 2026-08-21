@@ -9,7 +9,7 @@ Frontend monorepo for EduMind, containing the public learning platform, teacher 
 | Project | Stack | Development URL | Scope |
 | --- | --- | --- | --- |
 | [`apps/user`](apps/user/README.md) | React 19, Vite 7 | `http://localhost:3000` | Catalog, authentication, learning, AI tools, checkout, orders, certificates, and teacher workflows |
-| [`apps/admin`](apps/admin/README.md) | Angular 20 | `http://localhost:4200` | Dashboard, teacher applications, students, course moderation, categories, reports, refunds, and payouts |
+| [`apps/admin`](apps/admin/README.md) | Angular 20 | `http://localhost:4200` | Dashboard, teacher applications, students, course management and archival, categories, reports, refunds, and payouts |
 
 Internal workspace libraries:
 

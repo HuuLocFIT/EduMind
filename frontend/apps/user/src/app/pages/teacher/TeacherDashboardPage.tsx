@@ -42,11 +42,6 @@ const CourseStatusBadge: React.FC<{ status: string }> = ({ status }) => {
       text: "text-gray-700",
       icon: <FileText className="w-3 h-3" />,
     },
-    [CourseStatus.PENDING_REVIEW]: {
-      bg: "bg-amber-100",
-      text: "text-amber-700",
-      icon: <Clock className="w-3 h-3" />,
-    },
     [CourseStatus.PUBLISHED]: {
       bg: "bg-green-100",
       text: "text-green-700",
@@ -255,13 +250,13 @@ export const TeacherDashboardPage: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
+                          {course.status !== CourseStatus.ARCHIVED && <button
                             onClick={() => navigate(TeacherRouteHelpers.courseEdit(course.id))}
                             className="p-2.5 sm:p-2 hover:bg-gray-100 rounded-lg text-gray-500"
                             title="Edit Course"
                           >
                             <Edit className="w-4 h-4" />
-                          </button>
+                          </button>}
                         </div>
                       </div>
                     </div>

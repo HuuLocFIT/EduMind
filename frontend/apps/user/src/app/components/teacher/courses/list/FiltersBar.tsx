@@ -38,7 +38,6 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
         >
           <option value="ALL">All Status</option>
           <option value={CourseStatus.DRAFT}>Draft</option>
-          <option value={CourseStatus.PENDING_REVIEW}>Pending Review</option>
           <option value={CourseStatus.PUBLISHED}>Published</option>
           <option value={CourseStatus.ARCHIVED}>Archived</option>
         </select>
@@ -72,4 +71,3 @@ export const FiltersBar: React.FC<FiltersBarProps> = ({
     </div>
   );
 };
-

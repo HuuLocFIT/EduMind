@@ -3,13 +3,19 @@ package com.edumind.lms.modules.course.controller;
 import com.edumind.common.response.ApiResponse;
 import com.edumind.common.response.PagedResponse;
 import com.edumind.lms.modules.course.dto.request.CreateCourseRequest;
+import com.edumind.lms.modules.course.dto.request.ArchiveCourseRequest;
 import com.edumind.lms.modules.course.dto.request.UpdateCourseRequest;
 import com.edumind.lms.modules.course.dto.response.CourseDetailResponse;
 import com.edumind.lms.modules.course.dto.response.CourseResponse;
 import com.edumind.lms.modules.course.dto.response.InstructorStatsResponse;
 import com.edumind.lms.modules.course.entity.Category;
 import com.edumind.lms.modules.course.entity.Course;
+import com.edumind.lms.modules.course.entity.Enrollment;
 import com.edumind.lms.modules.course.enums.CourseLevel;
+import com.edumind.lms.modules.course.enums.CourseStatus;
+import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.exception.CourseNotFoundException;
+import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.CategoryService;
 import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.util.CategoryMapper;
@@ -36,6 +42,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 @Slf4j
 @RestController
@@ -48,6 +55,7 @@ public class CourseController {
         private final CourseMapper courseMapper;
         private final CategoryMapper categoryMapper;
         private final InstructorNameResolver instructorNameResolver;
+        private final EnrollmentRepository enrollmentRepository;
 
         @PostMapping
         @PreAuthorize("@teacherSecurity.isActiveTeacher()")
@@ -108,31 +116,34 @@ public class CourseController {
                 return ResponseEntity.ok(ApiResponse.success("Course published successfully", response));
         }
 
-        @DeleteMapping("/{id}")
+        @PostMapping("/{id}/archive")
         @PreAuthorize("@teacherSecurity.isActiveTeacherOrAdmin()")
-        public ResponseEntity<ApiResponse<Void>> deleteCourse(
+        public ResponseEntity<ApiResponse<CourseResponse>> archiveCourse(
                         @PathVariable Long id,
+                        @RequestBody(required = false) ArchiveCourseRequest request,
                         Authentication authentication) {
 
-                log.info("Deleting course: {}", id);
+                log.info("Archiving course: {}", id);
 
                 Long userId = Long.valueOf(authentication.getPrincipal().toString());
                 boolean isAdmin = authentication.getAuthorities().stream()
                                 .map(GrantedAuthority::getAuthority)
                                 .anyMatch(role -> "ROLE_ADMIN".equals(role));
 
-                courseService.deleteCourse(id, userId, isAdmin ? "ADMIN" : "TEACHER");
+                Course archived = courseService.archiveCourse(id, userId, isAdmin ? "ADMIN" : "TEACHER",
+                                request == null ? null : request.getReason());
 
-                return ResponseEntity.ok(ApiResponse.success("Course deleted successfully", null));
+                return ResponseEntity.ok(ApiResponse.success("Course archived successfully", courseMapper.toResponse(archived)));
         }
 
         @GetMapping("/{id}")
         @Transactional(readOnly = true)
         public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseById(
-                        @PathVariable Long id) {
+                        @PathVariable Long id, Authentication authentication) {
                 log.info("Getting course: {}", id);
 
                 Course course = courseService.getCourseById(id);
+                ensureCourseVisible(course, authentication);
                 CourseDetailResponse response = courseMapper.toDetailResponse(course, categoryMapper);
 
                 return ResponseEntity.ok(ApiResponse.success(response));
@@ -140,10 +151,12 @@ public class CourseController {
 
         @GetMapping("/slug/{slug}")
         @Transactional(readOnly = true)
-        public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseBySlug(@PathVariable String slug) {
+        public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseBySlug(@PathVariable String slug,
+                        Authentication authentication) {
                 log.info("Getting course by slug: {}", slug);
 
                 Course course = courseService.getCourseBySlug(slug);
+                ensureCourseVisible(course, authentication);
                 CourseDetailResponse response = courseMapper.toDetailResponse(course, categoryMapper);
 
                 return ResponseEntity.ok(ApiResponse.success(response));
@@ -386,5 +399,24 @@ public class CourseController {
                 return ResponseEntity.ok(ApiResponse.success(
                                 "Instructor stats retrieved successfully",
                                 stats));
+        }
+        private void ensureCourseVisible(Course course, Authentication authentication) {
+                if (course.getStatus() == CourseStatus.PUBLISHED) return;
+                if (authentication == null || !authentication.isAuthenticated()
+                                || "anonymousUser".equals(authentication.getPrincipal())) {
+                        throw new CourseNotFoundException(course.getId());
+                }
+                Long userId = Long.valueOf(authentication.getPrincipal().toString());
+                boolean isAdmin = authentication.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority).anyMatch("ROLE_ADMIN"::equals);
+                if (isAdmin || course.getInstructorId().equals(userId)) return;
+                Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(course.getId(), userId)
+                                .orElseThrow(() -> new CourseNotFoundException(course.getId()));
+                boolean entitled = enrollment.getStatus() == EnrollmentStatus.ACTIVE
+                                || enrollment.getStatus() == EnrollmentStatus.COMPLETED
+                                || (enrollment.getStatus() == EnrollmentStatus.EXPIRED
+                                        && enrollment.getExpiresAt() != null
+                                        && enrollment.getExpiresAt().isAfter(LocalDateTime.now()));
+                if (!entitled) throw new CourseNotFoundException(course.getId());
         }
 }

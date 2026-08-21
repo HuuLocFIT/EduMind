@@ -13,11 +13,13 @@ import com.edumind.lms.modules.course.event.LessonCreatedEvent;
 import com.edumind.lms.modules.course.event.LessonDeletedEvent;
 import com.edumind.lms.modules.course.event.LessonUpdatedEvent;
 import com.edumind.lms.modules.course.enums.EnrollmentStatus;
+import com.edumind.lms.modules.course.enums.CourseStatus;
 import com.edumind.lms.modules.course.enums.VideoUploadStatus;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.repository.LessonRepository;
 import com.edumind.lms.modules.course.repository.SectionRepository;
 import com.edumind.lms.shared.exception.BadRequestException;
+import com.edumind.lms.shared.exception.ConflictException;
 import com.edumind.lms.shared.exception.ResourceNotFoundException;
 import com.edumind.lms.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,7 @@ public class LessonServiceImpl implements LessonService {
         // Get section and verify ownership
         Section section = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + sectionId));
+        validateMutable(section.getCourse());
 
         if (!section.getCourse().getInstructorId().equals(instructorId)) {
             throw new UnauthorizedException("You can only create lessons for your own courses");
@@ -102,6 +105,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        validateMutable(lesson.getSection().getCourse());
 
         // Verify ownership
         if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
@@ -178,6 +182,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        validateMutable(lesson.getSection().getCourse());
 
         // Verify ownership
         if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
@@ -298,6 +303,7 @@ public class LessonServiceImpl implements LessonService {
         // Verify section ownership
         Section section = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found with ID: " + sectionId));
+        validateMutable(section.getCourse());
 
         if (!section.getCourse().getInstructorId().equals(instructorId)) {
             throw new UnauthorizedException("You can only reorder lessons of your own courses");
@@ -360,6 +366,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        validateMutable(lesson.getSection().getCourse());
 
         // Verify ownership
         if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
@@ -414,6 +421,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        validateMutable(lesson.getSection().getCourse());
 
         // Verify ownership
         if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
@@ -490,6 +498,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        validateMutable(lesson.getSection().getCourse());
 
         // Verify ownership
         if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
@@ -528,6 +537,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found with ID: " + lessonId));
+        validateMutable(lesson.getSection().getCourse());
 
         if (!lesson.getSection().getCourse().getInstructorId().equals(instructorId)) {
             throw new UnauthorizedException("You can only reset uploads for your own lessons");
@@ -545,6 +555,7 @@ public class LessonServiceImpl implements LessonService {
         log.info("Deleting resource upload for course {} by instructor {}", courseId, instructorId);
 
         Course course = courseService.getCourseById(courseId);
+        validateMutable(course);
 
         if (!course.getInstructorId().equals(instructorId)) {
             throw new UnauthorizedException("You can only delete resources from your own courses");
@@ -568,6 +579,12 @@ public class LessonServiceImpl implements LessonService {
      * When hlsEnabled=true and quality="720p", returns the HLS manifest URL.
      * Otherwise returns an on-demand MP4 transform URL (lazy, cached after first view).
      */
+    private void validateMutable(Course course) {
+        if (course.getStatus() == CourseStatus.ARCHIVED) {
+            throw new ConflictException("Archived courses are read-only");
+        }
+    }
+
     private String buildVideoQualityUrl(String cloudName, String publicId, boolean useHls, String quality) {
         if (publicId == null) return null;
         if (useHls) {

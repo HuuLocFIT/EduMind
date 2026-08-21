@@ -17,7 +17,7 @@
 
   <!-- Filters -->
   <app-card [padding]="'sm'" [variant]="'bordered'" [customClass]="'text-neutral-900 my-4'">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 items-end">
       <div class="flex flex-col gap-1.5">
         <span class="text-sm font-bold text-neutral-700">Search</span>
         <app-search-bar
@@ -41,6 +41,14 @@
         placeholder="All levels"
         size="sm"
         (selectionChange)="onLevelsChange($event)"
+      />
+
+      <app-select
+        label="Status"
+        [options]="statusOptions"
+        [ngModel]="selectedStatus()"
+        (ngModelChange)="onStatusChange($event)"
+        size="sm"
       />
     </div>
   </app-card>
@@ -69,9 +77,11 @@
               View
             </app-button>
           </a>
-          <app-button variant="danger" size="sm" (click)="openDeleteModal(row)">
-            Delete
-          </app-button>
+          @if (row.status !== 'ARCHIVED') {
+            <app-button variant="secondary" size="sm" (click)="openArchiveModal(row)">
+              Archive
+            </app-button>
+          }
         </div>
       </ng-template>
 
@@ -128,17 +138,36 @@
     </div>
   </ng-template>
 
-  <!-- Delete Confirmation Modal -->
-  <app-confirm-dialog
-    [isOpen]="showDeleteModal()"
-    title="Delete Course"
-    [message]="'Delete ' + (selectedCourse()?.title || 'this course') + '?'"
-    confirmText="Delete"
-    cancelText="Cancel"
-    variant="danger"
-    [isLoading]="isSubmitting()"
-    (confirm)="deleteCourse()"
-    (cancel)="showDeleteModal.set(false)"
-  />
+  <app-modal
+    [isOpen]="showArchiveModal()"
+    title="Archive Course"
+    size="md"
+    [closeOnOverlayClick]="!isSubmitting()"
+    [closeOnEscape]="!isSubmitting()"
+    (close)="closeArchiveModal()"
+  >
+    <p class="text-sm text-neutral-600 mb-4">
+      Archive <span class="font-semibold text-neutral-900">{{ selectedCourse()?.title }}</span>?
+      Existing course data and eligible learner access will be preserved.
+    </p>
+    <app-textarea
+      label="Archive reason"
+      placeholder="Explain why this course is being archived"
+      [ngModel]="archiveReason()"
+      (ngModelChange)="archiveReason.set($event); archiveReasonError.set('')"
+      [error]="archiveReasonError()"
+      [required]="true"
+      [disabled]="isSubmitting()"
+      [rows]="4"
+      [fullWidth]="true"
+    />
+    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
+      <app-button variant="outline" (click)="closeArchiveModal()" [disabled]="isSubmitting()">
+        Cancel
+      </app-button>
+      <app-button variant="danger" (click)="archiveCourse()" [disabled]="isSubmitting() || !archiveReason().trim()">
+        {{ isSubmitting() ? 'Archiving...' : 'Archive' }}
+      </app-button>
+    </div>
+  </app-modal>
 </div>
-

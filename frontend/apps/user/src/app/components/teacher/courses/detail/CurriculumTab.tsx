@@ -6,7 +6,7 @@ import { BookOpen, Edit, Play, FileText, ChevronDown, ChevronRight } from "lucid
 interface CurriculumTabProps {
   courseId: number;
   sections: SectionDetailResponse[];
-  onEdit: () => void;
+  onEdit?: () => void;
 }
 
 export const CurriculumTab: React.FC<CurriculumTabProps> = ({
@@ -40,13 +40,13 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
         <p className="text-gray-600 mb-4">
           Start building your course content
         </p>
-        <Button
+        {onEdit && <Button
           variant="primary"
           onClick={onEdit}
           className="bg-green-600 hover:bg-green-700"
         >
           Add Content
-        </Button>
+        </Button>}
       </div>
     );
   }
@@ -58,10 +58,10 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
           {sections.length} sections •{" "}
           {sections.reduce((acc, s) => acc + (s.lessons?.length || 0), 0)} lessons
         </p>
-        <Button variant="outline" size="sm" onClick={onEdit}>
+        {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>
           <Edit className="w-4 h-4 mr-2" />
           Edit Curriculum
-        </Button>
+        </Button>}
       </div>
 
       {sections.map((section) => (
@@ -120,4 +120,3 @@ export const CurriculumTab: React.FC<CurriculumTabProps> = ({
     </div>
   );
 };
-
