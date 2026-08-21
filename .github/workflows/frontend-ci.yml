@@ -47,3 +47,70 @@ jobs:
 
       - name: Build affected projects
         run: npx nx affected --target=build --base=$NX_BASE --head=$NX_HEAD --parallel=3
+
+  accessibility:
+    name: Accessibility (axe + Pa11y)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Accessibility-aware ESLint
+        run: npm run lint:a11y
+
+      - name: App-independent accessibility utility regression
+        run: npx playwright test --config=e2e/playwright.utilities.config.ts
+
+      # Deterministic fixtures/mocks only (see e2e/ACCESSIBILITY_TESTING.md) —
+      # no backend is started or required for this suite, and no E2E_* account
+      # env vars need to be set: global-setup.ts degrades to a warning when
+      # they're absent instead of failing (see e2e/global-setup.ts).
+      - name: Four-flow accessibility suite (Playwright + axe-core)
+        run: npm run test:a11y
+        env:
+          CI: true
+
+      # npm run pa11y does not start its own server (unlike the Playwright
+      # suite above, which manages its own via webServer); start one here.
+      - name: Start user app for Pa11y
+        run: |
+          npm run start:user &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000 >/dev/null && exit 0
+            sleep 2
+          done
+          echo "user app did not become ready in time" >&2
+          exit 1
+
+      - name: Pa11y scan (nine stable routes)
+        run: npm run pa11y:ci
+
+      - name: Upload accessibility reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-reports
+          path: |
+            frontend/e2e/playwright-report/
+            frontend/test-results/
+            frontend/e2e/pa11y/reports/
+          retention-days: 14
+          if-no-files-found: ignore

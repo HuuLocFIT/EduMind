@@ -503,13 +503,13 @@ export const SepayQrPage: React.FC = () => {
           </h3>
           <ol className="space-y-3 text-sm text-gray-600">
             <li className="flex gap-3">
-              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">
                 1
               </span>
               <span>Open your banking app (MB Bank, Vietcombank, etc.)</span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">
                 2
               </span>
               <span>
@@ -518,13 +518,13 @@ export const SepayQrPage: React.FC = () => {
               </span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">
                 3
               </span>
               <span>Scan the QR code above</span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">
                 4
               </span>
               <span>
@@ -532,7 +532,7 @@ export const SepayQrPage: React.FC = () => {
               </span>
             </li>
             <li className="flex gap-3">
-              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+              <span aria-hidden="true" className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-medium">
                 5
               </span>
               <span>Complete the payment - this page will update automatically</span>

@@ -277,6 +277,7 @@ export const SignupPage = () => {
             {/* Username */}
             <Input
               id="signup-username"
+              type="text"
               label="Username"
               placeholder="e.g. lucas"
               leftIcon={<User className="w-5 h-5" />}

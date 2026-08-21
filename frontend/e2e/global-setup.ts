@@ -37,25 +37,39 @@ export default async function globalSetup(): Promise<void> {
   }
 
   // ── 2. Smoke-test student credentials ───────────────────────────────────
-  const loginCheck = await context
-    .post('/api/auth/login', {
-      data: {
-        usernameOrEmail: TEST_USERS.student.email,
-        password: TEST_USERS.student.password,
-      },
-      timeout: 15_000,
-    })
-    .catch(() => null);
+  // Wrapped in try/catch (not just the request's own .catch()) because
+  // TEST_USERS.student throws synchronously — before `context.post()` is
+  // even called — when E2E_STUDENT_EMAIL/PASSWORD aren't set. That throw
+  // happens outside the request's .catch(), so it must be caught here too,
+  // or a suite that never needs a real backend (e.g. the fully-mocked
+  // @a11y suite) fails global setup outright instead of just warning.
+  try {
+    const student = TEST_USERS.student;
+    const loginCheck = await context
+      .post('/api/auth/login', {
+        data: {
+          usernameOrEmail: student.email,
+          password: student.password,
+        },
+        timeout: 15_000,
+      })
+      .catch(() => null);
 
-  if (!loginCheck?.ok()) {
+    if (!loginCheck?.ok()) {
+      console.warn(
+        `[global-setup] E2E student account "${student.email}" ` +
+          'does not exist or credentials are wrong. ' +
+          'Create it manually or via a seed script before running E2E tests.'
+      );
+    } else {
+      console.log(
+        `[global-setup] E2E student account "${student.email}" verified ✓`
+      );
+    }
+  } catch (error) {
     console.warn(
-      `[global-setup] E2E student account "${TEST_USERS.student.email}" ` +
-        'does not exist or credentials are wrong. ' +
-        'Create it manually or via a seed script before running E2E tests.'
-    );
-  } else {
-    console.log(
-      `[global-setup] E2E student account "${TEST_USERS.student.email}" verified ✓`
+      '[global-setup] Skipping E2E student account check: ' +
+        (error instanceof Error ? error.message : String(error))
     );
   }
 

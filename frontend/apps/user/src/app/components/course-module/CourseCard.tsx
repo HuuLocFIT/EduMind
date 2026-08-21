@@ -141,7 +141,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
             </div>
           )}
 
-          <span className="text-gray-300 mx-1">•</span>
+          <span aria-hidden="true" className="text-gray-500 mx-1">•</span>
 
           {/* Students */}
           <div className="flex items-center gap-1.5" title="Students">
@@ -149,7 +149,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
              <span>{new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short" }).format(course.totalStudents || 0)}</span>
           </div>
 
-          <span className="text-gray-300 mx-1">•</span>
+          <span aria-hidden="true" className="text-gray-500 mx-1">•</span>
 
           {/* Duration */}
           <div className="flex items-center gap-1.5" title="Duration">
