@@ -61,6 +61,14 @@ export class CategoriesComponent implements OnInit {
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
 
+  private modalAsync = injectAsyncState();
+  modalIsSubmitting = this.modalAsync.isSubmitting;
+  modalErrorMessage = this.modalAsync.errorMessage;
+
+  private deleteAsync = injectAsyncState();
+  deleteIsSubmitting = this.deleteAsync.isSubmitting;
+  deleteErrorMessage = this.deleteAsync.errorMessage;
+
   private createModal = injectModal<CategoryResponse>();
   private editModal = injectModal<CategoryResponse>();
   private deleteModal = injectModal<CategoryResponse>();
@@ -166,7 +174,13 @@ export class CategoriesComponent implements OnInit {
     this.formIconUrl = null;
     this.formErrors.set({});
     this.iconUploadError.set('');
+    this.modalErrorMessage.set('');
     this.showCreateModal.set(true);
+  }
+
+  closeCreateModal(): void {
+    this.showCreateModal.set(false);
+    this.modalErrorMessage.set('');
   }
 
   openEditModal(category: CategoryResponse): void {
@@ -177,7 +191,13 @@ export class CategoriesComponent implements OnInit {
     this.formIconUrl = category.iconUrl ?? null;
     this.formErrors.set({});
     this.iconUploadError.set('');
+    this.modalErrorMessage.set('');
     this.editModal.open(category);
+  }
+
+  closeEditModal(): void {
+    this.showEditModal.set(false);
+    this.modalErrorMessage.set('');
   }
 
   onIconFileSelected(file: File): void {
@@ -198,8 +218,13 @@ export class CategoriesComponent implements OnInit {
 
   openDeleteModal(category: CategoryResponse): void {
     this.selectedCategory.set(category);
-    this.errorMessage.set('');
+    this.deleteErrorMessage.set('');
     this.deleteModal.open(category);
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteModal.set(false);
+    this.deleteErrorMessage.set('');
   }
 
   generateSlug(name: string): void {
@@ -221,12 +246,12 @@ export class CategoriesComponent implements OnInit {
       iconUrl: this.formIconUrl,
     };
 
-    this.async.execute(this.categoryService.createCategory(payload), {
+    this.modalAsync.execute(this.categoryService.createCategory(payload), {
       submitting: true,
-      successMsg: 'Category created successfully',
       errorMsg: 'Failed to create category',
       onSuccess: () => {
-        this.showCreateModal.set(false);
+        this.successMessage.set('Category created successfully');
+        this.closeCreateModal();
         this.loadCategories();
       },
     });
@@ -243,12 +268,12 @@ export class CategoriesComponent implements OnInit {
       iconUrl: this.formIconUrl,
     };
 
-    this.async.execute(this.categoryService.updateCategory(category.id, payload), {
+    this.modalAsync.execute(this.categoryService.updateCategory(category.id, payload), {
       submitting: true,
-      successMsg: 'Category updated successfully',
       errorMsg: 'Failed to update category',
       onSuccess: () => {
-        this.showEditModal.set(false);
+        this.successMessage.set('Category updated successfully');
+        this.closeEditModal();
         this.loadCategories();
       },
     });
@@ -258,12 +283,12 @@ export class CategoriesComponent implements OnInit {
     const category = this.selectedCategory();
     if (!category) return;
 
-    this.async.execute(this.categoryService.deleteCategory(category.id), {
+    this.deleteAsync.execute(this.categoryService.deleteCategory(category.id), {
       submitting: true,
-      successMsg: 'Category deleted successfully',
       errorMsg: 'Failed to delete category',
       onSuccess: () => {
-        this.showDeleteModal.set(false);
+        this.successMessage.set('Category deleted successfully');
+        this.closeDeleteModal();
         this.loadCategories();
       },
     });

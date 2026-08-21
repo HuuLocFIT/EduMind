@@ -7,6 +7,7 @@ export type AlertVariant = 'info' | 'success' | 'warning' | 'error';
   selector: 'app-alert',
   standalone: true,
   imports: [CommonModule],
+  host: { class: 'block' },
   template: `
     <div [class]="getAlertClasses()" role="alert">
       <div [class]="getIconClasses()">

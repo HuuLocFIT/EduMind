@@ -1,6 +1,6 @@
 <div class="space-y-5 md:space-y-6 text-neutral-900">
   <!-- Page Header -->
-  <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
     <div class="space-y-1">
       <h1 class="text-2xl font-bold text-neutral-900">All Payouts</h1>
       <p class="text-neutral-600 text-sm">View and manage all payout transactions.</p>
@@ -121,6 +121,9 @@
       </p>
     </div>
 
+    @if (modalErrorMessage()) {
+      <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
+    }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="showProcessModal.set(false)">Cancel</app-button>
       <app-button variant="primary" (click)="processPayout()">
@@ -209,6 +212,9 @@
       }
     </div>
 
+    @if (modalErrorMessage()) {
+      <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
+    }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="showEditRecipientModal.set(false)">Cancel</app-button>
       <app-button variant="primary" (click)="updateRecipient()">
@@ -265,6 +271,9 @@
       </div>
     </div>
 
+    @if (modalErrorMessage()) {
+      <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
+    }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="showConfirmManualModal.set(false)">Cancel</app-button>
       <app-button variant="primary" (click)="confirmManualPayout()" [disabled]="!bankTransferReference.trim()">

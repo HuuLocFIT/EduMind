@@ -50,6 +50,7 @@ export class PendingPayoutsComponent implements OnInit {
   isLoading = this.async.isLoading;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  modalErrorMessage = signal('');
 
   private processModal = injectModal<PayoutRow>();
   private editRecipientModal = injectModal<PayoutRow>();
@@ -126,17 +127,20 @@ export class PendingPayoutsComponent implements OnInit {
   }
 
   openProcessModal(payout: PayoutRow): void {
+    this.modalErrorMessage.set('');
     this.selectedPayout.set(payout);
     this.processModal.open(payout);
   }
 
   openConfirmManualModal(payout: PayoutRow): void {
+    this.modalErrorMessage.set('');
     this.selectedPayout.set(payout);
     this.bankTransferReference = '';
     this.confirmManualModal.open(payout);
   }
 
   openEditRecipientModal(payout: PayoutRow): void {
+    this.modalErrorMessage.set('');
     this.selectedPayout.set(payout);
     this.paymentMethod = payout.paymentMethod;
     this.bankAccount = payout.bankAccount ?? '';
@@ -156,6 +160,7 @@ export class PendingPayoutsComponent implements OnInit {
       submitting: true,
       successMsg: 'Payout processed successfully',
       errorMsg: 'Failed to process payout',
+      errorTarget: this.modalErrorMessage,
       onSuccess: () => {
         this.processModal.close();
         this.loadPayouts();
@@ -171,6 +176,7 @@ export class PendingPayoutsComponent implements OnInit {
       submitting: true,
       successMsg: 'Manual payout confirmed successfully',
       errorMsg: 'Failed to confirm manual payout',
+      errorTarget: this.modalErrorMessage,
       onSuccess: () => {
         this.confirmManualModal.close();
         this.loadPayouts();
@@ -187,16 +193,16 @@ export class PendingPayoutsComponent implements OnInit {
     const data: any = { paymentMethod: method };
 
     if (method === PayoutMethod.BANK_TRANSFER) {
-      if (!this.bankAccount.trim()) { this.errorMessage.set('Bank account is required'); setTimeout(() => this.errorMessage.set(''), 5000); return; }
-      if (!this.bankName.trim()) { this.errorMessage.set('Bank name is required'); setTimeout(() => this.errorMessage.set(''), 5000); return; }
-      if (!this.accountHolderName.trim()) { this.errorMessage.set('Account holder name is required'); setTimeout(() => this.errorMessage.set(''), 5000); return; }
+      if (!this.bankAccount.trim()) { this.modalErrorMessage.set('Bank account is required'); return; }
+      if (!this.bankName.trim()) { this.modalErrorMessage.set('Bank name is required'); return; }
+      if (!this.accountHolderName.trim()) { this.modalErrorMessage.set('Account holder name is required'); return; }
       data.bankAccount = this.bankAccount;
       data.bankName = this.bankName;
       data.accountHolderName = this.accountHolderName;
       data.swiftCode = this.swiftCode?.trim() || undefined;
       data.bankAddress = this.bankAddress?.trim() || undefined;
     } else if (method === PayoutMethod.PAYPAL) {
-      if (!this.paypalEmail.trim()) { this.errorMessage.set('PayPal email is required'); setTimeout(() => this.errorMessage.set(''), 5000); return; }
+      if (!this.paypalEmail.trim()) { this.modalErrorMessage.set('PayPal email is required'); return; }
       data.paypalEmail = this.paypalEmail;
     }
 
@@ -204,6 +210,7 @@ export class PendingPayoutsComponent implements OnInit {
       submitting: true,
       successMsg: 'Recipient information updated successfully',
       errorMsg: 'Failed to update recipient information',
+      errorTarget: this.modalErrorMessage,
       onSuccess: () => {
         this.editRecipientModal.close();
         this.loadPayouts();

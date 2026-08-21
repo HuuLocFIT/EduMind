@@ -1,6 +1,6 @@
 <div class="space-y-5 md:space-y-6 text-neutral-900">
   <!-- Page Header -->
-  <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
     <div class="space-y-1">
       <h1 class="text-2xl font-bold text-neutral-900">Categories</h1>
       <p class="text-neutral-600 text-sm">Manage course categories and organize your content.</p>
@@ -105,7 +105,7 @@
     [isOpen]="showCreateModal()"
     title="Create Category"
     size="md"
-    (close)="showCreateModal.set(false)"
+    (close)="closeCreateModal()"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-2 text-neutral-800">
       <app-input
@@ -151,12 +151,16 @@
       />
     </div>
 
+    @if (modalErrorMessage()) {
+      <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
+    }
+
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
-      <app-button variant="outline" (click)="showCreateModal.set(false)" [disabled]="isSubmitting()">
+      <app-button variant="outline" (click)="closeCreateModal()" [disabled]="modalIsSubmitting()">
         Cancel
       </app-button>
-      <app-button variant="primary" (click)="createCategory()" [disabled]="isSubmitting()">
-        @if (isSubmitting()) {
+      <app-button variant="primary" (click)="createCategory()" [disabled]="modalIsSubmitting()">
+        @if (modalIsSubmitting()) {
           Creating...
         } @else {
           Create
@@ -170,7 +174,7 @@
     [isOpen]="showEditModal()"
     title="Edit Category"
   size="md"
-    (close)="showEditModal.set(false)"
+    (close)="closeEditModal()"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-1 md:gap-2 text-neutral-800">
       <app-input
@@ -216,12 +220,16 @@
       />
     </div>
 
+    @if (modalErrorMessage()) {
+      <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
+    }
+
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
-      <app-button variant="outline" (click)="showEditModal.set(false)" [disabled]="isSubmitting()">
+      <app-button variant="outline" (click)="closeEditModal()" [disabled]="modalIsSubmitting()">
         Cancel
       </app-button>
-      <app-button variant="primary" (click)="updateCategory()" [disabled]="isSubmitting()">
-        @if (isSubmitting()) {
+      <app-button variant="primary" (click)="updateCategory()" [disabled]="modalIsSubmitting()">
+        @if (modalIsSubmitting()) {
           Updating...
         } @else {
           Update
@@ -238,10 +246,9 @@
     confirmText="Delete"
     cancelText="Cancel"
     variant="danger"
-    [isLoading]="isSubmitting()"
-    [errorMessage]="errorMessage()"
+    [isLoading]="deleteIsSubmitting()"
+    [errorMessage]="deleteErrorMessage()"
     (confirm)="deleteCategory()"
-    (cancel)="showDeleteModal.set(false); errorMessage.set('')"
+    (cancel)="closeDeleteModal()"
   />
 </div>
-

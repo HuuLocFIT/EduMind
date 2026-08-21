@@ -56,6 +56,7 @@ export class EnrollmentReportsComponent implements OnInit {
   isLoading = this.async.isLoading;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  actionErrorMessage = signal('');
 
   private detailModal = injectModal<ReportRow>();
   private approveModal = injectModal<ReportRow>();
@@ -159,12 +160,14 @@ export class EnrollmentReportsComponent implements OnInit {
   }
 
   openApproveModal(report: ReportRow): void {
+    this.actionErrorMessage.set('');
     this.selectedReport.set(report);
     this.approveNotes = '';
     this.approveModal.open(report);
   }
 
   openRejectModal(report: ReportRow): void {
+    this.actionErrorMessage.set('');
     this.selectedReport.set(report);
     this.rejectNotes = '';
     this.rejectNotesError.set('');
@@ -181,6 +184,7 @@ export class EnrollmentReportsComponent implements OnInit {
         submitting: true,
         successMsg: 'Report approved successfully',
         errorMsg: 'Failed to approve report',
+        errorTarget: this.actionErrorMessage,
         onSuccess: () => {
           this.approveModal.close();
           this.statsPending.update(v => v - 1);
@@ -207,6 +211,7 @@ export class EnrollmentReportsComponent implements OnInit {
         submitting: true,
         successMsg: 'Report rejected successfully',
         errorMsg: 'Failed to reject report',
+        errorTarget: this.actionErrorMessage,
         onSuccess: () => {
           this.rejectModal.close();
           this.statsPending.update(v => v - 1);
