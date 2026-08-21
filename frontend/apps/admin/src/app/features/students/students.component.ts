@@ -71,6 +71,7 @@ export class StudentsComponent implements OnInit {
   isSubmitting   = this.async.isSubmitting;
   errorMessage   = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  modalErrorMessage = signal('');
 
   isMobile = injectMediaQuery('(max-width: 768px)');
 
@@ -219,11 +220,13 @@ export class StudentsComponent implements OnInit {
   }
 
   openToggleModal(student: StudentRow): void {
+    this.modalErrorMessage.set('');
     this.selectedStudent.set(student);
     this.toggleModal.open(student);
   }
 
   openDeleteModal(student: StudentRow): void {
+    this.modalErrorMessage.set('');
     this.selectedStudent.set(student);
     this.deleteModal.open(student);
   }
@@ -239,6 +242,7 @@ export class StudentsComponent implements OnInit {
         submitting: true,
         successMsg: `Student ${activating ? 'activated' : 'deactivated'} successfully`,
         errorMsg:   'Failed to update student status',
+        errorTarget: this.modalErrorMessage,
         onSuccess: () => {
           this.toggleModal.close();
           if (activating) {
@@ -264,6 +268,7 @@ export class StudentsComponent implements OnInit {
         submitting: true,
         successMsg: 'Student deleted successfully',
         errorMsg:   'Failed to delete student',
+        errorTarget: this.modalErrorMessage,
         onSuccess: () => {
           this.deleteModal.close();
           this.statsTotal.update(v => v - 1);

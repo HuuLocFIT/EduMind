@@ -161,6 +161,9 @@
       [rows]="4"
       [fullWidth]="true"
     />
+    @if (archiveErrorMessage()) {
+      <app-alert class="block mt-4" variant="error" [message]="archiveErrorMessage()" [dismissible]="true" (onClose)="archiveErrorMessage.set('')" />
+    }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
       <app-button variant="outline" (click)="closeArchiveModal()" [disabled]="isSubmitting()">
         Cancel

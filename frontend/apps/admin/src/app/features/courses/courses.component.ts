@@ -76,6 +76,7 @@ export class CoursesComponent implements OnInit {
   isSubmitting = this.async.isSubmitting;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  archiveErrorMessage = signal('');
 
   isMobile = injectMediaQuery('(max-width: 768px)');
 
@@ -221,8 +222,10 @@ export class CoursesComponent implements OnInit {
   }
 
   openArchiveModal(course: CourseRow): void {
+    this.archiveErrorMessage.set('');
     this.archiveReason.set('');
     this.archiveReasonError.set('');
+    this.archiveErrorMessage.set('');
     this.archiveModal.open(course);
   }
 
@@ -247,6 +250,7 @@ export class CoursesComponent implements OnInit {
         submitting: true,
         successMsg: 'Course archived successfully',
         errorMsg: 'Failed to archive course',
+        errorTarget: this.archiveErrorMessage,
         onSuccess: () => {
           this.closeArchiveModal();
           this.filter$.next();

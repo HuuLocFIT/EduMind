@@ -76,6 +76,7 @@ export class TeacherApplicationsComponent implements OnInit {
   isLoading = this.async.isLoading;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  actionErrorMessage = signal('');
 
   private detailModal = injectModal<TeacherApplicationView>();
   private approveModal = injectModal<TeacherApplicationView>();
@@ -214,6 +215,7 @@ export class TeacherApplicationsComponent implements OnInit {
   }
 
   openApproveModal(app: TeacherApplicationView): void {
+    this.actionErrorMessage.set('');
     this.selectedApplication.set(app);
     this.approvalType = 'TRIAL';
     this.adminNotes = '';
@@ -221,6 +223,7 @@ export class TeacherApplicationsComponent implements OnInit {
   }
 
   openRejectModal(app: TeacherApplicationView): void {
+    this.actionErrorMessage.set('');
     this.selectedApplication.set(app);
     this.rejectReason = '';
     this.adminNotes = '';
@@ -240,6 +243,7 @@ export class TeacherApplicationsComponent implements OnInit {
     this.async.execute(this.applicationService.reviewApplication(app.id, payload), {
       submitting: true,
       errorMsg: 'Failed to approve application',
+      errorTarget: this.actionErrorMessage,
       onSuccess: (res) => {
         this.successMessage.set(res.message || 'Application approved');
         this.approveModal.close();
@@ -262,6 +266,7 @@ export class TeacherApplicationsComponent implements OnInit {
     this.async.execute(this.applicationService.reviewApplication(app.id, payload), {
       submitting: true,
       errorMsg: 'Failed to reject application',
+      errorTarget: this.actionErrorMessage,
       onSuccess: (res) => {
         this.successMessage.set(res.message || 'Application rejected');
         this.rejectModal.close();

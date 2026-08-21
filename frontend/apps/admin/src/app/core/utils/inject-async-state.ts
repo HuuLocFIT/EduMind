@@ -1,12 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { DestroyRef, inject, signal } from '@angular/core';
+import { DestroyRef, inject, signal, WritableSignal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Observable, timer } from 'rxjs';
+import { Observable } from 'rxjs';
 
 export interface ExecuteOptions<T> {
   successMsg?: string;
   /** Fallback shown only when the backend response has no `message` field */
   errorMsg?: string;
+  /** Route the request error to a modal/dialog-owned signal instead of the page error. */
+  errorTarget?: WritableSignal<string>;
   /** Use isSubmitting instead of isLoading (for mutation actions). Default: false */
   submitting?: boolean;
   /** Skip all loading-state toggling (fire-and-forget). Default: false */
@@ -31,7 +33,9 @@ export function injectAsyncState() {
   const successMessage = signal('');
 
   function execute<T>(obs: Observable<T>, opts: ExecuteOptions<T> = {}): void {
-    const { successMsg, errorMsg, submitting = false, silent = false, onSuccess, onError } = opts;
+    const { successMsg, errorMsg, errorTarget, submitting = false, silent = false, onSuccess, onError } = opts;
+
+    errorTarget?.set('');
 
     if (!silent) {
       if (submitting) {
@@ -52,7 +56,6 @@ export function injectAsyncState() {
         }
         if (successMsg) {
           successMessage.set(successMsg);
-          timer(5000).pipe(takeUntilDestroyed(destroyRef)).subscribe(() => successMessage.set(''));
         }
         onSuccess?.(result);
       },
@@ -65,8 +68,7 @@ export function injectAsyncState() {
           }
         }
         if (!silent || errorMsg) {
-          errorMessage.set(extractErrorMessage(error, errorMsg));
-          timer(5000).pipe(takeUntilDestroyed(destroyRef)).subscribe(() => errorMessage.set(''));
+          (errorTarget ?? errorMessage).set(extractErrorMessage(error, errorMsg));
         }
         onError?.(error);
       },

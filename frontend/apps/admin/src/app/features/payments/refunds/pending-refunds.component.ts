@@ -47,6 +47,7 @@ export class PendingRefundsComponent implements OnInit {
   isLoading = this.async.isLoading;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  modalErrorMessage = signal('');
 
   private approveModal = injectModal<RefundRow>();
   private rejectModal = injectModal<RefundRow>();
@@ -113,18 +114,21 @@ export class PendingRefundsComponent implements OnInit {
   }
 
   openApproveModal(refund: RefundRow): void {
+    this.modalErrorMessage.set('');
     this.selectedRefund.set(refund);
     this.approveNotes = '';
     this.approveModal.open(refund);
   }
 
   openRejectModal(refund: RefundRow): void {
+    this.modalErrorMessage.set('');
     this.selectedRefund.set(refund);
     this.rejectReason = '';
     this.rejectModal.open(refund);
   }
 
   openConfirmManualModal(refund: RefundRow): void {
+    this.modalErrorMessage.set('');
     this.selectedRefund.set(refund);
     this.bankTransferReference = '';
     this.confirmManualModal.open(refund);
@@ -140,6 +144,7 @@ export class PendingRefundsComponent implements OnInit {
         submitting: true,
         successMsg: 'Refund approved successfully',
         errorMsg: 'Failed to approve refund',
+        errorTarget: this.modalErrorMessage,
         onSuccess: () => {
           this.approveModal.close();
           this.loadRefunds();
@@ -158,6 +163,7 @@ export class PendingRefundsComponent implements OnInit {
         submitting: true,
         successMsg: 'Refund rejected successfully',
         errorMsg: 'Failed to reject refund',
+        errorTarget: this.modalErrorMessage,
         onSuccess: () => {
           this.rejectModal.close();
           this.loadRefunds();
@@ -176,6 +182,7 @@ export class PendingRefundsComponent implements OnInit {
         submitting: true,
         successMsg: 'Manual refund confirmed successfully',
         errorMsg: 'Failed to confirm manual refund',
+        errorTarget: this.modalErrorMessage,
         onSuccess: () => {
           this.confirmManualModal.close();
           this.loadRefunds();

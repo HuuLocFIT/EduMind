@@ -55,6 +55,7 @@ export class TrialTeachersComponent implements OnInit {
   isLoading = this.async.isLoading;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
+  upgradeErrorMessage = signal('');
 
   private upgradeModal = injectModal<TrialStatusResponse>();
   showUpgradeModal = this.upgradeModal.isOpen;
@@ -172,6 +173,7 @@ export class TrialTeachersComponent implements OnInit {
   }
 
   openUpgradeModal(teacher: TrialStatusResponse): void {
+    this.upgradeErrorMessage.set('');
     this.adminNotes = '';
     this.upgradeModal.open(teacher);
   }
@@ -185,6 +187,7 @@ export class TrialTeachersComponent implements OnInit {
       {
         submitting: true,
         errorMsg: 'Failed to upgrade teacher',
+        errorTarget: this.upgradeErrorMessage,
         onSuccess: (res: AdminMessageResponse) => {
           this.successMessage.set(res.message || 'Teacher upgraded to full access');
           this.upgradeModal.close();
