@@ -18,6 +18,7 @@
     "src/**/*.spec.ts",
     "src/**/*.spec.tsx",
     "src/test/setup.ts",
-    "src/test/vitest.d.ts"
+    "src/test/vitest.d.ts",
+    "src/vite-env.d.ts"
   ]
 }
