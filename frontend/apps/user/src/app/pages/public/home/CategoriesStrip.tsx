@@ -119,6 +119,7 @@ export const CategoriesStrip: React.FC<Props> = ({
           ) : (
             <div
               className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0"
+              role="group"
               aria-label="Course categories"
             >
               {categories.slice(0, 5).map((category, index) => {

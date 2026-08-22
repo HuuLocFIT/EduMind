@@ -707,7 +707,7 @@ export const MainLayout: React.FC = () => {
           </div>
 
           <div className="mt-6 sm:mt-8 pt-5 sm:pt-8 border-t text-center text-sm text-gray-600">
-            <p>&copy; 2026 EduMind. All rights reserved.</p>
+            <p>&copy; 2026 Nguyễn Hữu Lộc. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -1,14 +1,11 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../stores/auth.store";
-import { useQuery, useIsFetching } from "@tanstack/react-query";
-import { queryKeys } from "../lib/query-keys";
-import { teacherApplicationService } from "../services/teacher-application.service";
+import { useTeacherApplication } from "../hooks/useTeacherApplication";
 import {
   GraduationCap,
   ArrowRight,
   Clock,
-  CheckCircle,
   XCircle,
   X,
   Sparkles,
@@ -21,22 +18,15 @@ export const TeacherApplicationBanner: React.FC = () => {
   const [dismissed, setDismissed] = useState(false);
 
   const isStudent = user?.roles.includes(UserRole.STUDENT);
+  const isTeacher =
+    user?.roles.includes(UserRole.TEACHER) ||
+    user?.roles.includes(UserRole.TEACHER_TRIAL);
 
-  // Read from cache only — MainLayout is the sole fetcher for this query.
-  // enabled: false means this observer never triggers a network request.
-  const { data: application } = useQuery({
-    queryKey: queryKeys.teacherApplication.myApplication(user?.id),
-    queryFn: () => teacherApplicationService.getMyApplication(),
-    enabled: false,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: application, isLoading, isError } = useTeacherApplication();
 
-  // Track whether MainLayout's fetch is still in-flight
-  const isFetchingApplication =
-    useIsFetching({ queryKey: queryKeys.teacherApplication.myApplication(user?.id) }) > 0;
-
-  // Don't render for non-students, dismissed, or while loading
-  if (!isStudent || dismissed || isFetchingApplication) return null;
+  // Teachers can retain the student role after approval, so teacher access must
+  // take precedence over the student-role and application-cache checks.
+  if (!isStudent || isTeacher || dismissed || isLoading || isError) return null;
 
   // If approved, don't show banner (they're now a teacher)
   if (application?.status === "APPROVED") return null;
@@ -46,7 +36,7 @@ export const TeacherApplicationBanner: React.FC = () => {
   // ========================================
   if (!application) {
     return (
-      <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-xl p-6 mb-6 overflow-hidden">
+      <div className="relative mb-6 flex min-h-[176px] items-center overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-4 text-white shadow-sm sm:min-h-[126px] sm:p-5 sm:pr-20">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-40 h-40 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" />
@@ -55,46 +45,47 @@ export const TeacherApplicationBanner: React.FC = () => {
 
         {/* Dismiss Button */}
         <button
+          type="button"
+          aria-label="Dismiss teacher application banner"
           onClick={() => setDismissed(true)}
-          className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+          className="absolute right-3 top-3 rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-white/20 rounded-xl">
-              <GraduationCap className="w-8 h-8 text-white" />
+        <div className="relative flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 sm:hidden">
+            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-white/15 sm:h-12 sm:w-12">
+              <GraduationCap className="h-5 w-5 text-white sm:h-6 sm:w-6" />
             </div>
-            <div className="text-white">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-xl font-bold">Become a Teacher</h3>
-                <Sparkles className="w-5 h-5 text-yellow-300" />
+            <div className="flex min-h-10 min-w-0 items-center gap-2 pr-10">
+              <h3 className="font-bold">Become a Teacher</h3>
+              <Sparkles className="h-4 w-4 flex-none text-yellow-300" />
+            </div>
+            <p className="col-span-2 max-w-2xl text-sm leading-5 text-white/80">
+              Share what you know, create courses, and earn while helping other
+              learners grow.
+            </p>
+          </div>
+          <div className="hidden min-w-0 items-start gap-3 sm:flex">
+            <div className="flex h-12 w-12 flex-none items-center justify-center rounded-xl bg-white/15">
+              <GraduationCap className="h-6 w-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="mb-1 flex items-center gap-2">
+                <h3 className="font-bold">Become a Teacher</h3>
+                <Sparkles className="h-4 w-4 flex-none text-yellow-300" />
               </div>
-              <p className="text-white/80 max-w-md">
-                Share your knowledge with thousands of students. Earn money
-                while teaching what you love.
+              <p className="max-w-2xl text-sm leading-5 text-white/80">
+                Share what you know, create courses, and earn while helping
+                other learners grow.
               </p>
-              <ul className="mt-3 space-y-1 text-sm text-white/70">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-300" />
-                  Create and sell your own courses
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-300" />
-                  Earn up to 70% revenue share
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-300" />
-                  Access teaching tools & analytics
-                </li>
-              </ul>
             </div>
           </div>
 
           <Link
             to={USER_ROUTES.TEACHER_APPLICATION}
-            className="flex items-center gap-2 px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-lg whitespace-nowrap"
+            className="inline-flex w-auto flex-none items-center justify-center gap-2 self-center whitespace-nowrap rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 sm:self-auto"
           >
             Apply Now
             <ArrowRight className="w-5 h-5" />
@@ -139,36 +130,75 @@ export const TeacherApplicationBanner: React.FC = () => {
   const Icon = config.icon;
 
   return (
-    <div className={`relative border rounded-xl p-5 mb-6 ${config.bg}`}>
+    <div
+      className={`relative mb-6 flex min-h-[176px] items-center overflow-hidden rounded-2xl border p-4 shadow-sm sm:min-h-[126px] sm:p-5 sm:pr-20 ${config.bg}`}
+    >
       {/* Dismiss Button */}
       <button
+        type="button"
+        aria-label="Dismiss teacher application status"
         onClick={() => setDismissed(true)}
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        className="absolute right-3 top-3 rounded-lg p-2 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
       >
         <X className="w-5 h-5" />
       </button>
 
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-xl ${config.iconBg}`}>
-            <Icon className={`w-6 h-6 ${config.iconColor}`} />
-          </div>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
+      <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 sm:hidden">
+          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3">
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-xl ${config.iconBg}`}
+            >
+              <Icon className={`h-5 w-5 ${config.iconColor}`} />
+            </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 pr-10">
               <h3 className="font-semibold text-gray-900">{config.title}</h3>
               <span
-                className={`text-xs font-medium px-2 py-0.5 rounded ${config.badgeClass}`}
+                className={`rounded px-2 py-0.5 text-xs font-medium ${config.badgeClass}`}
               >
                 {application.status}
               </span>
             </div>
-            <p className="text-sm text-gray-600 max-w-lg">
+          </div>
+          <p className="mt-3 text-sm leading-5 text-gray-600">
+            {config.description}
+          </p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            {application.createdAt && (
+              <p className="text-xs text-gray-500">
+                Submitted: {formatDate(application.createdAt)}
+              </p>
+            )}
+            <Link
+              to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+              className="ml-auto inline-flex flex-none items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-gray-900"
+            >
+              View details
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+        <div className="hidden min-w-0 items-start gap-3 sm:flex">
+          <div
+            className={`flex h-12 w-12 flex-none items-center justify-center rounded-xl ${config.iconBg}`}
+          >
+            <Icon className={`h-6 w-6 ${config.iconColor}`} />
+          </div>
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-gray-900">{config.title}</h3>
+              <span
+                className={`rounded px-2 py-0.5 text-xs font-medium ${config.badgeClass}`}
+              >
+                {application.status}
+              </span>
+            </div>
+            <p className="max-w-2xl text-sm leading-5 text-gray-600">
               {config.description}
             </p>
             {application.createdAt && (
-              <p className="text-xs text-gray-500 mt-2">
-                Submitted:{" "}
-                {formatDate(application.createdAt)}
+              <p className="mt-1 text-xs text-gray-500">
+                Submitted: {formatDate(application.createdAt)}
               </p>
             )}
           </div>
@@ -176,7 +206,7 @@ export const TeacherApplicationBanner: React.FC = () => {
 
         <Link
           to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+          className="hidden w-auto flex-none items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:inline-flex"
         >
           View Details
           <ArrowRight className="w-4 h-4" />
