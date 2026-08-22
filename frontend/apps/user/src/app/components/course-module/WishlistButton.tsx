@@ -21,6 +21,8 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
     setLoading(true);
     try {
       await onToggle(courseId);
+    } catch {
+      // onToggle is responsible for surfacing its own error to the user.
     } finally {
       setLoading(false);
     }

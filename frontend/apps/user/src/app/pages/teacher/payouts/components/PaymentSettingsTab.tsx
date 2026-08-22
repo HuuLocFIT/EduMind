@@ -73,7 +73,11 @@ export const PaymentSettingsTab: React.FC = () => {
       paypalEmail: values.paypalEmail || undefined,
     };
 
-    await updateSettings(payload);
+    try {
+      await updateSettings(payload);
+    } catch {
+      // Already surfaced via the `saveError` Alert above.
+    }
   };
 
   return (

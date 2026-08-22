@@ -22,6 +22,8 @@ export const EnrollButton: React.FC<EnrollButtonProps> = ({
     setLoading(true);
     try {
       await onEnroll();
+    } catch {
+      // onEnroll is responsible for surfacing its own error to the user.
     } finally {
       setLoading(false);
     }

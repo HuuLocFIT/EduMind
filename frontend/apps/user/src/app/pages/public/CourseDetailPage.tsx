@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useState } from "react";
+import * as Sentry from "@sentry/react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -162,6 +163,7 @@ export const CourseDetailPage: React.FC = () => {
     },
     onError: (err: any) => {
       showError(err?.message || "Failed to enroll in course");
+      Sentry.captureException(err, { tags: { mutation: "enrollInCourse" } });
     },
   });
 
@@ -191,6 +193,7 @@ export const CourseDetailPage: React.FC = () => {
     },
     onError: (err: any) => {
       showError(err?.message || "Failed to update wishlist");
+      Sentry.captureException(err, { tags: { mutation: "toggleWishlist" } });
     },
   });
 
@@ -210,6 +213,7 @@ export const CourseDetailPage: React.FC = () => {
     },
     onError: (err: any) => {
       showError(err?.message || "Failed to submit review");
+      Sentry.captureException(err, { tags: { mutation: "submitReview" } });
     },
   });
 
@@ -218,7 +222,17 @@ export const CourseDetailPage: React.FC = () => {
       showError("Course not found");
       return;
     }
-    await enrollMutation.mutateAsync(course.id);
+    if (!isAuthenticated || !userId) {
+      showError("Please login to enroll in this course");
+      navigate(USER_ROUTES.LOGIN);
+      return;
+    }
+    try {
+      await enrollMutation.mutateAsync(course.id);
+    } catch {
+      // Already surfaced via enrollMutation.onError; swallow so the click
+      // handler's promise doesn't reject as an unhandled rejection.
+    }
   };
 
   const handleToggleWishlist = async (courseId: number) => {
@@ -226,11 +240,23 @@ export const CourseDetailPage: React.FC = () => {
       showError("Please login to manage wishlist");
       return;
     }
-    await wishlistMutation.mutateAsync({ courseId, currentlyInWishlist: Boolean(isInWishlist) });
+    try {
+      await wishlistMutation.mutateAsync({ courseId, currentlyInWishlist: Boolean(isInWishlist) });
+    } catch {
+      // Already surfaced via wishlistMutation.onError.
+    }
   };
 
   const handleSubmitReview = async (rating: number, comment: string) => {
-    await reviewMutation.mutateAsync({ rating, comment });
+    if (!isAuthenticated || !userId) {
+      showError("Please login to submit a review");
+      return;
+    }
+    try {
+      await reviewMutation.mutateAsync({ rating, comment });
+    } catch {
+      // Already surfaced via reviewMutation.onError.
+    }
   };
 
   if (courseLoading) {
