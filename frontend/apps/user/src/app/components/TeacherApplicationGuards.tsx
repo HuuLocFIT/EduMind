@@ -3,12 +3,10 @@ import { USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
 import { useAuthStore } from "../stores/auth.store";
 import { useTeacherApplication } from "../hooks";
-
-const CheckingBlock = ({ label }: { label: string }) => (
-  <div className="min-h-[200px] flex items-center justify-center text-sm text-gray-600">
-    {label}
-  </div>
-);
+import {
+  ApplicationStatusSkeleton,
+  TeacherApplicationSkeleton,
+} from "./route-skeletons";
 
 /**
  * TeacherApplicationRoute - Guard for teacher application page
@@ -29,7 +27,7 @@ export const TeacherApplicationRoute = () => {
 
   // Show loading state
   if (isLoading) {
-    return <CheckingBlock label="Checking your application..." />;
+    return <TeacherApplicationSkeleton />;
   }
 
   // Redirect if application exists
@@ -52,7 +50,7 @@ export const TeacherApplicationStatusRoute = () => {
 
   // Show loading state
   if (isLoading) {
-    return <CheckingBlock label="Loading status..." />;
+    return <ApplicationStatusSkeleton />;
   }
 
   // Redirect if no application exists
