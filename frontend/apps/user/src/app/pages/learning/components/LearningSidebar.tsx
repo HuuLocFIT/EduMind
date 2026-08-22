@@ -51,7 +51,7 @@ export const LearningSidebar: React.FC<LearningSidebarProps> = ({
           </div>
           <div className="flex-1">
             <p className="text-slate-900 font-semibold text-lg">
-              {completedCourses === 0 ? 'Just Getting Started!' : `${completedCourses} Courses Done`}
+              {completedCourses === 0 ? 'Getting Started!' : `${completedCourses} Courses Done`}
             </p>
             <p className="text-slate-500 text-sm mt-1">{stats?.active ?? 0} courses in progress</p>
           </div>

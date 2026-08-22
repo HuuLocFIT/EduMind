@@ -1,8 +1,13 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { enrollmentService } from "../../services/enrollment.service";
-import { MyLearningSkeleton } from "../../components/route-skeletons/MyLearningSkeleton";
 import type {
   EnrollmentResponse,
   EnrollmentStatsResponse,
@@ -12,6 +17,7 @@ import { buildRouteWithParams, USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from "../../stores/auth.store";
 import { queryKeys } from "../../lib/query-keys";
 import { STALE_TIME_ENROLLMENTS } from "../../lib/query-config";
+import { useMyLearningReadySignal } from "./MyLearningBoot";
 
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 import {
@@ -26,6 +32,8 @@ export const MyLearningPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const userId = user?.id;
+  const signalReady = useMyLearningReadySignal();
+  const didSignalReady = useRef(false);
 
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [page, setPage] = useState(0);
@@ -38,16 +46,25 @@ export const MyLearningPage: React.FC = () => {
   }, [filterStatus]);
 
   // Fetch enrollment statistics (accurate counts from backend - single query)
-  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } =
-    useQuery<EnrollmentStatsResponse>({
-      queryKey: queryKeys.enrollments.stats(userId),
-      queryFn: () => enrollmentService.getMyEnrollmentStats(),
-      staleTime: STALE_TIME_ENROLLMENTS,
-      enabled: Boolean(userId),
-    });
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useQuery<EnrollmentStatsResponse>({
+    queryKey: queryKeys.enrollments.stats(userId),
+    queryFn: () => enrollmentService.getMyEnrollmentStats(),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId),
+  });
 
   // Fetch all enrollments (for 'all' filter only, with proper pagination)
-  const { data: allEnrollmentsResponse, isLoading: allLoading, isError: allError, refetch: refetchAll } = useQuery({
+  const {
+    data: allEnrollmentsResponse,
+    isLoading: allLoading,
+    isError: allError,
+    refetch: refetchAll,
+  } = useQuery({
     queryKey: queryKeys.enrollments.me(userId, page, pageSize),
     queryFn: async () => {
       return enrollmentService.getMyEnrollments({ page, size: pageSize });
@@ -58,44 +75,52 @@ export const MyLearningPage: React.FC = () => {
   });
 
   // Fetch active courses (for 'active' filter)
-  const { data: activeEnrollmentsResponse, isLoading: activeLoading, isError: activeError, refetch: refetchActive } =
-    useQuery({
-      queryKey: queryKeys.enrollments.meByStatus(
-        userId,
-        "ACTIVE",
+  const {
+    data: activeEnrollmentsResponse,
+    isLoading: activeLoading,
+    isError: activeError,
+    refetch: refetchActive,
+  } = useQuery({
+    queryKey: queryKeys.enrollments.meByStatus(
+      userId,
+      "ACTIVE",
+      page,
+      pageSize,
+    ),
+    queryFn: () =>
+      enrollmentService.getMyEnrollments({
+        status: "ACTIVE",
         page,
-        pageSize,
-      ),
-      queryFn: () =>
-        enrollmentService.getMyEnrollments({
-          status: "ACTIVE",
-          page,
-          size: pageSize,
-        }),
-      staleTime: STALE_TIME_ENROLLMENTS,
-      enabled: Boolean(userId) && filterStatus === "active",
-      placeholderData: (previousData) => previousData,
-    });
+        size: pageSize,
+      }),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId) && filterStatus === "active",
+    placeholderData: (previousData) => previousData,
+  });
 
   // Fetch completed courses (for 'completed' filter)
-  const { data: completedEnrollmentsResponse, isLoading: completedLoading, isError: completedError, refetch: refetchCompleted } =
-    useQuery({
-      queryKey: queryKeys.enrollments.meByStatus(
-        userId,
-        "COMPLETED",
+  const {
+    data: completedEnrollmentsResponse,
+    isLoading: completedLoading,
+    isError: completedError,
+    refetch: refetchCompleted,
+  } = useQuery({
+    queryKey: queryKeys.enrollments.meByStatus(
+      userId,
+      "COMPLETED",
+      page,
+      pageSize,
+    ),
+    queryFn: () =>
+      enrollmentService.getMyEnrollments({
+        status: "COMPLETED",
         page,
-        pageSize,
-      ),
-      queryFn: () =>
-        enrollmentService.getMyEnrollments({
-          status: "COMPLETED",
-          page,
-          size: pageSize,
-        }),
-      staleTime: STALE_TIME_ENROLLMENTS,
-      enabled: Boolean(userId) && filterStatus === "completed",
-      placeholderData: (previousData) => previousData,
-    });
+        size: pageSize,
+      }),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId) && filterStatus === "completed",
+    placeholderData: (previousData) => previousData,
+  });
 
   // Determine which data to use based on filter
   const enrollments = useMemo(() => {
@@ -158,16 +183,26 @@ export const MyLearningPage: React.FC = () => {
     return refetchAll();
   };
 
-  // Find most recent course for "Continue Learning"
-  const mostRecentCourse = useMemo(() => {
-    const allData = allEnrollmentsResponse?.data || [];
-    if (allData.length === 0) return null;
-    return [...allData].sort(
-      (a, b) =>
-        new Date(b.lastAccessedAt || b.enrolledAt).getTime() -
-        new Date(a.lastAccessedAt || a.enrolledAt).getTime(),
-    )[0];
-  }, [allEnrollmentsResponse]);
+  // Most recent course for "Continue Learning" - backed by a dedicated
+  // DB-level query so it's correct regardless of active tab/page.
+  const { data: recentCourses, isLoading: recentCoursesLoading } = useQuery({
+    queryKey: queryKeys.enrollments.recent(userId, 1),
+    queryFn: () => enrollmentService.getRecentlyAccessedCourses(1),
+    staleTime: STALE_TIME_ENROLLMENTS,
+    enabled: Boolean(userId),
+  });
+
+  const mostRecentCourse = recentCourses?.[0] ?? null;
+
+  const initialQueriesSettled =
+    !statsLoading && !allLoading && !recentCoursesLoading;
+
+  useLayoutEffect(() => {
+    if (initialQueriesSettled && !didSignalReady.current) {
+      didSignalReady.current = true;
+      signalReady();
+    }
+  }, [initialQueriesSettled, signalReady]);
 
   const handleContinueLearning = (enrollment: EnrollmentResponse) => {
     if (!enrollment.courseSlug) return;
@@ -197,22 +232,24 @@ export const MyLearningPage: React.FC = () => {
     }
   };
 
-  if (statsLoading) {
-    return (
-      <>
-        <p className="sr-only" role="status">Loading My Learning</p>
-        <MyLearningSkeleton />
-      </>
-    );
-  }
-
   if (statsError) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-16">
-        <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-white p-8 text-center" role="alert">
-          <h1 className="text-2xl font-bold text-slate-900">We couldn't load My Learning</h1>
-          <p className="mt-2 text-slate-600">Check your connection and try again.</p>
-          <button type="button" onClick={() => void refetchStats()} className="mt-6 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+        <div
+          className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-white p-8 text-center"
+          role="alert"
+        >
+          <h1 className="text-2xl font-bold text-slate-900">
+            We couldn't load My Learning
+          </h1>
+          <p className="mt-2 text-slate-600">
+            Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetchStats()}
+            className="mt-6 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          >
             Retry
           </button>
         </div>
@@ -228,57 +265,72 @@ export const MyLearningPage: React.FC = () => {
         noIndex={true}
       />
       <div className="min-h-screen bg-slate-50">
-      {/* Hero Section with Welcome & Stats */}
-      <HeroSection
-        userName={user?.firstName || ""}
-        stats={stats}
-        mostRecentCourse={mostRecentCourse}
-        onContinueLearning={handleContinueLearning}
-      />
+        {/* Hero Section with Welcome & Stats */}
+        <HeroSection
+          userName={user?.firstName || ""}
+          stats={stats}
+          mostRecentCourse={mostRecentCourse}
+          onContinueLearning={handleContinueLearning}
+        />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Courses List Section */}
-          <div className="flex-1">
-            {/* Filters */}
-            <CourseFilters
-              activeFilter={filterStatus}
-              onFilterChange={setFilterStatus}
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Courses List Section */}
+            <div className="flex-1">
+              {/* Filters */}
+              <CourseFilters
+                activeFilter={filterStatus}
+                onFilterChange={setFilterStatus}
+                stats={stats}
+              >
+                {tabError ? (
+                  <div
+                    className="rounded-2xl border border-red-200 bg-white p-8 text-center"
+                    role="alert"
+                  >
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      We couldn't load these courses
+                    </h3>
+                    <p className="mt-2 text-slate-600">
+                      Try again to refresh this course list.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void retryCurrentQuery()}
+                      className="mt-4 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : (
+                  <CourseList
+                    enrollments={visibleEnrollments}
+                    pagination={pagination}
+                    currentPage={page}
+                    filterStatus={filterStatus}
+                    hoveredCourse={hoveredCourse}
+                    isLoading={tabLoading}
+                    onPageChange={setPage}
+                    onHoverCourse={setHoveredCourse}
+                    onContinue={handleContinueLearning}
+                    onViewDetails={handleViewCourse}
+                    onBrowseCourses={handleBrowseCourses}
+                  />
+                )}
+              </CourseFilters>
+            </div>
+
+            {/* Sidebar */}
+            <LearningSidebar
               stats={stats}
-            >
-            {tabError ? (
-              <div className="rounded-2xl border border-red-200 bg-white p-8 text-center" role="alert">
-                <h3 className="text-lg font-semibold text-slate-900">We couldn't load these courses</h3>
-                <p className="mt-2 text-slate-600">Try again to refresh this course list.</p>
-                <button type="button" onClick={() => void retryCurrentQuery()} className="mt-4 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">Retry</button>
-              </div>
-            ) : <CourseList
               enrollments={visibleEnrollments}
-              pagination={pagination}
-              currentPage={page}
-              filterStatus={filterStatus}
-              hoveredCourse={hoveredCourse}
-              isLoading={tabLoading}
-              onPageChange={setPage}
-              onHoverCourse={setHoveredCourse}
-              onContinue={handleContinueLearning}
-              onViewDetails={handleViewCourse}
+              onStartLearning={handleStartLearning}
               onBrowseCourses={handleBrowseCourses}
-            />}
-            </CourseFilters>
+            />
           </div>
-
-          {/* Sidebar */}
-          <LearningSidebar
-            stats={stats}
-            enrollments={visibleEnrollments}
-            onStartLearning={handleStartLearning}
-            onBrowseCourses={handleBrowseCourses}
-          />
         </div>
       </div>
-    </div>
     </>
   );
 };

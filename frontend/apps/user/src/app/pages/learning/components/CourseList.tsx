@@ -1,9 +1,10 @@
-import React from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import type { EnrollmentResponse } from '@edumind/shared-types';
-import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
-import { EnrollmentCardNew } from './EnrollmentCardNew';
-import { prefetchCourseDetail } from '../../../lib/prefetch';
+import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { EnrollmentResponse } from "@edumind/shared-types";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { MyLearningEnrollmentCard } from "./MyLearningEnrollmentCard";
+import { prefetchCourseDetail } from "../../../lib/prefetch";
+import { MyLearningEnrollmentCardSkeleton } from "../../../components/route-skeletons/MyLearningEnrollmentCardSkeleton";
 
 interface Pagination {
   totalPages?: number;
@@ -13,7 +14,7 @@ interface CourseListProps {
   enrollments: EnrollmentResponse[];
   pagination?: Pagination;
   currentPage: number;
-  filterStatus: 'all' | 'active' | 'completed';
+  filterStatus: "all" | "active" | "completed";
   hoveredCourse: number | null;
   isLoading?: boolean;
   onPageChange: (page: number) => void;
@@ -22,19 +23,6 @@ interface CourseListProps {
   onViewDetails: (courseSlug: string) => void;
   onBrowseCourses: () => void;
 }
-
-const CourseCardSkeleton: React.FC = () => (
-  <div aria-hidden="true" className="bg-white rounded-2xl border border-slate-200 p-5 animate-pulse">
-    <div className="flex gap-4">
-      <div className="w-24 h-16 bg-slate-200 rounded-xl flex-shrink-0" />
-      <div className="flex-1 space-y-2">
-        <div className="h-4 bg-slate-200 rounded w-3/4" />
-        <div className="h-3 bg-slate-200 rounded w-1/2" />
-        <div className="h-2 bg-slate-200 rounded w-full mt-3" />
-      </div>
-    </div>
-  </div>
-);
 
 export const CourseList: React.FC<CourseListProps> = ({
   enrollments,
@@ -53,16 +41,16 @@ export const CourseList: React.FC<CourseListProps> = ({
   const totalPages = pagination?.totalPages ?? 0;
   const emptyContent = {
     all: {
-      heading: 'No courses here yet',
-      description: 'Courses you enroll in will appear here.',
+      heading: "No courses here yet",
+      description: "Courses you enroll in will appear here.",
     },
     active: {
-      heading: 'No active courses here yet',
-      description: 'Courses you are currently learning will appear here.',
+      heading: "No active courses here yet",
+      description: "Courses you are currently learning will appear here.",
     },
     completed: {
-      heading: 'No completed courses here yet',
-      description: 'Courses you complete will appear here.',
+      heading: "No completed courses here yet",
+      description: "Courses you complete will appear here.",
     },
   }[filterStatus];
   const { heading: emptyHeading, description: emptyDescription } = emptyContent;
@@ -71,10 +59,12 @@ export const CourseList: React.FC<CourseListProps> = ({
   if (isLoading) {
     return (
       <div className="flex-1" aria-busy="true">
-        <p className="sr-only" role="status">Loading courses</p>
-        <div className="space-y-4">
+        <p className="sr-only" role="status">
+          Loading courses
+        </p>
+        <div className="space-y-4 animate-pulse">
           {Array.from({ length: 4 }, (_, i) => (
-            <CourseCardSkeleton key={i} />
+            <MyLearningEnrollmentCardSkeleton key={i} />
           ))}
         </div>
       </div>
@@ -87,13 +77,20 @@ export const CourseList: React.FC<CourseListProps> = ({
       <div className="space-y-4">
         {enrollments.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            <p
+              className="sr-only"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {emptyAnnouncement}
             </p>
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-8 h-8 text-slate-400" aria-hidden="true" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">{emptyHeading}</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              {emptyHeading}
+            </h3>
             <p className="text-slate-500 mb-4">{emptyDescription}</p>
             <button
               onClick={onBrowseCourses}
@@ -104,22 +101,28 @@ export const CourseList: React.FC<CourseListProps> = ({
           </div>
         ) : (
           <ul className="space-y-4" aria-label={`${filterStatus} courses`}>
-          {enrollments.map((enrollment) => (
-            <li key={enrollment.id}>
-            <EnrollmentCardNew
-              enrollment={enrollment}
-              isHovered={hoveredCourse === enrollment.id}
-              onMouseEnter={() => {
-                onHoverCourse(enrollment.id);
-                prefetchCourseDetail(queryClient, enrollment.courseSlug || enrollment.courseId);
-              }}
-              onMouseLeave={() => onHoverCourse(null)}
-              onContinue={() => onContinue(enrollment)}
-              onViewDetails={() => enrollment.courseSlug && onViewDetails(enrollment.courseSlug)}
-            />
-            </li>
-          ))
-          }</ul>
+            {enrollments.map((enrollment) => (
+              <li key={enrollment.id}>
+                <MyLearningEnrollmentCard
+                  enrollment={enrollment}
+                  isHovered={hoveredCourse === enrollment.id}
+                  onMouseEnter={() => {
+                    onHoverCourse(enrollment.id);
+                    prefetchCourseDetail(
+                      queryClient,
+                      enrollment.courseSlug || enrollment.courseId,
+                    );
+                  }}
+                  onMouseLeave={() => onHoverCourse(null)}
+                  onContinue={() => onContinue(enrollment)}
+                  onViewDetails={() =>
+                    enrollment.courseSlug &&
+                    onViewDetails(enrollment.courseSlug)
+                  }
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
@@ -150,11 +153,11 @@ export const CourseList: React.FC<CourseListProps> = ({
                     key={i}
                     onClick={() => onPageChange(i)}
                     aria-label={`Page ${i + 1}`}
-                    aria-current={currentPage === i ? 'page' : undefined}
+                    aria-current={currentPage === i ? "page" : undefined}
                     className={`w-10 h-10 rounded-lg transition-all font-medium ${
                       currentPage === i
-                        ? 'bg-blue-600 text-white shadow-md scale-105'
-                        : 'hover:bg-gray-100 text-gray-700 hover:scale-105'
+                        ? "bg-blue-600 text-white shadow-md scale-105"
+                        : "hover:bg-gray-100 text-gray-700 hover:scale-105"
                     }`}
                   >
                     {i + 1}
@@ -167,7 +170,9 @@ export const CourseList: React.FC<CourseListProps> = ({
 
           <button
             aria-label={`Next page, page ${Math.min(totalPages, currentPage + 2)}`}
-            onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
+            onClick={() =>
+              onPageChange(Math.min(totalPages - 1, currentPage + 1))
+            }
             disabled={currentPage >= totalPages - 1}
             className="flex items-center gap-1 px-4 py-2 rounded-lg font-medium transition-colors bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
