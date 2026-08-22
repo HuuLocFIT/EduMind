@@ -20,6 +20,7 @@ interface CourseGridProps {
   onAddToCart?: (courseId: number) => void;
   onGoToCourse?: (courseSlug: string) => void;
   onEnrollFree?: (courseId: number) => void;
+  actionsReady?: boolean;
 }
 
 export const CourseGrid: React.FC<CourseGridProps> = ({
@@ -36,6 +37,7 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
   onAddToCart,
   onGoToCourse,
   onEnrollFree,
+  actionsReady = true,
 }) => {
   const queryClient = useQueryClient();
 
@@ -70,6 +72,7 @@ export const CourseGrid: React.FC<CourseGridProps> = ({
             onAddToCart={onAddToCart}
             onGoToCourse={onGoToCourse}
             onEnrollFree={onEnrollFree}
+            actionsReady={actionsReady}
             priority={index < 4}
           />
         </div>

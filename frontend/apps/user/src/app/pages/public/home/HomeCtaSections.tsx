@@ -6,10 +6,12 @@ import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 interface Props {
   isAuthenticated: boolean;
   isTeacher: boolean;
+  authUiReady: boolean;
 }
 export const TeacherCtaSection: React.FC<Props> = ({
   isAuthenticated,
   isTeacher,
+  authUiReady,
 }) => {
   const destination = isTeacher
     ? TEACHER_ROUTES.DASHBOARD
@@ -63,15 +65,17 @@ export const TeacherCtaSection: React.FC<Props> = ({
                 Earnings
               </div>
             </div>
-            <Link
-              to={destination}
-              className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-5 font-semibold text-white shadow-md hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
-            >
-              {isTeacher ? "Open teacher dashboard" : "Teach on EduMind"}
-              <span className="ml-2" aria-hidden="true">
-                →
-              </span>
-            </Link>
+            {authUiReady ? (
+              <Link
+                to={destination}
+                className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-5 font-semibold text-white shadow-md hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+              >
+                {isTeacher ? "Open teacher dashboard" : "Teach on EduMind"}
+                <span className="ml-2" aria-hidden="true">→</span>
+              </Link>
+            ) : (
+              <div className="invisible mt-4 min-h-12 w-full rounded-xl" aria-hidden="true" data-testid="auth-ui-skeleton" />
+            )}
           </div>
         </div>
       </div>
@@ -82,6 +86,7 @@ export const TeacherCtaSection: React.FC<Props> = ({
 export const FinalCtaSection: React.FC<Props> = ({
   isAuthenticated,
   isTeacher,
+  authUiReady,
 }) => {
   const destination = isTeacher
     ? TEACHER_ROUTES.DASHBOARD
@@ -113,12 +118,16 @@ export const FinalCtaSection: React.FC<Props> = ({
           every step.
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:mt-8 sm:flex-row">
-          <Link
-            to={destination}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-white px-6 font-semibold text-blue-700 shadow-lg hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-800"
-          >
-            {label}
-          </Link>
+          {authUiReady ? (
+            <Link
+              to={destination}
+              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-white px-6 font-semibold text-blue-700 shadow-lg hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-800"
+            >
+              {label}
+            </Link>
+          ) : (
+            <div className="invisible min-h-12 w-full rounded-xl sm:w-52" aria-hidden="true" data-testid="auth-ui-skeleton" />
+          )}
           <Link
             to={USER_ROUTES.COURSES}
             className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/40 bg-white/10 px-6 font-semibold text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-800"

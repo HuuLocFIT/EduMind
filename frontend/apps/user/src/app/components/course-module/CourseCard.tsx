@@ -16,6 +16,7 @@ interface CourseCardProps {
   onAddToCart?: (courseId: number) => void;
   onGoToCourse?: (courseSlug: string) => void;
   onEnrollFree?: (courseId: number) => void;
+  actionsReady?: boolean;
   isAddingToCart?: boolean;
   isEnrolling?: boolean;
   priority?: boolean;
@@ -32,6 +33,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onAddToCart,
   onGoToCourse,
   onEnrollFree,
+  actionsReady = true,
   isAddingToCart = false,
   isEnrolling = false,
   priority = false,
@@ -184,7 +186,14 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         </div>
 
         {/* Action Button (Right) */}
-        {showActions && (
+        {showActions && !actionsReady && (
+          <div
+            className="invisible h-9 w-24 flex-shrink-0 rounded-full"
+            aria-hidden="true"
+            data-testid="auth-ui-skeleton"
+          />
+        )}
+        {showActions && actionsReady && (
           <div className="flex-shrink-0">
             {isEnrolled ? (
               <Button

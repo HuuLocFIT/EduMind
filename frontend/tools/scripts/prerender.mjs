@@ -220,6 +220,10 @@ async function prerender() {
       const apiOrigin = new URL(API_URL).origin;
       const localOrigin = `http://localhost:${PORT}`;
       await page.evaluateOnNewDocument((remote, local) => {
+        // Keep all auth-dependent controls neutral while React renders the
+        // snapshot. This runtime-only property is not serialized by
+        // page.content(), so real visitors can reveal their persisted state.
+        window.__EDUMIND_PRERENDER__ = true;
         const origFetch = window.fetch.bind(window);
         window.fetch = (input, init) => {
           const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';

@@ -24,6 +24,7 @@ import { useAuthStore } from "../../stores/auth.store";
 import { useCartStore } from "../../stores/cart.store";
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 import { useBrowseCoursesReadySignal } from "./BrowseCoursesBoot";
+import { useAuthUiReady } from "../../hooks";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
@@ -133,6 +134,7 @@ export const BrowseCoursesPage: React.FC = () => {
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const { success: showSuccess, error: showError } = useToast();
   const { user, isAuthenticated } = useAuthStore();
+  const authUiReady = useAuthUiReady();
   const userId = user?.id;
   const queryClient = useQueryClient();
   const signalReady = useBrowseCoursesReadySignal();
@@ -722,6 +724,7 @@ export const BrowseCoursesPage: React.FC = () => {
             handleAddToCart={handleAddToCart}
             handleGoToCourse={handleGoToCourse}
             handleEnrollFree={handleEnrollFree}
+            authUiReady={authUiReady}
 
             activeFiltersCount={activeFiltersCount}
             onClearFilters={clearFilters}

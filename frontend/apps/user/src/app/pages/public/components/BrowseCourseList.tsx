@@ -27,6 +27,7 @@ interface BrowseCourseListProps {
   handleAddToCart: (id: number) => void;
   handleGoToCourse: (courseSlug: string) => void;
   handleEnrollFree: (id: number) => void;
+  authUiReady: boolean;
 
   // Empty state actions
   activeFiltersCount: number;
@@ -57,6 +58,7 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
   handleAddToCart,
   handleGoToCourse,
   handleEnrollFree,
+  authUiReady,
 
   activeFiltersCount,
   onClearFilters,
@@ -190,6 +192,7 @@ export const BrowseCourseList: React.FC<BrowseCourseListProps> = ({
           onAddToCart={handleAddToCart}
           onGoToCourse={handleGoToCourse}
           onEnrollFree={handleEnrollFree}
+          actionsReady={authUiReady}
         />
       )}
 

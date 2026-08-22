@@ -58,6 +58,7 @@ import {
 } from "../../lib/query-config";
 import { hasPositiveCourseMetric } from "./course-detail.utils";
 import { useCourseDetailReadySignal } from "./CourseDetailBoot";
+import { useAuthUiReady } from "../../hooks";
 
 export const CourseDetailPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
@@ -65,6 +66,7 @@ export const CourseDetailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated, user } = useAuthStore();
+  const authUiReady = useAuthUiReady();
   const signalReady = useCourseDetailReadySignal();
   const userId = user?.id;
 
@@ -411,6 +413,14 @@ export const CourseDetailPage: React.FC = () => {
                   />
                 </div>
 
+                {!authUiReady ? (
+                  <div
+                    className="invisible mb-6 h-28 w-full rounded-xl"
+                    aria-hidden="true"
+                    data-testid="auth-ui-skeleton"
+                  />
+                ) : (
+                  <>
                 {/* Enroll Button (for free courses) */}
                 {course.price === 0 && (
                   <EnrollButton
@@ -467,6 +477,8 @@ export const CourseDetailPage: React.FC = () => {
                     </span>
                   </div>
                 }
+                  </>
+                )}
                 
                 {/* Course Includes */}
                 <div className="pt-6 border-t">

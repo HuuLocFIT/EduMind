@@ -8,8 +8,10 @@ import { HomePage } from "./HomePage";
 
 const mockUseQuery = vi.fn();
 const mockAuth = vi.fn();
+const mockAuthUi = vi.hoisted(() => ({ ready: true }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: (...args: unknown[]) => mockUseQuery(...args) }));
 vi.mock("../../stores/auth.store", () => ({ useAuthStore: () => mockAuth() }));
+vi.mock("../../hooks", () => ({ useAuthUiReady: () => mockAuthUi.ready }));
 vi.mock("@edumind/user-ui", () => ({
   Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button>,
   CloudinaryImage: ({ alt = "", ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => <img alt={alt} {...props} />,
@@ -46,6 +48,8 @@ const loadedQueries = () => {
 describe("HomePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete window.__EDUMIND_PRERENDER__;
+    mockAuthUi.ready = true;
     mockAuth.mockReturnValue({ isAuthenticated: false, user: null });
   });
 
@@ -101,6 +105,17 @@ describe("HomePage", () => {
     expect(screen.getByRole("link", { name: "Start learning" })).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: "Create your free account" })).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: /Teach on EduMind/ })).toHaveAttribute("href", "/signup");
+  });
+
+  it("keeps auth-dependent calls to action neutral during prerender", () => {
+    mockAuthUi.ready = false;
+    loadedQueries();
+    renderPage();
+
+    expect(screen.getAllByTestId("auth-ui-skeleton")).toHaveLength(3);
+    expect(screen.queryByRole("link", { name: "Start learning" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Create your free account" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Teach on EduMind/ })).not.toBeInTheDocument();
   });
 
   it("shows student destinations", () => {

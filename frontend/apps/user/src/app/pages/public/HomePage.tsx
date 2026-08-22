@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from "../../stores/auth.store";
 import { categoryService } from "../../services/category.service";
 import { courseService } from "../../services/course.service";
+import { useAuthUiReady } from "../../hooks";
 import {
   CategoriesStrip,
   FinalCtaSection,
@@ -27,6 +28,7 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState("");
   const { isAuthenticated, user } = useAuthStore();
+  const authUiReady = useAuthUiReady();
   const isTeacher = Boolean(
     user?.roles.includes(UserRole.TEACHER) ||
     user?.roles.includes(UserRole.TEACHER_TRIAL),
@@ -76,6 +78,7 @@ export const HomePage: React.FC = () => {
           onKeywordChange={setSearchKeyword}
           onSearch={submitSearch}
           isAuthenticated={isAuthenticated}
+          authUiReady={authUiReady}
         />
         <CategoriesStrip
           categories={categoriesQuery.data ?? []}
@@ -168,10 +171,12 @@ export const HomePage: React.FC = () => {
         <TeacherCtaSection
           isAuthenticated={isAuthenticated}
           isTeacher={isTeacher}
+          authUiReady={authUiReady}
         />
         <FinalCtaSection
           isAuthenticated={isAuthenticated}
           isTeacher={isTeacher}
+          authUiReady={authUiReady}
         />
       </div>
     </>
