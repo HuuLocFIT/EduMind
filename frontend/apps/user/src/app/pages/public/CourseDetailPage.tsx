@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -13,7 +13,6 @@ import {
   useToast,
   CloudinaryImage,
 } from "@edumind/user-ui";
-import { CourseDetailSkeleton } from "../../components/route-skeletons";
 import {
   EnrollButton,
   WishlistButton,
@@ -58,6 +57,7 @@ import {
   STALE_TIME_ENROLLMENTS,
 } from "../../lib/query-config";
 import { hasPositiveCourseMetric } from "./course-detail.utils";
+import { useCourseDetailReadySignal } from "./CourseDetailBoot";
 
 export const CourseDetailPage: React.FC = () => {
   const { courseSlug } = useParams<{ courseSlug: string }>();
@@ -65,6 +65,7 @@ export const CourseDetailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { success: showSuccess, error: showError } = useToast();
   const { isAuthenticated, user } = useAuthStore();
+  const signalReady = useCourseDetailReadySignal();
   const userId = user?.id;
 
   const [activeTab, setActiveTab] = useState<
@@ -84,13 +85,20 @@ export const CourseDetailPage: React.FC = () => {
   });
 
   const instructorId = course?.instructorId;
-  const { data: instructorStats } = useQuery<InstructorStatsResponse | null>({
+  const {
+    data: instructorStats,
+    isLoading: instructorStatsLoading,
+  } = useQuery<InstructorStatsResponse | null>({
     queryKey: queryKeys.instructors.stats(instructorId!),
     enabled: Boolean(instructorId),
     queryFn: async () =>
       courseService.getInstructorStats(instructorId as number),
     staleTime: STALE_TIME_INSTRUCTOR_STATS,
   });
+
+  useLayoutEffect(() => {
+    if (!courseLoading && !instructorStatsLoading) signalReady();
+  }, [courseLoading, instructorStatsLoading, signalReady]);
 
   const { data: reviews = [] } = useQuery<ReviewResponse[]>({
     queryKey: queryKeys.courses.reviews(course?.id ?? 0),
@@ -224,21 +232,7 @@ export const CourseDetailPage: React.FC = () => {
   };
 
   if (courseLoading) {
-    return (
-      <>
-        <SeoMetaTags
-          key="loading"
-          title="Loading Course..."
-          description="Accessing course details on EduMind"
-        />
-        <div aria-busy="true" aria-describedby="course-loading-status">
-          <p id="course-loading-status" className="sr-only" role="status">
-            Loading course details
-          </p>
-          <CourseDetailSkeleton />
-        </div>
-      </>
-    );
+    return null;
   }
 
   if (courseError || !course) {

@@ -28,10 +28,10 @@ import { CoursePlayerBoot } from "./pages/learning/course-player/CoursePlayerBoo
 import { DashboardBoot } from "./pages/dashboard/DashboardBoot";
 import { MyLearningBoot } from "./pages/learning/MyLearningBoot";
 import { BrowseCoursesBoot } from "./pages/public/BrowseCoursesBoot";
+import { CourseDetailBoot } from "./pages/public/CourseDetailBoot";
 
 import {
   CertificateVerifySkeleton,
-  CourseDetailSkeleton,
   WishlistSkeleton,
   CertificatesSkeleton,
   ProfileSettingsSkeleton,
@@ -247,9 +247,11 @@ function AppContent() {
             <Route
               path={USER_ROUTES.COURSE_DETAIL}
               element={
-                <Suspense fallback={<CourseDetailSkeleton />}>
-                  <CourseDetailPage />
-                </Suspense>
+                <CourseDetailBoot>
+                  <Suspense fallback={null}>
+                    <CourseDetailPage />
+                  </Suspense>
+                </CourseDetailBoot>
               }
             />
             <Route
