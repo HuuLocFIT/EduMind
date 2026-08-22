@@ -59,6 +59,10 @@ const VANILLA_INDEX_CONTENT = (() => {
   return readFileSync(path, 'utf-8');
 })();
 
+// Keep an unrendered document for client-side-only routes. Vercel serves this
+// file as the SPA fallback while exact prerendered files keep taking priority.
+writeFileSync(join(DIST_DIR, 'spa.html'), VANILLA_INDEX_CONTENT, 'utf-8');
+
 /**
  * Deduplicate SEO tags in prerendered HTML.
  *
@@ -152,7 +156,7 @@ function serveStaticOrProxy(req, res) {
 
 async function fetchCourseSlugs() {
   try {
-    const response = await fetch(`${API_URL}/api/courses/filter?size=1000`);
+    const response = await fetch(`${API_URL}/api/courses/filter?size=100`);
     if (!response.ok) {
       console.warn(`[prerender] Failed to fetch courses: ${response.status}`);
       return [];
