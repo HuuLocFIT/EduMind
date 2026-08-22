@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@edumind/user-ui";
-import { Check, Lock } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface EnrollButtonProps {
   courseId: number;
@@ -11,7 +11,6 @@ interface EnrollButtonProps {
 }
 
 export const EnrollButton: React.FC<EnrollButtonProps> = ({
-  courseId,
   isEnrolled,
   isFree,
   onEnroll,
@@ -30,7 +29,12 @@ export const EnrollButton: React.FC<EnrollButtonProps> = ({
 
   if (isEnrolled) {
     return (
-      <Button variant="secondary" className={`w-full ${className}`} disabled>
+      <Button
+        variant="secondary"
+        size="lg"
+        className={`w-full ${className}`}
+        disabled
+      >
         <Check className="w-4 h-4 mr-2" />
         Enrolled
       </Button>
@@ -40,6 +44,7 @@ export const EnrollButton: React.FC<EnrollButtonProps> = ({
   return (
     <Button
       variant="primary"
+      size="lg"
       onClick={handleEnroll}
       isLoading={loading}
       className={`w-full ${className}`}
