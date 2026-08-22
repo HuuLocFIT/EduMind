@@ -9,6 +9,7 @@ interface Props {
   onKeywordChange: (value: string) => void;
   onSearch: () => void;
   isAuthenticated: boolean;
+  authUiReady: boolean;
 }
 
 export const HomeHero: React.FC<Props> = ({
@@ -16,6 +17,7 @@ export const HomeHero: React.FC<Props> = ({
   onKeywordChange,
   onSearch,
   isAuthenticated,
+  authUiReady,
 }) => (
   <section className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-700 to-indigo-900 text-white">
     <div className="absolute inset-0" aria-hidden="true">
@@ -57,12 +59,20 @@ export const HomeHero: React.FC<Props> = ({
               →
             </span>
           </Link>
-          <Link
-            to={isAuthenticated ? USER_ROUTES.DASHBOARD : USER_ROUTES.SIGNUP}
-            className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-xl border border-white/30 bg-white/5 px-2.5 text-center text-[13px] font-semibold text-white transition-colors hover:border-white/45 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-800 sm:px-6 sm:text-base xl:flex-none"
-          >
-            {isAuthenticated ? "Go to dashboard" : "Start learning"}
-          </Link>
+          {authUiReady ? (
+            <Link
+              to={isAuthenticated ? USER_ROUTES.DASHBOARD : USER_ROUTES.SIGNUP}
+              className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-xl border border-white/30 bg-white/5 px-2.5 text-center text-[13px] font-semibold text-white transition-colors hover:border-white/45 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-800 sm:px-6 sm:text-base xl:flex-none"
+            >
+              {isAuthenticated ? "Go to dashboard" : "Start learning"}
+            </Link>
+          ) : (
+            <div
+              className="invisible min-h-12 min-w-0 flex-1 rounded-xl sm:px-6 xl:w-44 xl:flex-none"
+              aria-hidden="true"
+              data-testid="auth-ui-skeleton"
+            />
+          )}
         </div>
       </div>
 

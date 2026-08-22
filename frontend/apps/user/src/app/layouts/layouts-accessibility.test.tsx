@@ -19,6 +19,7 @@ const mockAuthState = vi.hoisted(() => ({
     logout: vi.fn(),
   },
 }));
+const mockAuthUi = vi.hoisted(() => ({ ready: true }));
 
 vi.mock("../stores/auth.store", () => {
   return {
@@ -29,6 +30,7 @@ vi.mock("../stores/auth.store", () => {
 
 vi.mock("../hooks", () => ({
   useTeacherApplication: () => ({ data: null }),
+  useAuthUiReady: () => mockAuthUi.ready,
 }));
 
 vi.mock("../components/payment-module", () => ({
@@ -45,6 +47,25 @@ describe("layout accessibility contracts", () => {
     mockAuthState.state.isAuthenticated = false;
     mockAuthState.state.user = null;
     mockAuthState.state.logout.mockReset();
+    mockAuthUi.ready = true;
+  });
+
+  it("renders neutral navigation controls during prerender", () => {
+    mockAuthUi.ready = false;
+    render(
+      <MemoryRouter initialEntries={["/courses"]}>
+        <Routes>
+          <Route path="/courses" element={<MainLayout />}>
+            <Route index element={<h1>Courses</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByTestId("auth-ui-skeleton").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Login" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign Up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "User menu" })).not.toBeInTheDocument();
   });
 
   const DeferredHeading = () => {

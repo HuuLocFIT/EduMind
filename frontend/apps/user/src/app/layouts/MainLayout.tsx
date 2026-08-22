@@ -25,12 +25,13 @@ import {
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
-import { useTeacherApplication } from "../hooks";
+import { useAuthUiReady, useTeacherApplication } from "../hooks";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user, logout } = useAuthStore();
+  const authUiReady = useAuthUiReady();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
@@ -159,7 +160,7 @@ export const MainLayout: React.FC = () => {
                   Browse Courses
                 </Link>
 
-                {isAuthenticated && (
+                {authUiReady && isAuthenticated && (
                   <>
                     <Link
                       to={USER_ROUTES.DASHBOARD}
@@ -184,7 +185,13 @@ export const MainLayout: React.FC = () => {
                   </>
                 )}
 
-                {isAuthenticated ? (
+                {!authUiReady ? (
+                  <div
+                    className="invisible h-10 w-36 rounded-lg"
+                    aria-hidden="true"
+                    data-testid="auth-ui-skeleton"
+                  />
+                ) : isAuthenticated ? (
                   <div className="flex items-center gap-4">
                     {/* Cart */}
                     <CartIcon onClick={() => setCartDrawerOpen(true)} />
@@ -420,7 +427,7 @@ export const MainLayout: React.FC = () => {
               {/* Mobile Menu Button + Cart Icon */}
               <div className="flex items-center gap-1 md:hidden">
                 {/* Cart Icon - Always visible on mobile for authenticated users */}
-                {isAuthenticated && (
+                {authUiReady && isAuthenticated && (
                   <CartIcon onClick={() => setCartDrawerOpen(true)} />
                 )}
                 
@@ -459,7 +466,7 @@ export const MainLayout: React.FC = () => {
                     </Link>
                   </li>
 
-                  {isAuthenticated && (
+                  {authUiReady && isAuthenticated && (
                     <>
                       <li>
                         <Link
@@ -580,7 +587,13 @@ export const MainLayout: React.FC = () => {
                     </>
                   )}
 
-                  {isAuthenticated ? (
+                  {!authUiReady ? (
+                    <li
+                      className="invisible h-12 w-full rounded-lg"
+                      aria-hidden="true"
+                      data-testid="auth-ui-skeleton"
+                    />
+                  ) : isAuthenticated ? (
                     <li>
                       <Button
                         variant="secondary"

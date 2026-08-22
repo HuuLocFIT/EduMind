@@ -37,6 +37,9 @@ export {
 // Teacher application hooks
 export { useTeacherApplication } from "./useTeacherApplication";
 
+// Prerender/auth UI coordination
+export { useAuthUiReady } from "./useAuthUiReady";
+
 // Earnings hooks
 export {
   useEarnings,
