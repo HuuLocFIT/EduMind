@@ -31,7 +31,7 @@ export const BrowseHeroSection: React.FC<BrowseHeroSectionProps> = ({
             Browse Courses
           </h1>
           <p className="text-blue-100 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-            Discover expert-led courses to build practical skills and move toward your goals.
+            Build practical skills and reach your goals with expert-led courses.
           </p>
         </div>
         <div className="w-full max-w-2xl mx-auto">

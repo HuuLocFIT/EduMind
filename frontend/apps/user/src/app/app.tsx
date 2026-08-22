@@ -27,9 +27,9 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { CoursePlayerBoot } from "./pages/learning/course-player/CoursePlayerBoot";
 import { DashboardBoot } from "./pages/dashboard/DashboardBoot";
 import { MyLearningBoot } from "./pages/learning/MyLearningBoot";
+import { BrowseCoursesBoot } from "./pages/public/BrowseCoursesBoot";
 
 import {
-  BrowseCoursesSkeleton,
   CertificateVerifySkeleton,
   CourseDetailSkeleton,
   WishlistSkeleton,
@@ -237,9 +237,11 @@ function AppContent() {
             <Route
               path={USER_ROUTES.COURSES}
               element={
-                <Suspense fallback={<BrowseCoursesSkeleton />}>
-                  <BrowseCoursesPage />
-                </Suspense>
+                <BrowseCoursesBoot>
+                  <Suspense fallback={null}>
+                    <BrowseCoursesPage />
+                  </Suspense>
+                </BrowseCoursesBoot>
               }
             />
             <Route

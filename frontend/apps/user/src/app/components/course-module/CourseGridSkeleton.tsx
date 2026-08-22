@@ -20,12 +20,12 @@ const gridClasses: Record<NonNullable<CourseGridSkeletonProps["columns"]>, strin
  * flash.
  */
 const CardSkeleton: React.FC = () => (
-  <div className="flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+  <div data-testid="course-card-skeleton" className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
     {/* Thumbnail — matches h-44 sm:h-48 lg:h-52 */}
-    <div className="h-44 sm:h-48 lg:h-52 bg-gray-200 animate-pulse" />
+    <div className="h-44 bg-gray-200 animate-pulse motion-reduce:animate-none sm:h-48 lg:h-52" />
 
     {/* Content — matches p-4 sm:p-5 */}
-    <div className="flex flex-col flex-grow p-4 sm:p-5 animate-pulse">
+    <div className="flex flex-grow flex-col p-4 animate-pulse motion-reduce:animate-none sm:p-5">
       {/* Title (2 lines, min-h-[3.5rem]) */}
       <div className="mb-1.5 min-h-[3.5rem] space-y-2">
         <div className="h-4 bg-gray-200 rounded w-full" />
@@ -33,16 +33,15 @@ const CardSkeleton: React.FC = () => (
       </div>
 
       {/* Instructor */}
-      <div className="h-3 bg-gray-200 rounded w-2/5 mb-3" />
+      <div className="mb-3 h-5 w-2/5 rounded bg-gray-200" />
 
       {/* Rating / meta row */}
-      <div className="h-3 bg-gray-200 rounded w-3/5 mb-5" />
+      <div className="mb-5 h-5 w-3/5 rounded bg-gray-200" />
 
-      {/* Bottom: price + action button */}
-      <div className="mt-auto pt-4 border-t border-gray-100 flex items-end justify-between gap-3">
-        <div className="h-7 bg-gray-200 rounded w-24" />
-        <div className="h-9 bg-gray-200 rounded-full w-24" />
-      </div>
+    </div>
+    <div className="flex items-end justify-between gap-3 px-4 pb-4 animate-pulse motion-reduce:animate-none sm:px-5 sm:pb-5">
+      <div className="h-7 w-24 rounded bg-gray-200" />
+      <div className="h-9 w-24 rounded-lg bg-gray-200" />
     </div>
   </div>
 );

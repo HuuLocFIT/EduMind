@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@edumind/user-ui";
@@ -23,6 +23,7 @@ import { useCart, useAddToCart } from "../../hooks/useCart";
 import { useAuthStore } from "../../stores/auth.store";
 import { useCartStore } from "../../stores/cart.store";
 import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
+import { useBrowseCoursesReadySignal } from "./BrowseCoursesBoot";
 
 type CoursesResponse = Awaited<ReturnType<typeof courseService.filterCourses>>;
 type FilterType = "all" | "free";
@@ -134,6 +135,8 @@ export const BrowseCoursesPage: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
   const userId = user?.id;
   const queryClient = useQueryClient();
+  const signalReady = useBrowseCoursesReadySignal();
+  const didSignalReadyRef = useRef(false);
 
   const [initialUrlState] = useState(() => parseAppliedUrlState(searchParams));
   const [appliedFilters, setAppliedFilters] = useState<CourseFilters>(() =>
@@ -232,7 +235,7 @@ export const BrowseCoursesPage: React.FC = () => {
     // setSearchParams is stable and doesn't need to be in dependencies
   ]);
 
-  const { data: categories = [] } = useQuery<CategoryResponse[]>({
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<CategoryResponse[]>({
     queryKey: queryKeys.categories.active,
     queryFn: categoryService.getActiveCategories,
     staleTime: STALE_TIME_CATEGORIES,
@@ -323,6 +326,15 @@ export const BrowseCoursesPage: React.FC = () => {
   const courses = coursesResponse?.data || [];
   const totalPages = coursesResponse?.pagination?.totalPages || 1;
   const totalElements = coursesResponse?.pagination?.totalElements || 0;
+
+  const initialQueriesSettled = !isLoading && !categoriesLoading;
+
+  useLayoutEffect(() => {
+    if (initialQueriesSettled && !didSignalReadyRef.current) {
+      didSignalReadyRef.current = true;
+      signalReady();
+    }
+  }, [initialQueriesSettled, signalReady]);
 
   // Fetch enrollment state for the current page of courses
   const currentPageCourseIds = useMemo(() => courses.map(c => c.id), [courses]);
