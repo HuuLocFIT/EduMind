@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react";
 import { payoutService } from "../services/payout.service";
 import { queryKeys } from "../lib/query-keys";
 import type { PayoutSettings } from "@edumind/shared-types";
@@ -18,6 +19,9 @@ export const useUpdatePayoutSettings = () => {
     mutationFn: (payload: PayoutSettings) => payoutService.updatePayoutSettings(payload),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.payouts.settings, data);
+    },
+    onError: (err) => {
+      Sentry.captureException(err, { tags: { mutation: "updatePayoutSettings" } });
     },
   });
 };

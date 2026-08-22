@@ -105,6 +105,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       setRating(0);
       setComment("");
       setCommentError("");
+    } catch {
+      // onSubmit is responsible for surfacing its own error to the user.
     } finally {
       setLoading(false);
     }
