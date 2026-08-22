@@ -26,12 +26,12 @@ import { createLazyRoute } from "./components/LazyRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { CoursePlayerBoot } from "./pages/learning/course-player/CoursePlayerBoot";
 import { DashboardBoot } from "./pages/dashboard/DashboardBoot";
+import { MyLearningBoot } from "./pages/learning/MyLearningBoot";
 
 import {
   BrowseCoursesSkeleton,
   CertificateVerifySkeleton,
   CourseDetailSkeleton,
-  MyLearningSkeleton,
   WishlistSkeleton,
   CertificatesSkeleton,
   ProfileSettingsSkeleton,
@@ -409,9 +409,11 @@ function AppContent() {
               <Route
                 path={USER_ROUTES.LEARNING}
                 element={
-                  <Suspense fallback={<MyLearningSkeleton />}>
-                    <MyLearningPage />
-                  </Suspense>
+                  <MyLearningBoot>
+                    <Suspense fallback={null}>
+                      <MyLearningPage />
+                    </Suspense>
+                  </MyLearningBoot>
                 }
               />
               <Route
