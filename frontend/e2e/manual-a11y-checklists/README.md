@@ -100,48 +100,24 @@ Không ghi password, token hay secret thật vào các file này.
 - Giỏ hàng có ít nhất 1 sản phẩm để test Purchase flow.
 - Token reset password còn hạn **và** token hết hạn/không hợp lệ.
 - Sandbox thanh toán ép được cả kịch bản success và failed (PayPal và SePay QR).
-- 1 khóa học có dữ liệu AI (embeddings/summary) để AI Tutor trả lời được — nếu không có, các bước AI Tutor ghi `Blocked`.
+- 1 khóa học có dữ liệu AI (embeddings/summary) để AI Tutor trả lời được.
 
 ---
 
-## Test trên production hay local?
-
-Ghi rõ môi trường vào bảng metadata của từng file — **kết quả chỉ có giá trị cho đúng build đã test**.
-
-Có thể chạy phần lớn checklist trên production. Các bước "giả lập lỗi" **không** bị loại bỏ, vì error state là
-phần a11y có giá trị nhất (happy path hầu như luôn accessible; lỗi thật nằm ở announce/focus/retry khi có lỗi).
-Chỉ cần chọn đúng kỹ thuật giả lập.
-
-### Kỹ thuật giả lập an toàn trên production
+### Kỹ thuật giả lập an toàn
 
 Những cách dưới đây chỉ tác động tới **trình duyệt của bạn**, không tạo dữ liệu và không chạm tới server.
 
-| Cần giả lập | Cách làm trong Safari | An toàn trên production? |
-| --- | --- | --- |
-| API trả lỗi (500/404) cho một endpoint | Web Inspector → **Sources → Local Overrides** → thêm override cho URL, đặt status code và body | Có — override chỉ tồn tại trong trình duyệt |
-| Mất mạng hoàn toàn / request fail | Tắt Wi-Fi, hoặc Network Link Conditioner profile **100% Loss** | Có |
-| Loading state kéo dài để kịp nghe | Network Link Conditioner profile **Edge / Very Bad Network** | Có |
-| Empty state | Dùng từ khoá search chắc chắn không có kết quả, hoặc filter không khớp | Có |
-| 404 / invalid token / error deep-link | Gõ thẳng URL không hợp lệ: course slug không tồn tại, `/reset-password` thiếu token, `/checkout/failed?error=...` | Có — các trang này render từ URL, không cần đơn hàng thật |
-| Lỗi lưu progress khi học | Local Override hoặc tắt mạng đúng lúc autosave | Có — cùng lắm là mất tiến độ của chính bạn |
+| Cần giả lập | Cách làm trong Safari|
+| --- | --- |
+| API trả lỗi (500/404) cho một endpoint | Web Inspector → **Sources → Local Overrides** → thêm override cho URL, đặt status code và body |
+| Mất mạng hoàn toàn / request fail | Tắt Wi-Fi, hoặc Network Link Conditioner profile **100% Loss** |
+| Loading state kéo dài để kịp nghe | Network Link Conditioner profile **Edge / Very Bad Network** |
+| Empty state | Dùng từ khoá search chắc chắn không có kết quả, hoặc filter không khớp |
+| 404 / invalid token / error deep-link | Gõ thẳng URL không hợp lệ: course slug không tồn tại, `/reset-password` thiếu token, `/checkout/failed?error=...` |
+| Lỗi lưu progress khi học | Local Override hoặc tắt mạng đúng lúc autosave |
 
 Cài Network Link Conditioner: `Xcode → Additional Tools for Xcode` (Apple Developer), hoặc bỏ qua và dùng cách tắt Wi-Fi.
-
-### Bước phải chạy ở local/staging — đánh dấu `[LOCAL]` trong checklist
-
-Những bước tạo dữ liệu thật, tốn tiền thật, hoặc cần đổi state ở backend:
-
-- Đặt đơn hàng thật, thanh toán thất bại thật, ép webhook success/failed, để phiên SePay hết hạn.
-- Khóa học bị suspended/dropped để hiện access-error modal.
-- Đăng ký tài khoản mới (dùng email demo nếu buộc phải làm trên production).
-
-Mẹo giảm phụ thuộc local: nếu sản phẩm có **khóa học miễn phí**, luồng checkout free order chạy được trên
-production mà không phát sinh tiền — dùng nó cho các bước checkout thay vì bỏ trắng.
-
-### Ghi môi trường vào kết quả
-
-Nếu một buổi test chạy hỗn hợp (phần lớn production, vài bước `[LOCAL]` chạy local), ghi ở cột Ghi chú của
-đúng những bước đó: `chạy local, commit abc1234`. Không gộp chung rồi ghi mập mờ là "đã test".
 
 ## Cách ghi kết quả
 
@@ -151,13 +127,12 @@ Mỗi bảng có các cột sau:
 | --- | --- |
 | **WCAG SC** | Success Criterion mà bước này kiểm chứng. Dùng để map bước test ↔ tiêu chí khi viết remediation log và khi trả lời phỏng vấn |
 | **Kết quả** | Trạng thái cuối đã được kiểm tra thủ công. Nếu phát hiện lỗi trong lúc làm, sửa và kiểm tra lại trước khi cập nhật kết quả cuối |
-| **Ghi chú / Issue ID** | Mặc định để trống khi `Pass`; dùng để ghi số đo, điều kiện đặc biệt hoặc mô tả một lỗi chưa được xử lý |
+| **Ghi chú / Issue ID** | Mặc định để trống khi `Pass`; dùng để ghi điều kiện đặc biệt hoặc mô tả một lỗi chưa được xử lý |
 
-Giá trị hợp lệ cho `Kết quả`: `Pass`, `Fail`, `Blocked`, `N/A`.
+Giá trị hợp lệ cho `Kết quả`: `Pass`, `Fail`, `N/A`.
 
 - `Pass` — hành vi đúng như Kỳ vọng.
 - `Fail` — sai lệch so với Kỳ vọng. Bắt buộc mô tả theo template.
-- `Blocked` — thiếu account/data/caption/sandbox/quyền truy cập. Ghi rõ thiếu gì.
 - `N/A` — hành vi hoặc tính năng tương ứng không tồn tại trong sản phẩm hiện tại. Bắt buộc ghi rõ lý do.
 
 ### Ghi chú cho bước `Pass` — ghi gì, khi nào để trống

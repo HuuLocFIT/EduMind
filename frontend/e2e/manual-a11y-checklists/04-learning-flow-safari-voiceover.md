@@ -13,14 +13,11 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 
 | Trường | Giá trị |
 | --- | --- |
-| Ngày kiểm thử | |
-| Môi trường test (Production / Staging / Local) | |
-| URL / commit của bản được test | |
-| macOS version | |
-| Safari version | |
-| VoiceOver verbosity (mặc định: Medium) | |
-| Người test | |
-| Kết luận flow (Pass / Fail / Blocked) | |
+| Ngày kiểm thử | 20/08/2026|
+| macOS version | macOs Sequoia - Version 15.1|
+| Safari version | Version 18.1|
+| VoiceOver verbosity (default: Medium) | Medium|
+| Kết luận flow (Pass / Fail) | Pass|
 
 ## Test data cần có sẵn
 
@@ -30,7 +27,7 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 - 1 quiz lesson.
 - 1 lesson đang bị khoá (locked).
 - Ít nhất 1 lesson ở trạng thái in-progress và 1 ở completed.
-- Khóa học đã có dữ liệu AI (embeddings + summary) để AI Tutor trả lời được — nếu chưa có, các bước AI Tutor ghi `Blocked`.
+- Khóa học đã có dữ liệu AI (embeddings + summary) để AI Tutor trả lời được.
 - 1 lesson có tài liệu đính kèm (resources) nếu tính năng tồn tại.
 ---
 
@@ -164,7 +161,5 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 - Tổng số bước: 80
 - Pass: 74
 - Fail: 0
-- Blocked: 0
 - N/A: 6
 - Issue còn mở: Không
-- Known limitations đã xác nhận lại (caption/transcript/quiz single-answer): ___

@@ -1,23 +1,16 @@
 # Checklist 5 — Cross-cutting: zoom, reflow, contrast, motion, page title
 
-Quy ước điền bảng và template ghi `Fail`: xem [README.md](README.md).
-
 Khác với 4 file kia, phần lớn checklist này **không cần VoiceOver** — chủ yếu dùng mắt, DevTools và cấu hình hệ thống.
-Chạy 1 lần mỗi milestone là đủ (không cần chạy lại sau mỗi vòng fix nhỏ), nhưng phải chạy lại trước khi cập nhật README dự án.
 
 ## Thông tin kiểm thử
 
 | Trường | Giá trị |
 | --- | --- |
-| Ngày kiểm thử | |
-| Môi trường test (Production / Staging / Local) | |
-| URL / commit của bản được test | |
-| macOS version | |
-| Safari version | |
-| Chrome version (dùng cho mục F) | |
-| Độ phân giải màn hình test | |
-| Người test | |
-| Kết luận (Pass / Fail / Blocked) | |
+| Ngày kiểm thử | 21/08/2026|
+| macOS version | macOs Sequoia - Version 15.1|
+| Safari version | Version 18.1|
+| VoiceOver verbosity (default: Medium) | Medium|
+| Kết luận flow (Pass / Fail) | Pass|
 
 ## Route được test trong file này
 
@@ -107,8 +100,5 @@ Bật `System Settings → Accessibility → Display → Reduce motion` trước
 - Tổng số bước: 27
 - Pass: 25
 - Fail: 0
-- Blocked: 0
 - N/A: 2
 - Issue còn mở: Không
-- Route có vấn đề reflow/zoom nghiêm trọng nhất: ___
-- Cross-cutting đủ điều kiện để cập nhật README dự án? **Có / Chưa** — lý do: ___

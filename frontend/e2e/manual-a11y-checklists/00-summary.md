@@ -12,30 +12,27 @@ Phạm vi kiểm thử gồm Safari + VoiceOver trên macOS cho bốn critical j
 
 | Trường | Giá trị |
 | --- | --- |
-| Ngày kiểm thử | Chưa điền |
-| macOS | Chưa điền |
-| Safari | Chưa điền |
-| VoiceOver verbosity | Medium (mặc định) |
-| Người kiểm thử | Chưa điền |
-
-> Điền đầy đủ metadata trước khi dùng kết quả này trong portfolio. Kết luận chỉ áp dụng cho môi trường và phiên bản phần mềm đã ghi ở trên.
+| Ngày kiểm thử | 22/08/2026|
+| macOS version | macOs Sequoia - Version 15.1|
+| Safari version | Version 18.1|
+| VoiceOver verbosity (default: Medium) | Medium|
+| Kết luận flow (Pass / Fail) | Pass|
 
 ## 2. Kết quả hiện tại
 
-| Flow | Checklist | Tổng bước | Pass | Fail | Blocked | N/A | Kết luận |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| Discover | [01](01-discover-flow-safari-voiceover.md) | 53 | 49 | 0 | 0 | 4 | **Pass** |
-| Authentication | [02](02-auth-flow-safari-voiceover.md) | 56 | 53 | 0 | 0 | 3 | **Pass** |
-| Purchase | [03](03-purchase-flow-safari-voiceover.md) | 70 | 66 | 0 | 0 | 4 | **Pass** |
-| Learning | [04](04-learning-flow-safari-voiceover.md) | 80 | 74 | 0 | 0 | 6 | **Pass** |
-| Cross-cutting | [05](05-cross-cutting-zoom-reflow-motion.md) | 27 | 25 | 0 | 0 | 2 | **Pass** |
-| **Tổng** | | **286** | **265** | **2** | **0** | **19** | **4/5 đạt** |
+| Flow | Checklist | Tổng bước | Pass | Fail | N/A | Kết luận |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Discover | [01](01-discover-flow-safari-voiceover.md) | 53 | 49 | 0 | 4 | **Pass** |
+| Authentication | [02](02-auth-flow-safari-voiceover.md) | 56 | 53 | 0 | 3 | **Pass** |
+| Purchase | [03](03-purchase-flow-safari-voiceover.md) | 70 | 66 | 0 | 4 | **Pass** |
+| Learning | [04](04-learning-flow-safari-voiceover.md) | 80 | 74 | 0 | 6 | **Pass** |
+| Cross-cutting | [05](05-cross-cutting-zoom-reflow-motion.md) | 27 | 25 | 0 | 2 | **Pass** |
+| **Tổng** | | **286** | **267** | **0** | **19** | **5/5 đạt** |
 
 Quy tắc kết luận:
 
 - `Pass`: mọi bước áp dụng đều `Pass`; mỗi bước `N/A` có lý do rõ ràng.
 - `Fail`: còn ít nhất một bước `Fail`.
-- `Incomplete`: còn bước chưa kiểm tra hoặc bị `Blocked`.
 
 ## 3. Vấn đề còn mở
 

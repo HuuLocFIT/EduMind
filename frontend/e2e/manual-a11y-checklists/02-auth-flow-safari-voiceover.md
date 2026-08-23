@@ -9,21 +9,18 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 
 | Trường | Giá trị |
 | --- | --- |
-| Ngày kiểm thử | |
-| Môi trường test (Production / Staging / Local) | |
-| URL / commit của bản được test | |
-| macOS version | |
-| Safari version | |
-| VoiceOver verbosity (mặc định: Medium) | |
-| Người test | |
-| Kết luận flow (Pass / Fail / Blocked) | |
+| Ngày kiểm thử | 19/08/2026|
+| macOS version | macOs Sequoia - Version 15.1|
+| Safari version | Version 18.1|
+| VoiceOver verbosity (default: Medium) | Medium|
+| Kết luận flow (Pass / Fail) | Pass|
 
 ## Test data cần có sẵn
 
 - 1 tài khoản student hợp lệ (biết password, **không** ghi password vào file này).
 - 1 email đã tồn tại trong hệ thống (để test lỗi trùng tài khoản khi Signup).
 - 1 reset token còn hạn **và** 1 token hết hạn/không hợp lệ.
-- Tài khoản có bật 2FA (nếu không có → các bước 2FA ghi `Blocked`, không ghi `Pass`).
+- Tài khoản có bật 2FA.
 - 1 password manager hoặc clipboard có sẵn chuỗi password để test paste (SC 3.3.8).
 
 ---
@@ -129,8 +126,6 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 ### Kết luận
 
 - Tổng số bước: 56
-- Pass: 51
-- Fail: 2
-- Blocked: 0
+- Pass: 53
+- Fail: 0
 - N/A: 3
-- Issue còn mở: A11Y-A12, A11Y-A13

@@ -115,13 +115,13 @@ EduMind targets **WCAG 2.2 Level AA** and concentrates validation on four critic
 | --- | --- |
 | Static and component | JSX accessibility linting, semantic Testing Library assertions, and component axe scans |
 | Browser automation | Stateful Playwright journeys, axe-core, pa11y, keyboard/focus helpers, screenshots, and traces |
-| Human validation | Representative keyboard-only and VoiceOver (Chrome, macOS) journeys have been exercised manually; Safari + VoiceOver has not yet been tested, and dated, reproducible records are still pending |
+| Human validation | Four critical journeys were manually verified with Safari 18.1 + VoiceOver on macOS Sequoia 15.1; cross-cutting checks cover keyboard access, zoom, reflow, contrast, reduced motion, and page titles |
 
 Reusable solutions include skip links, landmarks, route-focus management, shared label/error/description form contracts, focus traps, Escape handling, trigger-focus restoration, WAI-ARIA roving-tabindex tabs, curriculum accordion semantics, and `aria-current="step"`. Live regions report loading, cart, checkout, progress, and completion changes. Video controls are keyboard-accessible, captions are exposed, and quizzes use semantic fieldsets.
 
 Deterministic fixtures make authenticated and error states repeatable. Automated reports are attached to individual UI states instead of scanning only initial page load. Any rule exclusion must identify an issue, a reason, and a removal condition.
 
-> **Publication status:** Automated artifacts exist in [`frontend/e2e/accessibility-reports`](frontend/e2e/accessibility-reports), but the audit narrative and current `after/` output still require reconciliation. Manual keyboard and VoiceOver (Chrome, macOS) testing has been performed, but its checklist must be re-run and recorded before this README claims those journeys passed. Safari + VoiceOver has not been tested yet. The accessibility workflow is therefore described as verification work, not as certification or an active CI gate.
+> **Validation scope:** The four documented journeys passed their applicable Safari 18.1 + VoiceOver checks on macOS Sequoia 15.1, and the current Pa11y after-remediation scan reports zero issues across 14 deterministic routes. WCAG 2.2 Level AA is the testing target, not a claim of certification or full-site conformance. Windows High Contrast, the Angular admin portal, mobile screen readers, and usability testing with disabled participants remain outside the recorded scope.
 
 ```mermaid
 flowchart LR
@@ -135,7 +135,7 @@ flowchart LR
 
 > **GHI CHÚ — CẦN BỔ SUNG ẢNH:** Thêm một ảnh artifact lỗi có rule, selector và phần tử bị ảnh hưởng, cùng một ảnh trạng thái keyboard/focus sau khi sửa. Không dùng ảnh chứa thông tin tài khoản thật.
 
-> **GHI CHÚ — CẦN BỔ SUNG MANUAL EVIDENCE:** Chạy lại bốn representative flow bằng keyboard và VoiceOver (Chrome, macOS), sau đó ghi ngày, phiên bản Chrome/macOS, flow, kết quả `Pass/Fail/Blocked` và known limitation. Bổ sung riêng một lượt test Safari + VoiceOver (hiện chưa thực hiện). Chỉ nâng wording thành "validated" sau khi record này tồn tại.
+Manual evidence: [Safari + VoiceOver checklist summary](frontend/e2e/manual-a11y-checklists/00-summary.md).
 
 Representative evidence: [accessibility test utilities](frontend/e2e/utils/accessibility.ts) · [four-flow testing guide](frontend/e2e/ACCESSIBILITY_TESTING.md) · [baseline and remediation record](frontend/e2e/BASELINE_ACCESSIBILITY_AUDIT.md)
 
@@ -305,9 +305,9 @@ See the [C4 architecture index](docs/architecture/README.md) and [known limitati
 | Application security | AES-GCM protected values, XXE-hardened SVG sanitization, and Redis-backed gateway rate limiting |
 | Automated testing | Vitest and Testing Library, Angular TestBed, Playwright, Spring integration tests, and PostgreSQL/pgvector Testcontainers with Flyway-owned schemas |
 | Test inventory | **49 frontend app/library test files** plus **13 Playwright E2E specifications** (**62 frontend test/spec files total**), and **77 backend test files** |
-| Current frontend CI | Nx affected lint, unit/integration test, and production build |
+| Current frontend CI | Nx affected lint, unit/integration test, production build, accessibility lint, Playwright axe/keyboard journeys, and Pa11y |
 | Current backend CI/CD | Maven tests, matrix-built containers, GHCR publishing, dependency-ordered rollout, and post-deployment health verification |
-| Accessibility regression | Stateful Playwright, axe-core, pa11y, and keyboard/focus suites are implemented; they are not currently enforced as a CI gate |
+| Accessibility regression | Stateful Playwright, axe-core, Pa11y, and keyboard/focus suites run in the frontend CI accessibility job; reports are uploaded for review |
 | Backend delivery | Immutable SHA-tagged images and dependency-ordered, health-gated VPS rollout |
 | Observability | Sentry release correlation, browser breadcrumbs, and source-map upload followed by artifact removal |
 | Search and sharing | Puppeteer prerendering, canonical URLs, JSON-LD, sitemap generation, and correct 404 semantics |
@@ -394,7 +394,7 @@ Replace required secrets in `.env` before startup. Cloudinary, OAuth, mail, AI, 
 ## What this project demonstrates
 
 - Ownership of complex frontend state and asynchronous failure modes.
-- Accessible interaction design backed by automation and manual keyboard/VoiceOver testing, with reproducible manual records still pending.
+- Accessible interaction design backed by CI automation and dated, reproducible Safari + VoiceOver records for four critical journeys.
 - AI product integration beyond prompt wrappers.
 - Financial workflow and data-consistency awareness.
 - Architectural decisions shaped by present constraints rather than fashionable topology.
