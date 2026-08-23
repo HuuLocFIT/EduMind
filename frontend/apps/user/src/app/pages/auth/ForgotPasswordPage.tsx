@@ -341,7 +341,7 @@ function ForgotPasswordPage() {
         <span>Having trouble?</span>
         <a
           href="mailto:support@edumind.com"
-          className="inline-flex items-center gap-1 text-blue-600 underline hover:text-blue-800 hover:no-underline"
+          className="inline-flex items-center gap-1 rounded text-blue-600 underline hover:text-blue-800 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
         >
           <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" />
           Contact Support
