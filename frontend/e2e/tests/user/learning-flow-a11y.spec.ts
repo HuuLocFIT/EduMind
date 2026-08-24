@@ -187,6 +187,9 @@ async function installCoursePlayerFixtures(page: Page, enrolled = true) {
     if (pathname.endsWith('/enrollments/my-stats')) {
       return fulfill({ total: 2, active: 1, completed: 1, started: 1 });
     }
+    if (pathname.endsWith('/enrollments/my-recent')) {
+      return fulfill([currentEnrollment]);
+    }
     if (pathname.endsWith('/enrollments/my-enrollments')) {
       const status = new URL(request.url()).searchParams.get('status');
       const data = status === 'ACTIVE'

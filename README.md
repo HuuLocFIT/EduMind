@@ -312,7 +312,7 @@ See the [C4 architecture index](docs/architecture/README.md) and [known limitati
 | Authentication | [Shared-promise refresh coordination in React](frontend/apps/user/src/app/services/api-client.service.ts); an [RxJS request queue in Angular](frontend/apps/admin/src/app/core/interceptors/auth.interceptor.ts); HttpOnly refresh cookies; OAuth2, 2FA, and role authorization |
 | Application security | AES-GCM protected values, XXE-hardened SVG sanitization, and Redis-backed gateway rate limiting |
 | Automated testing | Vitest and Testing Library, Angular TestBed, Playwright, Spring integration tests, and PostgreSQL/pgvector Testcontainers with Flyway-owned schemas |
-| Test inventory | **49 frontend app/library test files** plus **13 Playwright E2E specifications** (**62 frontend test/spec files total**), and **77 backend test files** |
+| Test inventory | **65 frontend app/library test files** plus **13 Playwright E2E specifications** (**78 frontend test/spec files total**), and **73 backend test files** |
 | Current frontend CI | Nx affected lint, unit/integration test, production build, accessibility lint, Playwright axe/keyboard journeys, and Pa11y |
 | Current backend CI/CD | Maven tests, matrix-built containers, GHCR publishing, dependency-ordered rollout, and post-deployment health verification |
 | Accessibility regression | Stateful Playwright, axe-core, Pa11y, and keyboard/focus suites run in the frontend CI accessibility job; reports are uploaded for review |
