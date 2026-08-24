@@ -114,8 +114,12 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
         run: |
-          npx vercel@59.5.0 pull --yes --environment=production --token "$VERCEL_TOKEN"
-          npx vercel@59.5.0 build --prod --token "$VERCEL_TOKEN"
+          npx vercel@59.5.0 pull --cwd .. --yes \
+            --environment=production \
+            --token "$VERCEL_TOKEN"
+          npx vercel@59.5.0 build --cwd .. --prod \
+            --local-config frontend/vercel.json \
+            --token "$VERCEL_TOKEN"
       - name: Upload user source maps to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -137,7 +141,7 @@ jobs:
             exit 1
           fi
           echo "source_map_path=/${source_map#./dist/apps/user/}" >> "$GITHUB_OUTPUT"
-          find ./dist/apps/user ./.vercel/output -type f -name '*.map' -delete
+          find ./dist/apps/user ../.vercel/output -type f -name '*.map' -delete
       - name: Deploy prebuilt user portal
         id: deploy_user
         env:
@@ -145,7 +149,9 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
         run: |
-          url="$(npx vercel@59.5.0 deploy --prebuilt --prod --token "$VERCEL_TOKEN")"
+          url="$(npx vercel@59.5.0 deploy --cwd .. --prebuilt --prod \
+            --local-config frontend/vercel.json \
+            --token "$VERCEL_TOKEN")"
           echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
       - name: Build admin portal with Vercel production settings
@@ -154,10 +160,12 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
         run: |
-          rm -rf .vercel
-          npx vercel@59.5.0 pull --yes --environment=production --token "$VERCEL_TOKEN"
-          npx vercel@59.5.0 build --prod \
-            --local-config vercel.admin.json \
+          rm -rf ../.vercel
+          npx vercel@59.5.0 pull --cwd .. --yes \
+            --environment=production \
+            --token "$VERCEL_TOKEN"
+          npx vercel@59.5.0 build --cwd .. --prod \
+            --local-config frontend/vercel.admin.json \
             --token "$VERCEL_TOKEN"
       - name: Upload admin source maps to Sentry
         env:
@@ -173,7 +181,7 @@ jobs:
           npx @sentry/cli releases finalize "$release"
       - name: Remove admin source maps from deployable output
         run: |
-          find ./dist/apps/admin/browser ./.vercel/output -type f -name '*.map' -delete
+          find ./dist/apps/admin/browser ../.vercel/output -type f -name '*.map' -delete
       - name: Deploy prebuilt admin portal
         id: deploy_admin
         env:
@@ -181,8 +189,8 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
         run: |
-          url="$(npx vercel@59.5.0 deploy --prebuilt --prod \
-            --local-config vercel.admin.json \
+          url="$(npx vercel@59.5.0 deploy --cwd .. --prebuilt --prod \
+            --local-config frontend/vercel.admin.json \
             --token "$VERCEL_TOKEN")"
           echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
