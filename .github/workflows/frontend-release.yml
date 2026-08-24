@@ -118,7 +118,7 @@ jobs:
             --environment=production \
             --token "$VERCEL_TOKEN"
           npx vercel@59.5.0 build --cwd .. --prod \
-            --local-config frontend/vercel.json \
+            --local-config vercel.json \
             --token "$VERCEL_TOKEN"
       - name: Upload user source maps to Sentry
         env:
@@ -150,7 +150,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
         run: |
           url="$(npx vercel@59.5.0 deploy --cwd .. --prebuilt --prod \
-            --local-config frontend/vercel.json \
+            --local-config vercel.json \
             --token "$VERCEL_TOKEN")"
           echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
@@ -165,7 +165,7 @@ jobs:
             --environment=production \
             --token "$VERCEL_TOKEN"
           npx vercel@59.5.0 build --cwd .. --prod \
-            --local-config frontend/vercel.admin.json \
+            --local-config vercel.admin.json \
             --token "$VERCEL_TOKEN"
       - name: Upload admin source maps to Sentry
         env:
@@ -190,7 +190,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
         run: |
           url="$(npx vercel@59.5.0 deploy --cwd .. --prebuilt --prod \
-            --local-config frontend/vercel.admin.json \
+            --local-config vercel.admin.json \
             --token "$VERCEL_TOKEN")"
           echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
