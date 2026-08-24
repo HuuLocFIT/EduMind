@@ -206,11 +206,22 @@ jobs:
           curl --fail --silent --show-error --retry 3 "$USER_PRODUCTION_URL/courses" >/dev/null
           curl --fail --silent --show-error --retry 3 "$ADMIN_PRODUCTION_URL/auth/login" >/dev/null
 
-          map_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "${USER_PRODUCTION_URL}${SOURCE_MAP_PATH}")"
-          if [ "$map_status" = "200" ]; then
-            echo "A representative source-map URL is publicly accessible." >&2
+          map_response="$RUNNER_TEMP/source-map-response"
+          map_status="$(curl --silent --output "$map_response" --write-out '%{http_code}' \
+            "${USER_PRODUCTION_URL}${SOURCE_MAP_PATH}")"
+          if [ "$map_status" = "200" ] && node -e '
+            const fs = require("node:fs");
+            try {
+              const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              process.exit(Array.isArray(value.sources) && typeof value.mappings === "string" ? 0 : 1);
+            } catch {
+              process.exit(1);
+            }
+          ' "$map_response"; then
+            echo "A representative source map is publicly accessible." >&2
             exit 1
           fi
+          echo "Source-map check passed (HTTP $map_status did not expose source-map content)."
       - name: Summarize deployment
         run: |
           {
