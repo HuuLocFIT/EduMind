@@ -1,8 +1,8 @@
 # Accessibility Testing Guide
 
 This document explains how to use, run, and extend EduMind's accessibility
-test infrastructure, and describes the automated regression suites for the
-four user flows implemented per `4-flow-a11y.md`:
+test infrastructure, and describes the automated regression suites for four
+critical user flows:
 
 1. Discover — Home → Browse Courses → Course Detail
 2. Authentication — Login / Signup / Forgot Password / Reset Password
@@ -28,8 +28,9 @@ tiers:
 | Assistive technology | Safari + VoiceOver (manual) | Real listening experience, duplicated/silent announcements, business content | — (this is the final confirmation tier) |
 
 Automation at the first two tiers is a necessary condition, not a sufficient
-one. Do not use Axe/Pa11y/accessibility-tree results to declare a flow
-complete per `4-flow-a11y.md`.
+one. A flow is treated as verified only when its automated checks pass, its
+before/after evidence is recorded, and its applicable manual Safari +
+VoiceOver checklist has no unresolved failure.
 
 ## Current scope
 
@@ -55,8 +56,8 @@ the entire four-flow regression suite.
 
 ## Four flow a11y suites
 
-Each of the four flows in `4-flow-a11y.md` has its own spec file under
-`e2e/tests/user/`, sharing page objects and fixtures with the other E2E tests
+Each of the four flows has its own spec file under `e2e/tests/user/`, sharing
+page objects and fixtures with the other E2E tests
 (see `E2E_TESTING_GUIDE.md`). Each suite calls `checkA11y` at its important UI
 states (not just page load), plus keyboard/focus/announcement assertions
 specific to those states.
@@ -190,11 +191,18 @@ Current route list (defined in `e2e/pa11y/config.cjs`), each with its own
 | `login` | `/login` | `form` | No |
 | `signup` | `/signup` | `form` | No |
 | `forgot-password` | `/forgot-password` | `form` | No |
-| `reset-password-missing-token` | `/reset-password` | `h2` | No |
+| `reset-password-missing-token` | `/reset-password` | `h1` | No |
+| `cart` | `/cart` | `main h1` | Yes |
+| `checkout` | `/checkout` | `main h1` | Yes |
+| `checkout-sepay-qr` | `/checkout/sepay-qr?...` | `h1` | Yes |
 | `checkout-success` | `/checkout/success?order=PA11Y-ORDER-001` | `h1` | Yes |
 | `checkout-failed` | `/checkout/failed?errorCode=INSTRUMENT_DECLINED&canRetry=true` | `h1` | Yes |
+| `my-learning` | `/learning` | `main h1` | Yes |
+| `course-player` | `/learning/pa11y-accessibility-fixture` | `main h1` | Yes |
 
-Pa11y scans the nine routes required in Phase 0 using `WCAG2AA`. The runner
+Pa11y scans 14 deterministic routes using `WCAG2AA`. Nine routes preserve the
+original Phase 0 comparison set; five authenticated purchase and learning
+states extend the after-remediation and CI coverage. The runner
 uses a read-only API fixture in `e2e/pa11y/fixtures.cjs`, blocks every API
 write, and waits for a route-specific page-ready selector before auditing.
 This means the runner does not read or mutate production data when it is
@@ -312,31 +320,19 @@ Current status:
 ```text
 Pa11y runtime    → automatic
 Pa11y before     → exists; do not overwrite
-Pa11y after      → can be written directly via PA11Y_REPORT_DIR
+Pa11y after      → committed; 0 issues across 14 routes (2026-08-24)
 Axe before       → exists; collector writes to before by default
-Axe after        → supported via npm run test:a11y:after; not yet committed
+Axe after        → committed; 0 violations/keyboard issues across 9 routes (2026-08-24)
 ```
 
-## Current CI status and target policy
+## Current CI policy
 
-The current `.github/workflows/frontend-ci.yml` runs Nx affected lint, unit
-tests, and builds. It does **not** currently install Playwright browsers, start
-the fixture-backed user app, run Pa11y or the four Playwright accessibility
-flows, or upload their artifacts. Accessibility commands in this guide are
-therefore local/manual gates today, not existing CI behavior.
-
-The target production CI job should:
-
-1. Install dependencies and Chromium.
-2. Build or start the user app with deterministic fixtures.
-3. Run `npm run lint:a11y`, `npm run test:a11y:utilities`, and the four-flow
-   Playwright accessibility suite.
-4. Run Pa11y against its nine stable routes.
-5. Upload Playwright and Pa11y JSON/HTML artifacts even when a gate fails.
-
-Until that workflow lands, pull requests must record the relevant local
-commands and results; documentation must not describe artifact upload or
-accessibility gating as automatic CI behavior.
+`.github/workflows/frontend-ci.yml` has a required accessibility job for
+frontend changes. It installs Chromium, runs accessibility-aware ESLint, the
+app-independent utility regression, all four Playwright + Axe journeys, and
+Pa11y against the 14 deterministic routes. Playwright and Pa11y artifacts are
+uploaded even when the job fails, and the aggregate required check fails when
+the accessibility job does not succeed.
 
 ## Setup
 
@@ -616,8 +612,8 @@ hand-rolling ARIA:
 
 If an issue recurs across multiple pages (e.g. a missing label, a missing
 focus trap), fix it in the shared component — do not patch each page
-separately with an ARIA workaround. See this rule in more detail in
-`4-flow-a11y.md` section 2.5.
+separately with an ARIA workaround. Add regression coverage at the shared
+component level and in every affected journey state.
 
 ## Checklist for adding a new accessibility test
 
@@ -644,19 +640,14 @@ separately with an ARIA workaround. See this rule in more detail in
 - The four flow a11y suites (`discover-flow-a11y.spec.ts`,
   `auth-flow-a11y.spec.ts`, `purchase-flow-a11y.spec.ts`,
   `learning-flow-a11y.spec.ts`) provide automated regression coverage for
-  Axe/keyboard/focus/announcements at the main states, but **do not prove
-  the four flows meet WCAG 2.2 AA**. Safari + VoiceOver manual confirmation
-  per the checklist in `4-flow-a11y.md` section 8 remains a mandatory
-  requirement and has not been performed/recorded in this repository.
-- No `e2e/accessibility-reports/after/` has been committed yet.
-  `npm run test:a11y:after` can generate Axe/keyboard evidence safely, but the
-  result still needs to be run, reviewed, and committed; see
-  `BASELINE_ACCESSIBILITY_AUDIT.md`'s "After-evidence status" section for
-  what's required before treating a flow as "closed."
-- The A11Y-BL-004 visual contrast findings remain open until their rendered
-  colors or decorative status are manually reverified. A11Y-BL-005 has code
-  and regression-test coverage but still lacks committed after-scan and
-  VoiceOver evidence. See `BASELINE_ACCESSIBILITY_AUDIT.md` for detail.
+  Axe/keyboard/focus/announcements at the main states, but do not prove
+  full-site WCAG 2.2 AA conformance. The dated Safari + VoiceOver checklists
+  close the documented four-flow milestone only for their recorded states and
+  environment.
+- Windows High Contrast/forced-colors, mobile screen readers, the Angular
+  admin portal, voice control, and usability testing with disabled
+  participants remain outside the recorded scope.
 - Video lesson captions/transcripts use a fixture test track. Real caption
-  content for each course video still requires data/production support from
-  the project owner per `4-flow-a11y.md`'s "Responsibility split" section.
+  content for each course video still depends on valid caption/transcript
+  source data in the deployed environment; fixture coverage does not verify
+  the quality or availability of production course content.

@@ -131,7 +131,15 @@ flowchart LR
     D --> E["Add regression prevention"]
 ```
 
-> **GHI CHÚ — CẦN BỔ SUNG SỐ LIỆU:** Sau khi đối soát toàn bộ artifact `before/` và `after/`, thêm bảng tóm tắt số lỗi trước/sau. Chỉ dùng số đã kiểm chứng và ghi rõ công cụ, ngày chạy, phạm vi UI state.
+#### Recorded remediation evidence
+
+| Evidence | Before remediation | After remediation |
+| --- | --- | --- |
+| Pa11y | 30 issues across 9 deterministic routes (2026-07-31) | 0 issues across 14 deterministic routes (2026-08-24) |
+| Axe + keyboard route collector | 2 violations—2 serious nodes—and 11 keyboard-smoke issues across 9 routes (2026-08-08) | 0 violations and 0 keyboard-smoke issues across the same 9 routes (2026-08-24) |
+| Safari + VoiceOver and cross-cutting manual checks | Not part of the automated baseline | 268 applicable checks passed, 0 failed, and 19 were recorded as not applicable across 5 test areas (2026-08-22) |
+
+Counts describe the committed deterministic artifacts and dated manual checklists, not every application state or a full-site conformance audit. The Pa11y after-scan adds authenticated cart, checkout, My Learning, Course Player, and SePay QR states beyond the original nine-route baseline, so its route count is intentionally larger.
 
 > **GHI CHÚ — CẦN BỔ SUNG ẢNH:** Thêm một ảnh artifact lỗi có rule, selector và phần tử bị ảnh hưởng, cùng một ảnh trạng thái keyboard/focus sau khi sửa. Không dùng ảnh chứa thông tin tài khoản thật.
 

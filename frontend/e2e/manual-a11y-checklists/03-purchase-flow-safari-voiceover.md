@@ -1,144 +1,144 @@
-# Checklist Safari + VoiceOver — Flow 3: Purchase
+# Safari + VoiceOver Checklist — Flow 3: Purchase
 
-Phạm vi: `Cart → Checkout → (PayPal redirect | SePay QR) → Success / Failed`.
-Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem [README.md](README.md).
+Scope: `Cart → Checkout → (PayPal redirect | SePay QR) → Success / Failed`.
+Required machine setup: see [README.md](README.md).
 
-**Trước khi bắt đầu**: đã bật `Safari → Advanced → Press Tab to highlight each item`, đã bật Full Keyboard Access, đã bật VoiceOver Caption Panel.
+**Before starting**: `Safari → Advanced → Press Tab to highlight each item` is enabled, Full Keyboard Access is enabled, and the VoiceOver Caption Panel is enabled.
 
-> Yêu cầu test data: sandbox thanh toán phải ép được cả kịch bản **success** và **failed** một cách xác định (deterministic) — không skip vì thiếu dữ liệu. Cần cả đường PayPal (redirect) và SePay (QR + countdown) vì hai đường có rủi ro a11y khác nhau.
+> Test data requirement: the payment sandbox must be able to deterministically force both the **success** and **failed** scenarios — do not skip due to missing data. Both the PayPal path (redirect) and the SePay path (QR + countdown) are needed, since the two paths carry different accessibility risks.
 
-## Thông tin kiểm thử
+## Test information
 
-| Trường | Giá trị |
+| Field | Value |
 | --- | --- |
-| Ngày kiểm thử | 20/08/2026|
-| macOS version | macOs Sequoia - Version 15.1|
-| Safari version | Version 18.1|
-| VoiceOver verbosity (default: Medium) | Medium|
-| Kết luận flow (Pass / Fail) | Pass|
+| Test date | 2026-08-20 |
+| macOS version | macOS Sequoia - Version 15.1 |
+| Safari version | Version 18.1 |
+| VoiceOver verbosity (default: Medium) | Medium |
+| Flow conclusion (Pass / Fail) | Pass |
 
 ---
 
 ## A. Cart & Cart Drawer
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| A0 | 2.4.2 | `VO + F2` ×2 tại trang Cart | Page title mô tả đúng trang Cart | Pass |  |
-| A1 | 1.3.1 | Mở Cart page, Rotor → Headings | Có `Heading level 1`; số lượng item được đọc tự nhiên (vd "3 items in cart") | Pass |  |
-| A2 | 1.3.1 | Duyệt danh sách item bằng `VO + Right Arrow` | Cart item đọc như list (item 1 of N...); tên khoá học/giá không bị lặp thừa | Pass |  |
-| A3 | 4.1.2, 2.4.4 | Duyệt tới nút Remove của 1 item | Tên nút chứa **tên khoá học cụ thể** (vd "Remove Advanced React from cart"), không chỉ "Remove" | Pass |  |
-| A4 | 4.1.3, 2.4.3 | Kích hoạt Remove | Có announce item đã xoá + tổng tiền mới; focus chuyển tới item kế tiếp hoặc heading cart/empty-state | Pass |  |
-| A5 | 1.3.1, 2.4.4 | Xoá hết item về cart rỗng | Empty state có heading + link "Browse Courses" đọc rõ | Pass |  |
-| A6 | 4.1.2, 2.4.3 | Mở cart drawer (từ icon giỏ hàng trên header hoặc sau Add to Cart) | Drawer là dialog có tên; focus vào trong drawer ngay khi mở | Pass |  |
-| A7 | 2.4.3 | Trong drawer, nhấn `Escape` | Drawer đóng; focus quay lại đúng nút/icon đã mở nó | Pass |  |
-| A8 | 2.1.2 | Trong drawer, thử `VO + Right Arrow` liên tục | Focus không thoát ra nội dung nền phía sau | Pass |  |
-| A9 | 1.3.1 | Duyệt giá gốc/giảm giá/tổng trong cart | Có label rõ ràng, đọc dễ hiểu, không lẫn số cũ/mới | Pass |  |
-| A10 | 4.1.2, 3.3.1 | Nếu CTA Checkout đang disabled | Lý do disabled được đọc rõ (không chỉ im lặng vô hiệu hoá) | Pass |  |
-| A11 | 4.1.2, 2.4.3 | Nếu Remove có dialog xác nhận | Dialog có tên, focus vào trong, `Escape` huỷ được, focus quay lại nút Remove sau khi huỷ | Pass |  |
-| A12 | 4.1.3 | Giả lập lỗi khi xoá item/clear cart (chặn `DELETE /api/cart/items/{courseId}` hoặc `DELETE /api/cart` trong Network) | Lỗi được announce qua alert/live region **không cần focus di chuyển tới** (không bắt buộc nút Retry riêng — nút Remove/Clear gốc vẫn bấm lại được ngay là đủ); nút đó phải trở lại trạng thái bấm được (không kẹt loading/disabled) sau khi fail | Pass |  |
+| A0 | 2.4.2 | `VO + F2` ×2 on the Cart page | Page title correctly describes the Cart page | Pass |  |
+| A1 | 1.3.1 | Open the Cart page, Rotor → Headings | Has a `Heading level 1`; item count reads naturally (e.g. "3 items in cart") | Pass |  |
+| A2 | 1.3.1 | Browse the item list with `VO + Right Arrow` | Cart items read as a list (item 1 of N...); course name/price aren't read with redundant repetition | Pass |  |
+| A3 | 4.1.2, 2.4.4 | Browse to the Remove button of 1 item | Button name contains the **specific course name** (e.g. "Remove Advanced React from cart"), not just "Remove" | Pass |  |
+| A4 | 4.1.3, 2.4.3 | Activate Remove | The removed item + new total are announced; focus moves to the next item or the cart/empty-state heading | Pass |  |
+| A5 | 1.3.1, 2.4.4 | Remove all items down to an empty cart | The empty state has a heading + a clearly readable "Browse Courses" link | Pass |  |
+| A6 | 4.1.2, 2.4.3 | Open the cart drawer (from the header cart icon or after Add to Cart) | The drawer is a named dialog; focus moves inside the drawer immediately upon opening | Pass |  |
+| A7 | 2.4.3 | Inside the drawer, press `Escape` | The drawer closes; focus returns to the exact button/icon that opened it | Pass |  |
+| A8 | 2.1.2 | Inside the drawer, try `VO + Right Arrow` repeatedly | Focus doesn't escape to the background content | Pass |  |
+| A9 | 1.3.1 | Browse the original price/discount/total in the cart | Has clear labels, reads understandably, no mixing of old/new figures | Pass |  |
+| A10 | 4.1.2, 3.3.1 | If the Checkout CTA is disabled | The reason for being disabled is read clearly (not just silently disabled) | Pass |  |
+| A11 | 4.1.2, 2.4.3 | If Remove has a confirmation dialog | Dialog has a name, focus moves inside, `Escape` cancels it, focus returns to the Remove button after cancelling | Pass |  |
+| A12 | 4.1.3 | Simulate an error when removing an item/clearing the cart (block `DELETE /api/cart/items/{courseId}` or `DELETE /api/cart` in Network) | The error is announced via an alert/live region **without requiring focus to move there** (a dedicated Retry button isn't required — the original Remove/Clear button being immediately clickable again is sufficient); that button must return to a clickable state (not stuck loading/disabled) after the failure | Pass |  |
 
 ## B. CheckoutPage
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| B0 | 2.4.2 | `VO + F2` ×2 tại Checkout | Page title mô tả đúng bước Checkout | Pass |  |
-| B1 | 1.3.1 | Mở Checkout, Rotor → Headings | `Heading level 1` cho trang; `Heading level 2` cho Order Summary và Payment Method | Pass |  |
-| B2 | 1.3.1 | Duyệt Order Summary | Đọc như list/description có cấu trúc, không phải một khối text dài không ngắt | Pass |  |
-| B3 | 1.3.1, 4.1.2 | Duyệt Total | Có label rõ, đơn vị tiền tệ đọc chuẩn (vd "Total: 499,000 Vietnamese dong" hoặc tương đương) | Pass |  |
-| B4 | 1.3.1, 2.1.1 | Vào nhóm Payment Methods bằng `VO + Command + J` | Đọc được tên nhóm (fieldset/legend); dùng Arrow Left/Right đổi được giữa các phương thức | Pass |  |
-| B5 | 1.4.1, 4.1.2 | Chọn 1 payment method | Trạng thái "selected" được đọc, không chỉ hiện bằng border/màu | Pass |  |
-| B6 | 3.3.2 | Nếu có checkbox Terms/confirmation | Label đầy đủ, không viết tắt gây khó hiểu khi đọc | N/A | Hiện tại không có checkbox Terms/confirmation |
-| B7 | 4.1.3, 4.1.2 | `[LOCAL]` Kích hoạt Place Order (trên production chỉ chạy được nếu có khóa học miễn phí) | Trạng thái loading/processing có announce; tên nút giữ ổn định (không đổi thành spinner vô danh); Enter/Space thêm lần nữa **không** submit trùng | Pass |  |
-| B8 | 3.3.1, 2.4.3 | Submit thiếu thông tin (validation) | Focus chuyển tới error/summary phù hợp | Pass |  |
-| B9 | 4.1.3, 2.4.3 | `[LOCAL]` Giả lập backend failure ở bước submit | Lỗi đọc bằng alert/error summary, focus chuyển đúng | Pass |  |
-| B10 | 2.4.4, 3.2.2 | `[LOCAL]` Chọn PayPal → trước khi redirect sang cổng thanh toán ngoài | Có thông báo rõ "bạn sắp rời EduMind sang PayPal" được screen reader đọc trước khi chuyển | Pass |  |
-| B11 | 3.3.3, 2.4.4 | Test route Direct Checkout khi thiếu item/course | Có recovery action rõ ràng (không phải trang trắng/lỗi im lặng) | Pass |  |
-| B12 | 4.1.2 | Nút Back | Là link/button hoạt động chuẩn kể cả khi lịch sử trình duyệt trống | Pass |  |
+| B0 | 2.4.2 | `VO + F2` ×2 on Checkout | Page title correctly describes the Checkout step | Pass |  |
+| B1 | 1.3.1 | Open Checkout, Rotor → Headings | `Heading level 1` for the page; `Heading level 2` for Order Summary and Payment Method | Pass |  |
+| B2 | 1.3.1 | Browse the Order Summary | Reads as a structured list/description, not one long unbroken block of text | Pass |  |
+| B3 | 1.3.1, 4.1.2 | Browse the Total | Has a clear label, currency unit reads correctly (e.g. "Total: 499,000 Vietnamese dong" or equivalent) | Pass |  |
+| B4 | 1.3.1, 2.1.1 | Enter the Payment Methods group with `VO + Command + J` | Group name is read out (fieldset/legend); Arrow Left/Right can switch between methods | Pass |  |
+| B5 | 1.4.1, 4.1.2 | Select 1 payment method | The "selected" state is read out, not just shown via border/color | Pass |  |
+| B6 | 3.3.2 | If there's a Terms/confirmation checkbox | Full label, no confusing abbreviations when read | N/A | No Terms/confirmation checkbox currently exists |
+| B7 | 4.1.3, 4.1.2 | `[LOCAL]` Activate Place Order (on production this only runs if there's a free course) | Loading/processing state is announced; button name stays stable (doesn't change into an anonymous spinner); pressing Enter/Space again does **not** trigger a duplicate submit | Pass |  |
+| B8 | 3.3.1, 2.4.3 | Submit with missing information (validation) | Focus moves to the appropriate error/summary | Pass |  |
+| B9 | 4.1.3, 2.4.3 | `[LOCAL]` Simulate a backend failure during submit | Error is read via alert/error summary, focus moves correctly | Pass |  |
+| B10 | 2.4.4, 3.2.2 | `[LOCAL]` Select PayPal → before redirecting to the external payment gateway | There's a clear notice "you're about to leave EduMind for PayPal" read by the screen reader before navigating | Pass |  |
+| B11 | 3.3.3, 2.4.4 | Test the Direct Checkout route with a missing item/course | There's a clear recovery action (not a blank page/silent error) | Pass |  |
+| B12 | 4.1.2 | Back button | Behaves as a proper link/button even when the browser history is empty | Pass |  |
 
-## C. SePay QR Page (`/checkout/sepay-qr` — đường thanh toán QR)
+## C. SePay QR Page (`/checkout/sepay-qr` — the QR payment path)
 
-> Trang này nằm giữa Checkout và Success/Failed. Rủi ro cao vì QR là hình ảnh, có countdown hết hạn và có polling đổi trạng thái nền.
+> This page sits between Checkout and Success/Failed. High risk because the QR is an image, has an expiry countdown, and has background polling that changes state.
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| S1 | 1.3.1, 2.4.2 | Vào trang QR, Rotor → Headings + `VO + F2` ×2 | Có `Heading level 1` ("Scan to Pay with SePay"); page title mô tả đúng bước đang chờ thanh toán | Pass |  |
-| S2 | 1.1.1 | Duyệt tới ảnh QR bằng `VO + Right Arrow` | Ảnh QR hiện đang `aria-hidden` — kiểm tra người dùng screen reader **vẫn hoàn tất thanh toán được** bằng thông tin dạng text (số tài khoản, nội dung chuyển khoản, số tiền) đọc và copy được. Nếu QR là **cách duy nhất** → đây là fail chức năng, ghi rõ | Pass |  |
-| S3 | 4.1.2 | Duyệt tới số tiền và Order number | Cả hai có label rõ khi đọc; giá trị đọc đúng đơn vị tiền tệ | Pass |  |
-| S4 | 4.1.2, 4.1.3 | Kích hoạt nút Copy order number bằng `VO + Space` | Nút có accessible name (không chỉ `title`); sau khi copy có phản hồi được đọc ("Copied") chứ không chỉ đổi icon | Pass |  |
-| S5 | 4.1.3 | Rotor → Headings/Landmarks hoặc Inspect Element tại dòng "Waiting for payment confirmation..." khi đang ở state `scanning` | Element (hoặc ancestor gần nhất) có `role="status"`/`aria-live="polite"` ngay khi mount, làm nền cho mọi cập nhật polite trong tương lai. **Không** yêu cầu tự đọc lại khi chuyển hẳn sang success/expired/error — vì mỗi state là 1 JSX block khác nhau (unmount/remount), việc announce khi chuyển state đã test riêng ở S7/S9, không lặp lại ở đây | Pass |  |
-| S6 | 2.2.1 Timing Adjustable | `[LOCAL]` Quan sát bộ đếm "Time remaining" khi còn dưới 60s (ngưỡng cảnh báo hiện tại trong code) | Có cảnh báo **tiếp cận được** (announce qua live region, hoặc text/label đổi nội dung — không chỉ đổi màu) rằng sắp hết hạn, ít nhất 20 giây trước khi hết hạn | Pass |  |
-| S6b | 2.2.1 Timing Adjustable | `[LOCAL]` Kiểm tra có cơ chế gia hạn/tạo lại QR **tại chỗ** (không rời trang, không phải làm lại checkout từ đầu) trước khi hết hạn | Có nút Extend/Regenerate tại chỗ, **hoặc** nếu không có, phải chứng minh thuộc **Essential Exception** của 2.2.1 (gia hạn tại chỗ sẽ làm mất hiệu lực hoạt động — vd QR/nội dung chuyển khoản gắn chặt với 1 giao dịch cụ thể, cho gia hạn dễ phát sinh rủi ro double-scan/mismatch số tiền) và ghi rõ căn cứ | N/A | Không có nút extend/regenerate tại chỗ trong `SepayQrPage.tsx` — chỉ có "Cancel Payment" khi đang `scanning`, và "Try Again" (quay lại `/checkout`, tạo đơn mới hoàn toàn) khi đã `expired`.<br>Chấp nhận là **Essential Exception**: QR SePay gắn với 1 order/nội dung chuyển khoản cụ thể — cho phép gia hạn tại chỗ có thể dẫn tới nhầm lẫn giao dịch cũ/mới hoặc bị lợi dụng. Restart toàn bộ checkout là chủ đích bảo mật, không phải thiếu sót kỹ thuật.<br>Lưu ý: exception này **không** miễn trừ yêu cầu cảnh báo tiếp cận được ở S6 — hai việc độc lập nhau. |
-| S7 | 4.1.3 | `[LOCAL]` Để countdown chạy tới 0 | Chuyển sang state `expired` được **announce**; focus/VO cursor chuyển tới heading mới; không im lặng | Pass |  |
-| S8 | 4.1.3 | Bộ đếm giây khi đang chờ | Bộ đếm **không** bị đọc lại mỗi giây (live region quá "nói nhiều" cũng là lỗi trải nghiệm — ghi rõ nếu VoiceOver đọc liên tục) | Pass |  |
-| S9 | 4.1.3, 2.4.3 | `[LOCAL]` Ép webhook/polling trả success | **[ĐÃ ĐỔI]** Không còn state `success`/heading "Payment Received!" trên `SepayQrPage` nữa — khi phát hiện `COMPLETED`, `navigate()` gọi ngay lập tức (0 delay, kỹ thuật G110) sang `CheckoutSuccessPage`, nơi focus/announce thật sự diễn ra (test ở D2). Kỳ vọng ở đây chỉ còn: `navigate` được gọi đúng URL, không có UI/focus trung gian nào cần kiểm tra trên trang này | Pass | Xem ghi chú chi tiết ở **D5** (đã sửa `SepayQrPage.tsx`: bỏ hẳn state `success` + `setTimeout(2000ms)`, `navigate` ngay lập tức; giữ nguyên focus-management cho `expired`). |
-| S10 | 3.3.3, 2.4.4 | Vào trang QR với session không hợp lệ/hết hạn | Có heading rõ + action "start a new checkout" tiếp cận được bằng bàn phím | Pass |  |
-| S11 | 2.1.1 | Hoàn tất toàn bộ trang QR chỉ bằng bàn phím | Copy được thông tin, quay lại được, không cần chuột | Pass |  |
+| S1 | 1.3.1, 2.4.2 | Enter the QR page, Rotor → Headings + `VO + F2` ×2 | Has a `Heading level 1` ("Scan to Pay with SePay"); page title correctly describes the payment-pending step | Pass |  |
+| S2 | 1.1.1 | Browse to the QR image with `VO + Right Arrow` | The QR image is currently `aria-hidden` — verify a screen reader user **can still complete payment** using text-form information (account number, transfer memo, amount) that can be read and copied. If the QR is the **only** way to pay → this is a functional fail, note it clearly | Pass |  |
+| S3 | 4.1.2 | Browse to the amount and Order number | Both have a clear label when read; values read the correct currency unit | Pass |  |
+| S4 | 4.1.2, 4.1.3 | Activate the Copy order number button with `VO + Space` | Button has an accessible name (not just a `title`); after copying there's a readable response ("Copied") rather than just an icon change | Pass |  |
+| S5 | 4.1.3 | Rotor → Headings/Landmarks or Inspect Element on the "Waiting for payment confirmation..." line while in the `scanning` state | The element (or nearest ancestor) has `role="status"`/`aria-live="polite"` right at mount, serving as the base for all future polite updates. **Does not** require re-reading itself when fully transitioning to success/expired/error — since each state is a different JSX block (unmount/remount), the state-transition announcement is tested separately at S7/S9, not repeated here | Pass |  |
+| S6 | 2.2.1 Timing Adjustable | `[LOCAL]` Observe the "Time remaining" counter when under 60s (the current warning threshold in code) | There's an **accessible** warning (announced via a live region, or text/label content change — not just a color change) that expiry is approaching, at least 20 seconds before it expires | Pass |  |
+| S6b | 2.2.1 Timing Adjustable | `[LOCAL]` Check for an in-place extend/regenerate-QR mechanism (without leaving the page, without redoing checkout from scratch) before expiry | There's an in-place Extend/Regenerate button, **or**, if absent, it must be shown to fall under the **Essential Exception** of 2.2.1 (in-place extension would invalidate the activity — e.g. the QR/transfer memo is bound to one specific transaction, and allowing extension could create a double-scan/amount-mismatch risk) with the reasoning stated clearly | N/A | No in-place extend/regenerate button exists in `SepayQrPage.tsx` — only "Cancel Payment" while in `scanning` state, and "Try Again" (returns to `/checkout`, creates an entirely new order) once `expired`.<br>Accepted as an **Essential Exception**: the SePay QR is bound to one specific order/transfer memo — allowing in-place extension could lead to confusion between old/new transactions or be exploited. Restarting the whole checkout is a deliberate security choice, not a technical oversight.<br>Note: this exception does **not** exempt the requirement for an accessible warning at S6 — the two are independent. |
+| S7 | 4.1.3 | `[LOCAL]` Let the countdown run to 0 | Transitioning to the `expired` state is **announced**; focus/VO cursor moves to the new heading; not silent | Pass |  |
+| S8 | 4.1.3 | The seconds counter while waiting | The counter is **not** re-read every second (a live region that's too "chatty" is also a UX defect — note it clearly if VoiceOver reads continuously) | Pass |  |
+| S9 | 4.1.3, 2.4.3 | `[LOCAL]` Force the webhook/polling to return success | **[CHANGED]** There's no longer a `success` state/"Payment Received!" heading on `SepayQrPage` — once `COMPLETED` is detected, `navigate()` is called immediately (0 delay, technique G110) to `CheckoutSuccessPage`, where the actual focus/announcement happens (tested at D2). The only remaining expectation here is: `navigate` is called with the correct URL, with no intermediate UI/focus to check on this page | Pass | See detailed note at **D5** (fixed in `SepayQrPage.tsx`: removed the `success` state + `setTimeout(2000ms)` entirely, `navigate` happens immediately; focus management for `expired` left unchanged). |
+| S10 | 3.3.3, 2.4.4 | Enter the QR page with an invalid/expired session | There's a clear heading + an "start a new checkout" action reachable by keyboard | Pass |  |
+| S11 | 2.1.1 | Complete the entire QR page using only the keyboard | Can copy the information, can go back, no mouse required | Pass |  |
 
 ## D. CheckoutSuccessPage
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| D1 | 4.1.3 | `[LOCAL]` Vào trang ngay lúc đang capture/loading | Có `role="status"` + text loading đọc được | Pass |  |
-| D2 | 1.3.1, 4.1.3 | `[LOCAL]` Đợi chuyển sang success | Có `Heading level 1` cho success; VoiceOver **biết** trạng thái đã đổi từ loading sang success (không im lặng) | Pass |  |
-| D3 | 1.3.1 | Duyệt Order ID/number | Có label rõ ràng khi đọc | Pass |  |
-| D4 | 4.1.2 | Duyệt các next action (My Learning/Orders...) | Đều là link/button đúng semantics, tên rõ | Pass |  |
-| D5 | 2.2.1 | Quan sát có auto-redirect không | Không tự chuyển trang trước khi có đủ thời gian để nghe hết thông báo; nếu có thì phải tắt/hoãn được | N/A | Không có auto redirect nào |
-| D6 | 4.1.3, 3.3.3 | `[LOCAL]` Giả lập capture error | Có error heading/alert + recovery action rõ | Pass |  |
+| D1 | 4.1.3 | `[LOCAL]` Enter the page right while it's capturing/loading | Has `role="status"` + readable loading text | Pass |  |
+| D2 | 1.3.1, 4.1.3 | `[LOCAL]` Wait for the transition to success | Has a `Heading level 1` for success; VoiceOver **knows** the state changed from loading to success (not silent) | Pass |  |
+| D3 | 1.3.1 | Browse the Order ID/number | Has a clear label when read | Pass |  |
+| D4 | 4.1.2 | Browse the next actions (My Learning/Orders...) | All are links/buttons with correct semantics, clear names | Pass |  |
+| D5 | 2.2.1 | Observe whether there's an auto-redirect | Doesn't navigate away before there's enough time to hear the full notification; if it does, it must be able to be turned off/postponed | N/A | No auto redirect exists |
+| D6 | 4.1.3, 3.3.3 | `[LOCAL]` Simulate a capture error | Has a clear error heading/alert + recovery action | Pass |  |
 
 ## E. CheckoutFailedPage
 
-> Toàn bộ mục này **chạy được trên production**: `/checkout/failed` render từ query string, không cần đơn hàng thật. Vào thẳng URL với từng mã lỗi để test 5 kịch bản bên dưới.
+> This entire section **can be run on production**: `/checkout/failed` renders from the query string, no real order needed. Navigate directly to the URL with each error code to test the 5 scenarios below.
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| E1 | 1.3.1, 3.3.3 | Test kịch bản **User cancelled** | `Heading level 1` phù hợp ngữ cảnh cancel; nội dung đọc rõ nguyên nhân | Pass |  |
-| E2 | 1.3.1, 3.3.3 | Test kịch bản **Instrument declined** | Heading + nội dung khác với cancel, phản ánh đúng lý do | Pass |  |
-| E3 | 4.1.2 | Test kịch bản **Retry limit exceeded** | Nút Retry **không xuất hiện** hoặc bị disabled với lý do rõ | Pass | Không có nút Retry, chỉ có nút Start New Order |
-| E4 | 1.4.1 | Test kịch bản **Enrollment failed nhưng đã refund** | Trạng thái refund + timeline đọc rõ, không chỉ dựa vào màu | Pass |  |
-| E5 | 4.1.3 | Test kịch bản **Manual refund required** | Trạng thái pending có status text đọc rõ | Pass |  |
-| E6 | 2.1.1, 4.1.2 | Với mỗi kịch bản ở trên | Nút Retry/Back/Support hoạt động đúng bằng bàn phím, tên nút phản ánh đúng hành động | Pass |  |
-| E7 | 3.3.3 | Khi vào trang bằng deep-link có query string lỗi | Không hiển thị message kỹ thuật thô/không giới hạn độ dài | Pass |  |
-| E8 | 2.4.3 | Focus khi chuyển từ Checkout sang Failed page | Focus chuyển tới heading của trang Failed | Pass |  |
+| E1 | 1.3.1, 3.3.3 | Test the **User cancelled** scenario | `Heading level 1` appropriate to the cancel context; content clearly explains the cause | Pass |  |
+| E2 | 1.3.1, 3.3.3 | Test the **Instrument declined** scenario | Heading + content differ from cancel, accurately reflecting the reason | Pass |  |
+| E3 | 4.1.2 | Test the **Retry limit exceeded** scenario | The Retry button **does not appear** or is disabled with a clear reason | Pass | No Retry button, only a Start New Order button |
+| E4 | 1.4.1 | Test the **Enrollment failed but already refunded** scenario | Refund status + timeline read clearly, not relying on color alone | Pass |  |
+| E5 | 4.1.3 | Test the **Manual refund required** scenario | The pending state has clearly readable status text | Pass |  |
+| E6 | 2.1.1, 4.1.2 | For each scenario above | Retry/Back/Support buttons work correctly via keyboard, button names accurately reflect the action | Pass |  |
+| E7 | 3.3.3 | Entering the page via a deep-link with an error query string | Does not display a raw technical message/unbounded length | Pass |  |
+| E8 | 2.4.3 | Focus when transitioning from Checkout to the Failed page | Focus moves to the Failed page's heading | Pass |  |
 
-## F. WCAG 2.2 — tiêu chí mới (bắt buộc cho target 2.2 AA)
+## F. WCAG 2.2 — new criteria (required for the 2.2 AA target)
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| W1 | 3.3.7 Redundant Entry | Đi Cart → Checkout → quay lại sửa → Checkout lại | Thông tin đã nhập trước đó (payment method đã chọn, thông tin billing nếu có) **không bắt nhập lại** hoặc cho chọn lại giá trị cũ | Pass | Không chọn lại payment method khi qua trở lại |
-| W2 | 3.3.7 | Thanh toán fail → bấm Retry | Không phải nhập lại từ đầu toàn bộ thông tin đã cung cấp | Pass | Không chọn lại payment method |
-| W3 | 2.2.1 Timing Adjustable | SePay QR countdown + order expiry | Xem chi tiết mục **S6/S6b/S7**. Kết luận chung ở đây: có time limit → phải turn-off/adjust/extend được, hoặc chứng minh thuộc exception. Ghi rõ căn cứ | Pass |  |
-| W4 | 2.4.11 Focus Not Obscured (Min) | Tab qua Checkout khi trang đã cuộn, và khi cart drawer đang mở | Element focus không bị header sticky/drawer/summary bar cố định che khuất hoàn toàn | Pass |  |
-| W5 | 2.5.8 Target Size (Min) | Đo: nút Remove item, nút đóng drawer, nút copy order number ở SePay, radio payment method, nút Back | ≥ 24×24 CSS px hoặc có spacing đủ | Pass |  |
-| W6 | 2.5.7 Dragging Movements | Kiểm tra có thao tác kéo nào trong flow không (kéo để xoá item, slider số lượng, swipe-to-delete trên mobile) | Mọi thao tác kéo đều có phương án single-pointer/bàn phím tương đương | N/A | Không có thao tác Kéo/Thả nào |
-| W7 | 3.2.6 Consistent Help | So sánh vị trí link Support/Contact ở Cart, Checkout, SePay QR, Success, Failed | Nếu có, luôn ở cùng vị trí tương đối. Trang Failed thường có "Contact support" — kiểm tra các trang khác có nhất quán không | Pass | Link Support các trang đều nằm dưới footer |
+| W1 | 3.3.7 Redundant Entry | Go Cart → Checkout → go back to edit → Checkout again | Previously entered information (selected payment method, billing info if any) is **not required to be re-entered** or the previous value can be reselected | Pass | Payment method is not reselected when navigating back |
+| W2 | 3.3.7 | Payment fails → press Retry | Not required to re-enter all previously provided information from scratch | Pass | Payment method is not reselected |
+| W3 | 2.2.1 Timing Adjustable | SePay QR countdown + order expiry | See details in sections **S6/S6b/S7**. Overall conclusion here: a time limit exists → must be turn-off-able/adjustable/extendable, or shown to fall under an exception. Reasoning stated clearly | Pass |  |
+| W4 | 2.4.11 Focus Not Obscured (Min) | Tab through Checkout while the page is scrolled, and while the cart drawer is open | Focused element is not fully obscured by a sticky header/drawer/fixed summary bar | Pass |  |
+| W5 | 2.5.8 Target Size (Min) | Review the item Remove button, drawer close button, SePay copy-order-number button, payment method radio, and Back button | ≥ 24×24 CSS px or sufficient spacing | Pass | Axe `target-size` passed for the recorded automated states; the manual pass covers the reviewed Purchase controls. |
+| W6 | 2.5.7 Dragging Movements | Check whether there's any dragging interaction in the flow (drag to remove an item, quantity slider, swipe-to-delete on mobile) | Every dragging interaction has an equivalent single-pointer/keyboard alternative | N/A | No drag/drop interactions exist |
+| W7 | 3.2.6 Consistent Help | Compare the Support/Contact link position across Cart, Checkout, SePay QR, Success, Failed | If present, always in the same relative position. The Failed page usually has "Contact support" — check whether other pages are consistent | Pass | The Support link sits below the footer on every page |
 
-## G. Trải nghiệm & nội dung nghiệp vụ
+## G. Business experience & content
 
-| # | WCAG SC | Nội dung cần xác nhận | Kết quả | Ghi chú |
-| --- | --- | --- | --- | --- |
-| G1 | 2.1.1 | Add/remove course hoàn tất trọn vẹn chỉ bằng VoiceOver | Pass |  |
-| G2 | 1.3.1 | Order summary đọc đúng, dễ hiểu, không gây hiểu nhầm về số tiền | Pass |  |
-| G3 | 2.1.1 | Payment method chọn được hoàn toàn bằng bàn phím + VoiceOver | Pass |  |
-| G4 | 2.1.1 | Cả Success **và** Failed flow hoàn tất được bằng VoiceOver trong cùng buổi test | Pass |  |
-| G5 | 4.1.3 | Loading/success/error mỗi trạng thái chỉ được announce **đúng một lần** | Pass |  |
-| G6 | 3.3.3 | Nội dung hướng dẫn xử lý refund/payment đúng nghiệp vụ thực tế (không chỉ đúng kỹ thuật) | Pass |  |
+| # | WCAG SC | Item to verify | Result | Notes |
+| --- | --- | --- | --- |
+| G1 | 2.1.1 | Add/remove course completed entirely using only VoiceOver | Pass |  |
+| G2 | 1.3.1 | Order summary reads correctly, understandably, without causing confusion about amounts | Pass |  |
+| G3 | 2.1.1 | Payment method can be selected entirely via keyboard + VoiceOver | Pass |  |
+| G4 | 2.1.1 | Both the Success **and** Failed flows completed via VoiceOver in the same test session | Pass |  |
+| G5 | 4.1.3 | Each loading/success/error state is announced **exactly once** | Pass |  |
+| G6 | 3.3.3 | Guidance content for handling refund/payment matches actual business reality (not just technically correct) | Pass |  |
 
-## H. Keyboard-only nhanh
+## H. Quick keyboard-only pass
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| H1 | 2.4.3 | Tab toàn bộ Cart → Checkout → SePay QR → Success/Failed | Focus order hợp lý | Pass |  |
-| H2 | 2.1.1 | Arrow Left/Right đổi payment method | Hoạt động đúng, không cần Tab qua từng option | Pass |  |
-| H3 | 2.4.3 | Escape đóng cart drawer | Focus quay lại đúng trigger | Pass |  |
-| H4 | 2.1.2 | Tab liên tục qua các bước không phải dialog (Cart page, Checkout page, SePay page) | Không có bẫy phím tại bất kỳ vùng non-modal nào; nếu Tab vào vùng có hành vi trap riêng (ví dụ drawer/dialog) thì phải có cách thoát bằng bàn phím (đã kiểm ở A6–A8) | Pass |  |
-| H5 | 2.4.7 | Quan sát focus indicator ở mọi trang trong flow | Luôn nhìn thấy rõ, kể cả trên nền card/gradient | Pass |  |
+| H1 | 2.4.3 | Tab through the entire Cart → Checkout → SePay QR → Success/Failed | Focus order is logical | Pass |  |
+| H2 | 2.1.1 | Arrow Left/Right to switch payment method | Works correctly, no need to Tab through each option | Pass |  |
+| H3 | 2.4.3 | Escape closes the cart drawer | Focus returns to the correct trigger | Pass |  |
+| H4 | 2.1.2 | Tab repeatedly through non-dialog steps (Cart page, Checkout page, SePay page) | No keyboard trap in any non-modal area; if Tab enters an area with its own trap behavior (e.g. drawer/dialog) there must be a keyboard way out (already checked at A6–A8) | Pass |  |
+| H5 | 2.4.7 | Observe the focus indicator on every page in the flow | Always clearly visible, even on card/gradient backgrounds | Pass |  |
 
 ---
 
-### Kết luận
+### Conclusion
 
-- Tổng số bước: 70
+- Total steps: 70
 - Pass: 66
 - Fail: 0
 - N/A: 4
-- Issue còn mở: Không
+- Open issues: None

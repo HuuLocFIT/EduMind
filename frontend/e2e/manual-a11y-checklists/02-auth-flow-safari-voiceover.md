@@ -1,131 +1,131 @@
-# Checklist Safari + VoiceOver — Flow 2: Authentication
+# Safari + VoiceOver Checklist — Flow 2: Authentication
 
-Phạm vi: `Login / Signup / Forgot Password / Reset Password` (+ OAuth và protected-route redirect).
-Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem [README.md](README.md).
+Scope: `Login / Signup / Forgot Password / Reset Password` (+ OAuth and protected-route redirect).
+Required machine setup: see [README.md](README.md).
 
-**Trước khi bắt đầu**: đã bật `Safari → Advanced → Press Tab to highlight each item`, đã bật Full Keyboard Access, đã bật VoiceOver Caption Panel.
+**Before starting**: `Safari → Advanced → Press Tab to highlight each item` is enabled, Full Keyboard Access is enabled, and the VoiceOver Caption Panel is enabled.
 
-## Thông tin kiểm thử
+## Test information
 
-| Trường | Giá trị |
+| Field | Value |
 | --- | --- |
-| Ngày kiểm thử | 19/08/2026|
-| macOS version | macOs Sequoia - Version 15.1|
-| Safari version | Version 18.1|
-| VoiceOver verbosity (default: Medium) | Medium|
-| Kết luận flow (Pass / Fail) | Pass|
+| Test date | 2026-08-19 |
+| macOS version | macOS Sequoia - Version 15.1 |
+| Safari version | Version 18.1 |
+| VoiceOver verbosity (default: Medium) | Medium |
+| Flow conclusion (Pass / Fail) | Pass |
 
-## Test data cần có sẵn
+## Test data that must be ready
 
-- 1 tài khoản student hợp lệ (biết password, **không** ghi password vào file này).
-- 1 email đã tồn tại trong hệ thống (để test lỗi trùng tài khoản khi Signup).
-- 1 reset token còn hạn **và** 1 token hết hạn/không hợp lệ.
-- Tài khoản có bật 2FA.
-- 1 password manager hoặc clipboard có sẵn chuỗi password để test paste (SC 3.3.8).
+- 1 valid student account (password known, **do not** write the password into this file).
+- 1 email that already exists in the system (to test the duplicate-account error on Signup).
+- 1 non-expired reset token **and** 1 expired/invalid token.
+- An account with 2FA enabled.
+- A password manager or a clipboard with a password string ready, to test paste (SC 3.3.8).
 
 ---
 
-## A. AuthLayout dùng chung
+## A. Shared AuthLayout
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| A1 | 1.3.1 | Mở Login, Rotor → Landmarks | Có đúng một `main`; page heading phù hợp | Pass |  |
-| A2 | 4.1.2, 1.1.1 | Duyệt logo/link về Home | Có accessible name rõ (không chỉ "image") | Pass |  |
-| A3 | 2.4.2 | Chuyển Login → Signup → Forgot → Reset, mỗi trang `VO + F2` ×2 | Mỗi route có **page title riêng biệt**, mô tả đúng trang, không trùng nhau | Pass |  |
-| A4 | 2.4.3 | Sau khi chuyển route | Focus/VO cursor chuyển tới heading của trang mới, không bị "kẹt" ở vị trí cũ | Pass |  |
-| A5 | 1.1.1 | Kiểm tra background/illustration trang trí | Không bị VoiceOver đọc | Pass |  |
-| A6 | 3.2.3 | So sánh 4 trang auth | Vị trí logo, heading, link phụ nhất quán giữa các trang | Pass |  |
+| A1 | 1.3.1 | Open Login, Rotor → Landmarks | Exactly one `main`; page heading is appropriate | Pass |  |
+| A2 | 4.1.2, 1.1.1 | Browse the logo/link back to Home | Has a clear accessible name (not just "image") | Pass |  |
+| A3 | 2.4.2 | Navigate Login → Signup → Forgot → Reset, `VO + F2` ×2 on each page | Each route has a **distinct page title**, correctly describing the page, no duplicates | Pass |  |
+| A4 | 2.4.3 | After navigating to a route | Focus/VO cursor moves to the new page's heading, not "stuck" at the old position | Pass |  |
+| A5 | 1.1.1 | Check the decorative background/illustration | Not read out by VoiceOver | Pass |  |
+| A6 | 3.2.3 | Compare the 4 auth pages | Logo, heading, and secondary link positions are consistent across pages | Pass |  |
 
 ## B. LoginPage
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| B1 | 3.3.2, 4.1.2 | Vào ô Email/Username bằng `VO + Command + J` | Label được đọc, gắn đúng với input | Pass |  |
-| B2 | 3.3.2 | Vào ô Password | Label đọc đúng; tìm nút "Show/Hide password" | Pass |  |
-| B3 | 4.1.2 | Kích hoạt "Show password" bằng `VO + Space` | Tên nút đổi thành "Hide password"; giá trị đã nhập **không bị mất**, tab order không đổi | Pass |  |
-| B4 | 3.3.1, 4.1.3 | Submit form Login trống | Focus chuyển tới error summary (hoặc field lỗi đầu tiên) **và** nội dung lỗi được đọc lên; nhiều lỗi thì đọc qua **một** error summary `role="alert"` duy nhất, không gắn `role="alert"` lên từng field | Pass |  |
-| B5 | 4.1.3 | Sửa 1 field, submit lại còn lỗi khác | Lỗi cũ đã sửa không còn được đọc lại; chỉ lỗi hiện tại được announce | Pass |  |
-| B6 | 3.3.1, 4.1.3 | Nhập sai password nhiều lần (server error) | Lỗi server đọc rõ nội dung; **không** bị đọc trùng giữa toast và inline error | Pass | A11y đạt (message đọc rõ, không trùng). [SEC-AUTH-01] Ngoài scope a11y: backend chưa handle account lockout/brute-force — sai bao nhiêu lần cũng cùng 1 response, không giới hạn số lần thử (`AuthService.java:98-120`) |
-| B7 | 4.1.3, 4.1.2 | Submit hợp lệ, quan sát lúc loading | Trạng thái loading có `aria-busy`/announce, tên nút Submit không đổi lung tung; không thể bấm Enter submit lần 2 (double-submit) | Pass |  |
-| B8 | 3.3.2, 3.3.1 | Nếu tài khoản có 2FA | Ô nhập code có label, hint định dạng, và validate/announce lỗi nếu sai | Pass |  |
-| B9 | 4.1.2 | Duyệt tới link Forgot password / Sign up | Đây là `link` thật (Rotor → Links thấy chúng), không phải button giả điều hướng | Pass |  |
-| B10 | 2.1.1 | Hoàn tất đăng nhập chỉ bằng bàn phím + VoiceOver, không dùng chuột | Đăng nhập thành công, có thông báo rõ trạng thái | Pass |  |
-| B11 | 4.1.2, 2.4.4 | Nếu có nút OAuth ("Continue with Google") | Là button/link có accessible name rõ nêu nhà cung cấp; người dùng biết mình sắp rời EduMind sang trang bên thứ ba | Pass |  |
-| B12 | 2.4.3, 4.1.3 | Truy cập protected route khi chưa đăng nhập (vd `/my-learning`) | Bị đưa về Login **và** VoiceOver hiểu được lý do (thông báo cần đăng nhập); sau khi login thành công quay lại đúng destination ban đầu | Pass |  |
+| B1 | 3.3.2, 4.1.2 | Enter the Email/Username field with `VO + Command + J` | Label is read out, correctly associated with the input | Pass |  |
+| B2 | 3.3.2 | Enter the Password field | Label reads correctly; find the "Show/Hide password" button | Pass |  |
+| B3 | 4.1.2 | Activate "Show password" with `VO + Space` | Button name changes to "Hide password"; the entered value is **not lost**, tab order doesn't change | Pass |  |
+| B4 | 3.3.1, 4.1.3 | Submit an empty Login form | Focus moves to the error summary (or the first error field) **and** the error content is read out; with multiple errors, they're read through **one single** `role="alert"` error summary, not `role="alert"` attached to each field | Pass |  |
+| B5 | 4.1.3 | Fix 1 field, resubmit with other errors remaining | Fixed old errors are no longer read out; only the current errors are announced | Pass |  |
+| B6 | 3.3.1, 4.1.3 | Enter the wrong password multiple times (server error) | Server error content reads clearly; **no** duplicate reading between the toast and the inline error | Pass | A11y passes (message reads clearly, no duplication). [SEC-AUTH-01] Outside a11y scope: the backend does not yet handle account lockout/brute-force — no matter how many wrong attempts, the response is the same, with no attempt limit (`AuthService.java:98-120`) |
+| B7 | 4.1.3, 4.1.2 | Submit a valid form, observe during loading | Loading state has `aria-busy`/an announcement, the Submit button name doesn't change erratically; pressing Enter can't trigger a second submit (double-submit) | Pass |  |
+| B8 | 3.3.2, 3.3.1 | If the account has 2FA | The code input has a label, a format hint, and validates/announces an error if wrong | Pass |  |
+| B9 | 4.1.2 | Browse to the Forgot password / Sign up link | This is a real `link` (visible under Rotor → Links), not a fake button pretending to navigate | Pass |  |
+| B10 | 2.1.1 | Complete login using only keyboard + VoiceOver, no mouse | Login succeeds, with a clear status announcement | Pass |  |
+| B11 | 4.1.2, 2.4.4 | If there's an OAuth button ("Continue with Google") | Is a button/link with a clear accessible name stating the provider; the user understands they're about to leave EduMind for a third-party page | Pass |  |
+| B12 | 2.4.3, 4.1.3 | Access a protected route while logged out (e.g. `/learning`) | Redirected to Login **and** VoiceOver conveys the reason (a message that login is required); after successful login, returns to the original intended destination | Pass |  |
 
 ## C. SignupPage
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| C1 | 3.3.2 | Duyệt các field bắt buộc | Có đọc là "required" (không chỉ dấu `*` hiển thị) | Pass |  |
-| C2 | 3.3.2 | Focus vào ô Password trước khi gõ | Password requirements đã tồn tại và được đọc liên kết với ô (qua `aria-describedby`) | Pass |  |
-| C3 | 1.4.1, 4.1.3 | Gõ password không đạt yêu cầu | Trạng thái từng yêu cầu (đủ ký tự, có số...) không chỉ đổi màu — VoiceOver đọc được pass/fail của từng yêu cầu | Pass |  |
-| C4 | 3.3.1, 3.3.3 | Gõ 2 mật khẩu không khớp, submit | Lỗi mismatch được đọc rõ, focus chuyển đúng chỗ | N/A | Sign-up chỉ nhập password 1 lần và không có nhập confirm password |
-| C5 | 3.3.1, 4.1.3 | Submit form Signup để trống toàn bộ | Giống B4: focus chuyển tới error summary (hoặc field lỗi đầu tiên) **và** nội dung lỗi được đọc lên; nhiều lỗi thì đọc qua **một** error summary `role="alert"` duy nhất, không gắn `role="alert"` lên từng field | Pass |  |
-| C6 | 3.3.2, 2.1.1 | Nếu có checkbox Terms | Label đầy đủ khi đọc (không chỉ "I agree"); link Terms bên trong vẫn bấm được bằng bàn phím riêng | N/A | Không có checkbox Terms |
-| C7 | 3.3.1, 3.3.3 | Đăng ký với email đã tồn tại | Lỗi trùng tài khoản đọc rõ nội dung | Pass |  |
-| C8 | 4.1.3 | Đăng ký thành công | Có announce trạng thái thành công **trước khi** redirect (không bị mất vì chuyển trang quá nhanh) | Pass |  |
-| C9 | 2.4.3 | Dùng Tab qua toàn bộ form | Tab order hợp lý kể cả ở mobile layout (first/last name không bị đảo lộn) | Pass |  |
+| C1 | 3.3.2 | Browse the required fields | Read out as "required" (not just a visible `*` mark) | Pass |  |
+| C2 | 3.3.2 | Focus the Password field before typing | Password requirements already exist and are read as associated with the field (via `aria-describedby`) | Pass |  |
+| C3 | 1.4.1, 4.1.3 | Type a password that doesn't meet requirements | Each requirement's status (enough characters, has a number...) isn't just a color change — VoiceOver reads the pass/fail state of each requirement | Pass |  |
+| C4 | 3.3.1, 3.3.3 | Type 2 mismatched passwords, submit | Mismatch error is read clearly, focus moves to the correct place | N/A | Sign-up only has a single password field with no confirm-password field |
+| C5 | 3.3.1, 4.1.3 | Submit a completely empty Signup form | Same as B4: focus moves to the error summary (or the first error field) **and** the error content is read out; with multiple errors, they're read through **one single** `role="alert"` error summary, not `role="alert"` attached to each field | Pass |  |
+| C6 | 3.3.2, 2.1.1 | If there's a Terms checkbox | Full label read out (not just "I agree"); the Terms link inside it can still be reached and activated separately by keyboard | N/A | No Terms checkbox present |
+| C7 | 3.3.1, 3.3.3 | Sign up with an email that already exists | Duplicate-account error content reads clearly | Pass |  |
+| C8 | 4.1.3 | Successful signup | Success status is announced **before** the redirect (not lost due to too-fast navigation) | Pass |  |
+| C9 | 2.4.3 | Tab through the entire form | Tab order is logical even in mobile layout (first/last name not reordered) | Pass |  |
 
 ## D. ForgotPasswordPage
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| D1 | 3.3.1 | Submit email không hợp lệ | Lỗi validate đọc rõ | Pass |  |
-| D2 | 3.3.3 | Submit email không tồn tại (backend generic response) | Thông báo **không tiết lộ** email có tồn tại hay không, nhưng vẫn đọc rõ hướng dẫn | Pass |  |
-| D3 | 4.1.3 | Submit thành công | Có `role="status"`/live region `polite` đọc thông báo đã gửi email | Pass |  |
-| D4 | 2.4.3 | Sau success, kiểm tra focus | Focus chuyển tới heading/status của confirmation | Pass |  |
-| D5 | 4.1.2, 4.1.3 | Nếu có nút Resend | Trạng thái disabled/loading/thời gian chờ được đọc rõ | Pass | |
-| D6 | 4.1.2 | Link quay lại Login | Là `link` thật, kích hoạt được bằng Enter | Pass |  |
+| D1 | 3.3.1 | Submit an invalid email | Validation error reads clearly | Pass |  |
+| D2 | 3.3.3 | Submit a non-existent email (generic backend response) | The message does **not reveal** whether the email exists, but still reads clear guidance | Pass |  |
+| D3 | 4.1.3 | Successful submit | Has a `role="status"`/`polite` live region reading the "email sent" notification | Pass |  |
+| D4 | 2.4.3 | After success, check focus | Focus moves to the confirmation heading/status | Pass |  |
+| D5 | 4.1.2, 4.1.3 | If there's a Resend button | Disabled/loading/wait-time state is read clearly | Pass | |
+| D6 | 4.1.2 | Link back to Login | Is a real `link`, activatable with Enter | Pass |  |
 
 ## E. ResetPasswordPage
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| E1 | 1.3.1, 3.3.3 | Mở link reset thiếu token | Heading rõ ràng kiểu "Invalid link"; có action xin link mới | Pass |  |
-| E2 | 1.3.1, 3.3.3 | Mở link reset hết hạn/không hợp lệ | Tương tự E1, không bị hiểu nhầm là link hợp lệ | Pass | |
-| E3 | 1.3.5, 4.1.2 | Mở link hợp lệ, vào 2 ô mật khẩu mới | Mỗi ô có `autocomplete="new-password"`; 2 nút toggle show/hide có tên độc lập không lẫn nhau | Pass |  |
-| E4 | 1.4.1, 4.1.3 | Gõ mật khẩu không đạt policy | Giống Signup — yêu cầu policy đọc được, không chỉ màu | Pass |  |
-| E5 | 4.1.3 | Submit thành công | Có announce; có link Login rõ; **không redirect quá nhanh** khiến VoiceOver bỏ lỡ thông báo | Pass |  |
+| E1 | 1.3.1, 3.3.3 | Open a reset link missing a token | Clear heading such as "Invalid link"; there's an action to request a new link | Pass |  |
+| E2 | 1.3.1, 3.3.3 | Open an expired/invalid reset link | Same as E1, not mistaken for a valid link | Pass | |
+| E3 | 1.3.5, 4.1.2 | Open a valid link, enter the 2 new-password fields | Each field has `autocomplete="new-password"`; the 2 show/hide toggle buttons have independent names, not confused with each other | Pass |  |
+| E4 | 1.4.1, 4.1.3 | Type a password that doesn't meet policy | Same as Signup — policy requirements are readable, not color-only | Pass |  |
+| E5 | 4.1.3 | Successful submit | Has an announcement; has a clear Login link; **does not redirect too fast**, causing VoiceOver to miss the notification | Pass |  |
 
-## F. WCAG 2.2 — tiêu chí mới (bắt buộc cho target 2.2 AA)
+## F. WCAG 2.2 — new criteria (required for the 2.2 AA target)
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| W1 | 3.3.8 Accessible Authentication (Min) | `Cmd + V` paste password vào ô Password ở Login | Paste **thành công** — không bị chặn `onPaste`, không bị xoá ký tự | Pass |  |
-| W2 | 3.3.8 | Paste vào 2 ô New password / Confirm password ở Reset Password | Cả hai ô đều paste được (ô Confirm bị chặn paste là fail phổ biến) | Pass |  |
-| W3 | 3.3.8 | Paste mã 2FA/OTP vào ô nhập code | Paste được cả chuỗi; nếu ô tách thành nhiều ký tự riêng thì paste vẫn phải tự điền hết các ô | Pass |  |
-| W4 | 3.3.8 | Kiểm tra Safari/password manager có gợi ý điền tự động không ở Login | Trình duyệt/password manager nhận diện và điền được — không bị `autocomplete="off"` chặn ở field mật khẩu | Pass |  |
-| W5 | 3.3.8 | Kiểm tra có bước xác thực nào yêu cầu ghi nhớ/giải đố không (captcha chữ, câu đố, transcribe) | Không có cognitive function test bắt buộc mà không có phương án thay thế | Pass | Không có chức năng nào yêu cầu ghi nhớ/giải đố |
-| W6 | 1.3.5 Identify Input Purpose | Inspect thuộc tính `autocomplete` của toàn bộ field trong 4 trang | `email`/`username`, `current-password`, `new-password`, `given-name`, `family-name`, `one-time-code` được khai báo đúng. Ghi field nào thiếu vào Ghi chú | Pass |  |
-| W7 | 2.4.11 Focus Not Obscured (Min) | Tab qua form Signup dài trên viewport thấp (thu nhỏ chiều cao cửa sổ) | Field đang focus không bị header sticky hoặc thanh submit cố định che khuất | Pass |  |
-| W8 | 2.5.8 Target Size (Min) | Đo nút toggle show/hide password, checkbox Terms, link phụ | Tối thiểu 24×24 CSS px hoặc có spacing đủ. Ghi số đo thực tế vào Ghi chú | Pass | 24x24px |
-| W9 | 3.2.6 Consistent Help | So sánh vị trí link hỗ trợ/liên hệ ở 4 trang auth | Nếu có, luôn ở cùng vị trí tương đối | N/A | Chỉ 1/4 trang có link hỗ trợ: `ForgotPasswordPage.tsx:200-209` — "Having trouble? Contact support@edumind.com" (mailto), nằm dưới card form. Login/Signup/Reset Password không có link tương tự; `AuthLayout.tsx` (layout dùng chung) cũng không render help link nào. SC 3.2.6 chỉ yêu cầu nhất quán *khi cơ chế trợ giúp lặp lại* trên nhiều trang — do chỉ có 1 trang có link nên không đủ cơ sở so sánh vị trí → N/A thay vì Pass/Fail. |
+| W1 | 3.3.8 Accessible Authentication (Min) | `Cmd + V` paste a password into the Password field on Login | Paste **succeeds** — not blocked by `onPaste`, no characters stripped | Pass |  |
+| W2 | 3.3.8 | Paste into the 2 New password / Confirm password fields on Reset Password | Both fields accept paste (a blocked-paste Confirm field is a common failure) | Pass |  |
+| W3 | 3.3.8 | Paste a 2FA/OTP code into the code field | The full string can be pasted; if the field is split into separate character boxes, pasting must still auto-fill all boxes | Pass |  |
+| W4 | 3.3.8 | Check whether Safari/password manager offers autofill suggestions on Login | The browser/password manager recognizes and can fill it in — not blocked by `autocomplete="off"` on the password field | Pass |  |
+| W5 | 3.3.8 | Check whether any authentication step requires memorization/puzzle-solving (text captcha, riddle, transcription) | No mandatory cognitive function test without an alternative | Pass | No feature requires memorization/puzzle-solving |
+| W6 | 1.3.5 Identify Input Purpose | Inspect the `autocomplete` attribute of every field across the 4 pages | `email`/`username`, `current-password`, `new-password`, `given-name`, `family-name`, `one-time-code` are declared correctly. Note any missing field in Notes | Pass |  |
+| W7 | 2.4.11 Focus Not Obscured (Min) | Tab through the long Signup form on a short viewport (shrink window height) | The focused field is not obscured by a sticky header or a fixed submit bar | Pass |  |
+| W8 | 2.5.8 Target Size (Min) | Review the show/hide password toggle button, Terms checkbox, and secondary link | At least 24×24 CSS px or sufficient spacing | Pass | The password toggle was recorded at 24×24 CSS px; Axe `target-size` passed for the automated Auth states. |
+| W9 | 3.2.6 Consistent Help | Compare the position of a support/contact link across the 4 auth pages | If present, always in the same relative position | N/A | Only 1 of 4 pages has a support link: `ForgotPasswordPage.tsx:200-209` — "Having trouble? Contact support@edumind.com" (mailto), located below the form card. Login/Signup/Reset Password have no equivalent link; `AuthLayout.tsx` (the shared layout) also renders no help link. SC 3.2.6 only requires consistency *when a help mechanism repeats* across multiple pages — since only 1 page has a link, there isn't enough basis to compare positions → N/A rather than Pass/Fail. |
 
-## G. Trải nghiệm & nội dung tổng thể
+## G. Overall experience & content
 
-| # | WCAG SC | Nội dung cần xác nhận | Kết quả | Ghi chú |
+| # | WCAG SC | Item to verify | Result | Notes |
 | --- | --- | --- | --- | --- |
-| G1 | 2.1.1 | Hoàn tất toàn bộ Login chỉ bằng VoiceOver, không nhìn màn hình | Pass |  |
-| G2 | 3.3.1 | Sửa một form có nhiều lỗi cùng lúc, xác nhận đọc lần lượt không bị chồng lấp | Pass |  |
-| G3 | 4.1.3 | Không có toast/error nào bị đọc lặp lại 2 lần ở bất kỳ bước nào trong flow | Pass |  |
-| G4 | 2.1.1 | Forgot → Reset với token test hoàn tất trọn vẹn bằng VoiceOver | Pass |  |
-| G5 | 3.3.3 | Nội dung error message hướng dẫn được cách khắc phục, không chỉ báo "Invalid" | Pass |  |
+| G1 | 2.1.1 | Complete the entire Login flow using only VoiceOver, without looking at the screen | Pass |  |
+| G2 | 3.3.1 | Fix a form with multiple errors at once, confirm they're read out in sequence without overlapping | Pass |  |
+| G3 | 4.1.3 | No toast/error is read twice at any step in the flow | Pass |  |
+| G4 | 2.1.1 | Forgot → Reset with a test token completed entirely via VoiceOver | Pass |  |
+| G5 | 3.3.3 | Error message content guides the user on how to fix it, not just states "Invalid" | Pass |  |
 
-## H. Keyboard-only nhanh
+## H. Quick keyboard-only pass
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| H1 | 2.4.3, 2.4.7 | Tab qua Login/Signup/Forgot/Reset | Focus order hợp lý, focus indicator luôn thấy rõ | Pass |  |
-| H2 | 2.1.1 | Enter submit form ở mọi trang | Submit đúng một lần | Pass |  |
-| H3 | 2.1.2 | Tab liên tục qua từng trang, kể cả khi đang mở dropdown/tooltip | Không có keyboard trap ở bất kỳ trang nào | Pass |  |
-| H4 | 2.4.3 | Tab qua form khi đang có lỗi hiển thị | Error summary/message nằm trong tab order hợp lý, không bị nhảy qua | Pass |  |
+| H1 | 2.4.3, 2.4.7 | Tab through Login/Signup/Forgot/Reset | Focus order is logical, focus indicator is always clearly visible | Pass |  |
+| H2 | 2.1.1 | Press Enter to submit the form on every page | Submits exactly once | Pass |  |
+| H3 | 2.1.2 | Tab repeatedly through each page, including while a dropdown/tooltip is open | No keyboard trap on any page | Pass |  |
+| H4 | 2.4.3 | Tab through the form while an error is displayed | The error summary/message sits at a logical position in the tab order, not skipped over | Pass |  |
 
 ---
 
-### Kết luận
+### Conclusion
 
-- Tổng số bước: 56
+- Total steps: 56
 - Pass: 53
 - Fail: 0
 - N/A: 3

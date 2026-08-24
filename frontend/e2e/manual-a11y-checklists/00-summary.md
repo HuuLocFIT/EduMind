@@ -1,87 +1,52 @@
 # Manual Accessibility Test Summary
 
-Tổng hợp kết quả kiểm thử thủ công cho các hành trình quan trọng của EduMind. Đây là trang tổng quan dành cho người đọc; thao tác, kỳ vọng và kết quả của từng bước được lưu trong các checklist chi tiết.
+Summary of manual test results for EduMind's critical journeys. This is an overview page for readers; the steps, expectations, and results of each check are recorded in the detailed checklists.
 
-Kết quả phản ánh **trạng thái cuối đã được kiểm tra thủ công**. Các lỗi phát hiện trong quá trình phát triển được sửa và kiểm tra lại trước khi cập nhật kết quả; mỗi bước chỉ lưu một kết quả cuối và không yêu cầu screenshot.
+Results reflect the **final, manually verified state**. Issues found during development are fixed and re-checked before the results are updated; each step records only the final result and does not require a screenshot.
 
-Hướng dẫn thiết lập môi trường và cách ghi kết quả: [README.md](README.md).
+Setup instructions and how results are recorded: [README.md](README.md).
 
-## 1. Phạm vi và môi trường
+## 1. Scope and environment
 
-Phạm vi kiểm thử gồm Safari + VoiceOver trên macOS cho bốn critical journey và một lượt kiểm tra chéo về keyboard, zoom, reflow, contrast và motion.
+Test scope covers Safari + VoiceOver on macOS for four critical journeys and one cross-cutting pass covering keyboard, zoom, reflow, contrast, and motion.
 
-| Trường | Giá trị |
+| Field | Value |
 | --- | --- |
-| Ngày kiểm thử | 22/08/2026|
-| macOS version | macOs Sequoia - Version 15.1|
-| Safari version | Version 18.1|
-| VoiceOver verbosity (default: Medium) | Medium|
-| Kết luận flow (Pass / Fail) | Pass|
+| Test date | 2026-08-22 |
+| macOS version | macOS Sequoia - Version 15.1 |
+| Safari version | Version 18.1 |
+| VoiceOver verbosity (default: Medium) | Medium |
+| Flow conclusion (Pass / Fail) | Pass |
 
-## 2. Kết quả hiện tại
+## 2. Current results
 
-| Flow | Checklist | Tổng bước | Pass | Fail | N/A | Kết luận |
+| Flow | Checklist | Total steps | Pass | Fail | N/A | Conclusion |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
 | Discover | [01](01-discover-flow-safari-voiceover.md) | 53 | 49 | 0 | 4 | **Pass** |
 | Authentication | [02](02-auth-flow-safari-voiceover.md) | 56 | 53 | 0 | 3 | **Pass** |
 | Purchase | [03](03-purchase-flow-safari-voiceover.md) | 70 | 66 | 0 | 4 | **Pass** |
-| Learning | [04](04-learning-flow-safari-voiceover.md) | 80 | 74 | 0 | 6 | **Pass** |
+| Learning | [04](04-learning-flow-safari-voiceover.md) | 81 | 75 | 0 | 6 | **Pass** |
 | Cross-cutting | [05](05-cross-cutting-zoom-reflow-motion.md) | 27 | 25 | 0 | 2 | **Pass** |
-| **Tổng** | | **286** | **267** | **0** | **19** | **5/5 đạt** |
+| **Total** | | **287** | **268** | **0** | **19** | **5/5 passed** |
 
-Quy tắc kết luận:
+Conclusion rules:
 
-- `Pass`: mọi bước áp dụng đều `Pass`; mỗi bước `N/A` có lý do rõ ràng.
-- `Fail`: còn ít nhất một bước `Fail`.
+- `Pass`: every applicable step is `Pass`; every `N/A` step has a clear reason.
+- `Fail`: at least one step is `Fail`.
 
-## 3. Vấn đề còn mở
+## 3. Open issues
 
-Không có vấn đề 'Fail' nào được ghi nhận trong các checklist chi tiết.
+No `Fail` issues are recorded in the detailed checklists.
 
 ## 4. Known limitations
 
-Các giới hạn dưới đây nằm ngoài phạm vi hỗ trợ hoặc kiểm thử hiện tại; chúng không được trình bày như những tính năng đã hoàn chỉnh.
+The limitations below are outside the current support or test scope; they are not presented as completed features.
 
-| Limitation | Phạm vi ảnh hưởng |
+| Limitation | Affected scope |
 | --- | --- |
-| Caption chỉ có khi khóa học cung cấp VTT hợp lệ. | Learning — video |
-| Caption mặc định `srcLang="en"`; API chưa cung cấp metadata ngôn ngữ. | Learning — video |
-| Transcript phụ thuộc `articleContent`; thiếu dữ liệu sẽ hiển thị placeholder. | Learning — lesson content |
-| Quiz hiện chỉ hỗ trợ một đáp án cho mỗi câu. | Learning — quiz |
-| Chưa kiểm thử `forced-colors` thật trên Windows High Contrast. | Cross-cutting — visual accessibility |
-| Sau khi thoát fullscreen video, VoiceOver có thể đọc thêm window title do hành vi WebKit. | Learning — video fullscreen |
-
-## 5. Cách diễn đạt trong portfolio
-
-Chỉ công bố kết quả sau khi đã điền đủ metadata ở mục 1 và bảng kết quả không còn `Fail` hoặc `Incomplete`.
-
-Được phép mô tả:
-
-- Các hành trình cụ thể đã được kiểm thử thủ công bằng Safari + VoiceOver trên macOS.
-- Các bước áp dụng trong một flow đã đạt checklist nếu flow đó có kết luận `Pass`.
-- Phạm vi kiểm tra bổ sung gồm keyboard-only, zoom 200%, reflow 320px, reduced motion và colour independence.
-
-Không tuyên bố:
-
-- “WCAG 2.2 AA certified” hoặc “fully accessible”.
-- Đã kiểm thử với người dùng khuyết tật thật.
-- Đã kiểm thử Windows High Contrast hoặc các screen reader ngoài phạm vi ghi nhận.
-- Accessibility được bắt buộc trong CI nếu workflow chưa có quality gate tương ứng.
-
-### English summary
-
-Sau khi toàn bộ flow đạt và metadata đã được điền, có thể dùng đoạn giới hạn phạm vi sau trong README dự án:
-
-```markdown
-### Accessibility validation
-
-Four critical journeys were manually verified with Safari <version> and VoiceOver on macOS <version> on <YYYY-MM-DD>, with an additional keyboard-only pass in Chrome <version>. The documented journeys passed the applicable checks for screen-reader operation, keyboard access, focus management, status announcements, 200% zoom, 320px reflow, reduced motion, and colour independence.
-
-WCAG 2.2 Level AA is the testing target, not a claim of certification or full-site conformance. Validation is limited to the documented journeys and test environment. Windows High Contrast, the Angular admin portal, mobile screen readers, and usability testing with disabled participants are outside the current scope. Captions and transcripts depend on source data supplied for each course.
-```
-
-Khi vẫn còn lỗi như trạng thái hiện tại, dùng wording trung thực hơn:
-
-```markdown
-Manual accessibility validation is in progress. Four of five documented test areas currently pass their applicable checks; two Authentication issues remain open. Detailed results and scope limitations are recorded in the manual accessibility test summary.
-```
+| Captions are only available when the course provides a valid VTT file. | Learning — video |
+| Captions default to `srcLang="en"`; the API does not yet provide language metadata. | Learning — video |
+| Transcript depends on `articleContent`; missing data shows a placeholder. | Learning — lesson content |
+| Quiz currently supports only a single answer per question. | Learning — quiz |
+| Real `forced-colors` testing on Windows High Contrast has not been performed. | Cross-cutting — visual accessibility |
+| After exiting video fullscreen, VoiceOver may read out the window title as an additional announcement, due to WebKit behavior. | Learning — video fullscreen |
