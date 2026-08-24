@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BrowseCoursesSkeleton } from "../../components/route-skeletons/BrowseCoursesSkeleton";
+import { SeoMetaTags } from "../../components/Seo/SeoMetaTags";
 
 const BrowseCoursesReadyContext = createContext<() => void>(() => undefined);
 
@@ -32,7 +33,15 @@ export const BrowseCoursesBoot: React.FC<{ children: React.ReactNode }> = ({ chi
 
   return (
     <BrowseCoursesReadyContext.Provider value={signalReady}>
-      {!ready && <BrowseCoursesSkeleton activeFilterGroupCount={activeFilterGroupCount} />}
+      {!ready && (
+        <>
+          <SeoMetaTags
+            title="Browse Courses"
+            description="Browse courses available on EduMind."
+          />
+          <BrowseCoursesSkeleton activeFilterGroupCount={activeFilterGroupCount} />
+        </>
+      )}
       <div hidden={!ready} aria-hidden={!ready} inert={!ready}>
         {children}
       </div>

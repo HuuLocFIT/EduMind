@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-09T04:02:09.352Z",
+  "generatedAt": "2026-08-24T01:37:47.658Z",
   "standard": "WCAG 2.2 AA (A/AA Axe tags)",
   "purpose": "after-remediation evidence",
   "routes": [
@@ -9,16 +9,16 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 1,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
       "name": "courses",
       "route": "/courses",
-      "axeViolations": 1,
+      "axeViolations": 0,
       "criticalNodes": 0,
-      "seriousNodes": 1,
-      "keyboardIssues": 1,
+      "seriousNodes": 0,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
@@ -27,7 +27,7 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 1,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
@@ -36,7 +36,7 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 2,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
@@ -45,7 +45,7 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 1,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
@@ -54,7 +54,7 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 1,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
@@ -72,7 +72,7 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 2,
+      "keyboardIssues": 0,
       "scanError": null
     },
     {
@@ -81,7 +81,7 @@
       "axeViolations": 0,
       "criticalNodes": 0,
       "seriousNodes": 0,
-      "keyboardIssues": 2,
+      "keyboardIssues": 0,
       "scanError": null
     }
   ]

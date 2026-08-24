@@ -37,67 +37,6 @@ export function ScrollToTop() {
     return () => document.removeEventListener("focusin", rememberFocusedHeading);
   }, []);
 
-  // A direct (non-SPA) load never runs the route-change effect below for its
-  // first route — that effect's initial tick only records refs and returns.
-  // Without this, a fresh page load keeps whatever <title> (or lack of one)
-  // the server sent, failing WCAG 2.4.2 / axe's document-title check.
-  useEffect(() => {
-    // Guarantee a non-empty <title> the instant this effect runs (axe's
-    // document-title check can fire before the page's own content — and
-    // its h1 — has finished loading, e.g. while a "Loading courses"
-    // skeleton is still on screen).
-    document.title = "EduMind";
-
-    let observer: MutationObserver | undefined;
-    let fallbackTimer: number | undefined;
-
-    const setInitialTitle = () => {
-      // Something else (a page's own title effect, e.g. the course player's
-      // lesson title) may have already taken over — never stomp on that.
-      if (document.title !== "EduMind") {
-        observer?.disconnect();
-        if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
-        return true;
-      }
-
-      const main = document.getElementById("main-content");
-      const heading = main?.querySelector<HTMLElement>(
-        "h1:not([aria-hidden='true'])",
-      );
-      const headingText = heading?.textContent?.trim();
-      if (!headingText) return false;
-
-      document.title = `${headingText} | EduMind`;
-      observer?.disconnect();
-      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
-      return true;
-    };
-
-    const frame = window.requestAnimationFrame(() => {
-      if (setInitialTitle()) return;
-
-      const main = document.getElementById("main-content");
-      if (!main) return;
-
-      observer = new MutationObserver(setInitialTitle);
-      observer.observe(main, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-      fallbackTimer = window.setTimeout(() => observer?.disconnect(), 5000);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer?.disconnect();
-      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
-    };
-    // Runs once for the app's initial route only; subsequent navigations are
-    // handled by the route-change effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     if (prevRouteIdRef.current === null || prevRouteIdRef.current === routeId) {
       prevRouteIdRef.current = routeId;

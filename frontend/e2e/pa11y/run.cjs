@@ -123,11 +123,6 @@ async function scanRoute(browser, route) {
     }
     const result = {...results, route: route.path, name: route.name};
     await fs.writeFile(
-      path.join(reportDirectory, `${route.name}.json`),
-      JSON.stringify(result, null, 2),
-      'utf8',
-    );
-    await fs.writeFile(
       path.join(reportDirectory, `${route.name}.html`),
       await htmlReporter.results(results),
       'utf8',
@@ -178,11 +173,6 @@ async function main() {
           issues: [],
           scanError: message,
         });
-        await fs.writeFile(
-          path.join(reportDirectory, `${route.name}.json`),
-          JSON.stringify(results.at(-1), null, 2),
-          'utf8',
-        );
         await fs.writeFile(
           path.join(reportDirectory, `${route.name}.html`),
           `<!doctype html><html lang="en"><meta charset="utf-8"><title>Pa11y scan failed</title><body><h1>Pa11y scan failed: ${escapeHtml(route.name)}</h1><pre>${escapeHtml(message)}</pre></body></html>`,

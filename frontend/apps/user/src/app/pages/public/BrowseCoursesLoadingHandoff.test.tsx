@@ -39,6 +39,10 @@ describe("Browse Courses loading handoff", () => {
     const originalSkeleton = screen.getByRole("status", {
       name: "Loading courses",
     });
+    expect(document.title).toBe("Browse Courses | EduMind");
+    expect(document.head.querySelector("title")).toHaveTextContent(
+      "Browse Courses | EduMind",
+    );
 
     await act(async () => chunk.resolve({ default: Page }));
     expect(screen.getByRole("status", { name: "Loading courses" })).toBe(
