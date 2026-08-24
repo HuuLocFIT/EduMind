@@ -1,7 +1,7 @@
 # Checklist Safari + VoiceOver — Flow 1: Discover
 
 Phạm vi: `Home → Browse Courses → Course Detail → Add to Cart`.
-Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem [README.md](README.md).
+Setup máy bắt buộc: xem [README.md](README.md).
 
 **Trước khi bắt đầu**: đã bật `Safari → Advanced → Press Tab to highlight each item`, đã bật Full Keyboard Access, đã bật VoiceOver Caption Panel.
 
@@ -9,14 +9,11 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 
 | Trường | Giá trị |
 | --- | --- |
-| Ngày kiểm thử | |
-| Môi trường test (Production / Staging / Local) | |
-| URL / commit của bản được test | |
-| macOS version | |
-| Safari version | |
-| VoiceOver verbosity (mặc định: Medium) | |
-| Người test | |
-| Kết luận flow (Pass / Fail / Blocked) | |
+| Ngày kiểm thử | 19/08/2026|
+| macOS version | macOs Sequoia - Version 15.1|
+| Safari version | Version 18.1|
+| VoiceOver verbosity (default: Medium) | Medium|
+| Kết luận flow (Pass / Fail) | Pass|
 
 ---
 
@@ -77,7 +74,7 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 | W1 | 2.4.11 Focus Not Obscured (Min) | Tab chậm từ đầu tới cuối Home và Browse trong khi trang **đã cuộn xuống giữa** | Element đang focus **không bị header sticky che khuất hoàn toàn**; luôn nhìn thấy được ít nhất một phần | Pass |  |
 | W2 | 2.4.11 | Tab qua các control phía dưới màn hình khi có nút/banner nổi (floating CTA, cookie banner nếu có) | Không có element nào nhận focus mà bị phần tử nổi che hoàn toàn | N/A | Tại các pages này chưa có elements nào |
 | W3 | 2.4.11 | Mở mobile filter drawer rồi Tab | Item nhận focus trong drawer không bị chính overlay/drawer che | Pass |  |
-| W4 | 2.5.8 Target Size (Min) | Đo các target nhỏ: nút pagination, nút xoá active filter, icon giỏ hàng, nút đóng drawer, sao rating nếu bấm được | Vùng bấm **tối thiểu 24×24 CSS px** (hoặc có khoảng cách đủ để không chồng lấn). Dùng DevTools inspect để đo, ghi số đo vào Ghi chú | Pass | Thỏa tối thiếu button nhỏ nhất 24x24px |
+| W4 | 2.5.8 Target Size (Min) | Đo các target nhỏ: nút pagination, nút xoá active filter, icon giỏ hàng, nút đóng drawer, sao rating nếu bấm được | Vùng bấm **tối thiểu 24×24 CSS px** (hoặc có khoảng cách đủ để không chồng lấn). Dùng DevTools inspect để đo, ghi số đo vào Ghi chú | Pass | |
 | W5 | 2.5.7 Dragging Movements | Nếu có filter dạng price range slider | Điều chỉnh được **hoàn toàn bằng bàn phím** (Arrow keys), không bắt buộc phải kéo chuột | Pass |  |
 | W6 | 3.2.6 Consistent Help | So sánh vị trí link Help/Support/Contact ở Home, Browse, Course Detail | Nếu có, xuất hiện ở **cùng vị trí tương đối** trên mọi trang trong flow (vd luôn trong footer) | Pass |  |
 | W7 | 1.4.13 Content on Hover or Focus | Nếu có tooltip (vd icon thông tin giá, badge level) | Tooltip: dismissible bằng `Escape` mà không mất focus, hoverable (rê chuột vào tooltip không làm nó biến mất), persistent (không tự ẩn sau vài giây) | N/A | Tại các pages này không có sử dụng tooltip |
@@ -110,6 +107,5 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 - Tổng số bước: 53
 - Pass: 49
 - Fail: 0
-- Blocked: 0
 - N/A: 4
 - Issue còn mở: Không

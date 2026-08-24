@@ -400,7 +400,7 @@ export const LoginPage = () => {
                     </label>
                     <Link
                       to={USER_ROUTES.FORGOT_PASSWORD}
-                      className="text-sm text-blue-600 hover:text-blue-700"
+                      className="rounded text-sm text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                     >
                       Forgot?
                     </Link>

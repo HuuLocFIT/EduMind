@@ -141,7 +141,10 @@ export const MainLayout: React.FC = () => {
           <div className="mx-auto px-3 sm:px-6 lg:px-4">
             <div className="flex items-center justify-between h-16">
               {/* Logo */}
-              <Link to={USER_ROUTES.ROOT} className="flex items-center gap-2">
+              <Link
+                to={USER_ROUTES.ROOT}
+                className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-600"
+              >
                 <GraduationCap className="w-8 h-8 text-blue-600" />
                 <span className="text-xl font-bold text-gray-900">EduMind</span>
               </Link>
@@ -672,7 +675,7 @@ export const MainLayout: React.FC = () => {
                 <li>
                   <Link
                     to={USER_ROUTES.COURSES}
-                    className="hover:text-blue-600"
+                    className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                   >
                     Browse All
                   </Link>
@@ -680,7 +683,7 @@ export const MainLayout: React.FC = () => {
                 <li>
                   <Link
                     to={`${USER_ROUTES.COURSES}?level=BEGINNER`}
-                    className="hover:text-blue-600"
+                    className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                   >
                     Beginner
                   </Link>
@@ -688,7 +691,7 @@ export const MainLayout: React.FC = () => {
                 <li>
                   <Link
                     to={`${USER_ROUTES.COURSES}?level=ADVANCED`}
-                    className="hover:text-blue-600"
+                    className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
                   >
                     Advanced
                   </Link>
@@ -700,7 +703,7 @@ export const MainLayout: React.FC = () => {
               <h2 id="footer-support" className="font-semibold text-gray-900 mb-2 sm:mb-4" style={{ fontSize: 'inherit' }}>Support</h2>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <a href="mailto:support@edumind.com" className="hover:text-blue-600">
+                  <a href="mailto:support@edumind.com" className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
                     Contact Us
                   </a>
                 </li>
@@ -711,7 +714,7 @@ export const MainLayout: React.FC = () => {
               <h2 id="footer-legal" className="font-semibold text-gray-900 mb-2 sm:mb-4" style={{ fontSize: 'inherit' }}>Legal</h2>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <Link to={USER_ROUTES.TERMS} className="hover:text-blue-600">
+                  <Link to={USER_ROUTES.TERMS} className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
                     Terms of Service
                   </Link>
                 </li>

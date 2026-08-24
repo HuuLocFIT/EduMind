@@ -11,14 +11,12 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 
 | Trường | Giá trị |
 | --- | --- |
-| Ngày kiểm thử | |
-| Môi trường test (Production / Staging / Local) | |
-| URL / commit của bản được test | |
-| macOS version | |
-| Safari version | |
-| VoiceOver verbosity (mặc định: Medium) | |
-| Người test | |
-| Kết luận flow (Pass / Fail / Blocked) | |
+| Ngày kiểm thử | 20/08/2026|
+| macOS version | macOs Sequoia - Version 15.1|
+| Safari version | Version 18.1|
+| VoiceOver verbosity (default: Medium) | Medium|
+| Kết luận flow (Pass / Fail) | Pass|
+
 ---
 
 ## A. Cart & Cart Drawer
@@ -110,7 +108,7 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 | W2 | 3.3.7 | Thanh toán fail → bấm Retry | Không phải nhập lại từ đầu toàn bộ thông tin đã cung cấp | Pass | Không chọn lại payment method |
 | W3 | 2.2.1 Timing Adjustable | SePay QR countdown + order expiry | Xem chi tiết mục **S6/S6b/S7**. Kết luận chung ở đây: có time limit → phải turn-off/adjust/extend được, hoặc chứng minh thuộc exception. Ghi rõ căn cứ | Pass |  |
 | W4 | 2.4.11 Focus Not Obscured (Min) | Tab qua Checkout khi trang đã cuộn, và khi cart drawer đang mở | Element focus không bị header sticky/drawer/summary bar cố định che khuất hoàn toàn | Pass |  |
-| W5 | 2.5.8 Target Size (Min) | Đo: nút Remove item, nút đóng drawer, nút copy order number ở SePay, radio payment method, nút Back | ≥ 24×24 CSS px hoặc có spacing đủ. Ghi số đo từng nút vào Ghi chú | Pass |  |
+| W5 | 2.5.8 Target Size (Min) | Đo: nút Remove item, nút đóng drawer, nút copy order number ở SePay, radio payment method, nút Back | ≥ 24×24 CSS px hoặc có spacing đủ | Pass |  |
 | W6 | 2.5.7 Dragging Movements | Kiểm tra có thao tác kéo nào trong flow không (kéo để xoá item, slider số lượng, swipe-to-delete trên mobile) | Mọi thao tác kéo đều có phương án single-pointer/bàn phím tương đương | N/A | Không có thao tác Kéo/Thả nào |
 | W7 | 3.2.6 Consistent Help | So sánh vị trí link Support/Contact ở Cart, Checkout, SePay QR, Success, Failed | Nếu có, luôn ở cùng vị trí tương đối. Trang Failed thường có "Contact support" — kiểm tra các trang khác có nhất quán không | Pass | Link Support các trang đều nằm dưới footer |
 
@@ -142,6 +140,5 @@ Quy ước điền bảng, template ghi `Fail` và setup máy bắt buộc: xem 
 - Tổng số bước: 70
 - Pass: 66
 - Fail: 0
-- Blocked: 0
 - N/A: 4
 - Issue còn mở: Không

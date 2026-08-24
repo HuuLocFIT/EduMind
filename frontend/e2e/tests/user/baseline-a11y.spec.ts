@@ -161,10 +161,17 @@ async function keyboardSnapshot(page: Page, maxTabs = 80) {
           focusedStyle.outlineWidth !== unfocusedStyle.outlineWidth ||
           focusedStyle.outlineColor !== unfocusedStyle.outlineColor ||
           focusedStyle.outlineOffset !== unfocusedStyle.outlineOffset);
-      const shadowLengths = focusedStyle.boxShadow
-        .match(/-?\d*\.?\d+px/g)
-        ?.map((value) => Math.abs(Number.parseFloat(value))) ?? [];
-      const shadowHasArea = shadowLengths.slice(-4).some((value) => value >= 2);
+      const shadowLayers = focusedStyle.boxShadow
+        .split(/,(?![^(]*\))/)
+        .map(
+          (layer) =>
+            layer
+              .match(/-?\d*\.?\d+px/g)
+              ?.map((value) => Math.abs(Number.parseFloat(value))) ?? [],
+        );
+      const shadowHasArea = shadowLayers.some((lengths) =>
+        lengths.slice(-2).some((value) => value >= 2),
+      );
       const shadowChanged =
         shadowHasArea &&
         !focusedStyle.boxShadow.includes('rgba(0, 0, 0, 0)') &&
