@@ -2,37 +2,54 @@ name: Backend CI
 
 on:
   pull_request:
-    paths:
-      - 'backend/**'
-  push:
-    branches-ignore:
-      - main
-    paths:
-      - 'backend/**'
+
+concurrency:
+  group: backend-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect relevant changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/backend-ci.yml'
+              - '.github/workflows/backend-cd.yml'
+
   test:
     name: Maven Test
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       checks: write
       pull-requests: write
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
       - name: Run tests
         working-directory: ./backend
         run: mvn test -B --no-transfer-progress
-
       - name: Publish test results
         uses: dorny/test-reporter@v1
         if: always()
@@ -40,3 +57,27 @@ jobs:
           name: Maven Tests
           path: '**/target/surefire-reports/TEST-*.xml'
           reporter: java-junit
+
+  required:
+    name: Backend CI Required
+    needs: [changes, test]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Evaluate backend CI
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "Backend change detection did not succeed: $CHANGES_RESULT"
+            exit 1
+          fi
+          if [ "$BACKEND_CHANGED" = "true" ] && [ "$TEST_RESULT" != "success" ]; then
+            echo "Backend tests did not succeed: $TEST_RESULT"
+            exit 1
+          fi
+          echo "Backend required check passed (changed=$BACKEND_CHANGED, tests=$TEST_RESULT)."

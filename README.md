@@ -360,14 +360,14 @@ The video tour is the fallback when the live environment is unavailable or a rev
 | Authentication | [Authentication workflow](docs/workflows/auth_workflows.md) |
 | AI and video | [AI workflow](docs/workflows/ai_workflows.md) · [Video workflow](docs/workflows/video_upload_workflows.md) |
 | Commerce | [Payment](docs/workflows/payment_workflows.md) · [Refund](docs/workflows/refund_workflows.md) · [Payout](docs/workflows/payout_workflows.md) |
-| Operations | [Production operations](docs/production-operations.md) · [Known limitations](docs/known-limitations.md) |
+| Operations | [Production operations](docs/operations/production.md) · [Known limitations](docs/known-limitations.md) |
 | Accessibility evidence | [Automated reports](frontend/e2e/accessibility-reports) |
 
 ## Run locally
 
 ### Frontend-only inspection
 
-Requires Node.js 20 and npm. Run frontend commands from `frontend/`.
+Requires Node.js 24 and npm. Run frontend commands from `frontend/`.
 
 ```bash
 cd frontend

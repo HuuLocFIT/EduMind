@@ -2,94 +2,98 @@ name: Frontend CI
 
 on:
   pull_request:
-    paths:
-      - 'frontend/**'
-  push:
-    branches-ignore:
-      - main
-    paths:
-      - 'frontend/**'
+
+concurrency:
+  group: frontend-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect frontend changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect relevant changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/frontend-ci.yml'
+              - '.github/workflows/frontend-release.yml'
+              - '.github/workflows/frontend-seo-rebuild.yml'
+
   ci:
     name: Lint, Test & Build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
     defaults:
       run:
         working-directory: ./frontend
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Node 20
+      - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
       - name: Set Nx SHAs for affected computation
         uses: nrwl/nx-set-shas@v4
-
       - name: Lint affected projects
         run: npx nx affected --target=lint --base=$NX_BASE --head=$NX_HEAD --parallel=3
-
       - name: Test affected projects
         run: npx nx affected --target=test --base=$NX_BASE --head=$NX_HEAD --parallel=3
-
       - name: Build affected projects
         run: npx nx affected --target=build --base=$NX_BASE --head=$NX_HEAD --parallel=3
 
   accessibility:
     name: Accessibility (axe + Pa11y)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: read
     defaults:
       run:
         working-directory: ./frontend
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node 20
+      - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-
       - name: Accessibility-aware ESLint
         run: npm run lint:a11y
-
       - name: App-independent accessibility utility regression
         run: npx playwright test --config=e2e/playwright.utilities.config.ts
-
-      # Deterministic fixtures/mocks only (see e2e/ACCESSIBILITY_TESTING.md) —
-      # no backend is started or required for this suite, and no E2E_* account
-      # env vars need to be set: global-setup.ts degrades to a warning when
-      # they're absent instead of failing (see e2e/global-setup.ts).
       - name: Four-flow accessibility suite (Playwright + axe-core)
         run: npm run test:a11y
         env:
           CI: true
-
-      # npm run pa11y does not start its own server (unlike the Playwright
-      # suite above, which manages its own via webServer); start one here.
       - name: Start user app for Pa11y
         run: |
           npm run start:user &
@@ -99,10 +103,8 @@ jobs:
           done
           echo "user app did not become ready in time" >&2
           exit 1
-
       - name: Pa11y scan (nine stable routes)
         run: npm run pa11y:ci
-
       - name: Upload accessibility reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,3 +116,30 @@ jobs:
             frontend/e2e/pa11y/reports/
           retention-days: 14
           if-no-files-found: ignore
+
+  required:
+    name: Frontend CI Required
+    needs: [changes, ci, accessibility]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Evaluate frontend CI
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          CI_RESULT: ${{ needs.ci.result }}
+          ACCESSIBILITY_RESULT: ${{ needs.accessibility.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "Frontend change detection did not succeed: $CHANGES_RESULT"
+            exit 1
+          fi
+          if [ "$FRONTEND_CHANGED" = "true" ]; then
+            if [ "$CI_RESULT" != "success" ] || [ "$ACCESSIBILITY_RESULT" != "success" ]; then
+              echo "Frontend checks did not succeed (ci=$CI_RESULT, accessibility=$ACCESSIBILITY_RESULT)."
+              exit 1
+            fi
+          fi
+          echo "Frontend required check passed (changed=$FRONTEND_CHANGED, ci=$CI_RESULT, accessibility=$ACCESSIBILITY_RESULT)."

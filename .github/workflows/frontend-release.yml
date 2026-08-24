@@ -1,92 +1,213 @@
-name: Frontend Release
+name: Frontend Production Release
 
-# Separate from frontend-ci.yml which runs on feature branches / PRs.
-# Source maps only make sense when code is running in production.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Full Git SHA or main
+        required: true
+        default: main
+
+concurrency:
+  group: frontend-production
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build & Upload Source Maps
+  resolve:
+    name: Resolve production release
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
-
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      release_sha: ${{ steps.release.outputs.release_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Validate release ref
+        id: release
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          git fetch --no-tags origin main
+          candidate="$RELEASE_REF"
+          if [ "$candidate" = "main" ]; then
+            candidate="origin/main"
+          fi
+          release_sha="$(git rev-parse --verify "${candidate}^{commit}")"
+          if ! printf '%s' "$release_sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "release_ref did not resolve to a full commit SHA" >&2
+            exit 1
+          fi
+          main_sha="$(git rev-parse origin/main)"
+          if [ "$release_sha" != "$main_sha" ]; then
+            echo "Release SHA must be the current origin/main HEAD ($main_sha)." >&2
+            exit 1
+          fi
+          echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Frontend production release"
+            echo "- SHA: \`$release_sha\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Set up Node 20
+  release:
+    name: Build and deploy to Vercel
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production-frontend
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.release_sha }}
+          fetch-depth: 0
+      - name: Validate production configuration and API
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          USER_PRODUCTION_URL: ${{ vars.USER_PRODUCTION_URL }}
+          ADMIN_PRODUCTION_URL: ${{ vars.ADMIN_PRODUCTION_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_USER_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
+          VERCEL_ADMIN_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+        run: |
+          for name in VITE_API_URL USER_PRODUCTION_URL ADMIN_PRODUCTION_URL \
+            VERCEL_TOKEN VERCEL_ORG_ID VERCEL_USER_PROJECT_ID \
+            VERCEL_ADMIN_PROJECT_ID SENTRY_AUTH_TOKEN SENTRY_ORG; do
+            value="${!name}"
+            if [ -z "$value" ]; then
+              echo "$name is not configured in production-frontend." >&2
+              exit 1
+            fi
+          done
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 \
+            "${VITE_API_URL%/}/api/courses/filter?size=1" >/dev/null
+      - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Generate release version from git SHA
-        id: version
-        run: echo "RELEASE_VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      # Inject the real version into Angular environment.prod.ts before build
-      # Angular cannot read env vars at runtime — sed is the standard approach
-      - name: Inject version into Angular environment
+      - name: Inject release version into admin
+        env:
+          RELEASE_SHA: ${{ needs.resolve.outputs.release_sha }}
         run: |
-          sed -i "s/appVersion: '0.0.0'/appVersion: '${{ steps.version.outputs.RELEASE_VERSION }}'/" \
+          sed -i "s/appVersion: '0.0.0'/appVersion: '${RELEASE_SHA}'/" \
             apps/admin/src/environments/environment.prod.ts
-
-      - name: Build all projects (production + source maps enabled)
-        run: npx nx run-many --target=build --all --parallel=2
+      - name: Build user portal with Vercel production settings
         env:
-          VITE_APP_VERSION: ${{ steps.version.outputs.RELEASE_VERSION }}
-
-      # Guard: only upload if the dist directory exists
-      # (nx affected may skip an app if nothing changed)
-      - name: Upload source maps - User Portal
+          VITE_APP_VERSION: ${{ needs.resolve.outputs.release_sha }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          PRERENDER_REQUIRE_API: 'true'
+          PRESERVE_SOURCE_MAPS: 'true'
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
         run: |
-          if [ ! -d "./dist/apps/user" ]; then
-            echo "No user build found, skipping source map upload"
-            exit 0
-          fi
-          npx @sentry/cli releases new "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}"
-          npx @sentry/cli sourcemaps upload \
-            --release "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}" \
-            --url-prefix '~/' \
-            ./dist/apps/user
-          npx @sentry/cli releases finalize "edumind-user@${{ steps.version.outputs.RELEASE_VERSION }}"
+          npx vercel@59.5.0 pull --yes --environment=production --token "$VERCEL_TOKEN"
+          npx vercel@59.5.0 build --prod --token "$VERCEL_TOKEN"
+      - name: Upload user source maps to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: edumind
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: edumind-user
-
-      - name: Upload source maps - Admin Panel
+          RELEASE_SHA: ${{ needs.resolve.outputs.release_sha }}
         run: |
-          if [ ! -d "./dist/apps/admin" ]; then
-            echo "No admin build found, skipping source map upload"
-            exit 0
-          fi
-          npx @sentry/cli releases new "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}"
+          release="edumind-user@${RELEASE_SHA}"
+          npx @sentry/cli releases new "$release" || echo "Sentry release already exists; continuing."
           npx @sentry/cli sourcemaps upload \
-            --release "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}" \
-            --url-prefix '~/' \
-            ./dist/apps/admin
-          npx @sentry/cli releases finalize "edumind-admin@${{ steps.version.outputs.RELEASE_VERSION }}"
+            --release "$release" --url-prefix '~/' ./dist/apps/user
+          npx @sentry/cli releases finalize "$release"
+      - name: Remove user source maps from deployable output
+        id: sanitize_user
+        run: |
+          source_map="$(find ./dist/apps/user -type f -name '*.map' | head -n 1)"
+          if [ -z "$source_map" ]; then
+            echo "User production build did not generate source maps." >&2
+            exit 1
+          fi
+          echo "source_map_path=/${source_map#./dist/apps/user/}" >> "$GITHUB_OUTPUT"
+          find ./dist/apps/user ./.vercel/output -type f -name '*.map' -delete
+      - name: Deploy prebuilt user portal
+        id: deploy_user
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
+        run: |
+          url="$(npx vercel@59.5.0 deploy --prebuilt --prod --token "$VERCEL_TOKEN")"
+          echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Build admin portal with Vercel production settings
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: |
+          rm -rf .vercel
+          npx vercel@59.5.0 pull --yes --environment=production --token "$VERCEL_TOKEN"
+          npx vercel@59.5.0 build --prod \
+            --local-config vercel.admin.json \
+            --token "$VERCEL_TOKEN"
+      - name: Upload admin source maps to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: edumind
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: edumind-admin
+          RELEASE_SHA: ${{ needs.resolve.outputs.release_sha }}
+        run: |
+          release="edumind-admin@${RELEASE_SHA}"
+          npx @sentry/cli releases new "$release" || echo "Sentry release already exists; continuing."
+          npx @sentry/cli sourcemaps upload \
+            --release "$release" --url-prefix '~/' ./dist/apps/admin/browser
+          npx @sentry/cli releases finalize "$release"
+      - name: Remove admin source maps from deployable output
+        run: |
+          find ./dist/apps/admin/browser ./.vercel/output -type f -name '*.map' -delete
+      - name: Deploy prebuilt admin portal
+        id: deploy_admin
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: |
+          url="$(npx vercel@59.5.0 deploy --prebuilt --prod \
+            --local-config vercel.admin.json \
+            --token "$VERCEL_TOKEN")"
+          echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
-      # Remove source maps from deploy artifacts after upload
-      # Must run after upload, before deploy — users should not be able to download original source
-      - name: Remove source maps from deploy artifacts
-        run: find ./dist -name "*.map" -delete
+      - name: Smoke test production frontends
+        env:
+          USER_PRODUCTION_URL: ${{ vars.USER_PRODUCTION_URL }}
+          ADMIN_PRODUCTION_URL: ${{ vars.ADMIN_PRODUCTION_URL }}
+          SOURCE_MAP_PATH: ${{ steps.sanitize_user.outputs.source_map_path }}
+        run: |
+          test -n "$USER_PRODUCTION_URL"
+          test -n "$ADMIN_PRODUCTION_URL"
+          curl --fail --silent --show-error --retry 3 "$USER_PRODUCTION_URL/" >/dev/null
+          curl --fail --silent --show-error --retry 3 "$USER_PRODUCTION_URL/courses" >/dev/null
+          curl --fail --silent --show-error --retry 3 "$ADMIN_PRODUCTION_URL/auth/login" >/dev/null
 
-      # Add your deploy step here
+          map_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "${USER_PRODUCTION_URL}${SOURCE_MAP_PATH}")"
+          if [ "$map_status" = "200" ]; then
+            echo "A representative source-map URL is publicly accessible." >&2
+            exit 1
+          fi
+      - name: Summarize deployment
+        run: |
+          {
+            echo "### Frontend deployment completed"
+            echo "- SHA: \`${{ needs.resolve.outputs.release_sha }}\`"
+            echo "- User deployment: ${{ steps.deploy_user.outputs.url }}"
+            echo "- Admin deployment: ${{ steps.deploy_admin.outputs.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

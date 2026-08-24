@@ -2,7 +2,7 @@
 
 Frontend monorepo for EduMind, containing the public learning platform, teacher workspace, and administration console.
 
-> Status: active development. Both applications are production-buildable, but the release workflow does not deploy artifacts automatically yet. See [Production status](#production-status).
+> Status: active development. Both applications are production-buildable; production deployment is intentionally started manually through GitHub Actions. See [Production status](#production-status).
 
 ## Applications
 
@@ -40,7 +40,7 @@ Versions above reflect `package.json` and `package-lock.json`. Treat the lockfil
 
 ## Prerequisites
 
-- Node.js 20.x (the version used by CI)
+- Node.js 24.x (the version used by CI and Vercel)
 - npm; do not use pnpm, Yarn, or Bun in this repository
 - EduMind API Gateway, normally `http://localhost:8080` for local development
 
@@ -205,7 +205,7 @@ npm run build             # all build targets
 
 Both production builds emit source maps locally. The release workflow uploads and then deletes them from its artifacts.
 
-`build:user:full` runs Puppeteer after the normal build. It prerenders static routes and fetches course slugs from `VITE_API_URL` (falling back to the production API), so complete dynamic prerender output requires network access and an available backend.
+`build:user:full` runs Puppeteer after the normal build. It prerenders static routes and fetches course slugs from `VITE_API_URL`. Production builds require this variable and fail if the API or TLS verification fails, preventing fallback/error HTML from being deployed.
 
 The Angular application builder places the deployable browser artifact in `dist/apps/admin/browser`. Static hosting must provide SPA fallback routing.
 
@@ -215,15 +215,18 @@ Workflows live in `.github/workflows`:
 
 | Workflow | Trigger | Current behavior |
 | --- | --- | --- |
-| `frontend-ci.yml` | PRs and non-`main` pushes changing `frontend/**` | `npm ci`, then lint, test, and build affected Nx projects |
-| `frontend-release.yml` | Push to `main` changing `frontend/**` | Builds all projects, uploads Sentry source maps by git-SHA release, then removes maps |
-| `frontend-seo-rebuild.yml` | Manual dispatch only | Calls the configured Vercel deploy hook; its daily schedule is commented out |
+| `frontend-ci.yml` | Every PR; heavy jobs only when frontend paths change | Detects relevant changes, then runs lint, test, build, accessibility, and a stable required summary check |
+| `frontend-release.yml` | Manual dispatch | Validates the current `main` HEAD, builds both projects with Vercel production settings, uploads Sentry source maps, removes maps, and deploys the prebuilt outputs |
+| `frontend-seo-rebuild.yml` | Manual dispatch | Backup trigger for the user portal deploy hook; cron-job.org invokes the same hook daily at 02:00 |
 
-Important: `frontend-release.yml` has no deployment step. Deployment is configured separately from release CI.
+Production code releases are deliberately manual. The user project remains
+connected to Git because its deploy hook rebuilds dynamic prerendered content;
+`git.deploymentEnabled: false` prevents ordinary commits from auto-deploying.
+The admin project can remain disconnected and deploy only through Vercel CLI.
 
 ### User hosting
 
-`vercel.json` defines SPA rewrites, immutable caching for `/assets/*`, and baseline `X-Content-Type-Options` and `Referrer-Policy` headers. `vercel-build.sh` installs Chromium requirements and runs the user prerender target. These files are tailored to the user application; the repository does not define equivalent Vercel deployment configuration for the admin artifact.
+`vercel.json` defines user-portal SPA rewrites, immutable caching for `/assets/*`, and baseline `X-Content-Type-Options` and `Referrer-Policy` headers. `vercel-build.sh` installs Chromium requirements and runs the user prerender target. `vercel.admin.json` provides the admin SPA fallback and security headers.
 
 ### Monitoring
 
@@ -233,7 +236,7 @@ Both apps initialize Sentry before application bootstrap. Release source maps ar
 
 Known limitations in the current implementation:
 
-- Release CI prepares artifacts and Sentry releases but does not deploy them.
+- Production releases require the two Vercel projects and GitHub repository configuration described in the CI/CD runbook.
 - No frontend container image is defined; hosting is static-site oriented.
 - Automated coverage is uneven and has no enforced threshold.
 - Nx dependency tags do not enforce library layers.
