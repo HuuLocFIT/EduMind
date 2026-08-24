@@ -383,12 +383,12 @@ For more Docker Compose detail (build vs. prebuilt-image files, healthchecks, vo
 
 ```bash
 cd backend
-GITHUB_REPOSITORY_OWNER=<owner> IMAGE_TAG=<short-sha> \
+GITHUB_REPOSITORY_OWNER=<owner> IMAGE_TAG=<full-sha> \
   docker compose -f docker-compose.prod.yml up -d --wait
 # runs prebuilt GHCR images (ghcr.io/<owner>/edumind-<service>:<tag>) instead of building from source
 ```
 
-Production deployment steps, the configuration checklist (mock-gateway guard, actuator exposure on discovery-service/api-gateway), migration policy, deployment verification, secrets policy, rate-limit behavior, and temp-file/upload handling are documented in **[docs/production-operations.md](../docs/production-operations.md)** — read it before a real deployment.
+Production deployment steps, the configuration checklist (mock-gateway guard, actuator exposure on discovery-service/api-gateway), migration policy, deployment verification, secrets policy, rate-limit behavior, and temp-file/upload handling are documented in **[docs/operations/production.md](../docs/operations/production.md)** — read it before a real deployment.
 
 ---
 
@@ -423,7 +423,7 @@ Run from `auth-service/` or `lms-core-service/` (the `flyway-maven-plugin` is co
 | `mvn flyway:info` | Show applied/pending/failed migration status |
 | `mvn flyway:validate` | Validate applied migrations against local files |
 | `mvn flyway:repair` | Fix checksum/metadata after a manually-corrected migration |
-| `mvn flyway:clean` | **Destructive** — drops the configured schemas. Local/dev only, see [migration policy](../docs/production-operations.md#database-migration-policy) |
+| `mvn flyway:clean` | **Destructive** — drops the configured schemas. Local/dev only, see [migration policy](../docs/operations/production.md#database-migration-policy) |
 
 Connection errors usually mean `.env` isn't loaded (`source ../.env`), Docker containers aren't running (`docker compose ps`), or local DB credentials don't match `pom.xml` defaults.
 
@@ -503,7 +503,7 @@ mvn test -pl lms-core-service -Dtest=CheckoutServiceTest
 
 ### CI
 
-[`.github/workflows/backend-ci.yml`](../.github/workflows/backend-ci.yml) runs `mvn test` for the whole backend reactor on pull requests and non-`main` pushes touching `backend/**`, then publishes JUnit results (not coverage). Pushes to `main` use `backend-cd.yml`, which runs the same backend test suite before building images or deploying. There is currently no static analysis, formatting, or dependency/security scan step.
+[`.github/workflows/backend-ci.yml`](../.github/workflows/backend-ci.yml) runs on every pull request so `Backend CI Required` is always available to branch protection; Maven tests and JUnit publishing only run when backend or backend-workflow paths change. Production releases are manual through `backend-cd.yml`: `build-and-deploy` tests and publishes immutable full-SHA images before a sequential VPS rollout, while `deploy-existing` retries or rolls back an already-published SHA without rebuilding it. There is currently no static analysis, formatting, or dependency/security scan step.
 
 For the testing patterns used in this codebase (Testcontainers setup, base test classes, and mocking conventions), see **[TESTING_GUIDE.md](TESTING_GUIDE.md)**. This is the canonical backend testing guide.
 
@@ -553,6 +553,6 @@ A running list of gaps and edge cases in the current implementation that are wor
 | [TESTING_GUIDE.md](TESTING_GUIDE.md) | Canonical testing patterns and Testcontainers setup used in this codebase |
 | [docs/architecture/](../docs/architecture/README.md) | C4-model diagrams (context, container, component) |
 | [docs/workflows/ai_workflows.md](../docs/workflows/ai_workflows.md) | AI architecture, workflows, transcription, provider data handling, and operational limits |
-| [docs/production-operations.md](../docs/production-operations.md) | Deployment, migrations, secrets, prod checklist |
+| [docs/operations/production.md](../docs/operations/production.md) | Deployment, migrations, secrets, prod checklist |
 | [docs/known-limitations.md](../docs/known-limitations.md) | Known gaps and edge cases |
 | [docs/workflows/](../docs/workflows/) | Per-domain workflow docs (auth, payment, refund, payout, video upload, AI) |

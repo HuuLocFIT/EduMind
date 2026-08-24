@@ -1,26 +1,33 @@
-name: Frontend SEO Daily Rebuild
+name: Frontend SEO Rebuild
 
 on:
-  # schedule:
-  #   - cron: '0 19 * * *'  # 19:00 UTC = 02:00 tomorrow VN (UTC+7)
   workflow_dispatch:
 
+concurrency:
+  group: frontend-seo-rebuild
+  cancel-in-progress: true
+
 jobs:
-  trigger-deploy:
-    name: Trigger Vercel Deploy
+  trigger_user_prerender:
+    name: Trigger user portal prerender
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production-frontend
+    permissions: {}
     steps:
-      - name: Trigger Vercel Deploy Hook
+      - name: Trigger the Vercel user deploy hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
-            echo "Error: VERCEL_DEPLOY_HOOK_URL secret is not set."
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "VERCEL_DEPLOY_HOOK_URL is not configured." >&2
             exit 1
           fi
-          echo "Triggering Vercel redeploy..."
-          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}")
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "Deploy triggered successfully (HTTP $HTTP_CODE)"
-          else
-            echo "Failed to trigger deploy (HTTP $HTTP_CODE)"
+
+          http_code="$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code}' --request POST "$VERCEL_DEPLOY_HOOK_URL")"
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Vercel rejected the SEO rebuild request (HTTP $http_code)." >&2
             exit 1
           fi
+          echo "User portal SEO rebuild accepted by Vercel (HTTP $http_code)."

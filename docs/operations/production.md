@@ -1,18 +1,31 @@
 # Production Operations
 
-Deployment, migration, secrets, and runtime-behavior reference for running the backend in production. For the day-to-day dev/local setup, see [backend/README.md](../backend/README.md).
+Deployment, migration, secrets, and runtime-behavior reference for running the backend in production. For the day-to-day dev/local setup, see [backend/README.md](../../backend/README.md).
 
 ## Deploying
 
-`docker-compose.prod.yml` runs the platform from **prebuilt images published to GitHub Container Registry (GHCR)** instead of building from source:
+`docker-compose.prod.yml` runs the platform from **prebuilt images published to GitHub Container Registry (GHCR)** instead of building from source. Production releases use a full immutable Git SHA:
 
 ```bash
 cd backend
-GITHUB_REPOSITORY_OWNER=<owner> IMAGE_TAG=<short-sha> \
+GITHUB_REPOSITORY_OWNER=<owner> IMAGE_TAG=<full-sha> \
   docker compose -f docker-compose.prod.yml up -d --wait
 # Both image selector variables are required; mutable "latest" is rejected.
 # Images: ghcr.io/<owner>/edumind-{discovery-service,auth-service,lms-core-service,api-gateway}:<tag>
 ```
+
+Normal production releases are started manually through `backend-cd.yml`. The
+workflow pulls and health-checks one application service at a time so the VPS
+does not need disk space for two complete releases. Use its `deploy-existing`
+mode to retry a failed rollout or redeploy an already-published full SHA without
+spending Actions minutes rebuilding the images.
+
+A failed sequential rollout can temporarily leave services on adjacent release
+SHAs: services that already passed remain on the new SHA, the failing service
+attempts local recovery, and later services are not replaced. After diagnosing
+the failure, either retry the new SHA or run `deploy-existing` with the previous
+SHA to return every application service to one consistent release. Recovery of
+one container is not a rollback of the complete release.
 
 Differences from the local compose file:
 - Application services (`discovery-service`, `auth-service`, `lms-core-service`, `api-gateway`) pull GHCR images instead of building a `Dockerfile` from `context: .`.

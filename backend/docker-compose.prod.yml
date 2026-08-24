@@ -1,6 +1,12 @@
 # Production Docker Compose — uses prebuilt images from GitHub Container Registry (GHCR)
-# Usage: IMAGE_TAG=<short-sha> docker compose -f docker-compose.prod.yml up -d
+# Usage: IMAGE_TAG=<full-sha> docker compose -f docker-compose.prod.yml up -d
 # IMAGE_TAG is required so production never deploys the mutable "latest" tag.
+
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
 
 services:
   # Discovery Service (Eureka Server) — start first
@@ -37,6 +43,7 @@ services:
       resources:
         limits:
           memory: 512M
+    logging: *default-logging
     restart: unless-stopped
 
   # PostgreSQL for Auth Service
@@ -58,6 +65,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
     restart: unless-stopped
 
   # PostgreSQL for LMS Core Service (with pgvector)
@@ -79,6 +87,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
     restart: unless-stopped
 
   # Redis for API Gateway Rate Limiting
@@ -96,6 +105,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
     restart: unless-stopped
 
   # Auth Service
@@ -148,6 +158,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    logging: *default-logging
     restart: unless-stopped
 
   # LMS Core Service
@@ -191,6 +202,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 90s
+    logging: *default-logging
     restart: unless-stopped
 
   # API Gateway — start last
@@ -227,6 +239,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    logging: *default-logging
     restart: unless-stopped
 
 volumes:

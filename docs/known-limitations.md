@@ -16,4 +16,4 @@ Current operational gaps and edge cases that affect deployment or maintenance. S
 
 ## Production hardening
 
-See [Production operations](production-operations.md) for deployment configuration, secrets, migrations, verification, and operational safeguards.
+See [Production operations](operations/production.md) for deployment configuration, secrets, migrations, verification, and operational safeguards.

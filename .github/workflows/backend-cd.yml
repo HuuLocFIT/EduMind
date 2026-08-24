@@ -1,46 +1,101 @@
-name: Backend CD
+name: Backend Production Release
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Full Git SHA or main
+        required: true
+        default: main
+      mode:
+        description: Build a new release or deploy images already in GHCR
+        required: true
+        type: choice
+        options:
+          - build-and-deploy
+          - deploy-existing
+        default: build-and-deploy
 
-env:
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/edumind
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
 
 jobs:
-  test:
-    name: Test production candidate
+  resolve:
+    name: Resolve production release
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
-
+    outputs:
+      release_sha: ${{ steps.release.outputs.release_sha }}
+      image_prefix: ${{ steps.release.outputs.image_prefix }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate release ref
+        id: release
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          git fetch --no-tags origin main
+          candidate="$RELEASE_REF"
+          if [ "$candidate" = "main" ]; then
+            candidate="origin/main"
+          fi
+          release_sha="$(git rev-parse --verify "${candidate}^{commit}")"
+          if ! printf '%s' "$release_sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "release_ref did not resolve to a full commit SHA" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$release_sha" origin/main; then
+            echo "Release SHA must belong to origin/main" >&2
+            exit 1
+          fi
+          owner="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
+          echo "image_prefix=ghcr.io/${owner}/edumind" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Backend production release"
+            echo "- SHA: \`$release_sha\`"
+            echo "- Mode: \`${{ inputs.mode }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
+  test:
+    name: Test production candidate
+    needs: resolve
+    if: inputs.mode == 'build-and-deploy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.release_sha }}
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
       - name: Run backend test suite
         working-directory: ./backend
         run: mvn test -B --no-transfer-progress
 
-  build-and-push:
-    name: Build & Push Docker Images
-    needs: test
+  build_and_push:
+    name: Build ${{ matrix.service.name }}
+    needs: [resolve, test]
+    if: inputs.mode == 'build-and-deploy' && needs.test.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
-
     strategy:
+      fail-fast: false
       matrix:
         service:
           - name: discovery-service
@@ -51,88 +106,204 @@ jobs:
             dockerfile: lms-core-service/Dockerfile
           - name: api-gateway
             dockerfile: api-gateway/Dockerfile
-      fail-fast: false
-
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          ref: ${{ needs.resolve.outputs.release_sha }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        uses: docker/metadata-action@v5
-        id: meta
-        with:
-          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
-          tags: |
-            type=sha,prefix=,format=short
-            type=raw,value=latest
-
-      - name: Build and push ${{ matrix.service.name }}
+      - name: Build and push immutable image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/${{ matrix.service.dockerfile }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ needs.resolve.outputs.image_prefix }}-${{ matrix.service.name }}:${{ needs.resolve.outputs.release_sha }}
           cache-from: type=gha,scope=${{ matrix.service.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=min,scope=${{ matrix.service.name }}
+
+  verify_images:
+    name: Verify release images
+    needs: [resolve, test, build_and_push]
+    if: >-
+      always() &&
+      needs.resolve.result == 'success' &&
+      ((inputs.mode == 'build-and-deploy' && needs.build_and_push.result == 'success') ||
+       (inputs.mode == 'deploy-existing'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify all immutable tags exist
+        env:
+          IMAGE_PREFIX: ${{ needs.resolve.outputs.image_prefix }}
+          RELEASE_SHA: ${{ needs.resolve.outputs.release_sha }}
+        run: |
+          for service in discovery-service auth-service lms-core-service api-gateway; do
+            image="${IMAGE_PREFIX}-${service}:${RELEASE_SHA}"
+            echo "Verifying $image"
+            docker buildx imagetools inspect "$image" >/dev/null
+          done
 
   deploy:
-    name: Deploy to VPS
-    needs: build-and-push
+    name: Deploy to production VPS
+    needs: [resolve, verify_images]
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
+    environment: production-backend
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - name: SSH deploy
-        uses: appleboy/ssh-action@v1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.release_sha }}
+
+      - name: Validate VPS deployment prerequisites
+        # ssh-action v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         env:
-          DEPLOY_IMAGE_TAG: ${{ github.sha }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_TOKEN }}
           DEPLOY_REPOSITORY_OWNER: ${{ github.repository_owner }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: DEPLOY_IMAGE_TAG,DEPLOY_REPOSITORY_OWNER
+          envs: GHCR_READ_TOKEN,DEPLOY_REPOSITORY_OWNER
+          command_timeout: 2m
           script: |
             set -eu
-            cd ${{ secrets.VPS_DEPLOY_PATH }}
+            test -d "${{ secrets.VPS_DEPLOY_PATH }}"
+            test -n "$GHCR_READ_TOKEN"
+            docker info >/dev/null
+            printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io \
+              -u "$DEPLOY_REPOSITORY_OWNER" --password-stdin
 
-            export IMAGE_TAG="$(printf '%s' "$DEPLOY_IMAGE_TAG" | cut -c1-7)"
+      - name: Copy production Compose configuration
+        # scp-action v1.0.0
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: backend/docker-compose.prod.yml
+          target: ${{ secrets.VPS_DEPLOY_PATH }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Deploy services sequentially
+        # ssh-action v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        env:
+          DEPLOY_IMAGE_TAG: ${{ needs.resolve.outputs.release_sha }}
+          DEPLOY_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: DEPLOY_IMAGE_TAG,DEPLOY_REPOSITORY_OWNER,GHCR_READ_TOKEN
+          command_timeout: 18m
+          script: |
+            set -eu
+            cd "${{ secrets.VPS_DEPLOY_PATH }}"
+
+            export IMAGE_TAG="$DEPLOY_IMAGE_TAG"
             export GITHUB_REPOSITORY_OWNER="$(printf '%s' "$DEPLOY_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
-            test -n "$IMAGE_TAG"
+            printf '%s' "$IMAGE_TAG" | grep -Eq '^[0-9a-f]{40}$'
 
-            # Authenticate to GHCR on VPS
-            echo "${{ secrets.GHCR_TOKEN }}" | \
-              docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-
-            # Pull all new images
+            printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io \
+              -u "$DEPLOY_REPOSITORY_OWNER" --password-stdin
             docker compose -f docker-compose.prod.yml config --quiet
-            docker compose -f docker-compose.prod.yml pull
 
-            # Phase 1: restart discovery-service first (Eureka registry)
-            docker compose -f docker-compose.prod.yml \
-              up -d --no-deps --wait --wait-timeout 120 discovery-service
+            deploy_service() {
+              service="$1"
+              container="$2"
+              timeout="$3"
+              health_command="$4"
 
-            # Phase 2: restart auth-service and lms-core-service in parallel
-            docker compose -f docker-compose.prod.yml \
-              up -d --no-deps --wait --wait-timeout 240 auth-service lms-core-service
+              old_ref="$(docker inspect --format '{{.Config.Image}}' "$container" 2>/dev/null || true)"
+              old_id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || true)"
+              new_ref="ghcr.io/${GITHUB_REPOSITORY_OWNER}/edumind-${service}:${IMAGE_TAG}"
+              echo "Deploying ${service}: ${old_ref:-not-running} -> ${new_ref}"
 
-            # Phase 3: restart api-gateway last (depends on auth-service)
-            docker compose -f docker-compose.prod.yml \
-              up -d --no-deps --wait --wait-timeout 120 api-gateway
+              # This only removes dangling layers from earlier runs. Docker does
+              # not prune the image referenced by the currently running container.
+              docker image prune -f
 
-            # Verify the public entry point after all services are healthy.
+              # Pull must succeed before Compose is allowed to replace the old container.
+              docker compose -f docker-compose.prod.yml pull "$service"
+
+              if ! docker compose -f docker-compose.prod.yml \
+                up -d --no-deps --wait --wait-timeout "$timeout" "$service" || \
+                 ! docker compose -f docker-compose.prod.yml exec -T "$service" \
+                   sh -c "$health_command"; then
+                echo "${service} failed health checks; attempting immediate local recovery" >&2
+                if [ -n "$old_ref" ] && ! docker image inspect "$old_ref" >/dev/null 2>&1 && \
+                   [ -n "$old_id" ] && docker image inspect "$old_id" >/dev/null 2>&1; then
+                  docker tag "$old_id" "$old_ref"
+                fi
+                if [ -n "$old_ref" ] && docker image inspect "$old_ref" >/dev/null 2>&1; then
+                  old_tag="${old_ref##*:}"
+                  IMAGE_TAG="$old_tag" docker compose -f docker-compose.prod.yml \
+                    up -d --no-deps --wait --wait-timeout "$timeout" "$service"
+                  echo "${service} recovered with ${old_ref}."
+                else
+                  echo "Previous image is not local. Run deploy-existing with the previous immutable SHA." >&2
+                fi
+                return 1
+              fi
+
+              if [ -n "$old_ref" ] && [ "$old_ref" != "$new_ref" ]; then
+                docker image rm "$old_ref" >/dev/null 2>&1 || true
+              fi
+              docker image prune -f
+            }
+
+            deploy_service discovery-service edumind-discovery-service 120 \
+              'wget --quiet --spider "http://localhost:${DISCOVERY_SERVER_PORT:-8761}/actuator/health"'
+            deploy_service auth-service edumind-auth-service 180 \
+              'wget --quiet --spider "http://localhost:${AUTH_SERVICE_PORT:-8081}/actuator/health"'
+            deploy_service lms-core-service edumind-lms-core-service 240 \
+              'wget --quiet --spider "http://localhost:${LMS_CORE_SERVICE_PORT:-8083}/actuator/health"'
+            deploy_service api-gateway edumind-api-gateway 120 \
+              'wget --quiet --spider "http://localhost:${API_GATEWAY_PORT:-8080}/actuator/health"'
+
             docker compose -f docker-compose.prod.yml exec -T api-gateway \
               sh -c 'wget --quiet --spider "http://localhost:${API_GATEWAY_PORT:-8080}/actuator/health"'
 
-            # Remove dangling images to reclaim disk space
-            docker image prune -f
+            docker compose -f docker-compose.prod.yml ps
+
+      - name: Verify public backend health
+        env:
+          BACKEND_HEALTH_URL: ${{ secrets.BACKEND_HEALTH_URL }}
+        run: |
+          if [ -z "$BACKEND_HEALTH_URL" ]; then
+            echo "BACKEND_HEALTH_URL is not configured; internal gateway health already passed."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 "$BACKEND_HEALTH_URL"
+
+      - name: Summarize deployment
+        run: |
+          {
+            echo "### Backend deployment completed"
+            echo "- SHA: \`${{ needs.resolve.outputs.release_sha }}\`"
+            echo "- Mode: \`${{ inputs.mode }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -9,6 +9,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = resolve(__dirname, '../../dist/apps/user');
 const PORT = 4173;
 const API_URL = process.env.VITE_API_URL || 'https://api.edumind.nguyenloc.dev';
+const REQUIRE_API = process.env.PRERENDER_REQUIRE_API === 'true'
+  || (process.env.PRERENDER_REQUIRE_API !== 'false'
+    && (process.env.CI === 'true' || process.env.VERCEL === '1'));
+const proxyFailures = [];
+
+if (REQUIRE_API && !process.env.VITE_API_URL) {
+  throw new Error('VITE_API_URL is required for production prerendering');
+}
 
 const MIME_TYPES = {
   '.html': 'text/html',
@@ -32,13 +40,17 @@ function proxyApiRequest(req, res) {
 
   const headers = { ...req.headers, host: url.hostname };
 
-  const proxyReq = requester(url.toString(), { method: req.method, headers, rejectUnauthorized: false }, (proxyRes) => {
+  const proxyReq = requester(url.toString(), { method: req.method, headers }, (proxyRes) => {
+    if ((proxyRes.statusCode || 500) >= 500) {
+      proxyFailures.push(`${req.method} ${req.url}: HTTP ${proxyRes.statusCode}`);
+    }
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
   });
 
   proxyReq.on('error', (err) => {
     console.warn(`[prerender] API proxy failed for ${req.url}: ${err.message}`);
+    proxyFailures.push(`${req.method} ${req.url}: ${err.message}`);
     res.writeHead(502, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'API unavailable during prerender' }));
   });
@@ -158,7 +170,9 @@ async function fetchCourseSlugs() {
   try {
     const response = await fetch(`${API_URL}/api/courses/filter?size=100`);
     if (!response.ok) {
-      console.warn(`[prerender] Failed to fetch courses: ${response.status}`);
+      const message = `[prerender] Failed to fetch courses: ${response.status}`;
+      if (REQUIRE_API) throw new Error(message);
+      console.warn(message);
       return [];
     }
     const json = await response.json();
@@ -167,6 +181,7 @@ async function fetchCourseSlugs() {
       .filter((c) => c?.slug)
       .map((c) => `/courses/${c.slug}`);
   } catch (err) {
+    if (REQUIRE_API) throw err;
     console.warn('[prerender] Could not fetch course slugs:', err);
     return [];
   }
@@ -178,6 +193,7 @@ async function prerender() {
   const server = createServer(serveStaticOrProxy);
   await new Promise((resolve) => server.listen(PORT, resolve));
   console.log(`[prerender] Static server on http://localhost:${PORT}, API proxy to ${API_URL}`);
+  console.log(`[prerender] API availability is ${REQUIRE_API ? 'required' : 'best-effort'}`);
 
   const courseRoutes = await fetchCourseSlugs();
   const allRoutes = [...STATIC_ROUTES, ...courseRoutes];
@@ -202,6 +218,7 @@ async function prerender() {
       });
     }
   } catch (launchErr) {
+    if (REQUIRE_API) throw launchErr;
     console.warn('[prerender] Chrome binary not found in build environment. Skipping static prerendering.');
     console.warn(`[prerender] Details: ${launchErr.message}`);
     await new Promise(resolve => server.close(resolve));
@@ -213,6 +230,11 @@ async function prerender() {
     for (const route of allRoutes) {
       const url = `http://localhost:${PORT}${route}`;
       console.log(`[prerender] Rendering ${url}...`);
+
+      // Scope proxy diagnostics to this route. In strict mode the first
+      // failure aborts immediately; resetting also prevents a late request
+      // from a completed page being attributed to the next snapshot.
+      proxyFailures.length = 0;
 
       const page = await browser.newPage();
 
@@ -242,6 +264,10 @@ async function prerender() {
       }, apiOrigin, localOrigin);
 
       await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+
+      if (REQUIRE_API && proxyFailures.length > 0) {
+        throw new Error(`API requests failed while rendering ${route}: ${proxyFailures.join('; ')}`);
+      }
 
       const rawHtml = await page.content();
       const html = deduplicateSeoTags(rawHtml);
