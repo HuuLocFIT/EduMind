@@ -27,7 +27,6 @@
   },
   "tags": [
     "scope:shared",
-    "type:util"
+    "type:constants"
   ]
 }
-

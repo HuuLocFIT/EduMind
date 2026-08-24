@@ -73,5 +73,5 @@
       }
     }
   },
-  "tags": ["scope:app", "type:react"]
+  "tags": ["scope:user", "type:app"]
 }

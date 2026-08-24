@@ -291,14 +291,12 @@ flowchart TB
     LMS --> PROVIDERS["Cloudinary · Gemini · Groq\nPayPal · SePay"]
 ```
 
-The student/teacher app and admin console share an Nx platform, strict TypeScript configuration, DTO contracts, constants, and utilities. They intentionally retain different state models: TanStack Query and Zustand fit React's server/client state split, while Signals and RxJS fit Angular's local reactivity and request coordination.
+The student/teacher app and admin console share an Nx platform, strict TypeScript configuration, DTO contracts, constants, and utilities. Nx tags and ESLint enforce domain and layer dependency boundaries in local linting and affected-project CI. The apps intentionally retain different state models: TanStack Query and Zustand fit React's server/client state split, while Signals and RxJS fit Angular's local reactivity and request coordination.
 
 The API Gateway, Auth, and Discovery services are independently deployable. The core course, payment, and AI domains remain modules inside one Spring service with schema-level separation. This avoids paying the operational cost of premature microservices while preserving extraction seams. Module APIs provide in-process boundaries; OpenFeign is used across services.
 
-### Deliberate limitations
+### Current boundaries
 
-- Nx tags do not yet enforce architectural boundaries.
-- Zod runtime validation is selected at important boundaries, not universal.
 - Some reporting paths still cross intended backend module boundaries.
 - Async work is executor- and scheduler-based; there is no Kafka or RabbitMQ.
 - SePay in-flight polling/webhook coordination is in memory, while persisted order state remains authoritative.

@@ -403,7 +403,8 @@ sequenceDiagram
 
 ### SePay Payout Processing
 
-SePay has **no automatic payout/transfer API**. `SepayGateway.payout()` only validates the
+The SePay product flow integrated by EduMind is used for QR collection and transaction lookup,
+not outbound transfer initiation. `SepayGateway.payout()` only validates the
 currency (VND/USD) and amount, then unconditionally returns `PENDING` with error code
 `MANUAL_PAYOUT_REQUIRED` — no external call is made. The service layer treats this as a signal
 to hand the payout off to an admin for manual bank transfer.
@@ -420,7 +421,7 @@ sequenceDiagram
 ```
 
 **SePay Payout Features:**
-- ❌ No automatic bank transfer payout API — `payout()` never calls SePay
+- ❌ No automatic outbound transfer in the current adapter — `payout()` never calls SePay
 - ✅ Currency/amount validation (VND, USD)
 - ✅ Manual payout workflow: `AWAITING_MANUAL_PAYOUT` → admin transfers externally → `confirm-manual-payout` → `COMPLETED`
 - Note: SePay's QR/webhook integration (used for **payment collection**, not payouts) is separate — see Payment Workflows doc
