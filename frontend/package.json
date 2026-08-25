@@ -22,7 +22,7 @@
     "test:admin:watch": "nx test admin --watch",
     "test:admin:coverage": "nx test admin --coverage",
     "lint": "nx run-many -t lint",
-    "lint:a11y": "eslint apps/user/src libs/user/ui/src",
+    "lint:a11y": "nx run-many -t lint --projects=user,user-ui",
     "graph": "nx graph",
     "reset": "nx reset",
     "e2e": "node --env-file=.env.e2e ./node_modules/.bin/playwright test --config=e2e/playwright.config.ts",

@@ -16,7 +16,9 @@ interface ViteSitemapPluginOptions {
 
 async function fetchCourseSlugs(apiBaseUrl: string): Promise<string[]> {
   try {
-    const response = await fetch(`${apiBaseUrl}/api/courses/filter?size=1000`);
+    // The API caps `size` at 100 and rejects anything larger with a 400,
+    // so this must stay in step with tools/scripts/prerender.mjs.
+    const response = await fetch(`${apiBaseUrl}/api/courses/filter?size=100`);
     if (!response.ok) {
       console.warn(`[vite-sitemap] Failed to fetch courses: ${response.status}`);
       return [];
@@ -67,6 +69,10 @@ export function viteSitemapPlugin(
 
   return {
     name: 'vite-sitemap',
+    // Vitest resolves the config with command === 'build' but redirects
+    // build.outDir to a throwaway folder, so an unguarded closeBundle writes a
+    // stray sitemap (and logs a failed course fetch) on every test run.
+    apply: (_config, env) => env.command === 'build' && !process.env.VITEST,
     enforce: 'post',
 
     configResolved(resolvedConfig) {
