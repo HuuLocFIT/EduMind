@@ -499,4 +499,20 @@ class EmailVerificationTokenRepositoryTest extends BaseRepositoryTest {
             assertEquals(0, count);
         }
     }
+
+    @Nested
+    @DisplayName("countByUserAndCreatedAtAfter Tests")
+    class CountByUserAndCreatedAtAfterTests {
+
+        @Test
+        @DisplayName("Should count only tokens inside the rolling window")
+        void countByUserAndCreatedAtAfter_ShouldExcludeOldTokens() {
+            User fetchedUser = entityManager.find(User.class, testUser.getId());
+
+            int count = tokenRepository.countByUserAndCreatedAtAfter(
+                    fetchedUser, LocalDateTime.now().minusHours(1));
+
+            assertEquals(1, count);
+        }
+    }
 }

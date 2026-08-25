@@ -5,6 +5,7 @@ import com.edumind.auth.entity.User;
 import com.edumind.auth.repository.EmailVerificationTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
+import com.edumind.common.exception.EmailSendException;
 import com.edumind.common.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.mail.MailException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -31,6 +33,12 @@ public class EmailVerificationService {
 
     @Value("${app.auth.email-verification-expiration:86400000}") // 24 hours default
     private long expirationMs;
+
+    @Value("${app.auth.email-verification-resend-window-minutes:60}")
+    private long resendWindowMinutes;
+
+    @Value("${app.auth.email-verification-resend-max:3}")
+    private int resendMax;
 
     /**
      * Helper method to get display name
@@ -71,7 +79,7 @@ public class EmailVerificationService {
     /**
      * Generate and send verification email to user
      */
-    @Transactional
+    @Transactional(noRollbackFor = {MailException.class, EmailSendException.class})
     public void sendVerificationEmail(User user) {
         logger.info("📧 Generating email verification token for user: {}", user.getEmail());
 
@@ -124,6 +132,10 @@ public class EmailVerificationService {
 
         // Check if already verified
         if (token.isVerified()) {
+            if (Boolean.TRUE.equals(token.getUser().getIsEmailVerified())) {
+                logger.info("Email verification token already used for verified user");
+                return;
+            }
             logger.warn("⚠️ Email verification token already used");
             throw new BadRequestException("This verification link has already been used");
         }
@@ -166,9 +178,10 @@ public class EmailVerificationService {
             throw new BadRequestException("Email is already verified");
         }
 
-        // Check rate limiting - prevent spam (max 1 request per 5 minutes)
-        int recentTokenCount = tokenRepository.countByUserAndVerifiedAtIsNull(user);
-        if (recentTokenCount >= 3) {
+        // Check rate limiting within a rolling window.
+        LocalDateTime windowStart = LocalDateTime.now().minusMinutes(resendWindowMinutes);
+        int recentTokenCount = tokenRepository.countByUserAndCreatedAtAfter(user, windowStart);
+        if (recentTokenCount >= resendMax) {
             logger.warn("⚠️ Too many verification requests for user: {}", email);
             throw new BadRequestException("Too many verification requests. Please try again later.");
         }

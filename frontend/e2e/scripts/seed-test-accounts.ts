@@ -13,7 +13,7 @@
  * What it creates:
  *   - Student account defined by E2E_STUDENT_EMAIL / E2E_STUDENT_PASSWORD
  *
- * Safe to run multiple times — skips if account already exists.
+ * Safe to run multiple times — heals existing unverified accounts.
  */
 
 import { existsSync } from 'node:fs';
@@ -79,33 +79,66 @@ async function main() {
     });
 
     if (loginCheck.ok) {
-      console.log('✓ already exists');
+      console.log('✓ already usable');
       continue;
     }
 
-    // Register the account
-    const signup = await post('/api/auth/signup', {
-      email: account.email,
-      password: account.password,
-      firstName: account.firstName,
-      lastName: account.lastName,
-      username: account.username,
-    });
+    const loginErrorCode =
+      typeof loginCheck.body === 'object' && loginCheck.body !== null
+        ? (loginCheck.body as { errorCode?: unknown }).errorCode
+        : undefined;
 
-    if (!signup.ok) {
-      console.log(`✗ signup failed: ${signup.status} ${JSON.stringify(signup.body)}`);
+    if (!(loginCheck.status === 403 && loginErrorCode === 'ERR_5004')) {
+      const signup = await post('/api/auth/signup', {
+        email: account.email,
+        password: account.password,
+        firstName: account.firstName,
+        lastName: account.lastName,
+        username: account.username,
+      });
+
+      if (!signup.ok) {
+        const signupMessage =
+          typeof signup.body === 'object' && signup.body !== null
+            ? String((signup.body as { message?: unknown }).message ?? '')
+            : String(signup.body);
+        if (!/already (?:in use|taken)/i.test(signupMessage)) {
+          console.log(`✗ signup failed: ${signup.status} ${JSON.stringify(signup.body)}`);
+          console.log(
+            `  → Create manually: POST /api/auth/signup with ${JSON.stringify(account)}`
+          );
+        }
+      }
+    }
+
+    const verification = await post('/api/auth/dev/verify-email', {
+      email: account.email,
+    });
+    if (!verification.ok) {
       console.log(
-        `  → Create manually: POST /api/auth/signup with ${JSON.stringify(account)}`
+        `✗ verification failed: ${verification.status} ${JSON.stringify(verification.body)}`
+      );
+      console.log(
+        '  → Set DEV_VERIFY_ENDPOINT_ENABLED=true only for the local auth-service.'
       );
       continue;
     }
 
-    console.log('✓ created (check email for verification if required)');
+    const confirmedLogin = await post('/api/auth/login', {
+      usernameOrEmail: account.email,
+      password: account.password,
+    });
+    if (!confirmedLogin.ok) {
+      console.log(
+        `✗ verified but login confirmation failed: ${confirmedLogin.status} ${JSON.stringify(confirmedLogin.body)}`
+      );
+      continue;
+    }
+
+    console.log('✓ verified and usable');
   }
 
-  console.log('\nDone. If email verification is required:');
-  console.log('  1. Check the auth-service DB: disable email verification for test accounts');
-  console.log('  2. Or add a bypass endpoint for E2E testing');
+  console.log('\nDone.');
   console.log('\nThis script reads E2E vars from frontend/.env.e2e when available.');
 }
 

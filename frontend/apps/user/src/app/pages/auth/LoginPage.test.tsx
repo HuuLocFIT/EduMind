@@ -8,6 +8,9 @@ import { LoginPage } from './LoginPage';
 const mockLogin = vi.fn();
 const mockLoginWith2FA = vi.fn();
 const mockClearError = vi.fn();
+const { mockResendVerification } = vi.hoisted(() => ({
+  mockResendVerification: vi.fn(),
+}));
 
 const mockUseAuthStore = vi.fn(() => ({
   login: mockLogin,
@@ -27,6 +30,7 @@ vi.mock('../../services/auth.service', () => ({
   authService: {
     getGoogleOAuthUrl: () => 'https://accounts.google.com/oauth2/auth',
     getFacebookOAuthUrl: () => 'https://www.facebook.com/v12.0/dialog/oauth',
+    resendVerification: mockResendVerification,
   },
 }));
 
@@ -576,6 +580,121 @@ describe('LoginPage', () => {
       });
     });
 
+  });
+
+  describe('Email verification enforcement', () => {
+    it('shows one focused alert with a resend action for an unverified account', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockLogin.mockRejectedValue(
+        Object.assign(new Error('Please verify your email before signing in.'), {
+          status: 403,
+          errorCode: 'ERR_5004',
+        })
+      );
+
+      renderLoginPage();
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      const resendButton = await screen.findByRole('button', { name: /resend verification email/i });
+      const alerts = screen.getAllByRole('alert');
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0]).toHaveFocus();
+
+      mockResendVerification.mockResolvedValue(undefined);
+      await user.click(resendButton);
+      expect(mockResendVerification).toHaveBeenCalledWith({ email: 'test@example.com' });
+    });
+
+    it('routes username logins to the email-entry resend page', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockLogin.mockRejectedValue(Object.assign(new Error('Please verify your email before signing in.'), {
+        errorCode: 'ERR_5004',
+      }));
+
+      renderLoginPage();
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'student');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      const link = await screen.findByRole('link', { name: /enter your email address/i });
+      expect(link).toHaveAttribute('href', '/resend-verification');
+      expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument();
+    });
+
+    it('clears the resend affordance on a later generic login failure', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockLogin
+        .mockRejectedValueOnce(Object.assign(new Error('Verify first'), { errorCode: 'ERR_5004' }))
+        .mockRejectedValueOnce(new Error('Invalid email or password'));
+
+      renderLoginPage();
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      expect(await screen.findByRole('button', { name: /resend verification email/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await screen.findByText('Invalid email or password');
+      expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument();
+    });
+
+    it('announces successful resend as a polite status without an alert', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockLogin.mockRejectedValue(Object.assign(new Error('Verify first'), { errorCode: 'ERR_5004' }));
+      mockResendVerification.mockResolvedValue(undefined);
+
+      renderLoginPage();
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.click(await screen.findByRole('button', { name: /resend verification email/i }));
+
+      expect(await screen.findByRole('status')).toHaveTextContent('test@example.com');
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
+
+    it('disables the resend button while the request is pending', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockLogin.mockRejectedValue(Object.assign(new Error('Verify first'), { errorCode: 'ERR_5004' }));
+      let resolveResend!: () => void;
+      mockResendVerification.mockReturnValue(new Promise<void>((resolve) => { resolveResend = resolve; }));
+
+      renderLoginPage();
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      const resend = await screen.findByRole('button', { name: /resend verification email/i });
+      await user.click(resend);
+
+      expect(screen.getByRole('button', { name: /sending verification email/i })).toBeDisabled();
+      resolveResend();
+      await screen.findByRole('status');
+    });
+
+    it('clears the resend affordance when returning from 2FA', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockLogin.mockRejectedValue(Object.assign(new Error('2FA required'), { requires2FA: true }));
+      mockLoginWith2FA.mockRejectedValue(Object.assign(new Error('Verify first'), { errorCode: 'ERR_5004' }));
+
+      renderLoginPage();
+      await user.type(screen.getByPlaceholderText('e.g. lucas or lucas@email.com'), 'test@example.com');
+      await user.type(screen.getByPlaceholderText('••••••••'), 'password');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+      await user.type(await screen.findByPlaceholderText('000000'), '123456');
+      await user.click(screen.getByRole('button', { name: /verify & login/i }));
+      expect(await screen.findByRole('button', { name: /resend verification email/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /back to login/i }));
+      expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument();
+    });
   });
 
   describe('Concurrent Operations', () => {

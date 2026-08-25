@@ -26,6 +26,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import jakarta.servlet.DispatcherType;
 // CORS imports commented out - CORS is handled by API Gateway
 // import org.springframework.web.cors.CorsConfiguration;
 // import org.springframework.web.cors.CorsConfigurationSource;
@@ -43,6 +44,9 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+
+    @Value("${app.auth.dev-verify-endpoint-enabled:false}")
+    private boolean devVerifyEndpointEnabled;
 
     /**
      * Constructor injection with @Lazy to break circular dependency
@@ -118,7 +122,19 @@ public class SecurityConfig {
                         .authenticationEntryPoint(unauthorizedHandler)
                         .accessDeniedHandler(accessDeniedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth ->
+                .authorizeHttpRequests(auth -> {
+                        // Internal container dispatches, not externally reachable requests.
+                        // Since Spring Security 6 the AuthorizationFilter also runs on ERROR
+                        // and ASYNC dispatches; re-authorizing them masks the real failure as
+                        // a misleading 401 "token is required" (the original request was
+                        // already authorized on its REQUEST dispatch). Matched by dispatch
+                        // type rather than by the "/error" path so an external call to /error
+                        // stays protected and a custom server.error.path keeps working.
+                        auth.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll();
+
+                        if (devVerifyEndpointEnabled) {
+                            auth.requestMatchers("/auth/dev/verify-email").permitAll();
+                        }
                         auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh", "/auth/login/2fa").permitAll()
                                 .requestMatchers("/auth/verify-email").permitAll()
                                 .requestMatchers("/auth/resend-verification").permitAll()
@@ -137,8 +153,8 @@ public class SecurityConfig {
                                 .requestMatchers("/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/teacher/**").hasAnyRole("TEACHER", "ADMIN", "TEACHER_TRIAL")
                                 .requestMatchers("/student/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN", "TEACHER_TRIAL")
-                                .anyRequest().authenticated()
-                )
+                                .anyRequest().authenticated();
+                })
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization
                                 .authorizationRequestResolver(authorizationRequestResolver(clientRegistrationRepository, gatewayUrl))

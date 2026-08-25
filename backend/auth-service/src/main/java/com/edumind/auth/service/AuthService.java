@@ -20,6 +20,7 @@ import com.edumind.auth.security.UserDetailsImpl;
 import com.edumind.auth.util.UserMapper;
 import com.edumind.common.constants.ResponseStatus;
 import com.edumind.common.exception.BadRequestException;
+import com.edumind.common.exception.EmailNotVerifiedException;
 import com.edumind.common.exception.ResourceNotFoundException;
 import com.edumind.common.exception.TokenRefreshException;
 import com.edumind.common.response.MessageResponse;
@@ -83,6 +84,9 @@ public class AuthService {
     @Value("${app.cookie.same-site:Lax}")
     private String cookieSameSite;
 
+    @Value("${app.auth.enforce-email-verification:true}")
+    private boolean enforceEmailVerification;
+
     @Autowired
     public AuthService(@Lazy AuthenticationManager authenticationManager) {
         this.authenticationManager = authenticationManager;
@@ -108,6 +112,8 @@ public class AuthService {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        requireVerifiedEmail(user);
 
         if (Boolean.TRUE.equals(user.getIs2faEnabled())) {
             logger.info("🔐 2FA required for user: {}", user.getEmail());
@@ -138,6 +144,8 @@ public class AuthService {
             throw new BadRequestException("Invalid 2FA code");
         }
 
+        requireVerifiedEmail(user);
+
         logger.info("✅ 2FA verified successfully for user: {}", user.getEmail());
 
         UserDetailsImpl userDetails = UserDetailsImpl.build(user);
@@ -149,9 +157,18 @@ public class AuthService {
         return generateAuthResponse(authentication, user, response);
     }
 
+    /** Require verification for local accounts when enforcement is enabled. */
+    private void requireVerifiedEmail(User user) {
+        if (!enforceEmailVerification) return;
+        if (user.getProvider() != null && user.getProvider().isOAuth2()) return;
+        if (!Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            throw new EmailNotVerifiedException("Please verify your email before signing in.");
+        }
+    }
+
     /**
-     * Generate authentication response with access token
-     * Refresh token is set in HTTP-Only cookie (not returned in response body)
+     * Generate authentication response with access token.
+     * Refresh token is set in HTTP-Only cookie (not returned in response body).
      */
     private JwtResponse generateAuthResponse(Authentication authentication, User user, HttpServletResponse response) {
         // Generate access token
@@ -211,6 +228,7 @@ public class AuthService {
         }
 
         User user = refreshToken.getUser();
+        requireVerifiedEmail(user);
         UserDetailsImpl userDetails = UserDetailsImpl.build(user);
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
@@ -410,6 +428,7 @@ public class AuthService {
                 }
 
                 user.setEmail(oAuth2UserInfo.getEmail());
+                user.setIsEmailVerified(true);
             }
 
             if (user.getProvider() != authProvider) {
@@ -498,6 +517,11 @@ public class AuthService {
         logger.info("🔄 Updating existing OAuth2 user: {}", existingUser.getEmail());
 
         boolean updated = false;
+
+        if (!Boolean.TRUE.equals(existingUser.getIsEmailVerified())) {
+            existingUser.setIsEmailVerified(true);
+            updated = true;
+        }
 
         String newAvatarUrl = oAuth2UserInfo.getImageUrl();
         if (newAvatarUrl != null && !newAvatarUrl.equals(existingUser.getAvatarUrl())) {

@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -36,6 +37,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         this.authService = authService;
     }
 
+    /**
+     * OAuth2Error code used for any failure raised while turning a provider profile
+     * into a local user. The human-readable reason goes in the error *description*.
+     */
+    static final String PROCESSING_ERROR_CODE = "oauth2_processing_error";
+
+    private static final String FALLBACK_MESSAGE =
+            "Unable to complete sign-in with this provider. Please try again.";
+
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         logger.info("🔄 Loading OAuth2 user");
@@ -43,12 +53,42 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // Load user from OAuth2 provider
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
+        return processOAuth2UserSafely(userRequest, oAuth2User);
+    }
+
+    /**
+     * Wraps {@link #processOAuth2User} so every failure reaches
+     * {@code OAuth2AuthenticationFailureHandler} as an {@link OAuth2AuthenticationException}
+     * that still carries a readable message — the handler forwards that message to the
+     * frontend as a query parameter.
+     *
+     * <p>Note {@code new OAuth2AuthenticationException(String)} takes an error *code*, not a
+     * message: it builds an {@link OAuth2Error} with a null description, which leaves
+     * {@code getMessage()} null. Always populate the description instead.
+     *
+     * <p>Package-private so this contract can be unit tested without {@code super.loadUser}
+     * calling the real provider userinfo endpoint.
+     */
+    OAuth2User processOAuth2UserSafely(OAuth2UserRequest userRequest, OAuth2User oAuth2User) {
         try {
             return processOAuth2User(userRequest, oAuth2User);
+        } catch (OAuth2AuthenticationException ex) {
+            // Already an OAuth2 error; only re-wrap if it would surface a null message.
+            if (StringUtils.hasText(ex.getMessage())) {
+                throw ex;
+            }
+            logger.error("❌ OAuth2 error without a message, re-wrapping", ex);
+            throw processingFailure(ex.getError().getDescription(), ex);
         } catch (Exception ex) {
             logger.error("❌ Error processing OAuth2 user", ex);
-            throw new OAuth2AuthenticationException(ex.getMessage());
+            throw processingFailure(ex.getMessage(), ex);
         }
+    }
+
+    private OAuth2AuthenticationException processingFailure(String reason, Exception cause) {
+        String message = StringUtils.hasText(reason) ? reason : FALLBACK_MESSAGE;
+        return new OAuth2AuthenticationException(
+                new OAuth2Error(PROCESSING_ERROR_CODE, message, null), message, cause);
     }
 
     /**
@@ -78,8 +118,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         if (!user.getIsActive()) {
             logger.error("❌ User account is deactivated: {}", user.getEmail());
-            throw new OAuth2AuthenticationException(
-                "Your account has been deactivated. Please contact support."
+            throw processingFailure(
+                "Your account has been deactivated. Please contact support.", null
             );
         }
 

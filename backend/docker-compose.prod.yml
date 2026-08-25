@@ -145,6 +145,7 @@ services:
       - PASSWORD_RESET_LIMITER_HMAC_KEY=${PASSWORD_RESET_LIMITER_HMAC_KEY:?PASSWORD_RESET_LIMITER_HMAC_KEY is required}
       - FRONTEND_URL=${FRONTEND_URL:?FRONTEND_URL is required}
       - GATEWAY_URL=${GATEWAY_URL:?GATEWAY_URL is required}
+      - ENFORCE_EMAIL_VERIFICATION=${ENFORCE_EMAIL_VERIFICATION:-true}
     depends_on:
       postgres-auth:
         condition: service_healthy
