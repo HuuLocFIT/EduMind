@@ -2,7 +2,10 @@ package com.edumind.auth.service;
 
 import com.edumind.auth.entity.PasswordResetToken;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.event.EmailPayloadFactory;
+import com.edumind.auth.event.PasswordChangedEmailRequested;
 import com.edumind.auth.repository.PasswordResetTokenRepository;
+import com.edumind.auth.repository.RefreshTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.TooManyRequestsException;
@@ -11,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,13 +35,19 @@ public class PasswordResetService {
     private UserRepository userRepository;
 
     @Autowired
-    private EmailService emailService;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    private EmailPayloadFactory emailPayloadFactory;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
     private PasswordResetRateLimiter rateLimiter;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Value("${app.auth.password-reset-expiration:3600000}") // 1 hour default
     private long expirationMs;
@@ -91,14 +101,7 @@ public class PasswordResetService {
 
         tokenRepository.save(token);
 
-        // Send email
-        try {
-            emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), tokenString);
-            logger.info("✅ Password reset email sent to: {}", email);
-        } catch (Exception e) {
-            logger.error("❌ Failed to send reset email to: {}", email, e);
-            // Don't throw exception - token is still valid if email fails
-        }
+        eventPublisher.publishEvent(emailPayloadFactory.passwordReset(user, tokenString));
     }
 
     /**
@@ -155,19 +158,15 @@ public class PasswordResetService {
         // Update user password
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        refreshTokenRepository.revokeAllUserTokens(user);
 
         // Invalidate all other reset tokens for this user
         tokenRepository.invalidateAllTokensForUser(user, LocalDateTime.now());
 
         logger.info("✅ Password reset successfully for user: {}", user.getEmail());
 
-        // Send confirmation email
-        try {
-            emailService.sendPasswordChangedConfirmation(user.getEmail(), user.getFirstName());
-        } catch (Exception e) {
-            logger.error("❌ Failed to send confirmation email", e);
-            // Don't throw - password was changed successfully
-        }
+        eventPublisher.publishEvent(new PasswordChangedEmailRequested(
+                user.getEmail(), emailPayloadFactory.displayName(user)));
     }
 
     /**

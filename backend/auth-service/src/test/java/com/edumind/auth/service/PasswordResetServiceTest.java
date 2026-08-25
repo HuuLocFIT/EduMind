@@ -2,7 +2,11 @@ package com.edumind.auth.service;
 
 import com.edumind.auth.entity.PasswordResetToken;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.event.EmailPayloadFactory;
+import com.edumind.auth.event.PasswordChangedEmailRequested;
+import com.edumind.auth.event.PasswordResetEmailRequested;
 import com.edumind.auth.repository.PasswordResetTokenRepository;
+import com.edumind.auth.repository.RefreshTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
 import com.edumind.common.exception.TooManyRequestsException;
@@ -16,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -48,6 +53,15 @@ class PasswordResetServiceTest {
 
     @Mock
     private PasswordResetRateLimiter rateLimiter;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private EmailPayloadFactory emailPayloadFactory;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PasswordResetService passwordResetService;
@@ -91,6 +105,8 @@ class PasswordResetServiceTest {
             when(httpRequest.getHeader("X-Forwarded-For")).thenReturn(null);
             when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
             when(httpRequest.getHeader("User-Agent")).thenReturn("JUnit-Agent");
+            PasswordResetEmailRequested emailEvent = new PasswordResetEmailRequested(VALID_EMAIL, "Test", "ignored");
+            when(emailPayloadFactory.passwordReset(eq(testUser), anyString())).thenReturn(emailEvent);
 
             // When
             passwordResetService.requestPasswordReset(VALID_EMAIL, httpRequest);
@@ -98,15 +114,16 @@ class PasswordResetServiceTest {
             // Then
             ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
             verify(tokenRepository).save(tokenCaptor.capture());
-            
+
             PasswordResetToken savedToken = tokenCaptor.getValue();
             assertEquals(testUser, savedToken.getUser());
             assertNotNull(savedToken.getToken());
             assertFalse(savedToken.isUsed());
             assertEquals("127.0.0.1", savedToken.getIpAddress());
             assertEquals("JUnit-Agent", savedToken.getUserAgent());
-            
-            verify(emailService).sendPasswordResetEmail(eq(VALID_EMAIL), eq("Test"), eq(savedToken.getToken()));
+
+            verify(emailPayloadFactory).passwordReset(testUser, savedToken.getToken());
+            verify(eventPublisher).publishEvent(emailEvent);
         }
 
         @Test
@@ -226,6 +243,7 @@ class PasswordResetServiceTest {
             String newPass = "NewPass123";
             when(tokenRepository.findByToken(VALID_TOKEN)).thenReturn(Optional.of(testToken));
             when(passwordEncoder.encode(newPass)).thenReturn("encodedNewPass");
+            when(emailPayloadFactory.displayName(testUser)).thenReturn("Test");
 
             // When
             passwordResetService.resetPassword(VALID_TOKEN, newPass, newPass);
@@ -234,9 +252,10 @@ class PasswordResetServiceTest {
             assertTrue(testToken.isUsed());
             verify(tokenRepository).save(testToken); // Mark used
             verify(userRepository).save(testUser); // Save new password
+            verify(refreshTokenRepository).revokeAllUserTokens(testUser);
             verify(passwordEncoder).encode(newPass);
             verify(tokenRepository).invalidateAllTokensForUser(eq(testUser), any(LocalDateTime.class));
-            verify(emailService).sendPasswordChangedConfirmation(eq(VALID_EMAIL), eq("Test"));
+            verify(eventPublisher).publishEvent(new PasswordChangedEmailRequested(VALID_EMAIL, "Test"));
         }
 
         @Test
@@ -252,6 +271,7 @@ class PasswordResetServiceTest {
             assertEquals("Passwords do not match", ex.getMessage());
             
             verify(userRepository, never()).save(any());
+            verify(refreshTokenRepository, never()).revokeAllUserTokens(any());
         }
 
         @Test
@@ -270,6 +290,7 @@ class PasswordResetServiceTest {
 
             verify(passwordEncoder, never()).encode(anyString());
             verify(userRepository, never()).save(any());
+            verify(refreshTokenRepository, never()).revokeAllUserTokens(any());
         }
     }
 

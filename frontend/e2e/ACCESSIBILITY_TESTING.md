@@ -322,7 +322,7 @@ Pa11y runtime    → automatic
 Pa11y before     → exists; do not overwrite
 Pa11y after      → committed; 0 issues across 14 routes (2026-08-24)
 Axe before       → exists; collector writes to before by default
-Axe after        → committed; 0 violations/keyboard issues across 9 routes (2026-08-24)
+Axe after        → committed; 0 violations/keyboard issues across 9 routes (2026-08-25)
 ```
 
 ## Current CI policy

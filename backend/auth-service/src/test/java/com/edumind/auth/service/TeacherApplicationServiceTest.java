@@ -10,6 +10,9 @@ import com.edumind.auth.entity.TeacherApplication;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.enums.ApplicationStatus;
 import com.edumind.auth.enums.RoleName;
+import com.edumind.auth.event.ApplicationApprovedEmailRequested;
+import com.edumind.auth.event.ApplicationRejectedEmailRequested;
+import com.edumind.auth.event.EmailPayloadFactory;
 import com.edumind.auth.repository.ApplicationStatusHistoryRepository;
 import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.TeacherApplicationRepository;
@@ -28,12 +31,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -71,6 +77,12 @@ class TeacherApplicationServiceTest {
     @Mock
     private SecurityContext securityContext;
 
+    @Mock
+    private EmailPayloadFactory emailPayloadFactory;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private TeacherApplicationService teacherApplicationService;
 
@@ -99,6 +111,8 @@ class TeacherApplicationServiceTest {
                 .email("admin@example.com")
                 .roles(new HashSet<>(Set.of(Role.builder().name(RoleName.ROLE_ADMIN).build())))
                 .build();
+
+        lenient().when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testUser));
     }
     
     @AfterEach
@@ -129,9 +143,9 @@ class TeacherApplicationServiceTest {
             request.setDocuments(new ArrayList<>());
             
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            when(applicationRepository.existsByUser(testUser)).thenReturn(false);
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
             when(objectMapper.writeValueAsString(any())).thenReturn("[]");
-            when(applicationRepository.save(any(TeacherApplication.class))).thenAnswer(i -> i.getArguments()[0]);
+            when(applicationRepository.saveAndFlush(any(TeacherApplication.class))).thenAnswer(i -> i.getArguments()[0]);
 
             // When
             MessageResponse response = teacherApplicationService.submitApplication(request);
@@ -139,7 +153,8 @@ class TeacherApplicationServiceTest {
             // Then
             assertEquals(HttpStatus.CREATED.value(), response.getStatus());
             assertTrue(response.isSuccess());
-            verify(applicationRepository).save(any(TeacherApplication.class));
+            verify(userRepository).findByIdForUpdate(testUser.getId());
+            verify(applicationRepository).saveAndFlush(any(TeacherApplication.class));
             verify(statusHistoryRepository).save(any(ApplicationStatusHistory.class));
         }
 
@@ -156,8 +171,7 @@ class TeacherApplicationServiceTest {
                     .build();
 
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            when(applicationRepository.existsByUser(testUser)).thenReturn(true);
-            when(applicationRepository.findByUser(testUser)).thenReturn(Optional.of(pendingApp));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.of(pendingApp));
 
             // When/Then
             BadRequestException ex = assertThrows(BadRequestException.class, () -> 
@@ -178,8 +192,7 @@ class TeacherApplicationServiceTest {
                     .build();
 
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            when(applicationRepository.existsByUser(testUser)).thenReturn(true);
-            when(applicationRepository.findByUser(testUser)).thenReturn(Optional.of(approvedApp));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.of(approvedApp));
 
             // When/Then
             BadRequestException ex = assertThrows(BadRequestException.class, () ->
@@ -207,7 +220,7 @@ class TeacherApplicationServiceTest {
             TeacherApplicationRequest request = new TeacherApplicationRequest();
 
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            when(applicationRepository.existsByUser(testUser)).thenReturn(false);
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
             when(objectMapper.writeValueAsString(any()))
                     .thenThrow(new JsonProcessingException("JSON error") {});
 
@@ -215,6 +228,70 @@ class TeacherApplicationServiceTest {
             BadRequestException ex = assertThrows(BadRequestException.class, () ->
                     teacherApplicationService.submitApplication(request));
             assertEquals("Invalid documents format", ex.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should allow reapplication after latest application was rejected")
+        void submitApplication_ReapplyAfterRejected() throws JsonProcessingException {
+            mockSecurityContext("testuser");
+            TeacherApplicationRequest request = validApplicationRequest();
+            TeacherApplication rejected = TeacherApplication.builder()
+                    .id(10L).user(testUser).status(ApplicationStatus.REJECTED).build();
+
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.of(rejected));
+            when(objectMapper.writeValueAsString(any())).thenReturn("[]");
+            when(applicationRepository.saveAndFlush(any(TeacherApplication.class))).thenAnswer(i -> i.getArgument(0));
+
+            MessageResponse response = teacherApplicationService.submitApplication(request);
+
+            assertEquals(HttpStatus.CREATED.value(), response.getStatus());
+            verify(applicationRepository).saveAndFlush(argThat(a -> a.getStatus() == ApplicationStatus.PENDING));
+        }
+
+        @Test
+        @DisplayName("Should translate only the pending-application unique index violation")
+        void submitApplication_PendingConstraintViolation() throws JsonProcessingException {
+            mockSecurityContext("testuser");
+            TeacherApplicationRequest request = validApplicationRequest();
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
+            when(objectMapper.writeValueAsString(any())).thenReturn("[]");
+            var cause = new org.hibernate.exception.ConstraintViolationException(
+                    "duplicate", new SQLException("duplicate"), "idx_teacher_app_one_pending_per_user");
+            when(applicationRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("duplicate", cause));
+
+            BadRequestException exception = assertThrows(BadRequestException.class,
+                    () -> teacherApplicationService.submitApplication(request));
+            assertEquals("You already have a pending application!", exception.getMessage());
+        }
+
+        @Test
+        @DisplayName("Should preserve unrelated integrity violations")
+        void submitApplication_UnrelatedConstraintViolation() throws JsonProcessingException {
+            mockSecurityContext("testuser");
+            TeacherApplicationRequest request = validApplicationRequest();
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
+            when(objectMapper.writeValueAsString(any())).thenReturn("[]");
+            var cause = new org.hibernate.exception.ConstraintViolationException(
+                    "duplicate", new SQLException("duplicate"), "some_other_constraint");
+            DataIntegrityViolationException expected = new DataIntegrityViolationException("duplicate", cause);
+            when(applicationRepository.saveAndFlush(any())).thenThrow(expected);
+
+            assertSame(expected, assertThrows(DataIntegrityViolationException.class,
+                    () -> teacherApplicationService.submitApplication(request)));
+        }
+
+        private TeacherApplicationRequest validApplicationRequest() {
+            TeacherApplicationRequest request = new TeacherApplicationRequest();
+            request.setFirstName("First");
+            request.setLastName("Last");
+            request.setEmail("test@email.com");
+            request.setPhone("123456789");
+            request.setSubject("Mathematics");
+            request.setDocuments(new ArrayList<>());
+            return request;
         }
     }
 
@@ -249,7 +326,8 @@ class TeacherApplicationServiceTest {
             assertEquals(HttpStatus.OK.value(), response.getStatus());
             assertEquals(ApplicationStatus.APPROVED, application.getStatus());
             assertTrue(testUser.getRoles().contains(teacherRole));
-            verify(emailService).sendApplicationApprovedEmail(any(), eq(false), any());
+            verify(eventPublisher).publishEvent(argThat((Object event) ->
+                    event instanceof ApplicationApprovedEmailRequested approved && !approved.trial()));
         }
 
         @Test
@@ -278,7 +356,9 @@ class TeacherApplicationServiceTest {
             assertEquals(HttpStatus.OK.value(), response.getStatus());
             assertEquals(ApplicationStatus.REJECTED, application.getStatus());
             assertEquals("Not qualified", application.getRejectionReason());
-            verify(emailService).sendApplicationRejectedEmail(any(), eq("Not qualified"));
+            verify(eventPublisher).publishEvent(argThat((Object event) ->
+                    event instanceof ApplicationRejectedEmailRequested rejected
+                            && "Not qualified".equals(rejected.reason())));
         }
         
         @Test
@@ -327,7 +407,8 @@ class TeacherApplicationServiceTest {
             assertEquals(ApplicationStatus.APPROVED, application.getStatus());
             assertTrue(testUser.getIsTrial());
             assertTrue(testUser.getRoles().contains(teacherTrialRole));
-            verify(emailService).sendApplicationApprovedEmail(any(), eq(true), any());
+            verify(eventPublisher).publishEvent(argThat((Object event) ->
+                    event instanceof ApplicationApprovedEmailRequested approved && approved.trial()));
         }
 
         @Test
@@ -399,7 +480,7 @@ class TeacherApplicationServiceTest {
                     .build();
 
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            when(applicationRepository.findByUser(testUser)).thenReturn(Optional.of(application));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.of(application));
 
             // When
             TeacherApplicationResponse response = teacherApplicationService.getMyApplication();
@@ -428,7 +509,7 @@ class TeacherApplicationServiceTest {
             // Given
             mockSecurityContext("testuser");
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-            when(applicationRepository.findByUser(testUser)).thenReturn(Optional.empty());
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
 
             // When
             TeacherApplicationResponse response = teacherApplicationService.getMyApplication();
@@ -505,7 +586,7 @@ class TeacherApplicationServiceTest {
             when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
             when(roleRepository.findByName(RoleName.ROLE_TEACHER_TRIAL)).thenReturn(Optional.of(teacherTrialRole));
             when(roleRepository.findByName(RoleName.ROLE_TEACHER)).thenReturn(Optional.of(teacherRole));
-            when(applicationRepository.findByUser(testUser)).thenReturn(Optional.empty()); // No app recorded
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty()); // No app recorded
 
             // When
             MessageResponse response = teacherApplicationService.upgradeTrialToFull(1L, request);

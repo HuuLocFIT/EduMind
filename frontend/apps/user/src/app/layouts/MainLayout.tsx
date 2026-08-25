@@ -703,7 +703,7 @@ export const MainLayout: React.FC = () => {
               <h2 id="footer-support" className="font-semibold text-gray-900 mb-2 sm:mb-4" style={{ fontSize: 'inherit' }}>Support</h2>
               <ul className="space-y-1.5 sm:space-y-2 text-sm text-gray-600">
                 <li>
-                  <a href="mailto:support@edumind.com" className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+                  <a href="mailto:supportedumind2026@gmail.com" className="rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
                     Contact Us
                   </a>
                 </li>

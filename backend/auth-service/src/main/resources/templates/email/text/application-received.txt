@@ -1,0 +1,2 @@
+Hello [(${name})]. We received your teacher application for [(${subject})] ([(${experienceYears})] years experience).
+View status: [(${actionUrl})]

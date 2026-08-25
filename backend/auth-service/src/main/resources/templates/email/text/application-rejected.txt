@@ -1,0 +1,3 @@
+Hello [(${name})]. We could not approve your teacher application.
+Reason: [(${reason})]
+Review and reapply: [(${actionUrl})]

@@ -2,10 +2,12 @@ package com.edumind.auth.service;
 
 import com.edumind.auth.entity.EmailVerificationToken;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.event.EmailPayloadFactory;
+import com.edumind.auth.event.VerificationEmailRequested;
 import com.edumind.auth.repository.EmailVerificationTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
-import com.edumind.common.exception.ResourceNotFoundException;
+import com.edumind.common.exception.TooManyRequestsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -36,7 +39,13 @@ class EmailVerificationServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private EmailService emailService;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private EmailPayloadFactory emailPayloadFactory;
+
+    @Mock
+    private EmailVerificationResendRateLimiter resendRateLimiter;
 
     @InjectMocks
     private EmailVerificationService emailVerificationService;
@@ -49,7 +58,6 @@ class EmailVerificationServiceTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(emailVerificationService, "expirationMs", 86400000L); // 24 hours
-        ReflectionTestUtils.setField(emailVerificationService, "resendWindowMinutes", 60L);
         ReflectionTestUtils.setField(emailVerificationService, "resendMax", 3);
 
         testUser = User.builder()
@@ -78,7 +86,11 @@ class EmailVerificationServiceTest {
             // No extra mocks needed
 
             // When
-            emailVerificationService.sendVerificationEmail(testUser);
+            when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testUser));
+            when(tokenRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            VerificationEmailRequested event = new VerificationEmailRequested(EMAIL, "Test", "url", true);
+            when(emailPayloadFactory.verification(eq(testUser), anyString(), eq(true))).thenReturn(event);
+            emailVerificationService.sendInitialVerificationEmail(testUser);
 
             // Then
             ArgumentCaptor<EmailVerificationToken> tokenCaptor = ArgumentCaptor.forClass(EmailVerificationToken.class);
@@ -89,7 +101,7 @@ class EmailVerificationServiceTest {
             assertNotNull(savedToken.getToken());
             assertNull(savedToken.getVerifiedAt());
 
-            verify(emailService).sendWelcomeAndVerificationEmail(eq(EMAIL), eq("Test"), eq(savedToken.getToken()));
+            verify(eventPublisher).publishEvent(event);
         }
 
         @Test
@@ -97,14 +109,15 @@ class EmailVerificationServiceTest {
         void sendVerificationEmail_AlreadyVerified() {
             // Given
             testUser.setIsEmailVerified(true);
+            when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testUser));
 
             // When/Then
             BadRequestException ex = assertThrows(BadRequestException.class, () -> 
-                emailVerificationService.sendVerificationEmail(testUser));
+                emailVerificationService.sendInitialVerificationEmail(testUser));
             assertEquals("Email is already verified", ex.getMessage());
             
             verify(tokenRepository, never()).save(any());
-            verify(emailService, never()).sendWelcomeAndVerificationEmail(anyString(), anyString(), anyString());
+            verify(eventPublisher, never()).publishEvent(any());
         }
     }
 
@@ -177,6 +190,18 @@ class EmailVerificationServiceTest {
                 emailVerificationService.verifyEmail(TOKEN_STRING));
             assertEquals("Verification link has expired. Please request a new one.", ex.getMessage());
         }
+
+        @Test
+        @DisplayName("Should reject an invalidated token before checking expiry")
+        void verifyEmail_InvalidatedToken() {
+            testToken.setInvalidatedAt(LocalDateTime.now());
+            testToken.setExpiryDate(LocalDateTime.now().minusMinutes(1));
+            when(tokenRepository.findByToken(TOKEN_STRING)).thenReturn(Optional.of(testToken));
+
+            BadRequestException ex = assertThrows(BadRequestException.class,
+                    () -> emailVerificationService.verifyEmail(TOKEN_STRING));
+            assertEquals("This verification link is no longer valid. Please request a new one.", ex.getMessage());
+        }
     }
 
     @Nested
@@ -187,57 +212,80 @@ class EmailVerificationServiceTest {
         @DisplayName("Should resend email successfully")
         void resendVerificationEmail_Success() {
             // Given
+            allowResend(EMAIL, 1);
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(testUser));
-            when(tokenRepository.countByUserAndCreatedAtAfter(eq(testUser), any(LocalDateTime.class))).thenReturn(0);
+            when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testUser));
+            when(tokenRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            VerificationEmailRequested event = new VerificationEmailRequested(EMAIL, "Test", "url", false);
+            when(emailPayloadFactory.verification(eq(testUser), anyString(), eq(false))).thenReturn(event);
 
             // When
             emailVerificationService.resendVerificationEmail(EMAIL);
 
             // Then
             verify(tokenRepository).save(any(EmailVerificationToken.class));
-            verify(emailService).sendWelcomeAndVerificationEmail(eq(EMAIL), anyString(), anyString());
+            verify(eventPublisher).publishEvent(event);
         }
 
         @Test
-        @DisplayName("Should fail if user not found")
+        @DisplayName("Should return success without issuing a token if user not found")
         void resendVerificationEmail_UserNotFound() {
-            // Given
+            allowResend("unknown@email.com", 1);
             when(userRepository.findByEmail("unknown@email.com")).thenReturn(Optional.empty());
-
-            // When/Then
-            assertThrows(ResourceNotFoundException.class, () -> 
-                emailVerificationService.resendVerificationEmail("unknown@email.com"));
+            assertDoesNotThrow(() -> emailVerificationService.resendVerificationEmail("unknown@email.com"));
+            verify(tokenRepository, never()).save(any());
         }
 
         @Test
         @DisplayName("Should fail if too many requests")
         void resendVerificationEmail_TooManyRequests() {
             // Given
-            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(testUser));
-            when(tokenRepository.countByUserAndCreatedAtAfter(eq(testUser), any(LocalDateTime.class))).thenReturn(3);
+            allowResend(EMAIL, 4);
 
             // When/Then
-            BadRequestException ex = assertThrows(BadRequestException.class, () -> 
+            TooManyRequestsException ex = assertThrows(TooManyRequestsException.class, () ->
                 emailVerificationService.resendVerificationEmail(EMAIL));
             assertEquals("Too many verification requests. Please try again later.", ex.getMessage());
         }
 
         @Test
-        @DisplayName("Should fail when resending for already verified user")
+        @DisplayName("Should return the generic success behavior for already verified user")
         void resendVerificationEmail_AlreadyVerified() {
             // Given
             testUser.setIsEmailVerified(true);
+            allowResend(EMAIL, 1);
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(testUser));
 
-            // When/Then
-            BadRequestException ex = assertThrows(BadRequestException.class, () ->
-                    emailVerificationService.resendVerificationEmail(EMAIL));
-            assertEquals("Email is already verified", ex.getMessage());
+            assertDoesNotThrow(() -> emailVerificationService.resendVerificationEmail(EMAIL));
 
-            verify(tokenRepository, never()).countByUserAndCreatedAtAfter(any(), any());
             verify(tokenRepository, never()).save(any());
-            verify(emailService, never()).sendWelcomeAndVerificationEmail(anyString(), anyString(), anyString());
+            verify(eventPublisher, never()).publishEvent(any());
         }
+
+        @Test
+        @DisplayName("Should silently succeed when verification wins the race after the initial lookup")
+        void resendVerificationEmail_VerifiedDuringLockedRecheck() {
+            allowResend(EMAIL, 1);
+            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(testUser));
+
+            User lockedUser = User.builder()
+                    .id(testUser.getId())
+                    .email(testUser.getEmail())
+                    .isEmailVerified(true)
+                    .build();
+            when(userRepository.findByIdForUpdate(testUser.getId())).thenReturn(Optional.of(lockedUser));
+
+            assertDoesNotThrow(() -> emailVerificationService.resendVerificationEmail(EMAIL));
+
+            verify(tokenRepository, never()).invalidateActiveTokens(any(), any());
+            verify(tokenRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+    }
+
+    private void allowResend(String email, int attempts) {
+        when(resendRateLimiter.hashEmail(email)).thenReturn("hash");
+        when(resendRateLimiter.incrementAndGet("hash")).thenReturn(attempts);
     }
 
     @Test

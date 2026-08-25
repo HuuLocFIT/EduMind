@@ -202,7 +202,7 @@ jwt:
 
 # Email Configuration
 mail:
-  from: ${MAIL_FROM:noreply@edumind.com}
+  from: ${MAIL_USERNAME}
   enabled: ${MAIL_ENABLED:true}  # Set to false to disable emails in dev
 
 # Cloudinary Configuration
@@ -344,6 +344,13 @@ management:
 #    - Prometheus format: /actuator/prometheus (if micrometer-registry-prometheus is present)
 
 app:
+  support:
+    email: ${SUPPORT_EMAIL:supportedumind2026@gmail.com}
+  async:
+    email:
+      core-pool-size: ${EMAIL_EXECUTOR_CORE_POOL_SIZE:2}
+      max-pool-size: ${EMAIL_EXECUTOR_MAX_POOL_SIZE:4}
+      queue-capacity: ${EMAIL_EXECUTOR_QUEUE_CAPACITY:100}
   # Frontend URL for email links
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
@@ -358,8 +365,9 @@ app:
   auth:
     # Email verification token expiration (24 hours in milliseconds)
     email-verification-expiration: 86400000
-    email-verification-resend-window-minutes: ${EMAIL_VERIFICATION_RESEND_WINDOW_MINUTES:60}
     email-verification-resend-max: ${EMAIL_VERIFICATION_RESEND_MAX:3}
+    email-verification-limiter:
+      hmac-key: ${EMAIL_VERIFICATION_LIMITER_HMAC_KEY}
     enforce-email-verification: ${ENFORCE_EMAIL_VERIFICATION:true}
     # Fail closed: enabled explicitly only for local/E2E account seeding.
     dev-verify-endpoint-enabled: ${DEV_VERIFY_ENDPOINT_ENABLED:false}

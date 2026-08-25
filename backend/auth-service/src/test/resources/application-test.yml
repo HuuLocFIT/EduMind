@@ -47,6 +47,7 @@ jwt:
 # Disable email sending in tests
 mail:
   enabled: false
+  from: test@example.com
 
 # Disable Cloudinary in tests
 cloudinary:
@@ -73,6 +74,9 @@ app:
     url: http://localhost:8080
   auth:
     email-verification-expiration: 86400000
+    email-verification-resend-max: 3
+    email-verification-limiter:
+      hmac-key: test-email-verification-limiter-key-at-least-32-bytes
     password-reset-expiration: 3600000
     token-expiration: 86400000
     refresh-expiration: 604800000

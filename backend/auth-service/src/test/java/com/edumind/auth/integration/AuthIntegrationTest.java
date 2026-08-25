@@ -2,7 +2,9 @@ package com.edumind.auth.integration;
 
 import com.edumind.auth.config.BaseIntegrationTest;
 import com.edumind.auth.dto.request.LoginRequest;
+import com.edumind.auth.dto.request.PasswordResetConfirmRequest;
 import com.edumind.auth.dto.request.SignupRequest;
+import com.edumind.auth.entity.PasswordResetToken;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.entity.EmailVerificationToken;
@@ -11,6 +13,8 @@ import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.repository.EmailVerificationTokenRepository;
+import com.edumind.auth.repository.PasswordResetTokenRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,7 +22,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
 
@@ -45,6 +51,9 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private EmailVerificationTokenRepository emailVerificationTokenRepository;
+
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @BeforeEach
     void setUp() {
@@ -192,6 +201,48 @@ class AuthIntegrationTest extends BaseIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("Password Reset Session Revocation Tests")
+    class PasswordResetSessionRevocationTests {
+
+        @Test
+        @DisplayName("Resetting password rejects a refresh cookie issued before the reset")
+        void resetPassword_WithExistingRefreshCookie_ShouldRejectOldCookie() throws Exception {
+            User user = createTestUser("resetrefreshuser", "resetrefresh@example.com");
+            user.setIsEmailVerified(true);
+            userRepository.save(user);
+
+            LoginRequest login = new LoginRequest("resetrefreshuser", "Password123!");
+            MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(login)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            Cookie oldRefreshCookie = loginResult.getResponse().getCookie("refreshToken");
+            assertNotNull(oldRefreshCookie);
+
+            PasswordResetToken resetToken = new PasswordResetToken();
+            resetToken.setToken("integration-reset-token");
+            resetToken.setUser(user);
+            resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
+            resetToken.setUsed(false);
+            passwordResetTokenRepository.save(resetToken);
+
+            PasswordResetConfirmRequest resetRequest = new PasswordResetConfirmRequest(
+                    resetToken.getToken(), "ChangedPassword123!", "ChangedPassword123!");
+            mockMvc.perform(post("/auth/password/reset")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(resetRequest)))
+                    .andExpect(status().isOk());
+
+            // Revoked refresh tokens are rejected via TokenRefreshException, which
+            // GlobalExceptionHandler maps to 403 (consistent with expired/not-found tokens).
+            mockMvc.perform(post("/auth/refresh").cookie(oldRefreshCookie))
+                    .andExpect(status().isForbidden());
         }
     }
 

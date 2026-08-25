@@ -1,0 +1,2 @@
+Hello [(${name})]. Your teacher trial ends in [(${daysRemaining})] day(s), on [(${trialEndDate})].
+Contact support: [(${supportEmail})]

@@ -134,7 +134,7 @@ export const TeacherDashboardPage: React.FC = () => {
           />
           {isTrialExpired && (
             <a
-              href="mailto:support@edumind.com"
+              href="mailto:supportedumind2026@gmail.com"
               className="inline-flex items-center gap-1 text-sm text-blue-600 underline hover:text-blue-800 hover:no-underline"
             >
               <HelpCircle aria-hidden="true" className="w-3.5 h-3.5" />

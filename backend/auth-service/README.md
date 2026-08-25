@@ -140,7 +140,6 @@ export MAIL_HOST="smtp.gmail.com"
 export MAIL_PORT="587"
 export MAIL_USERNAME="your-email@gmail.com"
 export MAIL_PASSWORD="your-app-password"  # Use App Password, not regular password
-export MAIL_FROM="noreply@edumind.com"
 export MAIL_ENABLED="true"
 
 # Google OAuth2 Configuration

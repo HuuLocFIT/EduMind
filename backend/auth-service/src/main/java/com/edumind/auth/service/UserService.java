@@ -4,6 +4,9 @@ import com.edumind.auth.dto.request.ChangePasswordRequest;
 import com.edumind.auth.dto.request.UpdateProfileRequest;
 import com.edumind.auth.dto.response.UserResponse;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.event.AccountDeletedEmailRequested;
+import com.edumind.auth.event.EmailPayloadFactory;
+import com.edumind.auth.event.PasswordChangedEmailRequested;
 import com.edumind.auth.repository.RefreshTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.UserDetailsImpl;
@@ -15,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -33,7 +37,10 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private EmailService emailService;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    private EmailPayloadFactory emailPayloadFactory;
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
@@ -153,17 +160,12 @@ public class UserService {
         // Update password
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        refreshTokenRepository.revokeAllUserTokens(user);
 
         logger.info("✅ Password changed successfully for user: {}", user.getUsername());
 
-        // Send confirmation email
-        try {
-            emailService.sendPasswordChangedConfirmation(user.getEmail(), user.getFirstName());
-            logger.info("📧 Password change confirmation email sent to: {}", user.getEmail());
-        } catch (Exception e) {
-            // Don't throw - password was changed successfully
-            logger.error("❌ Failed to send password change confirmation email: {}", e.getMessage());
-        }
+        eventPublisher.publishEvent(new PasswordChangedEmailRequested(
+                user.getEmail(), emailPayloadFactory.displayName(user)));
     }
 
     /**
@@ -171,10 +173,7 @@ public class UserService {
      * This will:
      * 1. Revoke all refresh tokens associated with the user
      * 2. Set deletedAt timestamp and isActive = false (soft delete)
-     * 3. Account will be permanently deleted after grace period (30 days) via
-     * scheduled job
-     * 
-     * Note: User can potentially recover account within grace period
+     * 3. Keep retained data in its current soft-deleted state
      */
     @Transactional
     public MessageResponse deleteAccount() {
@@ -190,7 +189,8 @@ public class UserService {
 
         Long userId = user.getId();
         String username = user.getUsername();
-        // String email = user.getEmail(); // Reserved for future email notification
+        AccountDeletedEmailRequested emailEvent = new AccountDeletedEmailRequested(
+                user.getEmail(), emailPayloadFactory.displayName(user));
 
         // Revoke all refresh tokens for this user
         refreshTokenRepository.revokeAllUserTokens(user);
@@ -201,26 +201,13 @@ public class UserService {
         user.setIsActive(false);
         user = userRepository.save(user);
 
-        logger.info(
-                "✅ User account soft deleted successfully: {} (ID: {}). Will be permanently deleted after grace period.",
-                username, userId);
-
-        // TODO: Send account deletion confirmation email
-        // Note: EmailService.sendAccountDeletionConfirmation() method needs to be
-        // implemented
-        // try {
-        // emailService.sendAccountDeletionConfirmation(email, username);
-        // logger.info("📧 Account deletion confirmation email sent to: {}", email);
-        // } catch (Exception e) {
-        // // Don't throw - account was deleted successfully
-        // logger.error("❌ Failed to send account deletion confirmation email: {}",
-        // e.getMessage());
-        // }
+        logger.info("✅ User account soft deleted successfully: {} (ID: {})", username, userId);
+        eventPublisher.publishEvent(emailEvent);
 
         return MessageResponse.builder()
                 .status(HttpStatus.OK.value())
                 .success(true)
-                .message("Account deleted successfully. You have 30 days to recover your account.")
+                .message("Account deleted successfully.")
                 .build();
     }
 

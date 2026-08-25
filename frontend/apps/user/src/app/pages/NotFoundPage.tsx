@@ -51,7 +51,7 @@ export const NotFoundPage: React.FC = () => {
         <div className="mt-8 flex items-center justify-center gap-1 text-sm text-gray-500">
           <span>Need help?</span>
           <a
-            href="mailto:support@edumind.com"
+            href="mailto:supportedumind2026@gmail.com"
             className="inline-flex items-center gap-1 text-blue-600 underline hover:text-blue-800 hover:no-underline"
           >
             <HelpCircle aria-hidden="true" className="w-4 h-4" />

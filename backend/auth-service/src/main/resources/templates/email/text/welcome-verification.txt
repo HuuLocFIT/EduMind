@@ -1,0 +1,3 @@
+Welcome to EduMind, [(${name})].
+Verify your email within 24 hours: [(${actionUrl})]
+Explore courses by category, track progress, and earn verifiable certificates.

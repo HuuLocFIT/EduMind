@@ -381,7 +381,7 @@ public class AuthService {
         logger.info("✅ User registered successfully: {} with role STUDENT", savedUser.getUsername());
 
         try {
-            emailVerificationService.sendVerificationEmail(savedUser);
+            emailVerificationService.sendInitialVerificationEmail(savedUser);
             logger.info("📧 Welcome + verification email sent to: {}", savedUser.getEmail());
         } catch (Exception e) {
             logger.error("❌ Failed to send verification email", e);

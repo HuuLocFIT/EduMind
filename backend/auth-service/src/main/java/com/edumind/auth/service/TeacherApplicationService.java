@@ -10,6 +10,7 @@ import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.entity.*;
 import com.edumind.auth.enums.ApplicationStatus;
 import com.edumind.auth.enums.RoleName;
+import com.edumind.auth.event.*;
 import com.edumind.auth.repository.*;
 import com.edumind.common.exception.*;
 import com.edumind.common.response.MessageResponse;
@@ -19,7 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,6 +39,7 @@ import java.util.stream.Collectors;
 public class TeacherApplicationService {
     private static final Logger logger = LoggerFactory.getLogger(TeacherApplicationService.class);
     private static final int TRIAL_DAYS = 30;
+    private static final String PENDING_APPLICATION_INDEX = "idx_teacher_app_one_pending_per_user";
 
     @Autowired
     private TeacherApplicationRepository applicationRepository;
@@ -55,7 +60,10 @@ public class TeacherApplicationService {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private EmailService emailService;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired private EmailPayloadFactory emailPayloadFactory;
+    @Value("${app.frontend.url:http://localhost:3000}") private String frontendUrl;
 
     /**
      * Student submits teacher application
@@ -67,7 +75,9 @@ public class TeacherApplicationService {
         // Get current user
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
-        User user = userRepository.findByUsername(username)
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository.findByIdForUpdate(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         boolean userUpdated = false;
@@ -101,16 +111,14 @@ public class TeacherApplicationService {
             logger.info("✅ User profile synced from teacher application for username: {}", user.getUsername());
         }
 
-        // Check if already has pending/approved application
-        if (applicationRepository.existsByUser(user)) {
-            Optional<TeacherApplication> existing = applicationRepository.findByUser(user);
-            if (existing.isPresent()) {
-                ApplicationStatus status = existing.get().getStatus();
-                if (status == ApplicationStatus.PENDING) {
-                    throw new BadRequestException("You already have a pending application!");
-                } else if (status == ApplicationStatus.APPROVED) {
-                    throw new BadRequestException("Your application was already approved!");
-                }
+        // The application with the greatest id is the current application.
+        Optional<TeacherApplication> existing = applicationRepository.findTopByUserOrderByIdDesc(user);
+        if (existing.isPresent()) {
+            ApplicationStatus status = existing.get().getStatus();
+            if (status == ApplicationStatus.PENDING) {
+                throw new BadRequestException("You already have a pending application!");
+            } else if (status == ApplicationStatus.APPROVED) {
+                throw new BadRequestException("Your application was already approved!");
             }
         }
 
@@ -138,9 +146,21 @@ public class TeacherApplicationService {
                 .status(ApplicationStatus.PENDING)
                 .build();
 
-        TeacherApplication savedApplication = applicationRepository.save(application);
+        TeacherApplication savedApplication;
+        try {
+            // Flush here so the partial unique-index violation can be classified in this method.
+            savedApplication = applicationRepository.saveAndFlush(application);
+        } catch (DataIntegrityViolationException exception) {
+            if (hasConstraint(exception, PENDING_APPLICATION_INDEX)) {
+                throw new BadRequestException("You already have a pending application!");
+            }
+            throw exception;
+        }
 
         recordStatusChange(savedApplication, null, "PENDING", user, "Application submitted");
+        eventPublisher.publishEvent(new ApplicationReceivedEmailRequested(user.getEmail(),
+                emailPayloadFactory.displayName(user), request.getSubject(), request.getExperienceYears(),
+                frontendUrl + "/teacher/application/status"));
 
         logger.info("✅ Teacher application submitted successfully by user: {}", username);
 
@@ -162,7 +182,7 @@ public class TeacherApplicationService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return applicationRepository.findByUser(user)
+        return applicationRepository.findTopByUserOrderByIdDesc(user)
                 .map(this::mapToResponse)
                 .orElse(null);
     }
@@ -297,12 +317,16 @@ public class TeacherApplicationService {
             applicant.setIsTrial(true);
             applicant.setTrialStartDate(LocalDateTime.now());
             applicant.setTrialEndDate(LocalDateTime.now().plusDays(TRIAL_DAYS));
+            applicant.setTrialReminderSentAt(null);
 
             logger.info("📅 Setting trial period: 30 days from now");
         } else {
             roleName = RoleName.ROLE_TEACHER;
             approvalDetail = "Approved as FULL teacher";
             applicant.setIsTrial(false);
+            applicant.setTrialStartDate(null);
+            applicant.setTrialEndDate(null);
+            applicant.setTrialReminderSentAt(null);
         }
 
         // Assign role
@@ -321,12 +345,8 @@ public class TeacherApplicationService {
                 : approvalDetail;
         recordStatusChange(application, oldStatus, "APPROVED", admin, changeReason);
 
-        try {
-            emailService.sendApplicationApprovedEmail(applicant, isTrial, applicant.getTrialEndDate());
-            logger.info("📧 Approval email sent to: {}", applicant.getEmail());
-        } catch (Exception e) {
-            logger.error("❌ Failed to send approval email", e);
-        }
+        eventPublisher.publishEvent(new ApplicationApprovedEmailRequested(applicant.getEmail(),
+                emailPayloadFactory.displayName(applicant), isTrial, applicant.getTrialEndDate()));
 
         String message = isTrial
                 ? "Application approved! Teacher account created with 30-day trial period."
@@ -365,12 +385,8 @@ public class TeacherApplicationService {
 
         recordStatusChange(application, oldStatus, "REJECTED", admin, request.getRejectionReason());
 
-        try {
-            emailService.sendApplicationRejectedEmail(application.getUser(), request.getRejectionReason());
-            logger.info("📧 Rejection email sent to: {}", application.getUser().getEmail());
-        } catch (Exception e) {
-            logger.error("❌ Failed to send rejection email", e);
-        }
+        eventPublisher.publishEvent(new ApplicationRejectedEmailRequested(application.getUser().getEmail(),
+                emailPayloadFactory.displayName(application.getUser()), request.getRejectionReason()));
 
         logger.info("✅ Application rejected for user: {}", application.getUser().getUsername());
 
@@ -426,10 +442,11 @@ public class TeacherApplicationService {
         user.setIsTrial(false);
         user.setTrialStartDate(null);
         user.setTrialEndDate(null);
+        user.setTrialReminderSentAt(null);
 
         userRepository.save(user);
 
-        Optional<TeacherApplication> applicationOpt = applicationRepository.findByUser(user);
+        Optional<TeacherApplication> applicationOpt = applicationRepository.findTopByUserOrderByIdDesc(user);
         if (applicationOpt.isPresent()) {
             String upgradeReason = request != null && request.getReason() != null
                     ? "Upgraded from trial to full teacher. Reason: " + request.getReason()
@@ -463,6 +480,18 @@ public class TeacherApplicationService {
         long active  = userRepository.countActiveTrialTeachers(RoleName.ROLE_TEACHER_TRIAL, now);
         long expired = userRepository.countExpiredTrialTeachers(RoleName.ROLE_TEACHER_TRIAL, now);
         return new ApplicationStatsResponse(pending, approved, rejected, trial, expiring, active, expired);
+    }
+
+    private boolean hasConstraint(Throwable exception, String constraintName) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof org.hibernate.exception.ConstraintViolationException violation
+                    && constraintName.equals(violation.getConstraintName())) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

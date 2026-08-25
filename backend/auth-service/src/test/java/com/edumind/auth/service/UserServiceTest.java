@@ -7,6 +7,8 @@ import com.edumind.auth.entity.Role;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.enums.AuthProvider;
 import com.edumind.auth.enums.RoleName;
+import com.edumind.auth.event.EmailPayloadFactory;
+import com.edumind.auth.event.PasswordChangedEmailRequested;
 import com.edumind.auth.repository.RefreshTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.UserDetailsImpl;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -53,6 +56,12 @@ class UserServiceTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private EmailPayloadFactory emailPayloadFactory;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private UserService userService;
@@ -285,6 +294,7 @@ class UserServiceTest {
             when(passwordEncoder.matches("currentPassword", "encodedPassword")).thenReturn(true);
             when(passwordEncoder.matches("NewPassword123!", "encodedPassword")).thenReturn(false);
             when(passwordEncoder.encode("NewPassword123!")).thenReturn("newEncodedPassword");
+            when(emailPayloadFactory.displayName(testUser)).thenReturn("Test");
 
             ChangePasswordRequest request = ChangePasswordRequest.builder()
                     .currentPassword("currentPassword")
@@ -298,7 +308,8 @@ class UserServiceTest {
             // Then
             verify(userRepository).save(argThat(user ->
                     "newEncodedPassword".equals(user.getPassword())));
-            verify(emailService).sendPasswordChangedConfirmation("test@example.com", "Test");
+            verify(refreshTokenRepository).revokeAllUserTokens(testUser);
+            verify(eventPublisher).publishEvent(new PasswordChangedEmailRequested("test@example.com", "Test"));
         }
 
         @Test
@@ -321,6 +332,7 @@ class UserServiceTest {
 
             assertEquals("Current password is incorrect", exception.getMessage());
             verify(userRepository, never()).save(any());
+            verify(refreshTokenRepository, never()).revokeAllUserTokens(any());
         }
 
         @Test
@@ -375,8 +387,6 @@ class UserServiceTest {
             when(passwordEncoder.matches("currentPassword", "encodedPassword")).thenReturn(true);
             when(passwordEncoder.matches("NewPassword123!", "encodedPassword")).thenReturn(false);
             when(passwordEncoder.encode("NewPassword123!")).thenReturn("newEncodedPassword");
-            doThrow(new RuntimeException("Email failed"))
-                    .when(emailService).sendPasswordChangedConfirmation(anyString(), anyString());
 
             ChangePasswordRequest request = ChangePasswordRequest.builder()
                     .currentPassword("currentPassword")
@@ -384,11 +394,13 @@ class UserServiceTest {
                     .confirmPassword("NewPassword123!")
                     .build();
 
-            // When - Should not throw
+            // When - Should not throw (email delivery happens asynchronously via the
+            // published event, so a downstream mail failure never reaches this method)
             assertDoesNotThrow(() -> userService.changePassword(request));
 
             // Then
             verify(userRepository).save(any(User.class));
+            verify(refreshTokenRepository).revokeAllUserTokens(testUser);
         }
     }
 
