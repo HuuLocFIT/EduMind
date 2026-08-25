@@ -48,9 +48,62 @@ export default [
                     ],
                     depConstraints: [
                         {
-                            sourceTag: "*",
+                            sourceTag: "scope:user",
                             onlyDependOnLibsWithTags: [
-                                "*"
+                                "scope:user",
+                                "scope:shared"
+                            ]
+                        },
+                        {
+                            sourceTag: "scope:admin",
+                            onlyDependOnLibsWithTags: [
+                                "scope:admin",
+                                "scope:shared"
+                            ]
+                        },
+                        {
+                            sourceTag: "scope:shared",
+                            onlyDependOnLibsWithTags: [
+                                "scope:shared"
+                            ]
+                        },
+                        {
+                            sourceTag: "type:app",
+                            onlyDependOnLibsWithTags: [
+                                "type:ui",
+                                "type:types",
+                                "type:constants",
+                                "type:util"
+                            ]
+                        },
+                        {
+                            sourceTag: "type:ui",
+                            onlyDependOnLibsWithTags: [
+                                "type:ui",
+                                "type:types",
+                                "type:constants",
+                                "type:util"
+                            ]
+                        },
+                        {
+                            sourceTag: "type:util",
+                            onlyDependOnLibsWithTags: [
+                                "type:util",
+                                "type:types",
+                                "type:constants"
+                            ]
+                        },
+                        {
+                            sourceTag: "type:types",
+                            onlyDependOnLibsWithTags: [
+                                "type:types",
+                                "type:constants"
+                            ]
+                        },
+                        {
+                            sourceTag: "type:constants",
+                            onlyDependOnLibsWithTags: [
+                                "type:constants"
                             ]
                         }
                     ]

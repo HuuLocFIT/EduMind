@@ -1,188 +1,177 @@
 # Manual Safari + VoiceOver Accessibility Checklists
 
-Bộ checklist thủ công để chủ dự án tự kiểm thử 4 critical journey bằng **Safari + VoiceOver trên macOS**. Kết quả Axe/Pa11y/Playwright **không thay thế** cho các checklist này — các kết quả dưới đây phản ánh trạng thái cuối đã được kiểm tra thủ công.
+A set of manual checklists for the project owner to self-test the 4 critical journeys using **Safari + VoiceOver on macOS**. Axe/Pa11y/Playwright results **do not replace** these checklists — the results below reflect the final, manually verified state.
 
-## Vì sao phải là Safari, không phải Chrome
+## Why Safari, not Chrome
 
-VoiceOver là screen reader native của macOS và được Apple/WebAIM khuyến nghị test cùng **Safari**, vì:
+VoiceOver is macOS's native screen reader and is recommended by Apple/WebAIM to be tested with **Safari**, because:
 
-- Safari có lớp tích hợp trực tiếp với AX API của macOS (accessibility tree được VoiceOver đọc chính xác nhất từ Safari).
-- Chrome + VoiceOver vẫn dùng được nhưng có nhiều khác biệt hành vi đã biết (đọc thiếu live region, đọc sai role một số custom control, thứ tự focus lệch ở dialog/modal) — không phản ánh đúng trải nghiệm người dùng VoiceOver thật.
-- README của dự án cam kết "Safari + VoiceOver journeys" — nên kết quả phải đến từ đúng tổ hợp đó.
+- Safari has a direct integration layer with macOS's AX API (the accessibility tree is read most accurately by VoiceOver from Safari).
+- Chrome + VoiceOver still works but has several known behavioral differences (missed live region announcements, incorrect roles read for some custom controls, misplaced focus order in dialogs/modals) — it does not accurately reflect the real VoiceOver user experience.
+- The project README commits to "Safari + VoiceOver journeys" — so results must come from exactly that combination.
 
-## Danh sách file
+## File list
 
-| # | File | Nội dung | Số bước |
+| # | File | Content | Number of steps |
 | --- | --- | --- | --- |
-| 0 | [00-summary.md](00-summary.md) | **Tổng hợp kết quả, issue log và wording cho README dự án** — điền sau khi chạy xong 5 file dưới | — |
+| 0 | [00-summary.md](00-summary.md) | **Summary of results, issue log, and wording for the project README** — filled in after running the 5 files below | — |
 | 1 | [01-discover-flow-safari-voiceover.md](01-discover-flow-safari-voiceover.md) | Discover: Home → Browse Courses → Course Detail | 53 |
 | 2 | [02-auth-flow-safari-voiceover.md](02-auth-flow-safari-voiceover.md) | Authentication: Login / Signup / Forgot / Reset | 56 |
 | 3 | [03-purchase-flow-safari-voiceover.md](03-purchase-flow-safari-voiceover.md) | Purchase: Cart → Checkout → SePay QR → Success / Failed | 70 |
-| 4 | [04-learning-flow-safari-voiceover.md](04-learning-flow-safari-voiceover.md) | Learning: My Learning → Course Player (video, quiz, AI Tutor) | 80 |
-| 5 | [05-cross-cutting-zoom-reflow-motion.md](05-cross-cutting-zoom-reflow-motion.md) | Cắt ngang 4 flow: zoom 200%, reflow 320px, text spacing, contrast, reduced motion, page title, Chrome keyboard pass | 27 |
+| 4 | [04-learning-flow-safari-voiceover.md](04-learning-flow-safari-voiceover.md) | Learning: My Learning → Course Player (video, quiz, AI Tutor) | 81 |
+| 5 | [05-cross-cutting-zoom-reflow-motion.md](05-cross-cutting-zoom-reflow-motion.md) | Cross-cutting across the 4 flows: 200% zoom, 320px reflow, text spacing, contrast, reduced motion, page title, Chrome keyboard pass | 27 |
 
 ---
 
-## Bắt buộc: cấu hình máy trước khi test
+## Required: machine setup before testing
 
-Bỏ qua các bước dưới đây sẽ cho **kết quả sai** (đặc biệt phần Keyboard-only sẽ fail giả toàn bộ).
-Chỉ cần làm một lần trên máy, nhưng phải xác nhận lại trước mỗi buổi test.
+Skipping the steps below will produce **incorrect results** (in particular, the Keyboard-only section will show false failures across the board).
+This only needs to be done once per machine, but must be re-confirmed before each test session.
 
-### 1. Bật Tab tới link trong Safari — quan trọng nhất
+### 1. Enable Tab to link in Safari — most important
 
-Safari **mặc định không cho `Tab` dừng tại link**, chỉ dừng ở form control.
+Safari **by default does not let `Tab` stop on links**, only on form controls.
 
 `Safari → Settings (Cmd + ,) → Advanced → tick "Press Tab to highlight each item on a webpage"`
 
-Kiểm tra nhanh: mở Home, nhấn `Tab` một lần — nếu không thấy **Skip to main content** nhận focus thì tuỳ chọn này chưa bật.
+Quick check: open Home, press `Tab` once — if **Skip to main content** does not receive focus, this option is not yet enabled.
 
-> Mẹo: nếu quên bật, có thể tạm dùng `Option + Tab` để duyệt đầy đủ. Nhưng phần Keyboard-only phải test với `Tab` thuần, nên hãy bật hẳn tuỳ chọn trên.
+> Tip: if you forget to enable it, you can temporarily use `Option + Tab` to browse fully. However, the Keyboard-only section must be tested with plain `Tab`, so make sure to enable the option above.
 
-### 2. Bật Full Keyboard Access của macOS
+### 2. Enable macOS Full Keyboard Access
 
-`System Settings → Keyboard → Keyboard navigation` (bật).
+`System Settings → Keyboard → Keyboard navigation` (enable).
 
-Ảnh hưởng trực tiếp tới hành vi focus của radio group (payment method), checkbox, tab list và các control trong dialog.
+This directly affects the focus behavior of radio groups (payment method), checkboxes, tab lists, and controls inside dialogs.
 
-### 3. Reset VoiceOver về mặc định trước buổi test đầu tiên
+### 3. Reset VoiceOver to default before the first test session
 
-Verbosity/speech settings ảnh hưởng tới việc VoiceOver có đọc hay bỏ qua một số thông tin → kết quả sẽ không
-reproducible giữa 2 lần test nếu mỗi lần một cấu hình.
+Verbosity/speech settings affect whether VoiceOver reads out or skips certain information → results will not be
+reproducible between two test runs if each run uses a different configuration.
 
-`VO + F8 → General → Reset VoiceOver...` (hoặc xác nhận Verbosity đang ở mức **Medium** mặc định và ghi vào cột Ghi chú nếu đã đổi).
+`VO + F8 → General → Reset VoiceOver...` (or confirm Verbosity is at the default **Medium** level and note it in the Notes column if it was changed).
 
-### 4. Ghi lại phiên bản
+### 4. Record the version
 
-`Apple menu → About This Mac` (macOS) và `Safari → About Safari`. Bắt buộc điền vào bảng metadata của mỗi file —
-README dự án chỉ được ghi ngày/phiên bản khi thông tin này đã được điền. VoiceOver không có số phiên bản riêng, nó đi theo macOS.
+`Apple menu → About This Mac` (macOS) and `Safari → About Safari`. Must be filled into the metadata table of each file —
+the project README may only record the date/version once this information has been filled in. VoiceOver has no version number of its own; it follows macOS.
 
-## Cách bật/tắt VoiceOver
+## How to turn VoiceOver on/off
 
-| Loại máy | Cách bật/tắt |
+| Machine type | How to toggle |
 | --- | --- |
-| Mac có hàng phím F1–F12 vật lý | `Cmd + F5` |
-| MacBook có Touch Bar (không có phím F5 vật lý) | `Cmd + Fn + F5` |
-| MacBook có Touch ID | Giữ `Cmd` rồi bấm phím **Touch ID** 3 lần liên tiếp |
-| Bất kỳ máy nào (cách chắc ăn nhất) | `System Settings → Accessibility → VoiceOver → bật toggle`, hoặc mở Siri và nói "Turn VoiceOver on" |
+| Mac with a physical F1–F12 row | `Cmd + F5` |
+| MacBook with Touch Bar (no physical F5 key) | `Cmd + Fn + F5` |
+| MacBook with Touch ID | Hold `Cmd` then press the **Touch ID** key 3 times in a row |
+| Any machine (most reliable) | `System Settings → Accessibility → VoiceOver → toggle on`, or open Siri and say "Turn VoiceOver on" |
 
-Ghi chú:
+Notes:
 
-- Lần bật **đầu tiên** trên máy, macOS sẽ hiện hộp thoại VoiceOver Quick Start — bấm **Use VoiceOver** hoặc `Enter` để tiếp tục, `Cmd + F5` để huỷ nếu bật nhầm.
-- Nếu tổ hợp phím không phản hồi, khả năng shortcut Accessibility đã bị tắt: kiểm tra `System Settings → Keyboard → Keyboard Shortcuts → Accessibility`.
-- **Tắt VoiceOver**: `Cmd + F5` luôn có tác dụng kể cả khi bạn bật bằng System Settings; nếu phím tắt bị tắt thì tắt lại bằng toggle trong `System Settings → Accessibility → VoiceOver`.
-- Kiểm tra VoiceOver có đang chạy không: nhìn VoiceOver status menu ở góc trên bên phải, hoặc nghe câu chào "VoiceOver on".
+- The **first** time it's enabled on a machine, macOS shows the VoiceOver Quick Start dialog — press **Use VoiceOver** or `Enter` to continue, `Cmd + F5` to cancel if enabled by mistake.
+- If the key combination doesn't respond, the Accessibility shortcut may be disabled: check `System Settings → Keyboard → Keyboard Shortcuts → Accessibility`.
+- **Turning VoiceOver off**: `Cmd + F5` always works even if you enabled it via System Settings; if the shortcut is disabled, turn it off via the toggle in `System Settings → Accessibility → VoiceOver`.
+- To check whether VoiceOver is running: look at the VoiceOver status menu in the top-right corner, or listen for the "VoiceOver on" greeting.
 
-## Phím dùng trong checklist
+## Keys used in the checklist
 
-Giả định modifier mặc định `VO = Control + Option`.
+Assumes the default modifier `VO = Control + Option`.
 
-| Phím | Chức năng |
+| Key | Function |
 | --- | --- |
-| `VO + Right/Left Arrow` | Di chuyển tới item kế tiếp/trước trong VO cursor |
-| `VO + Space` | Kích hoạt item đang chọn (giống click) |
-| `VO + U` | Mở Rotor (Headings, Links, Landmarks, Form Controls...) |
-| `VO + Command + H` | Chuyển tới heading kế tiếp |
-| `VO + Command + L` | Chuyển tới link kế tiếp |
-| `VO + Command + J` | Chuyển tới form control kế tiếp |
-| `VO + Shift + Down/Up Arrow` | Vào/ra khỏi một group (dialog, fieldset, web area) |
-| `Tab` / `Shift + Tab` | Focus chuẩn trình duyệt (không phải VO cursor) — dùng cho phần keyboard-only |
-| `VO + A` | Đọc liên tục từ vị trí hiện tại (Read All) |
-| `VO + F2` (nhấn 2 lần) | Đọc lại **page title** của tab hiện tại (dùng cho SC 2.4.2) |
-| `Escape` | Đóng modal/drawer đang mở |
-| `Control` | Ngắt VoiceOver đang đọc (khi cần dừng giữa chừng) |
+| `VO + Right/Left Arrow` | Move to the next/previous item in the VO cursor |
+| `VO + Space` | Activate the currently selected item (like a click) |
+| `VO + U` | Open the Rotor (Headings, Links, Landmarks, Form Controls...) |
+| `VO + Command + H` | Move to the next heading |
+| `VO + Command + L` | Move to the next link |
+| `VO + Command + J` | Move to the next form control |
+| `VO + Shift + Down/Up Arrow` | Enter/exit a group (dialog, fieldset, web area) |
+| `Tab` / `Shift + Tab` | Standard browser focus (not the VO cursor) — used for the keyboard-only section |
+| `VO + A` | Read continuously from the current position (Read All) |
+| `VO + F2` (press twice) | Re-read the current tab's **page title** (used for SC 2.4.2) |
+| `Escape` | Close the currently open modal/drawer |
+| `Control` | Interrupt VoiceOver while it's speaking (when you need to stop mid-way) |
 
-## Test data cần chuẩn bị sẵn
+## Test data to prepare in advance
 
-Không ghi password, token hay secret thật vào các file này.
+Do not record real passwords, tokens, or secrets in these files.
 
-- 1 tài khoản student hợp lệ (có cả trạng thái chưa enroll và đã enroll).
-- 1 khóa học có curriculum nhiều section, có video có caption test, có quiz, có locked lesson.
-- Giỏ hàng có ít nhất 1 sản phẩm để test Purchase flow.
-- Token reset password còn hạn **và** token hết hạn/không hợp lệ.
-- Sandbox thanh toán ép được cả kịch bản success và failed (PayPal và SePay QR).
-- 1 khóa học có dữ liệu AI (embeddings/summary) để AI Tutor trả lời được.
+- 1 valid student account (with both a not-enrolled and an enrolled state).
+- 1 course with a curriculum containing multiple sections, a video with test captions, a quiz, and a locked lesson.
+- A cart with at least 1 item to test the Purchase flow.
+- A valid, non-expired password reset token **and** an expired/invalid token.
+- A payment sandbox that can force both success and failed scenarios (PayPal and SePay QR).
+- 1 course with AI data (embeddings/summary) so the AI Tutor can respond.
 
 ---
 
-### Kỹ thuật giả lập an toàn
+### Safe simulation techniques
 
-Những cách dưới đây chỉ tác động tới **trình duyệt của bạn**, không tạo dữ liệu và không chạm tới server.
+The methods below only affect **your browser**, do not create data, and do not touch the server.
 
-| Cần giả lập | Cách làm trong Safari|
+| Needs to simulate | How to do it in Safari |
 | --- | --- |
-| API trả lỗi (500/404) cho một endpoint | Web Inspector → **Sources → Local Overrides** → thêm override cho URL, đặt status code và body |
-| Mất mạng hoàn toàn / request fail | Tắt Wi-Fi, hoặc Network Link Conditioner profile **100% Loss** |
-| Loading state kéo dài để kịp nghe | Network Link Conditioner profile **Edge / Very Bad Network** |
-| Empty state | Dùng từ khoá search chắc chắn không có kết quả, hoặc filter không khớp |
-| 404 / invalid token / error deep-link | Gõ thẳng URL không hợp lệ: course slug không tồn tại, `/reset-password` thiếu token, `/checkout/failed?error=...` |
-| Lỗi lưu progress khi học | Local Override hoặc tắt mạng đúng lúc autosave |
+| API returns an error (500/404) for an endpoint | Web Inspector → **Sources → Local Overrides** → add an override for the URL, set the status code and body |
+| Complete network loss / request failure | Turn off Wi-Fi, or use the Network Link Conditioner **100% Loss** profile |
+| Extended loading state, enough time to listen | Network Link Conditioner **Edge / Very Bad Network** profile |
+| Empty state | Use a search keyword guaranteed to return no results, or a filter with no matches |
+| 404 / invalid token / error deep-link | Type an invalid URL directly: a course slug that doesn't exist, `/reset-password` missing a token, `/checkout/failed?error=...` |
+| Save-progress error while learning | Local Override or turn off the network right as autosave fires |
 
-Cài Network Link Conditioner: `Xcode → Additional Tools for Xcode` (Apple Developer), hoặc bỏ qua và dùng cách tắt Wi-Fi.
+Installing Network Link Conditioner: `Xcode → Additional Tools for Xcode` (Apple Developer), or skip it and turn off Wi-Fi instead.
 
-## Cách ghi kết quả
+## How to record results
 
-Mỗi bảng có các cột sau:
+Each table has the following columns:
 
-| Cột | Ý nghĩa |
+| Column | Meaning |
 | --- | --- |
-| **WCAG SC** | Success Criterion mà bước này kiểm chứng. Dùng để map bước test ↔ tiêu chí khi viết remediation log và khi trả lời phỏng vấn |
-| **Kết quả** | Trạng thái cuối đã được kiểm tra thủ công. Nếu phát hiện lỗi trong lúc làm, sửa và kiểm tra lại trước khi cập nhật kết quả cuối |
-| **Ghi chú / Issue ID** | Mặc định để trống khi `Pass`; dùng để ghi điều kiện đặc biệt hoặc mô tả một lỗi chưa được xử lý |
+| **WCAG SC** | The Success Criterion this step verifies. Used to map test step ↔ criterion when writing the remediation log and when answering interview questions |
+| **Result** | The final, manually verified state. If an issue is found while testing, fix it and re-verify before updating the final result |
+| **Notes / Issue ID** | Left blank by default when `Pass`; used to record a special condition or describe an unresolved issue |
 
-Giá trị hợp lệ cho `Kết quả`: `Pass`, `Fail`, `N/A`.
+Valid values for `Result`: `Pass`, `Fail`, `N/A`.
 
-- `Pass` — hành vi đúng như Kỳ vọng.
-- `Fail` — sai lệch so với Kỳ vọng. Bắt buộc mô tả theo template.
-- `N/A` — hành vi hoặc tính năng tương ứng không tồn tại trong sản phẩm hiện tại. Bắt buộc ghi rõ lý do.
+- `Pass` — behavior matches the Expected column.
+- `Fail` — deviates from the Expected column. Must be described using the template.
+- `N/A` — the corresponding behavior or feature does not exist in the current product. The reason must be stated clearly.
 
-### Ghi chú cho bước `Pass` — ghi gì, khi nào để trống
+### Notes for a `Pass` step — what to write, when to leave it blank
 
-**Mặc định để trống.** `Pass` đã có nghĩa là đúng như cột Kỳ vọng.
+**Default to leaving it blank.** `Pass` already means it matches the Expected column.
 
-Chỉ ghi khi có một trong ba thứ mà cột Kỳ vọng không chứa:
+Only write a note when one of these two things applies, and it isn't already captured in the Expected column:
 
-| Trường hợp | Ví dụ ghi |
+| Case | Example note |
 | --- | --- |
-| **Chuỗi VoiceOver thật sự đọc ra** — hữu ích làm mốc so sánh khi refactor sau này | `VO đọc "Remove Advanced React Patterns from cart, button"` |
-| **Số đo cụ thể** ở các bước yêu cầu đo (target size, contrast, kích thước viewport) | `Play 40×40, CC 32×32, Settings 32×32 — nhỏ nhất 32px` · `Contrast đo được 5.2:1` |
-| **Điều kiện khiến kết quả này đúng** — nếu điều kiện đổi thì kết quả có thể khác | `Pass với course có caption VTT; course không có caption xem bước C3` |
+| **The actual string VoiceOver read out** — useful as a comparison baseline for future refactors | `VO read "Remove Advanced React Patterns from cart, button"` |
+| **The condition that makes this result true** — if the condition changes, the result may differ | `Pass for a course with a VTT caption; for a course without captions see step C3` |
 
-**Không** ghi lại thông tin môi trường (phiên bản Safari/macOS, đã bật tab preference...) ở từng dòng —
-những thứ đó đã nằm ở bảng metadata đầu file và `00-summary.md` mục 1.
+**Do not** re-record environment information (Safari/macOS version, tab preference enabled, etc.) on individual rows —
+that information already belongs in the metadata table at the top of the file and in `00-summary.md` section 1.
 
-Riêng các bước yêu cầu **đo** (mọi bước SC 2.5.8, và các bước contrast ở checklist 05) thì số đo là **bắt buộc**
-kể cả khi Pass — không có số đo thì người đọc không kiểm chứng được kết luận.
+### Template for describing a `Fail` step
 
-### Template mô tả một bước `Fail`
-
-Nếu lỗi chưa được xử lý, ghi ngắn gọn vào cột Ghi chú (dùng `<br>` để xuống dòng trong bảng Markdown):
+If the issue has not been resolved, write a brief note in the Notes column (use `<br>` for line breaks inside a Markdown table):
 
 ```text
-[A11Y-<flow><số>] VO đọc: "<chuỗi copy từ Caption Panel>"
-Focus đang ở: <element đang nhận focus>
-Kỳ vọng: <hành vi đúng>
+[A11Y-<flow><number>] VO read: "<string copied from the Caption Panel>"
+Focus is on: <element currently receiving focus>
+Expected: <correct behavior>
 ```
 
-### Ví dụ điền một bảng
+### Example of a filled-in table
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| X1 | 2.4.1 | Tab từ đầu trang | Item đầu tiên nhận focus là **Skip to main content** | Pass | |
-| X1b | 2.5.8 | Đo nút đóng drawer | ≥ 24×24 CSS px | Pass | Đo được 40×40 |
-| X2 | 4.1.3 | Xoá 1 item khỏi cart | Announce item đã xoá + tổng tiền mới | Pass | VO đọc "Removed Advanced React from cart. New total 499,000 dong" |
-| X3 | 3.3.1 | Nhập sai code 2FA | Lỗi đọc rõ nội dung | N/A | Tài khoản test chưa bật 2FA nên bước này không áp dụng |
+| X1 | 2.4.1 | Tab from the top of the page | The first item to receive focus is **Skip to main content** | Pass | |
+| X2 | 4.1.3 | Remove 1 item from the cart | Announces the removed item + the new total | Pass | VO read "Removed Advanced React from cart. New total 499,000 dong" |
+| X3 | 3.3.1 | Enter an incorrect 2FA code | Error is read out clearly | N/A | The test account does not have 2FA enabled, so this step does not apply |
 
-## Sau khi test xong
+## What this checklist set does not cover
 
-Điền [00-summary.md](00-summary.md): số liệu theo flow, issue log và known limitations.
-Chỉ khi file đó đầy đủ mới cập nhật README dự án — mục 7 và 8 của `00-summary.md` quy định chính xác
-được viết gì và **không** được viết gì.
+Stated clearly to avoid misunderstanding the test scope:
 
-## Phần chưa được bộ checklist này phủ
-
-Ghi rõ để không hiểu nhầm phạm vi kiểm thử:
-
-- **`forced-colors` mode thật** (Windows High Contrast) — macOS/Safari không hỗ trợ media query này; checklist 05 bước D6 thay bằng `Increase contrast` + `Differentiate without color` của macOS và ghi phần còn lại là known limitation.
-- **Angular admin portal** — ngoài phạm vi milestone hiện tại.
-- **Screen reader khác** (NVDA/JAWS trên Windows, TalkBack trên Android, VoiceOver iOS) — chỉ test macOS VoiceOver.
-- **Người dùng thật khuyết tật** — đây là expert review, không phải usability testing với người dùng screen reader thực thụ. Không được diễn đạt thành "validated by users".
+- **Real `forced-colors` mode** (Windows High Contrast) — macOS/Safari does not support this media query; checklist 05 step D6 substitutes macOS's `Increase contrast` + `Differentiate without color`, and the remainder is recorded as a known limitation.
+- **Angular admin portal** — outside the current milestone's scope.
+- **Other screen readers** (NVDA/JAWS on Windows, TalkBack on Android, VoiceOver on iOS) — only macOS VoiceOver was tested.
+- **Real users with disabilities** — this is an expert review, not usability testing with actual screen reader users. It must not be described as "validated by users".

@@ -1,33 +1,24 @@
 # EduMind
 
-**An AI-powered learning and commerce platform built around reliable learning, inclusive interaction, and production-minded delivery.**
+**A frontend-focused full-stack learning platform built around race-safe course playback, accessible user journeys, streaming AI, and replay-safe commerce.**
 
-**[Explore the live product ↗](https://edumind.nguyenloc.dev)** &nbsp; · &nbsp; [Watch the video tour](#video-tour)
+Students learn and teachers run their courses in one React 19 application, administrators work in an Angular 20 console, and a Spring Boot platform backs both.
 
-*A frontend-focused full-stack engineering portfolio demonstrating race-safe React architecture, accessibility automation, streaming AI interfaces, and end-to-end system ownership.*
+**Solo project** — architecture, implementation, and verification owned end to end.<br/>
+AI accelerated research and implementation; technical decisions, review, and validation remained personal.
 
-> **GHI CHÚ — CẦN BỔ SUNG ẢNH HERO:** Thêm ảnh chụp Course Player bản desktop đã được tối ưu dung lượng vào `docs/media/course-player-hero.webp`, kiểm tra ảnh không chứa email, token, ID người dùng hoặc dữ liệu thanh toán, rồi thay ghi chú này bằng ảnh có alt text mô tả rõ giao diện.
+**[Explore the live student experience ↗](https://edumind.nguyenloc.dev/courses?filter=free)** — create an account, enroll in a free course, and open the Course Player and cited AI tutor.
 
-## Choose a demo experience
-
-| Role | What to explore | Demo access |
-| --- | --- | --- |
-| **Student** | Course discovery, checkout, learning runtime, quizzes, captions, and the cited AI tutor | **GHI CHÚ:** Cung cấp URL và tài khoản student demo giới hạn quyền |
-| **Teacher** | Course authoring, video processing, analytics, earnings, and payouts | **GHI CHÚ:** Cung cấp URL và tài khoản teacher demo giới hạn quyền |
-| **Admin** | Moderation, teacher applications, refunds, and payout operations | **GHI CHÚ:** Cung cấp URL safe admin demo giới hạn quyền |
+> **GHI CHÚ — ẢNH HERO (bắt buộc, ưu tiên 1).**
+> - Chụp Course Player desktop 1920×1080: curriculum bên trái, video + captions ở giữa, AI tutor panel mở.
+> - Xuất WebP, nén < 300 KB, lưu `docs/media/course-player-hero.webp`.
+> - Che email, token, user ID, dữ liệu thanh toán.
+> - Thay note này bằng `![...](docs/media/course-player-hero.webp)` với alt text mô tả bố cục, không phải "screenshot".
+> - Sau khi có video tour: thêm CTA phụ `**[Watch the 90-second tour](...)**` ngay dưới CTA chính, giữ đúng một CTA chính.
 
 [![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](frontend/apps/user)
 [![Angular 20](https://img.shields.io/badge/Angular-20-DD0031?logo=angular&logoColor=white)](frontend/apps/admin)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](frontend)
-[![Nx](https://img.shields.io/badge/Nx-22-143055?logo=nx&logoColor=white)](frontend)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?logo=springboot&logoColor=white)](backend)
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows)
-
-**[Engineering highlights](#engineering-highlights)** · **[Architecture](#platform-architecture)** · **[Product tour](#product-tour)**
-
-EduMind combines a React student and teacher experience, an Angular administration console, and a Spring platform for learning, AI, payments, refunds, and instructor settlement. Its engineering focus is not feature count: it is correctness when navigation and network responses race, recovery when external systems fail, accessible interaction across complete journeys, and explicit tradeoffs that fit the project's real operating scale.
-
-This project was independently architected and owned end to end. AI accelerated research, implementation, and verification; architecture, tradeoffs, integration, code review, debugging, and final validation remained personally owned.
 
 ## Why this is not another CRUD LMS
 
@@ -38,28 +29,65 @@ This project was independently architected and owned end to end. AI accelerated 
 | **Streaming RAG and asynchronous AI jobs** | Transcription, captions, embeddings, retrieval, summaries, quizzes, citations, retry, and cancellation form one lifecycle. |
 | **Replay-safe financial workflows** | Checkout, webhooks, refunds, earnings reversal, and payouts use explicit states, idempotency, locking, and reconciliation. |
 | **Two frameworks, one Nx platform** | React 19 and Angular 20 share strict TypeScript contracts and utilities while retaining framework-appropriate state models. |
-| **Production verification and delivery** | Tests, health-gated rollout, immutable images, Sentry releases, and SEO prerendering are treated as product behavior. |
+| **Production verification and delivery** | Automated checks, health-gated rollout, immutable images, Sentry releases, and SEO prerendering are treated as product behavior. |
 
-## Engineering highlights
+## How to evaluate EduMind
 
-### 1. Course Player: a race-resistant learning runtime
+| Time | Reviewer path |
+| --- | --- |
+| **5 minutes** | Read the Course Player highlight below, then open [`useLessonCompletion.ts`](frontend/apps/user/src/app/pages/learning/course-player/hooks/useLessonCompletion.ts) and the [Course Player regression tests](frontend/apps/user/src/app/pages/learning/course-player/CoursePlayerAccessibility.test.tsx). |
+| **15 minutes** | Inspect the committed [before/after accessibility artifacts](frontend/e2e/accessibility-reports) and the [Safari + VoiceOver checklist](frontend/e2e/manual-a11y-checklists/00-summary.md). No installation is required. |
+| **30 minutes** | Clone the repository, then from `frontend/` run `PUPPETEER_SKIP_DOWNLOAD=true npm ci` followed by `npx vitest run --root apps/user src/app/pages/learning/course-player/CoursePlayerAccessibility.test.tsx src/app/pages/learning/course-player/hooks/useCoursePlayerData.test.ts`. Sign up on the [live app](https://edumind.nguyenloc.dev/courses?filter=free), enroll in a free course, and try the cited AI tutor. |
+
+## Product tour
+
+| Role | Journey to explore | Access |
+| --- | --- | --- |
+| **Student** | Discover a [free course](https://edumind.nguyenloc.dev/courses?filter=free), enroll, learn in the Course Player, and ask the cited AI tutor. | Live — self-signup |
+| **Teacher** | Author content, process video and captions, inspect analytics, and manage earnings. | **GHI CHÚ:** link video walkthrough |
+| **Admin** | Moderate courses and teacher applications, then operate refunds and payouts. | **GHI CHÚ:** link video walkthrough |
+
+Admin and teacher operations are demonstrated through recorded walkthroughs; privileged access is not publicly exposed.
+
+> **GHI CHÚ — PRODUCT MEDIA (ưu tiên 2).**
+> **Ảnh composite ba vai trò** → `docs/media/roles-overview.webp`, chèn ngay dưới bảng này.
+>
+> **Video walkthrough Teacher (~45–60s)** → upload MP4 vào một issue/PR trên GitHub để lấy URL CDN, dán vào ô Access của hàng Teacher. Không commit binary vào repo. Nội dung: mở course editor → sửa lesson → upload/process video → hiện caption đã transcribe → analytics và earnings. Bỏ qua CRUD form thuần.
+>
+> **Video walkthrough Admin (~45–60s)** → tương tự, hàng Admin. Nội dung bám đúng 4 claim: duyệt teacher application → moderate course → duyệt refund → xử lý payout.
+>
+> **Video tour tổng 60–90s (tuỳ thời gian, làm sau)** → link vào CTA phụ ở hero. Timeline: 0–10s home/discovery · 10–35s Course Player (autosave → completion → auto-advance) · 35–50s AI tutor stream + citation · 50–65s teacher authoring · 65–80s admin refund/payout · 80–90s testing evidence.
+>
+> **Áp dụng cho MỌI video ở trên:** MP4 có controls, **không dùng GIF** (GIF loop không dừng được, vi phạm WCAG 2.2.2 — mâu thuẫn với chính claim a11y của README). 1080p, chữ đọc được, cắt thời gian loading, có caption tiếng Anh + transcript. Che email, token, ID giao dịch, số liệu tài chính thật.
+
+## Engineering deep dive
+
+### Course Player: field-level optimistic recovery
 
 #### Problem
 
-A course player coordinates remote progress, URL state, local restoration, video time, quiz eligibility, completion, layout, focus, announcements, and navigation. When a learner switches courses or lessons quickly, a valid response can become stale before it arrives. A naive optimistic update can also roll back newer data or auto-advance the wrong lesson.
+A course player coordinates remote progress, URL state, video time, quiz eligibility, completion, focus, announcements, and navigation. When a learner switches courses or lessons quickly, a valid response can become stale before it arrives. A naive optimistic update can erase newer progress or auto-advance the wrong lesson.
 
-#### Decisions
+#### Key decision
 
-- Page orchestration is decomposed into focused hooks for data, layout, navigation, completion, video progress, quiz availability, and auto-advance.
-- Monotonic version guards discard responses made obsolete by a course or lesson switch. Course A progress cannot overwrite Course B; Lesson A completion cannot announce, focus, or auto-advance inside Lesson B.
-- Manual completion, video end, and quiz pass converge on one completion path. Synchronous refs close the gap in which rapid input could submit twice.
-- Completion updates optimistically, then reconciles with server enrollment and progress data. Field-level rollback restores only the failed mutation's fields, preserving newer concurrent progress.
-- Persistence failure and reconciliation failure expose different recovery paths. The completed-course UI appears only from server-confirmed enrollment data.
-- Video autosave reads live refs, permits one write in flight, and retries the exact failed payload. A failed save remains owned by its original lesson even after navigation.
-- URL state, local restoration, and predictive quiz/summary prefetching are coordinated. Navigation also manages the mobile drawer, scroll position, focus, and screen-reader announcements.
-- The custom player provides keyboard controls, captions, quality switching, playback-position preservation, and lifecycle cleanup.
+Completion is optimistic, but rollback is scoped to the course, lesson, request, and field that owns the mutation. A synthetic progress record is removed on failure; a real record preserves fields written by a concurrent autosave and reverts only `isCompleted`.
 
-#### State and recovery sequence
+> **Invariant:** A failed completion request must not erase video progress written by a newer concurrent autosave.
+
+```tsx
+if (belongsToCurrentCourse()) {
+  onProgressChange((prev) => {
+    const existing = prev.find((p) => p.lessonId === lessonId);
+    if (!existing) return prev;
+    if (existing.id === undefined) {
+      return prev.filter((p) => p.lessonId !== lessonId);
+    }
+    return prev.map((p) =>
+      p.lessonId === lessonId ? { ...p, isCompleted: Boolean(snapshot.alreadyCompleted) } : p
+    );
+  });
+}
+```
 
 ```mermaid
 flowchart LR
@@ -74,31 +102,18 @@ flowchart LR
     G --> H["Optional cancellable auto-advance"]
 ```
 
-#### Failure modes handled
+- Monotonic version guards discard course and lesson responses made obsolete by navigation.
+- Synchronous refs close the gap in which rapid input could submit completion twice.
+- Persistence and reconciliation failures expose distinct, targeted recovery paths.
 
-- Out-of-order course and lesson responses.
-- Double completion from rapid input or overlapping triggers.
-- New progress arriving while an older optimistic request fails.
-- Navigation during completion, autosave, prefetch, or auto-advance.
-- Retry accidentally writing a failed video's time to the new lesson.
-- Server persistence succeeding while follow-up reconciliation fails.
+Evidence: [implementation](frontend/apps/user/src/app/pages/learning/course-player/hooks/useLessonCompletion.ts) · [regression tests](frontend/apps/user/src/app/pages/learning/course-player/CoursePlayerAccessibility.test.tsx) · [Playwright learning journey](frontend/e2e/tests/user/learning-flow-a11y.spec.ts)
 
-#### Evidence
+> **GHI CHÚ — COURSE PLAYER MEDIA (ưu tiên 2).**
+> - **Clip kỹ thuật `MP4`, ~20–30s** — quay đúng chuỗi: phát video → autosave chạy → đánh dấu hoàn thành → auto-advance sang bài kế. Nếu dựng được cảnh completion request fail rồi video progress vẫn còn nguyên thì quay luôn, đó là bằng chứng trực tiếp cho invariant ở trên. Upload qua issue/PR lấy URL CDN. **Không dùng GIF.**
+> - **Ảnh mobile** curriculum drawer đang mở → `docs/media/course-player-mobile.webp`.
+> - Ảnh desktop đã dùng làm hero ở đầu README, không lặp lại ở đây.
 
-Representative implementation and regression evidence:
-
-- [Course Player orchestration](frontend/apps/user/src/app/pages/learning/course-player/CoursePlayerPage.tsx) and [stale-response protection](frontend/apps/user/src/app/pages/learning/course-player/hooks/useCoursePlayerData.ts)
-- [Completion, reconciliation, and field-level rollback](frontend/apps/user/src/app/pages/learning/course-player/hooks/useLessonCompletion.ts)
-- [Video autosave and exact-payload retry](frontend/apps/user/src/app/pages/learning/course-player/hooks/useVideoProgress.ts)
-- [Course Player component tests](frontend/apps/user/src/app/pages/learning/course-player/CoursePlayerAccessibility.test.tsx) and the [Playwright learning journey](frontend/e2e/tests/user/learning-flow-a11y.spec.ts)
-
-> **GHI CHÚ — CẦN BỔ SUNG GIF:** Quay luồng phát video → tự lưu tiến độ → hoàn thành bài → tự chuyển bài; lưu tại `docs/media/course-player-completion.gif`. Nên che dữ liệu cá nhân và nén file trước khi commit.
-
-> **GHI CHÚ — CẦN BỔ SUNG ẢNH:** Thêm ảnh desktop Course Player thể hiện curriculum, captions và AI tutor tại `docs/media/course-player-desktop.webp`.
-
-> **GHI CHÚ — CẦN BỔ SUNG ẢNH:** Thêm ảnh mobile curriculum drawer với trạng thái bài học hiện tại tại `docs/media/course-player-mobile.webp`.
-
-### 2. Accessibility: complete journeys, not a compliance badge
+### Accessibility: complete journeys, not a compliance badge
 
 EduMind targets **WCAG 2.2 Level AA** and concentrates validation on four critical user journeys. This is a target and testing strategy—not a claim of full-site certification.
 
@@ -121,8 +136,6 @@ Reusable solutions include skip links, landmarks, route-focus management, shared
 
 Deterministic fixtures make authenticated and error states repeatable. Automated reports are attached to individual UI states instead of scanning only initial page load. Any rule exclusion must identify an issue, a reason, and a removal condition.
 
-> **Validation scope:** The four documented journeys passed their applicable Safari 18.1 + VoiceOver checks on macOS Sequoia 15.1, and the current Pa11y after-remediation scan reports zero issues across 14 deterministic routes. WCAG 2.2 Level AA is the testing target, not a claim of certification or full-site conformance. Windows High Contrast, the Angular admin portal, mobile screen readers, and usability testing with disabled participants remain outside the recorded scope.
-
 ```mermaid
 flowchart LR
     A["Scan a specific UI state"] --> B["Classify the issue"]
@@ -131,15 +144,27 @@ flowchart LR
     D --> E["Add regression prevention"]
 ```
 
-> **GHI CHÚ — CẦN BỔ SUNG SỐ LIỆU:** Sau khi đối soát toàn bộ artifact `before/` và `after/`, thêm bảng tóm tắt số lỗi trước/sau. Chỉ dùng số đã kiểm chứng và ghi rõ công cụ, ngày chạy, phạm vi UI state.
+#### Recorded remediation evidence
 
-> **GHI CHÚ — CẦN BỔ SUNG ẢNH:** Thêm một ảnh artifact lỗi có rule, selector và phần tử bị ảnh hưởng, cùng một ảnh trạng thái keyboard/focus sau khi sửa. Không dùng ảnh chứa thông tin tài khoản thật.
+| Evidence | Before remediation | After remediation |
+| --- | --- | --- |
+| Pa11y | 30 issues across 9 deterministic routes (2026-07-31) | 0 issues across 14 deterministic routes (2026-08-24) |
+| Axe + keyboard route collector | 2 violations—2 serious nodes—and 11 keyboard-smoke issues across 9 routes (2026-08-08) | 0 violations and 0 keyboard-smoke issues across the same 9 routes (2026-08-24) |
+| Safari + VoiceOver and cross-cutting manual checks | Not part of the automated baseline | 268 applicable checks passed, 0 failed, and 19 were recorded as not applicable across 5 test areas (2026-08-22) |
+
+Counts describe the committed deterministic artifacts and dated manual checklists, not every application state or a full-site conformance audit. The Pa11y after-scan adds authenticated cart, checkout, My Learning, Course Player, and SePay QR states beyond the original nine-route baseline, so its route count is intentionally larger.
+
+> **GHI CHÚ — ẢNH ACCESSIBILITY (ưu tiên 1, rẻ nhất — chỉ cần chụp lại artifact đã có sẵn trong repo).**
+> - **Ảnh before:** mở một report trong `frontend/e2e/accessibility-reports/before/` hoặc `before/pa11y/*.html`, chụp phần thấy rõ rule ID, selector và element bị ảnh hưởng → `docs/media/a11y-before.webp`.
+> - **Ảnh after:** cùng màn hình đó sau khi sửa, có focus ring hiển thị rõ → `docs/media/a11y-after.webp`.
+> - Đặt hai ảnh cạnh nhau ngay dưới bảng remediation, alt text nêu rule nào đã được sửa.
+> - Không dùng ảnh chứa thông tin tài khoản thật.
 
 Manual evidence: [Safari + VoiceOver checklist summary](frontend/e2e/manual-a11y-checklists/00-summary.md).
 
 Representative evidence: [accessibility test utilities](frontend/e2e/utils/accessibility.ts) · [four-flow testing guide](frontend/e2e/ACCESSIBILITY_TESTING.md) · [baseline and remediation record](frontend/e2e/BASELINE_ACCESSIBILITY_AUDIT.md)
 
-### 3. End-to-end AI learning pipeline
+### End-to-end AI learning pipeline
 
 EduMind's AI layer is a content lifecycle rather than a chat wrapper:
 
@@ -154,118 +179,38 @@ flowchart LR
     G --> H["SSE RAG tutor and generated quizzes"]
 ```
 
-- A custom authenticated SSE client built on Fetch Streams handles incomplete chunks, multi-line events, metadata, server errors, and leading spaces in model tokens. Streams are abortable and emit Sentry breadcrumbs.
-- Answers carry source-lesson citations and confidence metadata. Student answers are masked, and role/ownership checks protect teaching assets.
-- Long-running generation returns `202 Accepted` and exposes explicit polling states. General AI, Whisper, and SSE work use separate executor pools.
-- Processing begins after the database transaction commits. Embeddings use pgvector cosine similarity with an index-backed retrieval path.
-- A Groq `429` moves the job to `DELAYED` for scheduled retry. Temporary files are cleaned up, and external-provider failure is isolated from the originating transaction.
+A token or metadata event can be split across multiple `reader.read()` calls. Dispatching each network chunk directly would lose SSE framing or merge model tokens that begin with a space.
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING
-    PENDING --> PROCESSING
-    PROCESSING --> COMPLETED
-    PROCESSING --> DELAYED: provider rate limit
-    DELAYED --> PROCESSING: scheduled retry
-    PROCESSING --> FAILED: terminal failure
-    FAILED --> PENDING: original action re-triggered as a new job
-```
+- The authenticated Fetch Streams client buffers incomplete lines, joins multi-line `data:` fields, preserves token whitespace, and aborts the request when the chat panel closes or unmounts.
+- Answers carry source-lesson citations, while role and ownership checks protect teaching assets and mask student answers.
+- Quiz generation and transcription return `202 Accepted` with pollable jobs. Groq `429` responses move transcription jobs to `DELAYED` for scheduled retry; other AI jobs fail terminally and require an explicit re-trigger.
+- Summary and embedding work starts from `AFTER_COMMIT` lesson events, so provider processing is not part of the course-content transaction.
 
-> **GHI CHÚ — CẦN BỔ SUNG GIF:** Quay câu trả lời được stream theo thời gian thực, có citation tới lesson nguồn và confidence metadata; lưu tại `docs/media/ai-tutor-stream.gif` sau khi che dữ liệu cá nhân.
+Evidence: [frontend SSE parser](frontend/apps/user/src/app/services/ai.service.ts) · [AI workflow](docs/workflows/ai_workflows.md) · [video workflow](docs/workflows/video_upload_workflows.md)
 
-Evidence: [frontend SSE parser](frontend/apps/user/src/app/services/ai.service.ts) · [AI workflow](docs/workflows/ai_workflows.md) · [Video workflow](docs/workflows/video_upload_workflows.md)
+> **GHI CHÚ — AI TUTOR MEDIA (ưu tiên 2).**
+> - **Clip `MP4`, ~15–25s** — quay câu trả lời stream token theo thời gian thực, dừng lại đủ lâu ở citation trỏ về lesson nguồn và confidence metadata. Nếu quay được thao tác đóng panel giữa lúc đang stream (request bị abort) thì càng tốt, nó chứng minh phần cancellation.
+> - Upload qua issue/PR lấy URL CDN. **Không dùng GIF** — nội dung động dài quá 5s.
+> - Che email, token, user ID trước khi quay.
 
-### 4. Reliable commerce and finance
+### Reliable commerce and finance
 
-#### Checkout and payment
+PayPal can deliver the same successful webhook more than once. Reprocessing it must not repeat the payment-state transition or publish the same completion event again after the order has already recorded that publication.
 
-The cart removes items optimistically using a cache snapshot, recomputed totals, and rollback. Checkout supports direct purchase, free orders, PayPal redirect with webhook backup confirmation, and coordinated SePay QR polling/webhooks. Idempotency keys, one-active-order constraints, transaction uniqueness, signature verification, explicit order states, expiry, cancellation, and retry reduce duplicate financial side effects. Cart clearing is part of the transaction strategy rather than a detached UI convenience.
+- The webhook handler skips an order that is already `COMPLETED` with `sideEffectsPublished=true`; a committed order whose event was never marked as published takes a separate re-publication path.
+- The browser return path locks the gateway transaction during capture and returns the existing result when that transaction is already successful.
+- Refund transitions coordinate partial settlement with earnings reversal and enrollment revocation under duplicate prevention and optimistic locking.
+- Held earnings feed threshold-based payouts with bounded retry; PayPal is automated, while SePay refund and payout remain explicit manual-confirmation workflows.
 
-#### Refund reversal
-
-Refunds support configurable policies, partial amounts, auto/admin approval, duplicate prevention, and optimistic locking. Guarded transitions coordinate gateway or manual settlement with earnings recovery and enrollment revocation.
-
-#### Instructor settlement
-
-Earnings pass through a hold period before becoming available. Minimum thresholds and aggregation feed monthly or manual payouts; gateway processing, webhook updates, and retry limits govern settlement. PayPal is automated, while SePay refund and payout are intentionally manual-confirmation workflows.
-
-<details>
-<summary><strong>View the exact order, refund, earning, and payout state machines</strong></summary>
-
-```mermaid
-stateDiagram-v2
-    [*] --> O_PENDING: order created
-    O_PENDING --> O_PROCESSING: payment initiated
-    O_PROCESSING --> O_COMPLETED: payment confirmed
-    O_PROCESSING --> O_FAILED: payment failed
-    O_PENDING --> O_FAILED: expired or gateway error
-    O_PENDING --> O_CANCELLED: user cancelled
-    O_FAILED --> O_PENDING: payment retry
-    O_COMPLETED --> O_REFUNDED: completed refund
-
-    state "Order PENDING" as O_PENDING
-    state "Order PROCESSING" as O_PROCESSING
-    state "Order COMPLETED" as O_COMPLETED
-    state "Order FAILED" as O_FAILED
-    state "Order CANCELLED" as O_CANCELLED
-    state "Order REFUNDED" as O_REFUNDED
-```
-
-```mermaid
-stateDiagram-v2
-    [*] --> R_PENDING: refund requested
-    R_PENDING --> R_APPROVED: auto or admin approval
-    R_PENDING --> R_MANUAL: manual gateway approval
-    R_PENDING --> R_REJECTED: admin rejection
-    R_APPROVED --> R_COMPLETED: gateway settled
-    R_APPROVED --> R_FAILED: gateway failure
-    R_MANUAL --> R_COMPLETED: manual transfer confirmed
-
-    state "Refund PENDING" as R_PENDING
-    state "Refund APPROVED" as R_APPROVED
-    state "Refund AWAITING_MANUAL_REFUND" as R_MANUAL
-    state "Refund REJECTED" as R_REJECTED
-    state "Refund COMPLETED" as R_COMPLETED
-    state "Refund FAILED" as R_FAILED
-```
-
-```mermaid
-stateDiagram-v2
-    [*] --> E_PENDING: completed sale
-    E_PENDING --> E_AVAILABLE: hold period elapsed
-    E_AVAILABLE --> P_PENDING: threshold and aggregation
-    P_PENDING --> P_PROCESSING: payout started
-    P_PROCESSING --> P_COMPLETED: gateway success
-    P_PROCESSING --> P_MANUAL: manual gateway
-    P_MANUAL --> P_COMPLETED: transfer confirmed
-    P_PROCESSING --> P_FAILED: gateway failure
-    P_FAILED --> P_PENDING: retry allowed
-    P_COMPLETED --> E_PAID: earnings settled
-    E_PENDING --> E_REFUNDED: sale refunded
-    E_AVAILABLE --> E_REFUNDED: sale refunded
-
-    state "Earning PENDING" as E_PENDING
-    state "Earning AVAILABLE" as E_AVAILABLE
-    state "Earning PAID" as E_PAID
-    state "Earning REFUNDED" as E_REFUNDED
-    state "Payout PENDING" as P_PENDING
-    state "Payout PROCESSING" as P_PROCESSING
-    state "Payout AWAITING_MANUAL_PAYOUT" as P_MANUAL
-    state "Payout COMPLETED" as P_COMPLETED
-    state "Payout FAILED" as P_FAILED
-```
-
-</details>
-
-Evidence: [payment workflow](docs/workflows/payment_workflows.md) · [refund workflow](docs/workflows/refund_workflows.md) · [payout workflow](docs/workflows/payout_workflows.md) · [webhook integration tests](backend/lms-core-service/src/test/java/com/edumind/lms/modules/payment/integration/WebhookIntegrationTest.java)
+Evidence: [payment workflow](docs/workflows/payment_workflows.md) · [refund workflow](docs/workflows/refund_workflows.md) · [payout workflow](docs/workflows/payout_workflows.md) · [PayPal webhook integration tests](backend/lms-core-service/src/test/java/com/edumind/lms/modules/payment/integration/PayPalWebhookIntegrationTest.java)
 
 ## Platform architecture
 
 ```mermaid
 flowchart TB
     subgraph Frontend["Nx frontend workspace"]
-        USER["React 19 student and teacher app\nTanStack Query + Zustand"]
-        ADMIN["Angular 20 standalone admin\nSignals + RxJS"]
+        USER["React 19 student and teacher app<br/>TanStack Query + Zustand"]
+        ADMIN["Angular 20 standalone admin<br/>Signals + RxJS"]
         SHARED["Strict TypeScript contracts and utilities"]
         USER --- SHARED
         ADMIN --- SHARED
@@ -279,95 +224,49 @@ flowchart TB
     LMS --> DISCOVERY
     AUTH --> AUTHDB["Auth PostgreSQL"]
     GW --> REDIS["Redis"]
-    LMS --> LMSDB["PostgreSQL + pgvector\ncourse / payment / ai schemas"]
-    LMS --> PROVIDERS["Cloudinary · Gemini · Groq\nPayPal · SePay"]
+    LMS --> LMSDB["PostgreSQL + pgvector<br/>course / payment / ai schemas"]
+    LMS --> PROVIDERS["Cloudinary · Gemini · Groq<br/>PayPal · SePay"]
 ```
 
-The student/teacher app and admin console share an Nx platform, strict TypeScript configuration, DTO contracts, constants, and utilities. They intentionally retain different state models: TanStack Query and Zustand fit React's server/client state split, while Signals and RxJS fit Angular's local reactivity and request coordination.
+The React student/teacher app and Angular admin console share an Nx platform, strict TypeScript contracts, constants, and utilities while retaining framework-appropriate state models. Nx tags and ESLint enforce domain and layer boundaries.
 
-The API Gateway, Auth, and Discovery services are independently deployable. The core course, payment, and AI domains remain modules inside one Spring service with schema-level separation. This avoids paying the operational cost of premature microservices while preserving extraction seams. Module APIs provide in-process boundaries; OpenFeign is used across services.
+The API Gateway, Auth, and Discovery services are independently deployable. Course, payment, and AI remain modules in one Spring service with schema separation, preserving extraction seams without paying the operational cost of premature microservices.
 
-### Deliberate limitations
+## Delivery and verification
 
-- Nx tags do not yet enforce architectural boundaries.
-- Zod runtime validation is selected at important boundaries, not universal.
+| Area | Implemented evidence |
+| --- | --- |
+| Authentication | [Shared-promise refresh coordination in React](frontend/apps/user/src/app/services/api-client.service.ts), an [RxJS request queue in Angular](frontend/apps/admin/src/app/core/interceptors/auth.interceptor.ts), HttpOnly refresh cookies, OAuth2, 2FA, and role authorization |
+| Application security | AES-GCM protected values, XXE-hardened SVG sanitization, and Redis-backed gateway rate limiting |
+| Frontend CI | Nx affected lint, tests and build; accessibility lint plus Playwright axe/keyboard journeys and Pa11y |
+| Backend delivery | Maven verification, immutable SHA-tagged images, GHCR publishing, and dependency-ordered health-gated rollout |
+| Observability and SEO | Sentry release correlation and source maps; prerendering, canonical URLs, JSON-LD, sitemaps, and correct 404 semantics |
+
+Automation evidence: [frontend CI](.github/workflows/frontend-ci.yml) · [backend CI](.github/workflows/backend-ci.yml) · [backend delivery](.github/workflows/backend-cd.yml)
+
+## Scope, evidence, and known limitations
+
+> **Validation scope:** The four documented journeys passed their applicable Safari 18.1 + VoiceOver checks on macOS Sequoia 15.1, and the current Pa11y after-remediation scan reports zero issues across 14 deterministic routes. WCAG 2.2 Level AA is the testing target, not a claim of certification or full-site conformance. Windows High Contrast, the Angular admin portal, mobile screen readers, and usability testing with disabled participants remain outside the recorded scope.
+
+Dated artifacts describe the deterministic states and environments recorded at that time; they are evidence, not a claim about every application state.
+
 - Some reporting paths still cross intended backend module boundaries.
 - Async work is executor- and scheduler-based; there is no Kafka or RabbitMQ.
 - SePay in-flight polling/webhook coordination is in memory, while persisted order state remains authoritative.
 
-See the [C4 architecture index](docs/architecture/README.md) and [known limitations](docs/known-limitations.md) for the full rationale and current gaps.
-
-## Security, verification, and delivery
-
-| Area | Implemented evidence |
-| --- | --- |
-| Authentication | [Shared-promise refresh coordination in React](frontend/apps/user/src/app/services/api-client.service.ts); an [RxJS request queue in Angular](frontend/apps/admin/src/app/core/interceptors/auth.interceptor.ts); HttpOnly refresh cookies; OAuth2, 2FA, and role authorization |
-| Application security | AES-GCM protected values, XXE-hardened SVG sanitization, and Redis-backed gateway rate limiting |
-| Automated testing | Vitest and Testing Library, Angular TestBed, Playwright, Spring integration tests, and PostgreSQL/pgvector Testcontainers with Flyway-owned schemas |
-| Test inventory | **49 frontend app/library test files** plus **13 Playwright E2E specifications** (**62 frontend test/spec files total**), and **77 backend test files** |
-| Current frontend CI | Nx affected lint, unit/integration test, production build, accessibility lint, Playwright axe/keyboard journeys, and Pa11y |
-| Current backend CI/CD | Maven tests, matrix-built containers, GHCR publishing, dependency-ordered rollout, and post-deployment health verification |
-| Accessibility regression | Stateful Playwright, axe-core, Pa11y, and keyboard/focus suites run in the frontend CI accessibility job; reports are uploaded for review |
-| Backend delivery | Immutable SHA-tagged images and dependency-ordered, health-gated VPS rollout |
-| Observability | Sentry release correlation, browser breadcrumbs, and source-map upload followed by artifact removal |
-| Search and sharing | Puppeteer prerendering, canonical URLs, JSON-LD, sitemap generation, and correct 404 semantics |
-
-Counts above are file counts—not test-case totals, pass counts, coverage, proof of a current passing run, or a claim that every suite runs in CI. Recount them when the test inventory changes.
-
-Relevant automation: [frontend CI](.github/workflows/frontend-ci.yml) · [frontend release](.github/workflows/frontend-release.yml) · [backend CI](.github/workflows/backend-ci.yml) · [backend delivery](.github/workflows/backend-cd.yml)
-
-## Product tour
-
-### Student
-
-Discover courses, evaluate course detail, purchase securely, learn through a stateful Course Player, and ask a cited AI tutor.
-
-> **GHI CHÚ — CẦN BỔ SUNG MEDIA:** Thêm ảnh discovery và checkout không trùng với Course Player/AI media ở Engineering highlights. Mỗi file cần alt text mô tả mục đích, không chỉ mô tả màu sắc/giao diện.
-
-### Teacher
-
-Create and moderate course content, upload video for processing and captions, inspect learning analytics, and manage earnings and payouts.
-
-> **GHI CHÚ — CẦN BỔ SUNG MEDIA:** Thêm ảnh course builder, trạng thái xử lý video, analytics và earnings/payout; dùng tài khoản demo không chứa dữ liệu thật.
-
-### Admin
-
-Review teacher applications and courses, moderate the platform, and handle refunds and payout operations through a separate Angular console.
-
-> **GHI CHÚ — CẦN BỔ SUNG MEDIA:** Thêm ảnh moderation, teacher application, refund và payout trong Angular admin; che toàn bộ email, ID giao dịch và thông tin tài chính.
-
-## Live demo
-
-**[Explore the live product ↗](https://edumind.nguyenloc.dev)** · [Watch the video tour](#video-tour)
-
-> **GHI CHÚ — CẦN BỔ SUNG DEMO ACCESS:** Cập nhật bảng role/demo sau hero bằng URL và hướng dẫn truy cập Student, Teacher và Admin. Nếu cung cấp tài khoản mẫu, chỉ dùng credential giới hạn quyền, dùng một lần hoặc chủ động công khai; không commit tài khoản thật hay secret vào repository.
-
-### Video tour
-
-The video tour is the fallback when the live environment is unavailable or a reviewer wants a guided overview before exploring independently.
-
-> **GHI CHÚ — CẦN BỔ SUNG VIDEO:** Thêm URL video tour ngắn ngay cạnh CTA Live Demo ở hero và tại section này. Video nên đi qua Student → Teacher → Admin, ưu tiên Course Player, accessibility, AI streaming và financial workflows; thêm caption và transcript tiếng Anh.
+See [known limitations](docs/known-limitations.md) for the full rationale and current gaps.
 
 ## Documentation
 
-| Area | Entry point |
-| --- | --- |
-| Frontend platform | [Frontend overview](frontend/README.md) |
-| React application | [Student and teacher app](frontend/apps/user/README.md) |
-| Angular application | [Admin app](frontend/apps/admin/README.md) |
-| Backend platform | [Backend overview](backend/README.md) |
-| Architecture | [C4 documentation](docs/architecture/README.md) |
-| Authentication | [Authentication workflow](docs/workflows/auth_workflows.md) |
-| AI and video | [AI workflow](docs/workflows/ai_workflows.md) · [Video workflow](docs/workflows/video_upload_workflows.md) |
-| Commerce | [Payment](docs/workflows/payment_workflows.md) · [Refund](docs/workflows/refund_workflows.md) · [Payout](docs/workflows/payout_workflows.md) |
-| Operations | [Production operations](docs/operations/production.md) · [Known limitations](docs/known-limitations.md) |
-| Accessibility evidence | [Automated reports](frontend/e2e/accessibility-reports) |
+- [Architecture](docs/architecture/README.md)
+- [Frontend](frontend/README.md)
+- [Backend](backend/README.md)
+- [Workflows](docs/workflows/ai_workflows.md): AI/video, authentication, payment, refund, and payout
+- [Accessibility evidence](frontend/e2e/accessibility-reports): committed automated artifacts and [manual checklists](frontend/e2e/manual-a11y-checklists/00-summary.md)
 
 ## Run locally
 
-### Frontend-only inspection
-
-Requires Node.js 24 and npm. Run frontend commands from `frontend/`.
+### Frontend
 
 ```bash
 cd frontend
@@ -376,11 +275,9 @@ cp .env.example apps/user/.env
 npm run start:user
 ```
 
-The React app runs at `http://localhost:3000`; the Angular admin can be started with `npm run start:admin` and runs at `http://localhost:4200`. Configure the API base URL as described in the [frontend setup guide](frontend/README.md).
+The React app runs at `http://localhost:3000`. See the [frontend setup guide](frontend/README.md) for configuration and the Angular admin command.
 
-### Full backend platform
-
-Docker Compose starts Discovery, two PostgreSQL databases, Redis, Auth, LMS Core, and the API Gateway.
+### Backend platform
 
 ```bash
 cd backend
@@ -389,18 +286,4 @@ docker compose up -d
 curl --fail http://localhost:8080/actuator/health
 ```
 
-Replace required secrets in `.env` before startup. Cloudinary, OAuth, mail, AI, and real payment credentials are optional unless you exercise their features. Do not commit populated environment files. See the [backend setup guide](backend/README.md) for dependency tiers and key generation.
-
-## What this project demonstrates
-
-- Ownership of complex frontend state and asynchronous failure modes.
-- Accessible interaction design backed by CI automation and dated, reproducible Safari + VoiceOver records for four critical journeys.
-- AI product integration beyond prompt wrappers.
-- Financial workflow and data-consistency awareness.
-- Architectural decisions shaped by present constraints rather than fashionable topology.
-- Production verification, observability, and delivery discipline.
-- Effective AI-assisted development with human technical accountability.
-
----
-
-EduMind is an actively developed engineering portfolio project. Claims in this document are scoped to committed code, workflow documentation, and recorded evidence; known limitations are documented rather than hidden.
+See the [backend setup guide](backend/README.md) for dependency tiers, key generation, and optional provider configuration. Never commit populated environment files.

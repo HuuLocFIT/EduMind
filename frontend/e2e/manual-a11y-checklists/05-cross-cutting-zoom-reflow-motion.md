@@ -1,54 +1,54 @@
 # Checklist 5 — Cross-cutting: zoom, reflow, contrast, motion, page title
 
-Khác với 4 file kia, phần lớn checklist này **không cần VoiceOver** — chủ yếu dùng mắt, DevTools và cấu hình hệ thống.
+Unlike the other 4 files, most of this checklist **does not require VoiceOver** — it mainly relies on visual inspection, DevTools, and system configuration.
 
-## Thông tin kiểm thử
+## Test information
 
-| Trường | Giá trị |
+| Field | Value |
 | --- | --- |
-| Ngày kiểm thử | 21/08/2026|
-| macOS version | macOs Sequoia - Version 15.1|
-| Safari version | Version 18.1|
-| VoiceOver verbosity (default: Medium) | Medium|
-| Kết luận flow (Pass / Fail) | Pass|
+| Test date | 2026-08-21 |
+| macOS version | macOS Sequoia - Version 15.1 |
+| Safari version | Version 18.1 |
+| VoiceOver verbosity (default: Medium) | Medium |
+| Flow conclusion (Pass / Fail) | Pass |
 
-## Route được test trong file này
+## Routes tested in this file
 
-Mỗi bước dưới đây phải chạy trên **toàn bộ** các route sau, ghi kết quả theo route xấu nhất và nêu tên route đó trong Ghi chú:
+Every step below must run across **all** of the following routes; record the result for the worst-performing route and name that route in Notes:
 
-`/` · `/courses` · `/courses/:slug` · `/login` · `/signup` · `/forgot-password` · `/reset-password` · `/cart` · `/checkout` · `/checkout/sepay-qr` · `/checkout/success` · `/checkout/failed` · `/my-learning` · Course Player (video lesson) · Course Player (quiz lesson)
+`/` · `/courses` · `/courses/:slug` · `/login` · `/signup` · `/forgot-password` · `/reset-password` · `/cart` · `/checkout` · `/checkout/sepay-qr` · `/checkout/success` · `/checkout/failed` · `/learning` · Course Player (video lesson) · Course Player (quiz lesson)
 
 ---
 
 ## A. Zoom & Resize text (SC 1.4.4)
 
-Zoom trong Safari bằng `Cmd + "+"`. Reset về 100% bằng `Cmd + 0`. Ghi mức zoom vào Ghi chú.
+Zoom in Safari with `Cmd + "+"`. Reset to 100% with `Cmd + 0`. Record the zoom level in Notes.
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| A1 | 1.4.4 | Zoom 200% trên toàn bộ route ở danh sách trên | Mọi nội dung và chức năng vẫn dùng được; không mất text, không bị cắt chữ, không chồng chữ | Pass |  |
-| A2 | 1.4.4 | Zoom 200% ở `/checkout` và Course Player | Nút Place Order / Mark complete / video controls vẫn bấm được, không bị đẩy ra ngoài màn hình | Pass |  |
-| A3 | 1.4.4 | Zoom 200% khi đang mở cart drawer, mobile filter drawer, AI Tutor panel, modal lỗi | Dialog không bị tràn khỏi viewport; vẫn cuộn được tới nút đóng | Pass |  |
-| A4 | 1.4.4 | Zoom 200% ở form Signup có nhiều lỗi hiển thị cùng lúc | Error message không đè lên field, vẫn đọc được đầy đủ | Pass |  |
-| A5 | 1.4.4 | Zoom 200%, kiểm tra sticky header | Header không chiếm quá nhiều chiều cao đến mức che hết nội dung; vẫn cuộn tới được cuối trang | Pass |  |
+| A1 | 1.4.4 | Zoom to 200% across every route in the list above | All content and functionality remain usable; no lost text, no clipped text, no overlapping text | Pass |  |
+| A2 | 1.4.4 | Zoom to 200% on `/checkout` and Course Player | The Place Order / Mark complete buttons / video controls remain clickable, not pushed off-screen | Pass |  |
+| A3 | 1.4.4 | Zoom to 200% while the cart drawer, mobile filter drawer, AI Tutor panel, or error modal is open | Dialog doesn't overflow the viewport; the close button remains scrollable-to | Pass |  |
+| A4 | 1.4.4 | Zoom to 200% on the Signup form with multiple errors shown at once | Error messages don't overlap the field, still fully readable | Pass |  |
+| A5 | 1.4.4 | Zoom to 200%, check the sticky header | The header doesn't take up so much height that it obscures all content; the bottom of the page remains scrollable-to | Pass |  |
 
 ## B. Reflow (SC 1.4.10)
 
-Dùng Responsive Design Mode (`Develop → Enter Responsive Design Mode`, bật menu Develop tại `Safari → Settings → Advanced → Show features for web developers`), đặt kích thước **320 × 256 CSS px** — tương đương zoom 400% ở 1280×1024.
+Use Responsive Design Mode (`Develop → Enter Responsive Design Mode`, enable the Develop menu via `Safari → Settings → Advanced → Show features for web developers`), set the size to **320 × 256 CSS px** — equivalent to 400% zoom at 1280×1024.
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| B1 | 1.4.10 | Đặt 320×256, duyệt toàn bộ route trong danh sách | **Không có scroll ngang** ở bất kỳ route nào (trừ ngoại lệ hợp lệ: bảng dữ liệu lớn, code block — phải cuộn ngang trong chính khối đó, không phải cả trang) | Pass |  |
-| B2 | 1.4.10 | 320px ở `/courses` | Filter, search, danh sách course, pagination đều dùng được | Pass |  |
-| B3 | 1.4.10 | 320px ở `/checkout` và `/checkout/sepay-qr` | Order summary, payment method, QR code, countdown đều hiển thị đủ, không bị cắt | Pass |  |
-| B4 | 1.4.10 | 320px trong Course Player | Video player, curriculum drawer, quiz, nút Mark complete đều thao tác được | Pass |  |
-| B5 | 1.4.10 | 320px với các dialog/drawer đang mở | Nội dung dialog không bị tràn; nút đóng luôn tiếp cận được | Pass |  |
-| B6 | 1.3.4 | Xoay giữa portrait và landscape ở viewport nhỏ | Không khoá hướng màn hình; nội dung dùng được ở cả hai hướng | Pass |  |
-| B7 | 1.4.10 | Ở 320px, kiểm tra nút pill AI Tutor và các phần tử `position: fixed` | Không che mất nội dung/nút quan trọng đến mức không thao tác được | Pass |  |
+| B1 | 1.4.10 | Set 320×256, browse every route in the list | **No horizontal scroll** on any route (except valid exceptions: large data tables, code blocks — must scroll horizontally within that block itself, not the whole page) | Pass |  |
+| B2 | 1.4.10 | 320px on `/courses` | Filter, search, course list, pagination all remain usable | Pass |  |
+| B3 | 1.4.10 | 320px on `/checkout` and `/checkout/sepay-qr` | Order summary, payment method, QR code, countdown all display fully, not clipped | Pass |  |
+| B4 | 1.4.10 | 320px inside Course Player | Video player, curriculum drawer, quiz, Mark complete button all operable | Pass |  |
+| B5 | 1.4.10 | 320px with dialogs/drawers open | Dialog content doesn't overflow; the close button is always reachable | Pass |  |
+| B6 | 1.3.4 | Rotate between portrait and landscape at a small viewport | Screen orientation isn't locked; content remains usable in both orientations | Pass |  |
+| B7 | 1.4.10 | At 320px, check the AI Tutor pill button and other `position: fixed` elements | Doesn't obscure important content/buttons to the point of being unusable | Pass |  |
 
 ## C. Text spacing (SC 1.4.12)
 
-Áp CSS sau qua DevTools (`Develop → Show Web Inspector → Elements → thêm style vào `*`) hoặc bookmarklet text-spacing:
+Apply the following CSS via DevTools (`Develop → Show Web Inspector → Elements`, then add the style below to every element using the `*` selector) or a text-spacing bookmarklet:
 
 ```css
 * { line-height: 1.5 !important; letter-spacing: 0.12em !important;
@@ -56,49 +56,49 @@ Dùng Responsive Design Mode (`Develop → Enter Responsive Design Mode`, bật 
 p { margin-bottom: 2em !important; }
 ```
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| C1 | 1.4.12 | Áp CSS trên ở Home, Course Detail, Checkout, Course Player | Không mất nội dung, không cắt chữ, không chồng text; nút vẫn đọc được đầy đủ nhãn | Pass |  |
-| C2 | 1.4.12 | Kiểm tra riêng các nút và badge có text ngắn trong khung cố định | Text không bị tràn ra ngoài khung hoặc bị `overflow: hidden` cắt mất | Pass |  |
+| C1 | 1.4.12 | Apply the CSS above on Home, Course Detail, Checkout, Course Player | No lost content, no clipped text, no overlapping text; buttons still show their full label | Pass |  |
+| C2 | 1.4.12 | Specifically check buttons and badges with short text inside a fixed-size box | Text doesn't overflow outside the box or get clipped by `overflow: hidden` | Pass |  |
 
-## D. Contrast & màu sắc (SC 1.4.1, 1.4.3, 1.4.11)
+## D. Contrast & color (SC 1.4.1, 1.4.3, 1.4.11)
 
-Axe/Pa11y đã phủ contrast của text trên nền phẳng. Phần dưới đây là những chỗ **automated tool không kiểm được**.
+Axe/Pa11y already cover contrast of text on flat backgrounds. The items below are places **automated tools cannot check**.
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| D1 | 1.4.3 | Kiểm tra text nằm **trên ảnh/gradient** (hero, course card overlay, video poster) | Contrast ≥ 4.5:1 với phần nền xấu nhất (ảnh sáng nhất) | Pass |  |
-| D2 | 1.4.3 | Bật `System Settings → Accessibility → Display → Increase contrast`, duyệt lại 4 flow | Giao diện vẫn dùng được, không mất viền/ranh giới giữa các khối | Pass |  |
-| D3 | 1.4.1 | Bật `System Settings → Accessibility → Display → Differentiate without color` | Mọi trạng thái chỉ dùng màu (completed/locked, filter đang chọn, payment method đã chọn, refund status, quiz đúng/sai) vẫn phân biệt được bằng text/icon/hình dạng | Pass |  |
-| D4 | 1.4.11 | Kiểm tra focus indicator và viền input trên mọi nền | Contrast của indicator ≥ 3:1 so với nền liền kề, kể cả trên card tối/gradient | Pass |  |
-| D5 | 1.4.5 | Tìm ảnh chứa chữ (banner khuyến mãi, badge, biểu đồ) | Không dùng images of text khi CSS làm được; nếu buộc phải dùng thì có alt đầy đủ | Pass |  |
-| D6 | 1.4.1 | Test `forced-colors` mode thật (Windows High Contrast + Edge/Chrome) | UI không biến mất, icon vẫn thấy, focus indicator vẫn hiện. **macOS/Safari không hỗ trợ `forced-colors`** — nếu không có máy Windows thì ghi `N/A` + lý do, coi là known limitation, không claim đã test | N/A | Không có thiệt bị Windows để test, cần test lại nếu có thiết bị |
+| D1 | 1.4.3 | Check text sitting **on top of an image/gradient** (hero, course card overlay, video poster) | Contrast ≥ 4.5:1 against the worst-case background (the brightest part of the image) | Pass |  |
+| D2 | 1.4.3 | Enable `System Settings → Accessibility → Display → Increase contrast`, re-browse the 4 flows | Interface remains usable, borders/boundaries between blocks aren't lost | Pass |  |
+| D3 | 1.4.1 | Enable `System Settings → Accessibility → Display → Differentiate without color` | Every state conveyed only by color (completed/locked, selected filter, selected payment method, refund status, quiz correct/incorrect) remains distinguishable via text/icon/shape | Pass |  |
+| D4 | 1.4.11 | Check the focus indicator and input borders on every background | Indicator contrast ≥ 3:1 against the adjacent background, including on dark cards/gradients | Pass |  |
+| D5 | 1.4.5 | Look for images containing text (promotional banner, badge, chart) | No images of text used where CSS could achieve the same; if unavoidable, has a fully descriptive alt | Pass |  |
+| D6 | 1.4.1 | Test real `forced-colors` mode (Windows High Contrast + Edge/Chrome) | UI doesn't disappear, icons remain visible, focus indicator still shows. **macOS/Safari doesn't support `forced-colors`** — if no Windows machine is available, mark `N/A` + reason, treat as a known limitation, don't claim it was tested | N/A | No Windows device available for testing; needs re-testing if a device becomes available |
 
 ## E. Motion (SC 2.3.3, 2.2.2)
 
-Bật `System Settings → Accessibility → Display → Reduce motion` trước khi test mục này.
+Enable `System Settings → Accessibility → Display → Reduce motion` before testing this section.
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| E1 | 2.3.3 | Bật Reduce motion, duyệt lại Home, Browse, Course Player | Animation chuyển cảnh/parallax/slide bị giảm hoặc tắt; app tôn trọng `prefers-reduced-motion` | Pass |  |
-| E2 | 2.3.3 | Reduce motion + mở/đóng drawer, modal, AI Tutor panel | Không còn animation trượt/scale lớn gây khó chịu; dialog vẫn mở/đóng đúng chức năng | Pass |  |
-| E3 | 2.2.2 | Tìm mọi nội dung tự chuyển động > 5 giây (carousel, marquee, skeleton pulse, spinner chạy vô hạn, dot "waiting" ở SePay) | Có cách pause/stop/hide, hoặc nội dung không mang thông tin và không gây phân tán | Pass |  |
-| E4 | 2.3.1 | Kiểm tra không có nội dung nhấp nháy > 3 lần/giây | Không có flash nào vi phạm ngưỡng | N/A | Không có nội dung nào nhấp nháy > 3 lần/giây |
+| E1 | 2.3.3 | Enable Reduce motion, re-browse Home, Browse, Course Player | Transition/parallax/slide animations are reduced or disabled; the app respects `prefers-reduced-motion` | Pass |  |
+| E2 | 2.3.3 | Reduce motion + open/close the drawer, modal, AI Tutor panel | No more large slide/scale animations causing discomfort; dialogs still open/close correctly | Pass |  |
+| E3 | 2.2.2 | Find any content that moves on its own for > 5 seconds (carousel, marquee, skeleton pulse, an infinitely-running spinner, the "waiting" dots on SePay) | Has a way to pause/stop/hide it, or the content carries no information and causes no distraction | Pass |  |
+| E4 | 2.3.1 | Check that no content flashes > 3 times/second | No flash exceeds the threshold | N/A | No content flashes > 3 times/second |
 
-## F. Page title toàn hệ thống (SC 2.4.2)
+## F. System-wide page title (SC 2.4.2)
 
-| # | WCAG SC | Thao tác | Kỳ vọng | Kết quả | Ghi chú |
+| # | WCAG SC | Action | Expected | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| F1 | 2.4.2 | Duyệt lần lượt toàn bộ route trong danh sách đầu file, ghi `document.title` của từng route | Mỗi route có title **duy nhất** và mô tả đúng nội dung; không có route nào để title mặc định của app | Pass |  |
-| F2 | 2.4.2 | Đổi lesson trong Course Player | Title cập nhật theo lesson hiện tại (không giữ nguyên title cũ) | Pass |  |
-| F3 | 2.4.2 | Trang 404 và trang lỗi | Title phản ánh đúng trạng thái lỗi, không dùng title của trang trước | Pass |  |
+| F1 | 2.4.2 | Browse through every route in the list at the top of the file in turn, record each route's `document.title` | Each route has a **unique** title that correctly describes its content; no route is left with the app's default title | Pass |  |
+| F2 | 2.4.2 | Switch lessons in Course Player | Title updates to reflect the current lesson (doesn't keep the old title) | Pass |  |
+| F3 | 2.4.2 | 404 page and error page | Title accurately reflects the error state, doesn't reuse the previous page's title | Pass |  |
 
 ---
 
-### Kết luận
+### Conclusion
 
-- Tổng số bước: 27
+- Total steps: 27
 - Pass: 25
 - Fail: 0
 - N/A: 2
-- Issue còn mở: Không
+- Open issues: None

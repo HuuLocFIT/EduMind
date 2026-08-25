@@ -122,9 +122,24 @@ See [`apps/admin/README.md`](apps/admin/README.md) for feature and HTTP-layer de
 
 ### Boundaries and validation
 
-TypeScript aliases are defined in `tsconfig.base.json`; application aliases use wildcard forms such as `@user/services/*` and `@admin/core/*`. Nx's module-boundary configuration is currently permissive, so tag-based architectural layers are not enforced.
+TypeScript aliases are defined in `tsconfig.base.json`; application aliases use wildcard forms such as `@user/services/*` and `@admin/core/*`. Public libraries are imported through their `@edumind/*` entry points. Nx and ESLint enforce both domain scope and library layer for every frontend project:
 
-Zod schemas are used at selected service boundaries, especially authentication, but runtime response validation is not universal. Do not assume a response is validated unless its service explicitly parses it.
+| Source | Allowed dependencies |
+| --- | --- |
+| `scope:user` | `scope:user`, `scope:shared` |
+| `scope:admin` | `scope:admin`, `scope:shared` |
+| `scope:shared` | `scope:shared` |
+| `type:app` | `type:ui`, `type:types`, `type:constants`, `type:util` |
+| `type:ui` | `type:ui`, `type:types`, `type:constants`, `type:util` |
+| `type:util` | `type:util`, `type:types`, `type:constants` |
+| `type:types` | `type:types`, `type:constants` |
+| `type:constants` | `type:constants` |
+
+Both constraints apply to an import. This prevents User and Admin code from depending on each other, prevents shared libraries from depending on application-specific code, and prevents libraries from importing applications.
+
+Runtime validation is risk-based rather than universal. New or materially changed boundaries must validate external or otherwise untrusted payloads at runtime, with priority given to authentication, payments, AI, browser-persisted state, and responses likely to change independently of the frontend. SSE events, uploads, and direct third-party responses require boundary-specific validation based on their failure and compatibility risks. Internal, stable, low-risk responses may continue to use strict TypeScript contracts.
+
+This is the direction for new and changed code, not a claim that every existing high-risk path has already been migrated. The current inventory confirms broad schema coverage for payment and non-streaming AI responses, while auth refresh and persisted state, AI SSE metadata, upload persistence, and direct Cloudinary/upload responses still have uneven runtime coverage. Those paths should be hardened only with their backend contracts, compatibility behavior, and failure UX verified; completing that migration is intentionally outside the README work. See [`../docs/known-limitations.md`](../docs/known-limitations.md#runtime-validation-policy) for the inventory and adoption policy.
 
 ## Quality checks
 
@@ -239,14 +254,12 @@ Known limitations in the current implementation:
 - Production releases require the two Vercel projects and GitHub repository configuration described in the CI/CD runbook.
 - No frontend container image is defined; hosting is static-site oriented.
 - Automated coverage is uneven and has no enforced threshold.
-- Nx dependency tags do not enforce library layers.
-- Runtime Zod validation is service-specific rather than universal.
 - AI chat enables raw HTML through `rehype-raw`; unlike the article viewer, it does not currently sanitize that HTML with DOMPurify. Treat this as a hardening item before accepting untrusted HTML-generating sources.
 
 ## Contribution rules
 
 - Keep TypeScript strict and avoid `any` unless a documented integration boundary requires it.
-- Put reusable API contracts in `@edumind/shared-types` and parse untrusted responses at service boundaries.
+- Put reusable API contracts in `@edumind/shared-types`. Runtime-validate new or materially changed untrusted and high-risk boundaries according to the policy above; do not add universal parsing to stable, low-risk responses solely for consistency.
 - Keep HTTP access in domain services, not components.
 - Use TanStack Query for React server state and Zustand for client/UI workflows.
 - Preserve lazy loading for non-critical route pages.
