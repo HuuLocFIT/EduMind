@@ -127,6 +127,7 @@ services:
       - PASSWORD_RESET_LIMITER_HMAC_KEY=${PASSWORD_RESET_LIMITER_HMAC_KEY}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080}
+      - DEV_VERIFY_ENDPOINT_ENABLED=${DEV_VERIFY_ENDPOINT_ENABLED:-false}
     depends_on:
       postgres-auth:
         condition: service_healthy

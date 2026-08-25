@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import type { FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,7 +30,10 @@ export const LoginPage = () => {
   const { login, loginWith2FA, isLoading, error, clearError } = useAuthStore();
   const [needs2FA, setNeeds2FA] = useState(false);
   const [loginData, setLoginData] = useState<LoginRequest | null>(null);
-  const [localError, setLocalError] = useState<string>("");
+  const [localError, setLocalError] = useState<ReactNode>("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [resendNotice, setResendNotice] = useState("");
+  const [resendPending, setResendPending] = useState(false);
   const [validationAnnouncement, setValidationAnnouncement] = useState("");
   const validationAnnouncementTimerRef = useRef<number | null>(null);
   const { success: showSuccess } = useToast();
@@ -92,6 +96,8 @@ export const LoginPage = () => {
     setValidationAnnouncement("");
     clearError();
     setLocalError("");
+    setUnverifiedEmail("");
+    setResendNotice("");
 
     try {
       await login(data);
@@ -110,7 +116,12 @@ export const LoginPage = () => {
         setLoginData(data);
         setLocalError("");
         // Don't show error toast for 2FA requirement
+      } else if (err.errorCode === "ERR_5004") {
+        setUnverifiedEmail(data.usernameOrEmail);
+        setLocalError(err.message || "Please verify your email before signing in.");
       } else {
+        setUnverifiedEmail("");
+        setResendNotice("");
         const errorMsg = err.message || "Invalid email or password";
         setLocalError(errorMsg);
       }
@@ -120,6 +131,7 @@ export const LoginPage = () => {
   const onLoginInvalid = (invalidErrors: FieldErrors<LoginRequest>) => {
     clearError();
     setLocalError("");
+    setResendNotice("");
     setValidationAnnouncement("");
     if (validationAnnouncementTimerRef.current !== null) {
       window.clearTimeout(validationAnnouncementTimerRef.current);
@@ -156,8 +168,29 @@ export const LoginPage = () => {
         navigate(requestedDestination, { replace: true });
       }, 500);
     } catch (err: any) {
-      const errorMsg = err.message || "Invalid 2FA code";
-      setLocalError(errorMsg);
+      if (err.errorCode === "ERR_5004") {
+        setUnverifiedEmail(loginData.usernameOrEmail);
+        setLocalError(err.message || "Please verify your email before signing in.");
+      } else {
+        setUnverifiedEmail("");
+        setResendNotice("");
+        const errorMsg = err.message || "Invalid 2FA code";
+        setLocalError(errorMsg);
+      }
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResendPending(true);
+    try {
+      await authService.resendVerification({ email: unverifiedEmail });
+      setResendNotice(`A new verification link has been sent to ${unverifiedEmail}.`);
+      setLocalError("");
+      setUnverifiedEmail("");
+    } catch (err: any) {
+      setLocalError(err.message || "Unable to resend the verification email. Please try again.");
+    } finally {
+      setResendPending(false);
     }
   };
 
@@ -173,6 +206,8 @@ export const LoginPage = () => {
     setNeeds2FA(false);
     setLoginData(null);
     setLocalError("");
+    setUnverifiedEmail("");
+    setResendNotice("");
     clearError();
   };
 
@@ -213,6 +248,15 @@ export const LoginPage = () => {
               {validationAnnouncement}
             </p>
           )}
+          {resendNotice && (
+            <p
+              role="status"
+              aria-atomic="true"
+              className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800"
+            >
+              {resendNotice}
+            </p>
+          )}
           {(loginValidationMessages.length > 0 || error || localError) && (
             <AuthErrorSummary
               ref={errorSummaryRef}
@@ -230,6 +274,27 @@ export const LoginPage = () => {
                       <li key={message}>{message}</li>
                     ))}
                   </ul>
+                ) : unverifiedEmail ? (
+                  <span>
+                    {error || localError}{" "}
+                    {unverifiedEmail.includes("@") ? (
+                      <button
+                        type="button"
+                        className="font-medium underline hover:no-underline disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={handleResendVerification}
+                        disabled={resendPending}
+                      >
+                        {resendPending ? "Sending verification email…" : "Resend verification email"}
+                      </button>
+                    ) : (
+                      <Link
+                        to={USER_ROUTES.RESEND_VERIFICATION}
+                        className="font-medium underline hover:no-underline"
+                      >
+                        Enter your email address to resend verification
+                      </Link>
+                    )}
+                  </span>
                 ) : (error || localError)
               }
               className="mb-6"

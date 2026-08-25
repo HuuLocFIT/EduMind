@@ -49,6 +49,8 @@ class EmailVerificationServiceTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(emailVerificationService, "expirationMs", 86400000L); // 24 hours
+        ReflectionTestUtils.setField(emailVerificationService, "resendWindowMinutes", 60L);
+        ReflectionTestUtils.setField(emailVerificationService, "resendMax", 3);
 
         testUser = User.builder()
                 .id(1L)
@@ -152,6 +154,18 @@ class EmailVerificationServiceTest {
         }
 
         @Test
+        @DisplayName("Should be idempotent when token and user are already verified")
+        void verifyEmail_TokenAndUserAlreadyVerified() {
+            testToken.setVerifiedAt(LocalDateTime.now());
+            testUser.setIsEmailVerified(true);
+            when(tokenRepository.findByToken(TOKEN_STRING)).thenReturn(Optional.of(testToken));
+
+            assertDoesNotThrow(() -> emailVerificationService.verifyEmail(TOKEN_STRING));
+            verify(tokenRepository, never()).save(any());
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("Should fail if token expired")
         void verifyEmail_TokenExpired() {
             // Given
@@ -174,7 +188,7 @@ class EmailVerificationServiceTest {
         void resendVerificationEmail_Success() {
             // Given
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(testUser));
-            when(tokenRepository.countByUserAndVerifiedAtIsNull(testUser)).thenReturn(0);
+            when(tokenRepository.countByUserAndCreatedAtAfter(eq(testUser), any(LocalDateTime.class))).thenReturn(0);
 
             // When
             emailVerificationService.resendVerificationEmail(EMAIL);
@@ -200,7 +214,7 @@ class EmailVerificationServiceTest {
         void resendVerificationEmail_TooManyRequests() {
             // Given
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(testUser));
-            when(tokenRepository.countByUserAndVerifiedAtIsNull(testUser)).thenReturn(3);
+            when(tokenRepository.countByUserAndCreatedAtAfter(eq(testUser), any(LocalDateTime.class))).thenReturn(3);
 
             // When/Then
             BadRequestException ex = assertThrows(BadRequestException.class, () -> 
@@ -220,7 +234,7 @@ class EmailVerificationServiceTest {
                     emailVerificationService.resendVerificationEmail(EMAIL));
             assertEquals("Email is already verified", ex.getMessage());
 
-            verify(tokenRepository, never()).countByUserAndVerifiedAtIsNull(any());
+            verify(tokenRepository, never()).countByUserAndCreatedAtAfter(any(), any());
             verify(tokenRepository, never()).save(any());
             verify(emailService, never()).sendWelcomeAndVerificationEmail(anyString(), anyString(), anyString());
         }

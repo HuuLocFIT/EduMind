@@ -5,10 +5,12 @@ import com.edumind.auth.dto.request.LoginRequest;
 import com.edumind.auth.dto.request.SignupRequest;
 import com.edumind.auth.entity.Role;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.entity.EmailVerificationToken;
 import com.edumind.auth.enums.AuthProvider;
 import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.repository.RoleRepository;
 import com.edumind.auth.repository.UserRepository;
+import com.edumind.auth.repository.EmailVerificationTokenRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,6 +24,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -39,6 +42,9 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     @BeforeEach
     void setUp() {
@@ -186,6 +192,56 @@ class AuthIntegrationTest extends BaseIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("Email Verification Enforcement Tests")
+    class EmailVerificationEnforcementTests {
+
+        @Test
+        @DisplayName("Unverified login returns the frontend error contract")
+        void login_WithUnverifiedEmail_ShouldReturn403WithErrorCode() throws Exception {
+            createTestUser("unverifieduser", "unverified@example.com");
+            LoginRequest request = new LoginRequest("unverifieduser", "Password123!");
+
+            mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.errorCode").value("ERR_5004"))
+                    .andExpect(jsonPath("$.message")
+                            .value("Please verify your email before signing in."));
+        }
+
+        @Test
+        @DisplayName("User can login after following the verification token")
+        void login_AfterVerifyingEmail_ShouldSucceed() throws Exception {
+            SignupRequest signup = new SignupRequest();
+            signup.setUsername("verificationflow");
+            signup.setEmail("verificationflow@example.com");
+            signup.setPassword("Password123!");
+
+            mockMvc.perform(post("/auth/signup")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(signup)))
+                    .andExpect(status().isCreated());
+
+            User user = userRepository.findByUsername("verificationflow").orElseThrow();
+            EmailVerificationToken token = emailVerificationTokenRepository.findAll().stream()
+                    .filter(candidate -> candidate.getUser().getId().equals(user.getId()))
+                    .findFirst()
+                    .orElseThrow();
+
+            mockMvc.perform(get("/auth/verify-email").param("token", token.getToken()))
+                    .andExpect(status().isOk());
+
+            LoginRequest login = new LoginRequest("verificationflow", "Password123!");
+            mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(login)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.accessToken").exists());
         }
     }
 

@@ -358,6 +358,11 @@ app:
   auth:
     # Email verification token expiration (24 hours in milliseconds)
     email-verification-expiration: 86400000
+    email-verification-resend-window-minutes: ${EMAIL_VERIFICATION_RESEND_WINDOW_MINUTES:60}
+    email-verification-resend-max: ${EMAIL_VERIFICATION_RESEND_MAX:3}
+    enforce-email-verification: ${ENFORCE_EMAIL_VERIFICATION:true}
+    # Fail closed: enabled explicitly only for local/E2E account seeding.
+    dev-verify-endpoint-enabled: ${DEV_VERIFY_ENDPOINT_ENABLED:false}
 
     # Password reset token expiration (1 hour in milliseconds)
     password-reset-expiration: 3600000

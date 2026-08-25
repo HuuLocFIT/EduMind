@@ -47,4 +47,6 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
      * Count unverified tokens for a user
      */
     int countByUserAndVerifiedAtIsNull(User user);
+
+    int countByUserAndCreatedAtAfter(User user, LocalDateTime since);
 }

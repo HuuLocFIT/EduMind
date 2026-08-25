@@ -73,6 +73,11 @@ public class EmailService {
     }
 
     public void sendWelcomeAndVerificationEmail(String toEmail, String firstName, String token) {
+        if (!emailEnabled) {
+            logger.info("⚠️ Email disabled - skipping welcome email for: {}", toEmail);
+            return;
+        }
+
         logger.info("📧 Sending welcome + verification email to: {}", toEmail);
 
         try {

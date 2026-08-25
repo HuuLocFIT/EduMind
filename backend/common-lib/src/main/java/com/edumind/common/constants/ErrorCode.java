@@ -31,6 +31,7 @@ public final class ErrorCode {
     public static final String USERNAME_TAKEN = "ERR_5001";
     public static final String EMAIL_TAKEN = "ERR_5002";
     public static final String USER_INACTIVE = "ERR_5003";
+    public static final String EMAIL_NOT_VERIFIED = "ERR_5004";
 
     // Server Errors (9xxx)
     public static final String INTERNAL_SERVER_ERROR = "ERR_9000";

@@ -3,6 +3,7 @@ package com.edumind.auth.service;
 import com.edumind.auth.dto.request.LoginRequest;
 import com.edumind.auth.dto.request.SignupRequest;
 import com.edumind.auth.dto.request.TwoFactorLoginRequest;
+import com.edumind.auth.dto.model.OAuth2UserInfo;
 import com.edumind.auth.dto.response.JwtResponse;
 import com.edumind.auth.dto.response.TwoFactorRequiredResponse;
 import com.edumind.auth.entity.RefreshToken;
@@ -16,6 +17,7 @@ import com.edumind.auth.repository.UserRepository;
 import com.edumind.auth.security.JwtTokenProvider;
 import com.edumind.auth.security.UserDetailsImpl;
 import com.edumind.common.exception.BadRequestException;
+import com.edumind.common.exception.EmailNotVerifiedException;
 import com.edumind.common.exception.TokenRefreshException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,6 +99,7 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(authService, "refreshExpirationMs", 604800000L);
         ReflectionTestUtils.setField(authService, "cookieSecure", false);
         ReflectionTestUtils.setField(authService, "cookieSameSite", "Lax");
+        ReflectionTestUtils.setField(authService, "enforceEmailVerification", true);
 
         // Create test user
         testUser = User.builder()
@@ -261,6 +264,60 @@ class AuthServiceTest {
             assertTrue(response.isRequires2FA());
             assertEquals("test@example.com", response.getEmail());
         }
+
+        @Test
+        @DisplayName("Should reject an unverified local user before disclosing 2FA")
+        void authenticateUser_UnverifiedLocalWith2FA_ShouldThrow() {
+            LoginRequest request = new LoginRequest("testuser", "password123");
+            testUser.setIsEmailVerified(false);
+            testUser.setIs2faEnabled(true);
+
+            Authentication mockAuth = createMockAuthentication();
+            when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                    .thenReturn(mockAuth);
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            EmailNotVerifiedException exception = assertThrows(EmailNotVerifiedException.class,
+                    () -> authService.authenticateUser(request, httpServletResponse));
+
+            assertEquals("Please verify your email before signing in.", exception.getMessage());
+            verify(refreshTokenRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Should reject an unverified local user without 2FA")
+        void authenticateUser_UnverifiedLocal_ShouldThrow() {
+            LoginRequest request = new LoginRequest("testuser", "password123");
+            testUser.setIsEmailVerified(false);
+
+            Authentication mockAuth = createMockAuthentication();
+            when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                    .thenReturn(mockAuth);
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            assertThrows(EmailNotVerifiedException.class,
+                    () -> authService.authenticateUser(request, httpServletResponse));
+            verify(refreshTokenRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("OAuth provider skips the password-path verification policy guard")
+        void authenticateUser_OAuthProvider_SkipsVerificationGuard() {
+            // This state is unreachable in production because OAuth users have no password.
+            LoginRequest request = new LoginRequest("testuser", "password123");
+            testUser.setProvider(AuthProvider.GOOGLE);
+            testUser.setIsEmailVerified(false);
+            Authentication mockAuth = createMockAuthentication();
+            when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                    .thenReturn(mockAuth);
+            when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(tokenProvider.generateAccessToken(any())).thenReturn("access-token");
+            when(tokenProvider.generateRefreshToken(any())).thenReturn("refresh-token");
+            when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            assertInstanceOf(JwtResponse.class,
+                    authService.authenticateUser(request, httpServletResponse));
+        }
     }
 
     // ==================== 2FA VERIFICATION TESTS ====================
@@ -313,6 +370,23 @@ class AuthServiceTest {
 
             assertEquals("Invalid 2FA code", exception.getMessage());
         }
+
+        @Test
+        @DisplayName("Should reject unverified local user after a valid 2FA code")
+        void verify2FAAndLogin_UnverifiedLocal_ShouldThrow() {
+            TwoFactorLoginRequest request = new TwoFactorLoginRequest();
+            request.setUsernameOrEmail("test@example.com");
+            request.setCode("123456");
+            testUser.setIsEmailVerified(false);
+
+            when(userRepository.findByUsername("test@example.com")).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+            when(twoFactorAuthService.verifyCodeForLogin(testUser, "123456")).thenReturn(true);
+
+            assertThrows(EmailNotVerifiedException.class,
+                    () -> authService.verify2FAAndLogin(request, httpServletResponse));
+            verify(refreshTokenRepository, never()).save(any());
+        }
     }
 
     // ==================== TOKEN REFRESH TESTS ====================
@@ -343,6 +417,24 @@ class AuthServiceTest {
             // Then
             assertNotNull(result);
             assertEquals("new-access-token", result.getAccessToken());
+        }
+
+        @Test
+        @DisplayName("Should reject refresh for an unverified local user")
+        void refreshToken_UnverifiedLocal_ShouldThrow() {
+            testUser.setIsEmailVerified(false);
+            RefreshToken refreshToken = RefreshToken.builder()
+                    .token("valid-refresh-token")
+                    .user(testUser)
+                    .expiryDate(LocalDateTime.now().plusDays(7))
+                    .revoked(false)
+                    .build();
+            when(refreshTokenRepository.findByToken("valid-refresh-token"))
+                    .thenReturn(Optional.of(refreshToken));
+
+            assertThrows(EmailNotVerifiedException.class,
+                    () -> authService.refreshToken("valid-refresh-token", httpServletResponse));
+            verify(refreshTokenRepository, never()).save(any());
         }
 
         @Test
@@ -402,6 +494,45 @@ class AuthServiceTest {
 
             verify(refreshTokenRepository).delete(expiredToken);
         }
+
+        @Test
+        @DisplayName("Should refresh for an unverified OAuth user")
+        void refreshToken_UnverifiedOAuthUser_ShouldSucceed() {
+            testUser.setProvider(AuthProvider.GOOGLE);
+            testUser.setIsEmailVerified(false);
+            RefreshToken refreshToken = RefreshToken.builder()
+                    .token("oauth-refresh-token")
+                    .user(testUser)
+                    .expiryDate(LocalDateTime.now().plusDays(7))
+                    .revoked(false)
+                    .build();
+            when(refreshTokenRepository.findByToken("oauth-refresh-token"))
+                    .thenReturn(Optional.of(refreshToken));
+            when(tokenProvider.generateAccessToken(any())).thenReturn("new-access-token");
+
+            JwtResponse result = authService.refreshToken("oauth-refresh-token", httpServletResponse);
+
+            assertEquals("new-access-token", result.getAccessToken());
+        }
+    }
+
+    @Test
+    @DisplayName("OAuth refresh heals an existing unverified user")
+    void updateExistingUser_WhenNotVerified_ShouldMarkVerified() {
+        testUser.setProvider(AuthProvider.GOOGLE);
+        testUser.setProviderUserId("google-id");
+        testUser.setIsEmailVerified(false);
+        OAuth2UserInfo info = mock(OAuth2UserInfo.class);
+        when(info.getId()).thenReturn("google-id");
+        when(info.getEmail()).thenReturn(testUser.getEmail());
+        when(userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-id"))
+                .thenReturn(Optional.of(testUser));
+        when(userRepository.save(testUser)).thenReturn(testUser);
+
+        User result = authService.processOAuth2User("google", info);
+
+        assertTrue(result.getIsEmailVerified());
+        verify(userRepository).save(testUser);
     }
 
     // ==================== HELPER METHODS ====================

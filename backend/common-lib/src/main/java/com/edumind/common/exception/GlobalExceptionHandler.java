@@ -156,6 +156,27 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotVerifiedException(
+            EmailNotVerifiedException ex, HttpServletRequest request) {
+
+        String requestId = generateRequestId();
+        logger.error("❌ [{}] Email not verified: {}", requestId, ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .success(false)
+                .error("Forbidden")
+                .errorCode(ErrorCode.EMAIL_NOT_VERIFIED)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .requestId(requestId)
+                .path(request.getRequestURI())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentialsException(
             BadCredentialsException ex, HttpServletRequest request) {
