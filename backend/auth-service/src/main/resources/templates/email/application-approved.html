@@ -1,86 +1,140 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Application Approved</title>
-  <style>
-    body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        color: #333;
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    .header {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        color: white;
-        padding: 30px;
-        text-align: center;
-        border-radius: 10px 10px 0 0;
-    }
-    .content {
-        background: #f9f9f9;
-        padding: 30px;
-        border-radius: 0 0 10px 10px;
-    }
-    .alert-box {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 15px;
-        margin: 20px 0;
-    }
-    .button {
-        display: inline-block;
-        padding: 12px 30px;
-        background: #11998e;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        margin-top: 20px;
-    }
-    .footer {
-        text-align: center;
-        margin-top: 30px;
-        color: #666;
-        font-size: 12px;
-    }
-  </style>
-</head>
-<body>
-<div class="header">
-  <h1>🎊 Congratulations!</h1>
-</div>
-<div class="content">
-  <h2>Hello <span th:text="${name}">Teacher</span>!</h2>
-  <p><strong>Your teacher application has been approved!</strong></p>
-
-  <div th:if="${isTrial}">
-    <div class="alert-box">
-      <strong>⏰ Trial Period:</strong><br>
-      Your account is set up with a 30-day trial period.<br>
-      Trial ends on: <strong th:text="${trialEndDate}">Date</strong><br>
-      <em>Contact admin to upgrade to full teacher account.</em>
+<!doctype html>
+<html
+  lang="en"
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{email/fragments/layout :: layout('Your EduMind teacher application has been approved.', 'Application decision', 'You are approved to teach', ~{::#email-content})}"
+>
+  <body>
+    <div id="email-content">
+      <table
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        style="margin: 0 0 22px"
+      >
+        <tr>
+          <td
+            width="38"
+            height="38"
+            align="center"
+            style="
+              width: 38px;
+              height: 38px;
+              border-radius: 19px;
+              background-color: #dcfce7;
+              color: #166534;
+              font-size: 20px;
+              font-weight: 800;
+            "
+          >
+            ✓
+          </td>
+        </tr>
+      </table>
+      <p
+        style="
+          margin: 0 0 16px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        Hi <strong th:text="${name}" style="color: #0f172a">User</strong>,
+      </p>
+      <p
+        style="
+          margin: 0 0 22px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        Your teacher application has been approved.
+      </p>
+      <table
+        th:if="${isTrial}"
+        role="presentation"
+        width="100%"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        style="
+          margin: 0 0 24px;
+          background-color: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 12px;
+        "
+      >
+        <tr>
+          <td
+            style="
+              padding: 18px 20px;
+              color: #1e3a8a;
+              font-size: 14px;
+              line-height: 23px;
+            "
+          >
+            <strong>Your 30-day teacher trial is active.</strong><br />Trial end
+            date: <span th:text="${trialEndDate}">date</span>
+          </td>
+        </tr>
+      </table>
+      <table
+        th:unless="${isTrial}"
+        role="presentation"
+        width="100%"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        style="
+          margin: 0 0 24px;
+          background-color: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 12px;
+        "
+      >
+        <tr>
+          <td
+            style="
+              padding: 18px 20px;
+              color: #166534;
+              font-size: 14px;
+              line-height: 23px;
+            "
+          >
+            <strong>Your full teacher access is active.</strong><br />You can
+            now open the teacher workspace.
+          </td>
+        </tr>
+      </table>
+      <table
+        class="mobile-full"
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+      >
+        <tr>
+          <td bgcolor="#2563eb" style="border-radius: 10px">
+            <a
+              class="mobile-button"
+              th:href="${actionUrl}"
+              style="
+                display: inline-block;
+                padding: 14px 24px;
+                color: #ffffff;
+                font-size: 16px;
+                line-height: 20px;
+                font-weight: 700;
+                text-decoration: none;
+                border-radius: 10px;
+              "
+              >Open teacher dashboard</a
+            >
+          </td>
+        </tr>
+      </table>
     </div>
-  </div>
-
-  <div th:unless="${isTrial}">
-    <p>You now have full teacher access to EduMind platform!</p>
-  </div>
-
-  <p>You can now:</p>
-  <ul>
-    <li>Create and publish courses</li>
-    <li>Upload videos and materials</li>
-    <li>Manage your students</li>
-    <li>Conduct live classes</li>
-    <li>Track earnings</li>
-  </ul>
-
-  <a href="http://localhost:3000/teacher/dashboard" class="button">Go to Teacher Dashboard</a>
-</div>
-<div class="footer">
-  <p>© 2026 EduMind. All rights reserved.</p>
-</div>
-</body>
+  </body>
 </html>

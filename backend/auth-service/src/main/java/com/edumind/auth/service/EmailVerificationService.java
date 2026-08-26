@@ -2,18 +2,19 @@ package com.edumind.auth.service;
 
 import com.edumind.auth.entity.EmailVerificationToken;
 import com.edumind.auth.entity.User;
+import com.edumind.auth.event.EmailPayloadFactory;
+import com.edumind.auth.event.VerificationEmailRequested;
 import com.edumind.auth.repository.EmailVerificationTokenRepository;
 import com.edumind.auth.repository.UserRepository;
 import com.edumind.common.exception.BadRequestException;
-import com.edumind.common.exception.EmailSendException;
-import com.edumind.common.exception.ResourceNotFoundException;
+import com.edumind.common.exception.TooManyRequestsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.mail.MailException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -29,91 +30,46 @@ public class EmailVerificationService {
     private UserRepository userRepository;
 
     @Autowired
-    private EmailService emailService;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    private EmailPayloadFactory emailPayloadFactory;
+
+    @Autowired
+    private EmailVerificationResendRateLimiter resendRateLimiter;
 
     @Value("${app.auth.email-verification-expiration:86400000}") // 24 hours default
     private long expirationMs;
-
-    @Value("${app.auth.email-verification-resend-window-minutes:60}")
-    private long resendWindowMinutes;
 
     @Value("${app.auth.email-verification-resend-max:3}")
     private int resendMax;
 
     /**
-     * Helper method to get display name
-     * Priority: firstName + lastName > username
-     */
-    private String getDisplayName(User user) {
-        // Check if both firstName and lastName exist
-        if (isNotBlank(user.getFirstName()) && isNotBlank(user.getLastName())) {
-            return user.getFirstName() + " " + user.getLastName();
-        }
-
-        // Check if only firstName exists
-        if (isNotBlank(user.getFirstName())) {
-            return user.getFirstName();
-        }
-
-        // Check if only lastName exists
-        if (isNotBlank(user.getLastName())) {
-            return user.getLastName();
-        }
-
-        // Fallback to username
-        if (isNotBlank(user.getUsername())) {
-            return user.getUsername();
-        }
-
-        // Last resort
-        return "User";
-    }
-
-    /**
-     * Helper method to check if string is not blank
-     */
-    private boolean isNotBlank(String str) {
-        return str != null && !str.trim().isEmpty();
-    }
-
-    /**
      * Generate and send verification email to user
      */
-    @Transactional(noRollbackFor = {MailException.class, EmailSendException.class})
-    public void sendVerificationEmail(User user) {
+    @Transactional
+    public void sendInitialVerificationEmail(User user) {
         logger.info("📧 Generating email verification token for user: {}", user.getEmail());
+        String tokenString = issueVerificationToken(user.getId());
+        eventPublisher.publishEvent(emailPayloadFactory.verification(user, tokenString, true));
+    }
 
-        // Check if user already verified
-        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
-            logger.warn("⚠️ User {} already verified", user.getEmail());
-            throw new BadRequestException("Email is already verified");
+    /** Issue exactly one active token while holding the user's database row lock. */
+    @Transactional
+    public String issueVerificationToken(Long userId) {
+        User lockedUser = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new BadRequestException("Unable to issue verification token"));
+        if (Boolean.TRUE.equals(lockedUser.getIsEmailVerified())) {
+            throw new EmailAlreadyVerifiedException();
         }
 
-        // Generate token
-        String tokenString = UUID.randomUUID().toString();
-        LocalDateTime expiryDate = LocalDateTime.now().plusSeconds(expirationMs / 1000);
-
-        // Create and save token
+        LocalDateTime now = LocalDateTime.now();
+        tokenRepository.invalidateActiveTokens(lockedUser, now);
         EmailVerificationToken token = new EmailVerificationToken();
-        token.setToken(tokenString);
-        token.setUser(user);
-        token.setExpiryDate(expiryDate);
-
-        tokenRepository.save(token);
-
-        // Send email
-        try {
-            // This method now sends a combined email with both welcome message and verification link
-            emailService.sendWelcomeAndVerificationEmail(
-                    user.getEmail(),
-                    user.getFirstName(),
-                    tokenString
-            );
-            logger.info("✅ Welcome + verification email sent to: {}", user.getEmail());
-        } catch (Exception e) {
-            logger.error("❌ Failed to send email to: {}", user.getEmail(), e);
-            throw e;
-        }
+        token.setToken(UUID.randomUUID().toString());
+        token.setUser(lockedUser);
+        token.setExpiryDate(now.plusSeconds(expirationMs / 1000));
+        return tokenRepository.save(token).getToken();
     }
 
     /**
@@ -130,12 +86,17 @@ public class EmailVerificationService {
                     return new BadRequestException("Invalid verification token");
                 });
 
-        // Check if already verified
+        User user = token.getUser();
+        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            logger.info("Email already verified");
+            return;
+        }
+
+        if (token.isInvalidated()) {
+            throw new BadRequestException("This verification link is no longer valid. Please request a new one.");
+        }
+
         if (token.isVerified()) {
-            if (Boolean.TRUE.equals(token.getUser().getIsEmailVerified())) {
-                logger.info("Email verification token already used for verified user");
-                return;
-            }
             logger.warn("⚠️ Email verification token already used");
             throw new BadRequestException("This verification link has already been used");
         }
@@ -151,7 +112,6 @@ public class EmailVerificationService {
         tokenRepository.save(token);
 
         // Mark user as verified
-        User user = token.getUser();
         user.setIsEmailVerified(true);
         userRepository.save(user);
 
@@ -163,31 +123,27 @@ public class EmailVerificationService {
      */
     @Transactional
     public void resendVerificationEmail(String email) {
-        logger.info("📧 Resending verification email to: {}", email);
-
-        // Find user
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    logger.error("❌ User not found: {}", email);
-                    return new ResourceNotFoundException("User not found with email: " + email);
-                });
-
-        // Check if already verified
-        if (Boolean.TRUE.equals(user.getIsEmailVerified())) {
-            logger.warn("⚠️ User {} already verified", email);
-            throw new BadRequestException("Email is already verified");
+        String normalizedEmail = email.trim();
+        String emailHash = resendRateLimiter.hashEmail(normalizedEmail);
+        int attempts = resendRateLimiter.incrementAndGet(emailHash);
+        if (attempts > resendMax) {
+            throw new TooManyRequestsException("Too many verification requests. Please try again later.");
         }
 
-        // Check rate limiting within a rolling window.
-        LocalDateTime windowStart = LocalDateTime.now().minusMinutes(resendWindowMinutes);
-        int recentTokenCount = tokenRepository.countByUserAndCreatedAtAfter(user, windowStart);
-        if (recentTokenCount >= resendMax) {
-            logger.warn("⚠️ Too many verification requests for user: {}", email);
-            throw new BadRequestException("Too many verification requests. Please try again later.");
+        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
+        if (user == null || Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            return;
         }
 
-        // Send new verification email
-        sendVerificationEmail(user);
+        String token;
+        try {
+            token = issueVerificationToken(user.getId());
+        } catch (EmailAlreadyVerifiedException exception) {
+            // The user may have completed verification after the unlocked lookup above.
+            // Preserve the endpoint's generic success response for this expected race.
+            return;
+        }
+        eventPublisher.publishEvent(emailPayloadFactory.verification(user, token, false));
     }
 
     /**

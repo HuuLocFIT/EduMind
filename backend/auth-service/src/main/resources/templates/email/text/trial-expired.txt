@@ -1,0 +1,2 @@
+Hello [(${name})]. Your 30-day teacher trial has ended. Your account remains active as a student and existing course content is retained.
+Contact support: [(${supportEmail})]

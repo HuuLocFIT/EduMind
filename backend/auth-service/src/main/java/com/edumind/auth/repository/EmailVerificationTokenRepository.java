@@ -26,6 +26,11 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
             "ORDER BY t.createdAt DESC")
     Optional<EmailVerificationToken> findLatestUnverifiedByUser(@Param("user") User user);
 
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE EmailVerificationToken t SET t.invalidatedAt = :now " +
+            "WHERE t.user = :user AND t.verifiedAt IS NULL AND t.invalidatedAt IS NULL")
+    int invalidateActiveTokens(@Param("user") User user, @Param("now") LocalDateTime now);
+
     /**
      * Check if user has any unverified tokens
      */
@@ -48,5 +53,4 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
      */
     int countByUserAndVerifiedAtIsNull(User user);
 
-    int countByUserAndCreatedAtAfter(User user, LocalDateTime since);
 }

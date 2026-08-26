@@ -1,0 +1,102 @@
+<!doctype html>
+<html
+  lang="en"
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{email/fragments/layout :: layout('Your teacher application is now in the EduMind review queue.', 'Teacher application', 'Application received', ~{::#email-content})}"
+>
+  <body>
+    <div id="email-content">
+      <p
+        style="
+          margin: 0 0 16px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        Hi <strong th:text="${name}" style="color: #0f172a">User</strong>,
+      </p>
+      <p
+        style="
+          margin: 0 0 24px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        We received your teacher application. You can track its current status
+        from your EduMind account.
+      </p>
+      <table
+        role="presentation"
+        width="100%"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        style="
+          margin: 0 0 24px;
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+        "
+      >
+        <tr>
+          <td style="padding: 18px 20px">
+            <p
+              style="
+                margin: 0 0 8px;
+                color: #64748b;
+                font-size: 12px;
+                line-height: 18px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+              "
+            >
+              Application summary
+            </p>
+            <p
+              style="
+                margin: 0;
+                color: #0f172a;
+                font-size: 14px;
+                line-height: 23px;
+              "
+            >
+              <strong>Subject:</strong> <span th:text="${subject}">Subject</span
+              ><br /><strong>Experience:</strong>
+              <span th:text="${experienceYears}">0</span> years
+            </p>
+          </td>
+        </tr>
+      </table>
+      <table
+        class="mobile-full"
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+      >
+        <tr>
+          <td bgcolor="#2563eb" style="border-radius: 10px">
+            <a
+              class="mobile-button"
+              th:href="${actionUrl}"
+              style="
+                display: inline-block;
+                padding: 14px 24px;
+                color: #ffffff;
+                font-size: 16px;
+                line-height: 20px;
+                font-weight: 700;
+                text-decoration: none;
+                border-radius: 10px;
+              "
+              >View application status</a
+            >
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

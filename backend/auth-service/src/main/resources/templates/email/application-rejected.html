@@ -1,79 +1,110 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Application Status</title>
-  <style>
-    body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        color: #333;
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    .header {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-        color: white;
-        padding: 30px;
-        text-align: center;
-        border-radius: 10px 10px 0 0;
-    }
-    .content {
-        background: #f9f9f9;
-        padding: 30px;
-        border-radius: 0 0 10px 10px;
-    }
-    .reason-box {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 15px;
-        margin: 20px 0;
-    }
-    .button {
-        display: inline-block;
-        padding: 12px 30px;
-        background: #667eea;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        margin-top: 20px;
-    }
-    .footer {
-        text-align: center;
-        margin-top: 30px;
-        color: #666;
-        font-size: 12px;
-    }
-  </style>
-</head>
-<body>
-<div class="header">
-  <h1>Teacher Application Update</h1>
-</div>
-<div class="content">
-  <h2>Hello <span th:text="${name}">User</span>,</h2>
-  <p>Thank you for your interest in becoming a teacher on EduMind.</p>
-  <p>After careful review, we are unable to approve your application at this time.</p>
-
-  <div class="reason-box">
-    <strong>Reason:</strong><br>
-    <span th:text="${reason}">Reason for rejection</span>
-  </div>
-
-  <p><strong>What's next?</strong></p>
-  <ul>
-    <li>Review the feedback provided</li>
-    <li>Improve your credentials</li>
-    <li>Reapply after addressing the concerns</li>
-  </ul>
-
-  <p>We encourage you to reapply once you meet the requirements!</p>
-
-  <a href="http://localhost:3000/apply-teacher" class="button">Reapply</a>
-</div>
-<div class="footer">
-  <p>© 2026 EduMind. All rights reserved.</p>
-</div>
-</body>
+<!doctype html>
+<html
+  lang="en"
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{email/fragments/layout :: layout('There is an update on your EduMind teacher application.', 'Application decision', 'Teacher application update', ~{::#email-content})}"
+>
+  <body>
+    <div id="email-content">
+      <p
+        style="
+          margin: 0 0 16px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        Hi <strong th:text="${name}" style="color: #0f172a">User</strong>,
+      </p>
+      <p
+        style="
+          margin: 0 0 22px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        We could not approve your teacher application in its current form.
+      </p>
+      <table
+        role="presentation"
+        width="100%"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        style="
+          margin: 0 0 24px;
+          background-color: #fff7ed;
+          border: 1px solid #fed7aa;
+          border-radius: 12px;
+        "
+      >
+        <tr>
+          <td style="padding: 18px 20px">
+            <p
+              style="
+                margin: 0 0 7px;
+                color: #9a3412;
+                font-size: 12px;
+                line-height: 18px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+              "
+            >
+              Review note
+            </p>
+            <p
+              th:text="${reason}"
+              style="
+                margin: 0;
+                color: #7c2d12;
+                font-size: 14px;
+                line-height: 23px;
+              "
+            >
+              Reason
+            </p>
+          </td>
+        </tr>
+      </table>
+      <p
+        style="
+          margin: 0 0 20px;
+          color: #475569;
+          font-size: 14px;
+          line-height: 23px;
+        "
+      >
+        You may update your information and submit a new application.
+      </p>
+      <table
+        class="mobile-full"
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+      >
+        <tr>
+          <td bgcolor="#2563eb" style="border-radius: 10px">
+            <a
+              class="mobile-button"
+              th:href="${actionUrl}"
+              style="
+                display: inline-block;
+                padding: 14px 24px;
+                color: #ffffff;
+                font-size: 16px;
+                line-height: 20px;
+                font-weight: 700;
+                text-decoration: none;
+                border-radius: 10px;
+              "
+              >Review and reapply</a
+            >
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
 </html>

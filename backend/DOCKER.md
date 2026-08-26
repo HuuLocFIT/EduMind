@@ -130,7 +130,6 @@ MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your_email@gmail.com
 MAIL_PASSWORD=your_app_password
-MAIL_FROM=noreply@edumind.com
 MAIL_ENABLED=true
 
 # Cloudinary (Required for LMS Core)

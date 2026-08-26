@@ -1,0 +1,87 @@
+<!doctype html>
+<html
+  lang="en"
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{email/fragments/layout :: layout('Your EduMind account has been deactivated.', 'Account notice', 'Account deactivated', ~{::#email-content})}"
+>
+  <body>
+    <div id="email-content">
+      <p
+        style="
+          margin: 0 0 16px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        Hi <strong th:text="${name}" style="color: #0f172a">User</strong>,
+      </p>
+      <p
+        style="
+          margin: 0 0 22px;
+          color: #334155;
+          font-size: 16px;
+          line-height: 26px;
+        "
+      >
+        Your EduMind account has been deactivated. Your data is currently
+        retained.
+      </p>
+      <table
+        role="presentation"
+        width="100%"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        style="
+          margin: 0 0 24px;
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+        "
+      >
+        <tr>
+          <td
+            style="
+              padding: 18px 20px;
+              color: #475569;
+              font-size: 14px;
+              line-height: 23px;
+            "
+          >
+            If you believe this was a mistake or need help with your account,
+            contact support. This message does not guarantee that the account
+            can be restored.
+          </td>
+        </tr>
+      </table>
+      <table
+        class="mobile-full"
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+      >
+        <tr>
+          <td bgcolor="#2563eb" style="border-radius: 10px">
+            <a
+              class="mobile-button"
+              th:href="${'mailto:' + supportEmail}"
+              style="
+                display: inline-block;
+                padding: 14px 24px;
+                color: #ffffff;
+                font-size: 16px;
+                line-height: 20px;
+                font-weight: 700;
+                text-decoration: none;
+                border-radius: 10px;
+              "
+              >Contact support</a
+            >
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

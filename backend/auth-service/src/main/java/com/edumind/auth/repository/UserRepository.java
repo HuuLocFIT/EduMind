@@ -8,12 +8,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.deletedAt IS NULL")
+    Optional<User> findByIdForUpdate(@Param("id") Long id);
+
     // Find methods - exclude deleted users
     @Query("SELECT u FROM User u WHERE u.username = :username AND u.deletedAt IS NULL")
     Optional<User> findByUsername(String username);
@@ -88,4 +94,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Admin methods - include deleted users if needed
     @Query("SELECT u FROM User u WHERE u.id = :id")
     Optional<User> findByIdIncludingDeleted(@Param("id") Long id);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE User u SET u.trialReminderSentAt = :now WHERE u.id = :userId AND u.trialReminderSentAt IS NULL AND u.trialEndDate > :now AND u.deletedAt IS NULL")
+    int claimTrialReminder(@Param("userId") Long userId, @Param("now") java.time.LocalDateTime now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE User u SET u.isTrial = false, u.trialStartDate = null, u.trialEndDate = null, u.trialReminderSentAt = null WHERE u.id = :userId AND u.trialEndDate IS NOT NULL AND u.trialEndDate <= :now AND u.deletedAt IS NULL")
+    int claimTrialExpiry(@Param("userId") Long userId, @Param("now") java.time.LocalDateTime now);
 }

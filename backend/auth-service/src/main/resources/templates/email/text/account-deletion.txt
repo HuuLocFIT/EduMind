@@ -1,0 +1,2 @@
+Hello [(${name})]. Your EduMind account has been deactivated and your data is currently retained.
+If you believe this was a mistake or need help, contact [(${supportEmail})].

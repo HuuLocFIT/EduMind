@@ -15,7 +15,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Query("SELECT rt FROM RefreshToken rt WHERE rt.user = :user AND rt.expiryDate > :now AND rt.revoked = false")
     Optional<RefreshToken> findValidTokenByUser(User user, LocalDateTime now);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.user = :user")
     void revokeAllUserTokens(User user);
 

@@ -7,7 +7,7 @@ Discover, Authentication, Purchase, and Learning.
 
 **Baseline date:** 2026-07-31
 
-**Remediation status as of:** 2026-08-24 (see [Remediation status](#remediation-status)).
+**Remediation status as of:** 2026-08-25 (see [Remediation status](#remediation-status)).
 This section supersedes the per-issue "Open" status recorded at baseline time.
 The baseline numbers below (lint/Pa11y/Axe counts, issue log) are a frozen
 point-in-time snapshot and are **not** re-run in place — re-running any of the
@@ -32,7 +32,7 @@ WCAG 2.2 AA conformance; the documented coverage limits still apply.
 | Pa11y URL scan | `npm run pa11y` | Existing completed baseline: 30 errors across 9 routes; no route scan errors. Committed baseline JSON and per-route HTML are in `e2e/accessibility-reports/before/pa11y/`. Generated reports from later local/CI runs remain in the ignored `e2e/pa11y/reports/` directory. |
 | Axe + keyboard baseline | `A11Y_BASE_URL=http://localhost:3000 npx playwright test --config=e2e/playwright.baseline-a11y.config.ts` | Committed collector evidence generated 2026-08-08: 9/9 routes scanned without `scanError`; 2 Axe violations (2 serious nodes) and 11 keyboard-smoke issues. Raw per-route JSON and `summary.json` are in `e2e/accessibility-reports/before/`. |
 | Pa11y after scan | `PA11Y_REPORT_DIR=e2e/accessibility-reports/after/pa11y npm run pa11y` | Completed 2026-08-24: 0 issues across 14 deterministic routes; committed JSON and per-route HTML are in `e2e/accessibility-reports/after/pa11y/`. |
-| Axe + keyboard after scan | `npm run test:a11y:after` | Completed 2026-08-24 against the same 9 baseline routes: 0 Axe violations, 0 critical/serious nodes, 0 keyboard-smoke issues, and no scan errors. |
+| Axe + keyboard after scan | `npm run test:a11y:after` | Completed 2026-08-25 against the same 9 baseline routes: 0 Axe violations, 0 critical/serious nodes, 0 keyboard-smoke issues, and no scan errors. |
 | Safari + VoiceOver | Manual checklists under `e2e/manual-a11y-checklists/` | Completed 2026-08-22 on Safari 18.1 + VoiceOver, macOS Sequoia 15.1: 268 Pass, 0 Fail, 19 N/A across five test areas. |
 
 Pa11y route totals: `/` 4, `/courses` 4, stable course detail 0,
@@ -85,7 +85,7 @@ The committed milestone evidence is complete:
 
 1. `e2e/accessibility-reports/after/pa11y/` records a 2026-08-24 re-scan with
    zero issues across 14 deterministic routes.
-2. `e2e/accessibility-reports/after/` records a 2026-08-24 Axe + keyboard
+2. `e2e/accessibility-reports/after/` records a 2026-08-25 Axe + keyboard
    re-scan of the nine baseline routes with zero violations, zero keyboard
    issues, and no scan errors.
 3. `e2e/manual-a11y-checklists/00-summary.md` records the 2026-08-22 Safari +
@@ -114,7 +114,7 @@ current status is now recorded below and rolled up in
 - **Expected behavior:** Every form control has a programmatically associated, persistent label; placeholder text is supplementary only.
 - **Proposed fix:** Correct the shared input API so visible labels use matching `for`/`id` associations (or wrapping labels), and preserve descriptions/errors with `aria-describedby`.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/pa11y-results.json`; 15 Pa11y errors across the related H91 and F68 rules (some nodes produce both rules).
-- **After evidence:** The 2026-08-24 Pa11y and Axe re-scans report zero issues on the auth routes. Source inspection confirms matching label/input IDs and error/helper `aria-describedby` wiring. The auth flow checklist passed its applicable Safari + VoiceOver checks.
+- **After evidence:** The 2026-08-24 Pa11y and 2026-08-25 Axe re-scans report zero issues on the auth routes. Source inspection confirms matching label/input IDs and error/helper `aria-describedby` wiring. The auth flow checklist passed its applicable Safari + VoiceOver checks.
 - **Status:** Closed for the recorded scope.
 
 ### A11Y-BL-002
@@ -129,7 +129,7 @@ current status is now recorded below and rolled up in
 - **Expected behavior:** The control is keyboard reachable, has a name such as “Show password,” and exposes its current state.
 - **Proposed fix:** Keep the button in normal tab order, add a stable accessible name, and expose pressed/expanded state appropriate to the chosen interaction.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/login.html` and `signup.html` (`H91.Button.Name`, 2 nodes). The committed keyboard collector also records 2 Login issues and 1 Signup issue; those aggregate counts are not attributed solely to this control.
-- **After evidence:** The 2026-08-24 Pa11y and Axe re-scans report zero issues on Login and Signup. `PasswordInput.tsx` keeps the toggle in normal tab order and exposes its changing name and `aria-pressed` state; the auth flow checklist passed its applicable keyboard and VoiceOver checks.
+- **After evidence:** The 2026-08-24 Pa11y and 2026-08-25 Axe re-scans report zero issues on Login and Signup. `PasswordInput.tsx` keeps the toggle in normal tab order and exposes its changing name and `aria-pressed` state; the auth flow checklist passed its applicable keyboard and VoiceOver checks.
 - **Status:** Closed for the recorded scope.
 
 ### A11Y-BL-003
@@ -144,7 +144,7 @@ current status is now recorded below and rolled up in
 - **Expected behavior:** Minimum and maximum inputs have distinct programmatic names and are associated with the price-range group.
 - **Proposed fix:** Add visible associated labels (preferred), unique IDs, and retain the fieldset/legend grouping.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/courses.html` (`H91.InputNumber.Name`, 2 nodes).
-- **After evidence:** The 2026-08-24 Pa11y and Axe re-scans report zero issues on `/courses`. Source and regression tests cover the fieldset/legend, visible min/max labels, and slider value semantics; the Discover checklist passed its applicable Safari + VoiceOver checks.
+- **After evidence:** The 2026-08-24 Pa11y and 2026-08-25 Axe re-scans report zero issues on `/courses`. Source and regression tests cover the fieldset/legend, visible min/max labels, and slider value semantics; the Discover checklist passed its applicable Safari + VoiceOver checks.
 - **Status:** Closed for the recorded scope.
 
 ### A11Y-BL-004
@@ -174,7 +174,7 @@ current status is now recorded below and rolled up in
 - **Expected behavior:** Each route has a non-empty, descriptive, state-specific `<title>` element.
 - **Proposed fix:** Set route-specific document titles through the shared page metadata mechanism and ensure it creates or updates the actual `<title>` element.
 - **Before evidence:** `e2e/accessibility-reports/before/pa11y/checkout-success.html` and `checkout-failed.html` (`H25.1.NoTitleEl`, 2 nodes); the committed Axe collector records `document-title` on `/courses` and checkout failed (2 serious nodes total).
-- **After evidence:** The 2026-08-24 Pa11y and Axe re-scans report zero title issues on all three routes; the relevant automated journey assertions and manual checklists also passed.
+- **After evidence:** The 2026-08-24 Pa11y and 2026-08-25 Axe re-scans report zero title issues on all three routes; the relevant automated journey assertions and manual checklists also passed.
 - **Status:** Closed for the recorded scope:
   - `/courses`: **Fixed.** `BrowseCoursesPage.tsx` renders `<SeoMetaTags title={pageTitle} .../>`, which sets a real `<title>` element.
   - `/checkout/success`: **Fixed.** `CheckoutSuccessPage.tsx` renders `<SeoMetaTags title="Payment Confirmation" .../>`.
@@ -197,7 +197,7 @@ current status is now recorded below and rolled up in
 - **Expected behavior:** A semantic list contains only permitted list-item structure, with non-list content placed outside the list or inside an `li`.
 - **Proposed fix:** Correct the shared course-detail list markup without replacing native list semantics with ARIA.
 - **Before evidence:** The original Phase 0 issue log recorded the invalid list structure. The collector was refreshed on 2026-08-08 after that markup had changed, so the currently committed `before/course-detail.json` no longer reproduces this individual finding; it is retained here as historical remediation context rather than countable before/after evidence.
-- **After evidence:** The 2026-08-24 Pa11y and Axe re-scans report zero issues on course detail. Source inspection and the Discover flow regression test confirm valid nested list structure; the manual Discover checklist passed its applicable checks.
+- **After evidence:** The 2026-08-24 Pa11y and 2026-08-25 Axe re-scans report zero issues on course detail. Source inspection and the Discover flow regression test confirm valid nested list structure; the manual Discover checklist passed its applicable checks.
 - **Status:** Closed for the recorded scope.
 
 ## Coverage limits and manual follow-up

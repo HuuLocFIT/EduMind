@@ -18,7 +18,7 @@
       "orientationAngle": 0,
       "orientationType": "landscape-primary"
     },
-    "timestamp": "2026-08-24T01:37:37.661Z",
+    "timestamp": "2026-08-25T14:14:31.239Z",
     "url": "http://localhost:3000/",
     "toolOptions": {
       "runOnly": {
@@ -6828,9 +6828,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"mailto:support@edumind.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a>",
+            "html": "<a href=\"mailto:supportedumind2026@gmail.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a>",
             "target": [
-              "a[href=\"mailto:support@edumind.com\"]"
+              "section[aria-labelledby=\"footer-support\"] > ul > li > .rounded.hover\\:text-blue-600.focus-visible\\:ring-blue-600"
             ]
           },
           {
@@ -7691,9 +7691,9 @@
               }
             ],
             "impact": null,
-            "html": "<a href=\"mailto:support@edumind.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a>",
+            "html": "<a href=\"mailto:supportedumind2026@gmail.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a>",
             "target": [
-              "a[href=\"mailto:support@edumind.com\"]"
+              "section[aria-labelledby=\"footer-support\"] > ul > li > .rounded.hover\\:text-blue-600.focus-visible\\:ring-blue-600"
             ]
           },
           {
@@ -7789,7 +7789,7 @@
               }
             ],
             "impact": null,
-            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a href=\"mailto:support@edumind.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a></li></ul>",
+            "html": "<ul class=\"space-y-1.5 sm:space-y-2 text-sm text-gray-600\"><li><a href=\"mailto:supportedumind2026@gmail.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a></li></ul>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul"
             ]
@@ -7969,7 +7969,7 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<li><a href=\"mailto:support@edumind.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a></li>",
+            "html": "<li><a href=\"mailto:supportedumind2026@gmail.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a></li>",
             "target": [
               "section[aria-labelledby=\"footer-support\"] > ul > li"
             ]
@@ -8654,9 +8654,9 @@
             "all": [],
             "none": [],
             "impact": null,
-            "html": "<a href=\"mailto:support@edumind.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a>",
+            "html": "<a href=\"mailto:supportedumind2026@gmail.com\" class=\"rounded hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600\">Contact Us</a>",
             "target": [
-              "a[href=\"mailto:support@edumind.com\"]"
+              "section[aria-labelledby=\"footer-support\"] > ul > li > .rounded.hover\\:text-blue-600.focus-visible\\:ring-blue-600"
             ]
           },
           {

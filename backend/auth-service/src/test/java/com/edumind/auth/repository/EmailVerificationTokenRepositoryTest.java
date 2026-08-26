@@ -500,19 +500,18 @@ class EmailVerificationTokenRepositoryTest extends BaseRepositoryTest {
         }
     }
 
-    @Nested
-    @DisplayName("countByUserAndCreatedAtAfter Tests")
-    class CountByUserAndCreatedAtAfterTests {
+    @Test
+    @DisplayName("Should invalidate only active, unverified tokens")
+    void invalidateActiveTokens_ShouldPreserveVerifiedToken() {
+        User fetchedUser = entityManager.find(User.class, testUser.getId());
+        LocalDateTime invalidatedAt = LocalDateTime.now();
 
-        @Test
-        @DisplayName("Should count only tokens inside the rolling window")
-        void countByUserAndCreatedAtAfter_ShouldExcludeOldTokens() {
-            User fetchedUser = entityManager.find(User.class, testUser.getId());
+        assertEquals(2, tokenRepository.invalidateActiveTokens(fetchedUser, invalidatedAt));
+        entityManager.flush();
+        entityManager.clear();
 
-            int count = tokenRepository.countByUserAndCreatedAtAfter(
-                    fetchedUser, LocalDateTime.now().minusHours(1));
-
-            assertEquals(1, count);
-        }
+        assertNotNull(tokenRepository.findByToken(validToken.getToken()).orElseThrow().getInvalidatedAt());
+        assertNotNull(tokenRepository.findByToken(expiredToken.getToken()).orElseThrow().getInvalidatedAt());
+        assertNull(tokenRepository.findByToken(verifiedToken.getToken()).orElseThrow().getInvalidatedAt());
     }
 }

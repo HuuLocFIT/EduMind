@@ -34,6 +34,9 @@ public class EmailVerificationToken {
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
 
+    @Column(name = "invalidated_at")
+    private LocalDateTime invalidatedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -56,6 +59,10 @@ public class EmailVerificationToken {
      */
     public boolean isVerified() {
         return verifiedAt != null;
+    }
+
+    public boolean isInvalidated() {
+        return invalidatedAt != null;
     }
 
     /**

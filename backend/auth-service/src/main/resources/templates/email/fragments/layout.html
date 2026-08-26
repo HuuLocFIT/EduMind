@@ -1,0 +1,231 @@
+<!doctype html>
+<html
+  lang="en"
+  xmlns:th="http://www.thymeleaf.org"
+  th:fragment="layout(preheader, eyebrow, title, content)"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title th:text="${title}">EduMind</title>
+    <style>
+      @media only screen and (max-width: 620px) {
+        .email-shell {
+          width: 100% !important;
+        }
+        .email-card {
+          border-radius: 0 !important;
+        }
+        .content-pad {
+          padding-left: 24px !important;
+          padding-right: 24px !important;
+        }
+        .mobile-full {
+          width: 100% !important;
+        }
+        .mobile-button {
+          display: block !important;
+          text-align: center !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-family: Arial, &quot;Helvetica Neue&quot;, sans-serif;
+      -webkit-text-size-adjust: 100%;
+    "
+  >
+    <div
+      data-email-preheader="true"
+      th:text="${preheader}"
+      style="
+        display: none !important;
+        visibility: hidden;
+        mso-hide: all;
+        font-size: 1px;
+        line-height: 1px;
+        color: #f1f5f9;
+        max-height: 0;
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+      "
+    >
+      EduMind notification
+    </div>
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="width: 100%; background-color: #f1f5f9"
+    >
+      <tr>
+        <td align="center" style="padding: 32px 12px">
+          <table
+            class="email-shell"
+            role="presentation"
+            width="600"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="width: 600px; max-width: 600px"
+          >
+            <tr>
+              <td style="padding: 0 8px 20px 8px">
+                <table
+                  role="presentation"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                >
+                  <tr>
+                    <td
+                      width="42"
+                      height="42"
+                      align="center"
+                      valign="middle"
+                      style="
+                        width: 42px;
+                        height: 42px;
+                        border-radius: 12px;
+                        background-color: #2563eb;
+                        color: #ffffff;
+                        font-size: 22px;
+                        line-height: 42px;
+                        font-weight: 800;
+                      "
+                    >
+                      E
+                    </td>
+                    <td
+                      data-email-wordmark="true"
+                      style="
+                        padding-left: 12px;
+                        font-size: 22px;
+                        line-height: 28px;
+                        font-weight: 800;
+                        letter-spacing: -0.4px;
+                        color: #0f172a;
+                      "
+                    >
+                      EduMind
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td
+                class="email-card"
+                style="
+                  background-color: #ffffff;
+                  border: 1px solid #dbe4f0;
+                  border-radius: 18px;
+                  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+                  overflow: hidden;
+                "
+              >
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                >
+                  <tr>
+                    <td
+                      style="
+                        height: 5px;
+                        background-color: #4f46e5;
+                        font-size: 0;
+                        line-height: 0;
+                      "
+                    >
+                      &nbsp;
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      class="content-pad"
+                      style="padding: 42px 48px 44px 48px"
+                    >
+                      <p
+                        th:text="${eyebrow}"
+                        style="
+                          margin: 0 0 12px 0;
+                          color: #4f46e5;
+                          font-size: 12px;
+                          line-height: 18px;
+                          font-weight: 800;
+                          letter-spacing: 1.2px;
+                          text-transform: uppercase;
+                        "
+                      >
+                        ACCOUNT
+                      </p>
+                      <h1
+                        th:text="${title}"
+                        style="
+                          margin: 0 0 20px 0;
+                          color: #0f172a;
+                          font-size: 30px;
+                          line-height: 38px;
+                          font-weight: 800;
+                          letter-spacing: -0.6px;
+                        "
+                      >
+                        Email title
+                      </h1>
+                      <div th:replace="${content}">Email content</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td
+                align="center"
+                style="
+                  padding: 22px 24px 0 24px;
+                  color: #64748b;
+                  font-size: 12px;
+                  line-height: 18px;
+                "
+              >
+                <p style="margin: 0 0 6px 0">
+                  This is a transactional email about your EduMind account.
+                </p>
+                <p style="margin: 0">
+                  Need help?
+                  <a
+                    th:href="${'mailto:' + supportEmail}"
+                    th:text="${supportEmail}"
+                    style="color: #2563eb; text-decoration: underline"
+                    >supportedumind2026@gmail.com</a
+                  ><span aria-hidden="true"> &nbsp;•&nbsp; </span
+                  ><a
+                    th:href="${frontendUrl}"
+                    style="color: #2563eb; text-decoration: underline"
+                    >Open EduMind</a
+                  >
+                </p>
+                <p style="margin: 8px 0 0 0">
+                  © <span th:text="${year}">2026</span> EduMind
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -1,113 +1,28 @@
 package com.edumind.auth.scheduler;
 
-import com.edumind.auth.entity.Role;
-import com.edumind.auth.enums.RoleName;
-import com.edumind.auth.entity.User;
-import com.edumind.auth.repository.RoleRepository;
-import com.edumind.auth.repository.UserRepository;
-import com.edumind.auth.service.EmailService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import com.edumind.auth.entity.Role; import com.edumind.auth.entity.User;
+import com.edumind.auth.enums.RoleName; import com.edumind.auth.repository.RoleRepository; import com.edumind.auth.repository.UserRepository;
+import com.edumind.auth.service.TrialTransitionService;
+import org.slf4j.Logger; import org.slf4j.LoggerFactory; import org.springframework.scheduling.annotation.Scheduled; import org.springframework.stereotype.Component;
+import java.time.LocalDateTime; import java.time.temporal.ChronoUnit; import java.util.List;
 
 @Component
 public class TrialExpiryScheduler {
-    private static final Logger logger = LoggerFactory.getLogger(TrialExpiryScheduler.class);
-    private static final int REMINDER_DAYS = 7; // Send reminder 7 days before expiry
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
-    private EmailService emailService;
-
-    /**
-     * Check for expiring trials every day at 00:00
-     * Cron: 0 0 0 * * * = At 00:00:00 every day
-     */
-    @Scheduled(cron = "0 0 0 * * *")
-    @Transactional
-    public void checkExpiringTrials() {
-        logger.info("🔄 Starting scheduled job: Check expiring trials");
-
-        try {
-            Role trialRole = roleRepository.findByName(RoleName.ROLE_TEACHER_TRIAL).orElse(null);
-            if (trialRole == null) {
-                logger.warn("⚠️ TEACHER_TRIAL role not found");
-                return;
-            }
-
-            // Find all trial teachers
-            List<User> trialTeachers = userRepository.findByRolesContaining(trialRole);
-            logger.info("📊 Found {} trial teachers to check", trialTeachers.size());
-
-            int remindersSent = 0;
-            int trialsExpired = 0;
-
-            for (User user : trialTeachers) {
-                if (user.getTrialEndDate() == null) {
-                    logger.warn("⚠️ User {} has TEACHER_TRIAL role but no trial_end_date", user.getUsername());
-                    continue;
-                }
-
-                LocalDateTime now = LocalDateTime.now();
-                long daysRemaining = ChronoUnit.DAYS.between(now, user.getTrialEndDate());
-
-                // Trial expired
-                if (daysRemaining <= 0) {
-                    handleExpiredTrial(user);
-                    trialsExpired++;
-                }
-                // Send reminder 7 days before expiry
-                else if (daysRemaining == REMINDER_DAYS) {
-                    emailService.sendTrialExpiryReminderEmail(user, daysRemaining);
-                    remindersSent++;
-                }
-            }
-
-            logger.info("✅ Trial check completed: {} reminders sent, {} trials expired",
-                    remindersSent, trialsExpired);
-
-        } catch (Exception e) {
-            logger.error("❌ Error checking expiring trials", e);
+    private static final Logger log=LoggerFactory.getLogger(TrialExpiryScheduler.class); private static final int REMINDER_DAYS=7;
+    private final UserRepository users; private final RoleRepository roles; private final TrialTransitionService transitions;
+    public TrialExpiryScheduler(UserRepository users,RoleRepository roles,TrialTransitionService transitions){this.users=users;this.roles=roles;this.transitions=transitions;}
+    @Scheduled(cron="0 0 0 * * *")
+    public void checkExpiringTrials(){
+        LocalDateTime now=LocalDateTime.now(); Role trial=roles.findByName(RoleName.ROLE_TEACHER_TRIAL).orElse(null); if(trial==null){log.warn("TEACHER_TRIAL role not found");return;}
+        List<User> candidates=users.findByRolesContaining(trial); int reminders=0,expired=0;
+        for(User user:candidates){
+            try{
+                if(user.getTrialEndDate()==null)continue;
+                long days=ChronoUnit.DAYS.between(now,user.getTrialEndDate());
+                if(days<=0){if(transitions.claimAndExpireTrial(user.getId(),now))expired++;}
+                else if(days<=REMINDER_DAYS){if(transitions.claimAndRemindTrial(user.getId(),days,now))reminders++;}
+            }catch(Exception ex){log.error("Failed to transition trial for user id {}",user.getId(),ex);}
         }
-    }
-
-    /**
-     * Handle expired trial: downgrade to STUDENT, keep the account active.
-     */
-    private void handleExpiredTrial(User user) {
-        logger.info("⚠️ Trial expired for user: {}", user.getUsername());
-
-        Role studentRole = roleRepository.findByName(RoleName.ROLE_STUDENT)
-                .orElseThrow(() -> new RuntimeException("STUDENT role not found"));
-        Role trialRole = roleRepository.findByName(RoleName.ROLE_TEACHER_TRIAL)
-                .orElseThrow(() -> new RuntimeException("TEACHER_TRIAL role not found"));
-
-        Set<Role> roles = new HashSet<>(user.getRoles());
-        roles.remove(trialRole);
-        roles.add(studentRole);
-        user.setRoles(roles);
-
-        user.setIsTrial(false);
-        user.setTrialStartDate(null);
-        user.setTrialEndDate(null);
-
-        userRepository.save(user);
-        logger.info("⬇️ User downgraded to STUDENT after trial expiry: {}", user.getUsername());
-
-        emailService.sendTrialExpiredEmail(user);
+        log.info("Trial check completed: {} reminders, {} expiries",reminders,expired);
     }
 }

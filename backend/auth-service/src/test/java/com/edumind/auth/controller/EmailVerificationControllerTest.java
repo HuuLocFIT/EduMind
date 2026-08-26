@@ -4,7 +4,7 @@ import com.edumind.auth.config.TestSecurityConfig;
 import com.edumind.auth.dto.request.EmailVerificationRequest;
 import com.edumind.auth.service.EmailVerificationService;
 import com.edumind.common.exception.BadRequestException;
-import com.edumind.common.exception.ResourceNotFoundException;
+import com.edumind.common.exception.TooManyRequestsException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -166,39 +166,33 @@ class EmailVerificationControllerTest {
         }
 
         @Test
-        @DisplayName("Should return 404 when user not found")
-        void resendVerification_WhenUserNotFound_ShouldReturn404() throws Exception {
+        @DisplayName("Should return the generic response when user is not found")
+        void resendVerification_WhenUserNotFound_ShouldReturnGenericSuccess() throws Exception {
             // Given
             EmailVerificationRequest request = new EmailVerificationRequest();
             request.setEmail("unknown@example.com");
 
-            doThrow(new ResourceNotFoundException("User not found with email: unknown@example.com"))
-                    .when(emailVerificationService).resendVerificationEmail("unknown@example.com");
-
-            // When/Then
             mockMvc.perform(post("/auth/resend-verification")
                             .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("Verification email sent! Please check your inbox."));
         }
 
         @Test
-        @DisplayName("Should return 400 when email already verified")
-        void resendVerification_WhenEmailAlreadyVerified_ShouldReturn400() throws Exception {
+        @DisplayName("Should return the generic response when email is already verified")
+        void resendVerification_WhenEmailAlreadyVerified_ShouldReturnGenericSuccess() throws Exception {
             // Given
             EmailVerificationRequest request = new EmailVerificationRequest();
             request.setEmail("verified@example.com");
 
-            doThrow(new BadRequestException("Email is already verified"))
-                    .when(emailVerificationService).resendVerificationEmail("verified@example.com");
-
-            // When/Then
             mockMvc.perform(post("/auth/resend-verification")
                             .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("Verification email sent! Please check your inbox."));
         }
 
         @Test
@@ -231,13 +225,13 @@ class EmailVerificationControllerTest {
         }
 
         @Test
-        @DisplayName("Should return 400 when rate limited")
-        void resendVerification_WhenRateLimited_ShouldReturn400() throws Exception {
+        @DisplayName("Should return 429 when rate limited")
+        void resendVerification_WhenRateLimited_ShouldReturn429() throws Exception {
             // Given
             EmailVerificationRequest request = new EmailVerificationRequest();
             request.setEmail("user@example.com");
 
-            doThrow(new BadRequestException("Too many requests. Please try again later."))
+            doThrow(new TooManyRequestsException("Too many requests. Please try again later."))
                     .when(emailVerificationService).resendVerificationEmail("user@example.com");
 
             // When/Then
@@ -245,7 +239,7 @@ class EmailVerificationControllerTest {
                             .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isTooManyRequests());
         }
 
         @Test

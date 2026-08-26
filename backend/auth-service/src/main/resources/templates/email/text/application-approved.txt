@@ -1,0 +1,2 @@
+Hello [(${name})]. Your teacher application was approved.
+Open your dashboard: [(${actionUrl})]

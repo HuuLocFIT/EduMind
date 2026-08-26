@@ -77,6 +77,9 @@ public class User {
     @Column(name = "trial_end_date")
     private LocalDateTime trialEndDate;
 
+    @Column(name = "trial_reminder_sent_at")
+    private LocalDateTime trialReminderSentAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

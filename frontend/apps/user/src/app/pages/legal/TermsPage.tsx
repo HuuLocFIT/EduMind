@@ -61,7 +61,7 @@ const sections = [
     id: "contact",
     title: "10. Contact",
     content:
-      "If you have any questions, concerns, or requests regarding these Terms of Service, please contact us through our support channels or by email at support@edumind.nguyenloc.dev. We aim to respond to all inquiries within two business days.",
+      "If you have any questions, concerns, or requests regarding these Terms of Service, please contact us through our support channels or by email at supportedumind2026@gmail.com. We aim to respond to all inquiries within two business days.",
   },
 ];
 

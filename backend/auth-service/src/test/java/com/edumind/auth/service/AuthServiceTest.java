@@ -148,7 +148,7 @@ class AuthServiceTest {
 
             // Then
             verify(userRepository).save(any(User.class));
-            verify(emailVerificationService).sendVerificationEmail(any(User.class));
+            verify(emailVerificationService).sendInitialVerificationEmail(any(User.class));
         }
 
         @Test
@@ -198,7 +198,7 @@ class AuthServiceTest {
                 return user;
             });
             doThrow(new RuntimeException("Email service down"))
-                    .when(emailVerificationService).sendVerificationEmail(any(User.class));
+                    .when(emailVerificationService).sendInitialVerificationEmail(any(User.class));
 
             // When - Should not throw exception
             assertDoesNotThrow(() -> authService.registerUser(request));
