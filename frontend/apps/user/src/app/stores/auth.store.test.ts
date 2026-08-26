@@ -1,15 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { useAuthStore } from './auth.store';
+import {
+  useAuthStore,
+  hasGuardAttempted,
+  markGuardAttempted,
+  hasApprovalAttempted,
+  resetRoleSyncAttempts,
+} from './auth.store';
 
 // Use vi.hoisted to hoist mock function declarations before vi.mock
-const { mockLogin, mockLoginWith2FA, mockSignup, mockLogout, mockFetchCurrentUser, mockQueryClientClear } = vi.hoisted(() => ({
+const {
+  mockLogin,
+  mockLoginWith2FA,
+  mockSignup,
+  mockLogout,
+  mockFetchCurrentUser,
+  mockQueryClientClear,
+  mockRefreshAuthSession,
+  mockIsTerminalRefreshFailure,
+  mockIsStaleAuthSessionError,
+  mockInvalidateAuthSession,
+  mockClearStoredAuth,
+} = vi.hoisted(() => ({
   mockLogin: vi.fn(),
   mockLoginWith2FA: vi.fn(),
   mockSignup: vi.fn(),
   mockLogout: vi.fn(),
   mockFetchCurrentUser: vi.fn(),
   mockQueryClientClear: vi.fn(),
+  mockRefreshAuthSession: vi.fn(),
+  mockIsTerminalRefreshFailure: vi.fn(),
+  mockIsStaleAuthSessionError: vi.fn(),
+  mockInvalidateAuthSession: vi.fn(),
+  mockClearStoredAuth: vi.fn(),
 }));
 
 // Mock the auth service - must match the import path in auth.store.ts
@@ -21,6 +44,15 @@ vi.mock('../services/auth.service', () => ({
     logout: mockLogout,
     fetchCurrentUser: mockFetchCurrentUser,
   },
+}));
+
+// Mock the refresh pipeline - must match the import path in auth.store.ts
+vi.mock('../services/api-client.service', () => ({
+  refreshAuthSession: mockRefreshAuthSession,
+  isTerminalRefreshFailure: mockIsTerminalRefreshFailure,
+  isStaleAuthSessionError: mockIsStaleAuthSessionError,
+  invalidateAuthSession: mockInvalidateAuthSession,
+  clearStoredAuth: mockClearStoredAuth,
 }));
 
 // Mock the query client
@@ -40,9 +72,14 @@ describe('useAuthStore', () => {
     // Reset the store state
     const { clearAuthState } = useAuthStore.getState();
     clearAuthState();
-    
+    resetRoleSyncAttempts();
+
     // Clear all mocks
     vi.clearAllMocks();
+    // clearAllMocks() clears calls, not implementations — reset the classifiers explicitly
+    // so a `mockReturnValue(true)` from one test doesn't leak into the next.
+    mockIsStaleAuthSessionError.mockReturnValue(false);
+    mockIsTerminalRefreshFailure.mockReturnValue(false);
     localStorage.clear();
   });
 
@@ -834,6 +871,262 @@ describe('useAuthStore', () => {
 
       const state = useAuthStore.getState();
       expect(state).toBeDefined();
+    });
+  });
+
+  describe('auth:user-refreshed listener', () => {
+    it('updates user and accessToken when the event fires', () => {
+      const refreshedUser = { id: 1, username: 'refreshed', email: 'r@example.com' };
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: refreshedUser, accessToken: 'refreshed-token' },
+          }),
+        );
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toEqual(refreshedUser);
+      expect(state.accessToken).toBe('refreshed-token');
+    });
+  });
+
+  describe('auth:session-expired listener', () => {
+    it('clears auth state and sets sessionExpiredReason (after clearAuthState, not before)', async () => {
+      // Seed an authenticated state first.
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.user).toBeNull();
+      expect(state.sessionExpiredReason).toBe('SESSION_EXPIRED');
+    });
+  });
+
+  describe('refreshSession', () => {
+    it('delegates to refreshAuthSession and toggles isRefreshingSession', async () => {
+      let resolveRefresh!: () => void;
+      mockRefreshAuthSession.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+      );
+
+      const promise = useAuthStore.getState().refreshSession();
+      expect(useAuthStore.getState().isRefreshingSession).toBe(true);
+
+      resolveRefresh();
+      await act(async () => {
+        await promise;
+      });
+
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+      expect(useAuthStore.getState().isRefreshingSession).toBe(false);
+      expect(useAuthStore.getState().sessionRefreshError).toBeNull();
+    });
+
+    it('sets sessionRefreshError to SESSION_EXPIRED and clears auth on a terminal failure', async () => {
+      const refreshError = { response: { data: { errorCode: 'ERR_2004' } } };
+      mockRefreshAuthSession.mockRejectedValue(refreshError);
+      mockIsTerminalRefreshFailure.mockReturnValue(true);
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockClearStoredAuth).toHaveBeenCalled();
+      expect(useAuthStore.getState().sessionRefreshError).toBe('SESSION_EXPIRED');
+    });
+
+    it('sets sessionRefreshError to TEMPORARY and keeps the session on a non-terminal failure', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+
+      const refreshError = { message: 'Network Error' };
+      mockRefreshAuthSession.mockRejectedValue(refreshError);
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().sessionRefreshError).toBe('TEMPORARY');
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
+  });
+
+  describe('session-scoped refresh state does not leak across sessions', () => {
+    const seedRefreshError = async (kind: 'SESSION_EXPIRED' | 'TEMPORARY') => {
+      mockRefreshAuthSession.mockRejectedValue({ message: 'boom' });
+      mockIsTerminalRefreshFailure.mockReturnValue(kind === 'SESSION_EXPIRED');
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+      expect(useAuthStore.getState().sessionRefreshError).toBe(kind);
+    };
+
+    it('login clears a SESSION_EXPIRED error left over from the previous session', async () => {
+      await seedRefreshError('SESSION_EXPIRED');
+
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 2, username: 'next', email: 'next@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'next', password: 'p' });
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.sessionRefreshError).toBeNull();
+      expect(state.sessionExpiredReason).toBeNull();
+      expect(state.isRefreshingSession).toBe(false);
+    });
+
+    it('login clears a TEMPORARY error even when the new user needs no role sync', async () => {
+      // The self-healing path (refreshSession resetting the error on its next run) does
+      // not apply here: a user who already holds ROLE_TEACHER never triggers a sync, so
+      // without an explicit reset the stale error would hide the approved-application CTA
+      // for the rest of the page session.
+      await seedRefreshError('TEMPORARY');
+
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 3, username: 't', email: 't@example.com', roles: ['ROLE_TEACHER'] },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 't', password: 'p' });
+      });
+
+      expect(useAuthStore.getState().sessionRefreshError).toBeNull();
+    });
+
+    it('logout clears sessionRefreshError and isRefreshingSession', async () => {
+      await seedRefreshError('TEMPORARY');
+      mockLogout.mockResolvedValue({ success: true, message: 'Logged out', status: 200 });
+
+      await act(async () => {
+        await useAuthStore.getState().logout();
+      });
+
+      expect(useAuthStore.getState().sessionRefreshError).toBeNull();
+      expect(useAuthStore.getState().isRefreshingSession).toBe(false);
+    });
+
+    it('clearAuthState clears sessionRefreshError', async () => {
+      await seedRefreshError('TEMPORARY');
+
+      act(() => {
+        useAuthStore.getState().clearAuthState();
+      });
+
+      expect(useAuthStore.getState().sessionRefreshError).toBeNull();
+    });
+  });
+
+  describe('refreshSession — stale session result', () => {
+    it('reports no error and leaves the current session untouched', async () => {
+      // A refresh that resolves after its own session ended (logout, or another user
+      // logging in). Painting the CURRENT session with that failure would, for example,
+      // hide the approved CTA for a user who just signed in fine.
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-b',
+        user: { id: 2, username: 'b', email: 'b@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'b', password: 'p' });
+      });
+
+      mockRefreshAuthSession.mockRejectedValue(new Error('stale'));
+      mockIsStaleAuthSessionError.mockReturnValue(true);
+      mockIsTerminalRefreshFailure.mockReturnValue(true); // must never be consulted
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.sessionRefreshError).toBeNull();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user?.id).toBe(2);
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('auth session identity', () => {
+    it.each([
+      ['login', async () => {
+        mockLogin.mockResolvedValue({
+          accessToken: 'token',
+          user: { id: 1, username: 'u', email: 'u@example.com' },
+        });
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      }],
+      ['logout', async () => {
+        mockLogout.mockResolvedValue({ success: true, message: 'ok', status: 200 });
+        await useAuthStore.getState().logout();
+      }],
+      ['clearAuthState', async () => {
+        useAuthStore.getState().clearAuthState();
+      }],
+    ])('%s invalidates any refresh still in flight', async (_name, run) => {
+      await act(async () => {
+        await run();
+      });
+
+      expect(mockInvalidateAuthSession).toHaveBeenCalled();
+    });
+  });
+
+  describe('role sync attempt flags', () => {
+    it('login resets both attempt flags', async () => {
+      markGuardAttempted(1);
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+
+      expect(hasGuardAttempted(1)).toBe(false);
+    });
+
+    it('logout resets both attempt flags', async () => {
+      markGuardAttempted(1);
+      mockLogout.mockResolvedValue({ success: true, message: 'Logged out', status: 200 });
+
+      await act(async () => {
+        await useAuthStore.getState().logout();
+      });
+
+      expect(hasGuardAttempted(1)).toBe(false);
+    });
+
+    it('the guard flag and the approval flag dedupe independently', () => {
+      markGuardAttempted(1);
+
+      expect(hasGuardAttempted(1)).toBe(true);
+      // A prior guard attempt for this user must NOT suppress the approval sync —
+      // regression test for the "lost sync after approval" scenario.
+      expect(hasApprovalAttempted(1)).toBe(false);
     });
   });
 });

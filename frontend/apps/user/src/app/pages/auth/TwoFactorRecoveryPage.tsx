@@ -77,7 +77,8 @@ export const TwoFactorRecoveryPage = () => {
       }, 500);
     } catch (err: any) {
       showError(
-        err.response?.data?.message || "Invalid backup code",
+        // apiClient rejects with a flat ApiError — `.response` only exists on raw AxiosErrors.
+        err.message || err.response?.data?.message || "Invalid backup code",
         "Verification Failed"
       );
     } finally {

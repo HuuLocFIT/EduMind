@@ -3,7 +3,14 @@ import { isDev } from "@edumind/shared-utils";
 import { CACHE_TIME } from "./query-config";
 
 const shouldRetry = (failureCount: number, error: unknown) => {
-  const status = (error as any)?.response?.status as number | undefined;
+  // apiClient's interceptor rejects with a FLAT ApiError (`{ message, status, ... }`), not
+  // an AxiosError — reading only `error.response.status` left `status` undefined for every
+  // error the interceptor normalizes, so the 4xx short-circuit below never fired and even
+  // a 403 dead-session query was retried twice. Keep the AxiosError shape too for errors
+  // raised outside the interceptor.
+  const status = ((error as any)?.status ?? (error as any)?.response?.status) as
+    | number
+    | undefined;
 
   // Do not retry for most client errors (except 429)
   if (status && status >= 400 && status < 500 && status !== 429) {

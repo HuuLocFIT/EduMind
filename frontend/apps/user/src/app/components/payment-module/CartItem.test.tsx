@@ -39,15 +39,18 @@ describe('CartItem', () => {
     courseSlug: '101',
     courseTitle: 'Advanced React Patterns',
     instructorName: 'John Doe',
+    instructorId: 5,
     courseThumbnailUrl: 'http://example.com/image.jpg',
     effectivePrice: 49.99,
     originalPrice: 99.99,
     discountAmount: 50.00,
+    currency: 'USD',
     level: 'Advanced',
     totalLessons: 24,
     averageRating: 4.8,
     isAvailable: true,
     unavailableReason: null,
+    addedAt: '2026-01-01T00:00:00Z',
   };
 
   const mockUnavailableItem = {

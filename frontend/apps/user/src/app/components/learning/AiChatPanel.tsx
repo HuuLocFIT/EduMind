@@ -470,7 +470,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
               setIsLoading(false);
               abortControllerRef.current = null;
             } catch (fallbackErr: unknown) {
-              const status = (fallbackErr as { response?: { status?: number } })?.response?.status;
+              // Flat `.status` first, like the streaming path above (:435): apiClient's
+              // interceptor rejects with a flat ApiError, so reading only `.response.status`
+              // left this undefined and every failure fell through to the generic message —
+              // the 429 rate-limit notice never reached the user.
+              const fallbackError = fallbackErr as { status?: number; response?: { status?: number } };
+              const status = fallbackError?.status ?? fallbackError?.response?.status;
               if (status === 429) {
                 failWith('Daily question limit reached (20/day). Try again tomorrow.');
               } else if (status === 403) {

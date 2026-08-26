@@ -9,6 +9,7 @@ import com.edumind.auth.entity.Role;
 import com.edumind.auth.entity.TeacherApplication;
 import com.edumind.auth.entity.User;
 import com.edumind.auth.enums.ApplicationStatus;
+import com.edumind.auth.enums.DocumentType;
 import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.event.ApplicationApprovedEmailRequested;
 import com.edumind.auth.event.ApplicationRejectedEmailRequested;
@@ -22,6 +23,10 @@ import com.edumind.common.exception.ResourceNotFoundException;
 import com.edumind.common.response.MessageResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -140,8 +145,8 @@ class TeacherApplicationServiceTest {
             request.setLastName("Last");
             request.setEmail("test@email.com");
             request.setPhone("123456789");
-            request.setDocuments(new ArrayList<>());
-            
+            request.setDocuments(new ArrayList<>(List.of(cvDocument())));
+
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
             when(objectMapper.writeValueAsString(any())).thenReturn("[]");
@@ -218,6 +223,7 @@ class TeacherApplicationServiceTest {
             // Given
             mockSecurityContext("testuser");
             TeacherApplicationRequest request = new TeacherApplicationRequest();
+            request.setDocuments(new ArrayList<>(List.of(cvDocument())));
 
             when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
@@ -290,8 +296,103 @@ class TeacherApplicationServiceTest {
             request.setEmail("test@email.com");
             request.setPhone("123456789");
             request.setSubject("Mathematics");
-            request.setDocuments(new ArrayList<>());
+            request.setDocuments(new ArrayList<>(List.of(cvDocument())));
             return request;
+        }
+
+        private TeacherApplicationRequest.DocumentInfo cvDocument() {
+            return new TeacherApplicationRequest.DocumentInfo(
+                    "https://cloudinary.example.com/cv.pdf", DocumentType.CV, "cv.pdf");
+        }
+
+        private TeacherApplicationRequest.DocumentInfo certificateDocument() {
+            return new TeacherApplicationRequest.DocumentInfo(
+                    "https://cloudinary.example.com/certificate.pdf", DocumentType.CERTIFICATE, "certificate.pdf");
+        }
+
+        private TeacherApplicationRequest.DocumentInfo idCardDocument() {
+            return new TeacherApplicationRequest.DocumentInfo(
+                    "https://cloudinary.example.com/id-card.pdf", DocumentType.ID_CARD, "id-card.pdf");
+        }
+
+        @Test
+        @DisplayName("Should fail when documents do not contain a CV")
+        void submitApplication_Fail_NoCvDocument() {
+            // Given
+            mockSecurityContext("testuser");
+            TeacherApplicationRequest request = validApplicationRequest();
+            request.setDocuments(new ArrayList<>(List.of(certificateDocument())));
+
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
+
+            // When/Then
+            BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                    teacherApplicationService.submitApplication(request));
+            assertEquals("CV document is required", ex.getMessage());
+            verify(applicationRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        @DisplayName("Should succeed when documents contain a CV alongside other types")
+        void submitApplication_Success_WithCvAndOtherDocuments() throws JsonProcessingException {
+            // Given
+            mockSecurityContext("testuser");
+            TeacherApplicationRequest request = validApplicationRequest();
+            request.setDocuments(new ArrayList<>(List.of(certificateDocument(), cvDocument())));
+
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.empty());
+            when(objectMapper.writeValueAsString(any())).thenReturn("[]");
+            when(applicationRepository.saveAndFlush(any(TeacherApplication.class))).thenAnswer(i -> i.getArgument(0));
+
+            // When
+            MessageResponse response = teacherApplicationService.submitApplication(request);
+
+            // Then
+            assertEquals(HttpStatus.CREATED.value(), response.getStatus());
+            verify(applicationRepository).saveAndFlush(any(TeacherApplication.class));
+        }
+
+        @Test
+        @DisplayName("Should reject reapplication whose documents only carry the old ID_CARD (no CV) at the BE, not just the FE")
+        void submitApplication_Fail_ReapplyWithOnlyIdCard() {
+            // Given: simulates a rejected application being resubmitted with only the legacy ID_CARD document,
+            // proving the CV-required rule is enforced server-side and not merely a form UX rule.
+            mockSecurityContext("testuser");
+            TeacherApplicationRequest request = validApplicationRequest();
+            request.setDocuments(new ArrayList<>(List.of(idCardDocument())));
+
+            TeacherApplication rejected = TeacherApplication.builder()
+                    .id(10L).user(testUser).status(ApplicationStatus.REJECTED).build();
+
+            when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(applicationRepository.findTopByUserOrderByIdDesc(testUser)).thenReturn(Optional.of(rejected));
+
+            // When/Then
+            BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                    teacherApplicationService.submitApplication(request));
+            assertEquals("CV document is required", ex.getMessage());
+            verify(applicationRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        @DisplayName("Bean validation should still reject an empty documents list (@NotEmpty unchanged)")
+        void submitApplication_Fail_EmptyDocumentsRejectedByBeanValidation() {
+            // Given: this is not exercised through the service — it confirms the pre-existing
+            // @NotEmpty constraint on TeacherApplicationRequest.documents still fires for an
+            // empty list, independent of the new CV-required service-layer check.
+            TeacherApplicationRequest request = validApplicationRequest();
+            request.setDocuments(new ArrayList<>());
+
+            try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+                Validator validator = factory.getValidator();
+                Set<ConstraintViolation<TeacherApplicationRequest>> violations = validator.validate(request);
+
+                assertTrue(violations.stream().anyMatch(v ->
+                        "documents".equals(v.getPropertyPath().toString())
+                                && v.getMessage().contains("At least one document is required")));
+            }
         }
     }
 

@@ -12,6 +12,11 @@ export default defineConfig(() => ({
   // worker: {
   //  plugins: [],
   // },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+  },
   // Configuration for building your library.
   // See: https://vite.dev/guide/build.html#library-mode
   build: {

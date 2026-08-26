@@ -7,6 +7,7 @@ export const ApiErrorSchema = z.object({
   path: z.string().optional(),
   errorCode: z.string().optional(),
   error: z.string().optional(),
+  fieldErrors: z.record(z.string()).optional(),
 });
 
 // Generic ApiResponse helpers & schemas

@@ -5,12 +5,14 @@ import {
   MessageResponseSchema,
   Setup2FAResponseSchema,
   ApiErrorSchema,
+  UserSchema,
   type ApiError,
-  RefreshTokenResponse,
+  type RefreshTokenResponse,
 } from '@edumind/shared-types';
-import { 
-  unwrapApiResponse, 
-  AUTH_ENDPOINTS, 
+import {
+  unwrapApiResponse,
+  AUTH_ENDPOINTS,
+  USER_ENDPOINTS,
   API_URL,
 } from '@edumind/shared-utils';
 
@@ -22,35 +24,128 @@ export const apiClient = axios.create({
   withCredentials: true, // IMPORTANT: Send cookies with every request
 });
 
-// Track ongoing refresh token request to avoid multiple simultaneous refreshes
-let refreshTokenPromise: Promise<string> | null = null;
+// Track ongoing refresh session request to avoid multiple simultaneous refreshes
+let refreshTokenPromise: Promise<RefreshTokenResponse> | null = null;
+
+// Identity of the auth session a refresh belongs to. Bumped on every login/logout so a
+// refresh started under a previous session can't write its result over the current one.
+let authGeneration = 0;
 
 /**
- * Refresh access token using refresh token from HTTP-Only cookie
- * Uses a promise cache to prevent multiple simultaneous refresh requests
+ * Thrown when a refresh resolves after the session that started it ended (logout, or a
+ * different user logging in). Carries no server error — the refresh itself may well have
+ * succeeded; its result is simply no longer addressed to anybody.
  */
-async function refreshAccessToken(): Promise<string> {
-  // If there's already a refresh in progress, wait for it
+export class StaleAuthSessionError extends Error {
+  constructor() {
+    super('Auth session changed while the token refresh was in flight');
+    this.name = 'StaleAuthSessionError';
+  }
+}
+
+export function isStaleAuthSessionError(error: unknown): error is StaleAuthSessionError {
+  return error instanceof StaleAuthSessionError;
+}
+
+/**
+ * Ends the current auth session's identity: any refresh still in flight becomes stale and
+ * will neither persist its tokens nor notify the store, and the cached promise is dropped
+ * so the next caller starts a fresh request instead of adopting the previous session's one.
+ * Call from every login path, logout, and clearAuthState.
+ */
+export function invalidateAuthSession(): void {
+  authGeneration++;
+  refreshTokenPromise = null;
+}
+
+/** Clears every piece of persisted auth state (access token, user snapshot, Zustand persist key). */
+export function clearStoredAuth(): void {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+  localStorage.removeItem('auth-storage');
+}
+
+/**
+ * Reads the server's error envelope off a rejected request, or null if the body isn't one.
+ * /auth/refresh and /users/me are called with raw axios, bypassing the response
+ * interceptor, so their error bodies have not been parsed yet — hence parsing here.
+ */
+function parseApiError(error: unknown): ApiError | null {
+  const data = (error as AxiosError)?.response?.data;
+  const parsed = data ? ApiErrorSchema.safeParse(data) : null;
+  return parsed?.success ? parsed.data : null;
+}
+
+function synthesizeApiError(message: string, status: number): ApiError {
+  return { message, status, timestamp: new Date().toISOString() } as ApiError;
+}
+
+/**
+ * Terminal refresh failures (missing/revoked/expired refresh token, ERR_2004) mean the
+ * session is dead. Everything else (network error, timeout, 5xx, malformed response) is
+ * treated as temporary so a flaky connection doesn't log the user out.
+ */
+export function isTerminalRefreshFailure(error: unknown): boolean {
+  return parseApiError(error)?.errorCode === 'ERR_2004';
+}
+
+async function fetchCurrentUserWith(accessToken: string) {
+  const response = await axios.get(`${API_URL}${USER_ENDPOINTS.ME}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return UserSchema.parse(unwrapApiResponse(response.data));
+}
+
+/**
+ * Refresh the access token using the refresh token from the HTTP-only cookie, and keep
+ * the auth store's user snapshot in sync with the roles the new token carries.
+ * Uses a promise cache to dedupe concurrent callers (reactive 401s and proactive callers).
+ */
+export async function refreshAuthSession(): Promise<RefreshTokenResponse> {
   if (refreshTokenPromise) {
     return refreshTokenPromise;
   }
 
-  // Create new refresh request
+  const generation = authGeneration;
+
   refreshTokenPromise = axios
     .post(
       `${API_URL}${AUTH_ENDPOINTS.REFRESH}`,
       {},
       { withCredentials: true }
     )
-    .then((response) => {
-      const data = unwrapApiResponse(response.data);
-      const newAccessToken = (data as RefreshTokenResponse).accessToken;
-      localStorage.setItem('accessToken', newAccessToken);
-      return newAccessToken;
+    .then(async (response) => {
+      // Parse, don't cast — this request bypasses the response interceptor's validation.
+      const data = RefreshTokenResponseSchema.parse(unwrapApiResponse(response.data));
+
+      // user is optional in the schema — fall back to /users/me with the new token.
+      // Uses the token from the response directly, not localStorage, so nothing has to be
+      // persisted before the staleness check below.
+      const user = data.user ?? (await fetchCurrentUserWith(data.accessToken));
+
+      // Logout (or a different user logging in) between the request and now means this
+      // result belongs to a session that no longer exists: writing it would resurrect a
+      // dead token or overwrite the new user's identity. Fail the caller instead — the
+      // request it wanted to retry belonged to that dead session too.
+      if (generation !== authGeneration) {
+        throw new StaleAuthSessionError();
+      }
+
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('user', JSON.stringify(user)); // legacy key, still read by auth.service.ts
+      // dispatchEvent is synchronous — the store is updated before this promise resolves
+      window.dispatchEvent(
+        new CustomEvent('auth:user-refreshed', { detail: { user, accessToken: data.accessToken } })
+      );
+
+      return { ...data, user };
     })
     .finally(() => {
-      // Clear the promise cache after refresh completes (success or failure)
-      refreshTokenPromise = null;
+      // Only clear the cache if it still holds THIS refresh — invalidateAuthSession() may
+      // already have dropped it, and a newer refresh must not be evicted by an older one.
+      if (generation === authGeneration) {
+        refreshTokenPromise = null;
+      }
     });
 
   return refreshTokenPromise;
@@ -116,11 +211,10 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Validate refresh response
+    // Validate refresh response (accessToken persistence is handled by refreshAuthSession's pipeline)
     if (endpoint?.includes(AUTH_ENDPOINTS.REFRESH)) {
       const result = RefreshTokenResponseSchema.safeParse(response.data);
       if (result.success) {
-        localStorage.setItem('accessToken', result.data.accessToken);
         response.data = result.data;
       }
     }
@@ -197,23 +291,39 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Use the shared refresh function to avoid duplicate requests
-        const newAccessToken = await refreshAccessToken();
+        // Use the shared refresh pipeline to avoid duplicate requests
+        const { accessToken } = await refreshAuthSession();
 
         // Retry original request with new token
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // Refresh failed - clear ALL auth state from storage
-        // IMPORTANT: Must also clear 'auth-storage' (Zustand persist key)
-        // to prevent isAuthenticated from rehydrating as true
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('auth-storage');
-        // Dispatch a custom event so the auth store can do a client-side redirect
-        // (avoids a full page reload that would re-run addInitScript in E2E tests)
-        window.dispatchEvent(new CustomEvent('auth:session-expired'));
-        return Promise.reject(refreshError);
+        // Only a terminal failure (refresh token missing/revoked/expired) means the
+        // session is actually dead — a network blip or 5xx should not log the user out.
+        if (isTerminalRefreshFailure(refreshError)) {
+          clearStoredAuth();
+          // Dispatch a custom event so the auth store can do a client-side redirect
+          // (avoids a full page reload that would re-run addInitScript in E2E tests)
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+
+        // Normalize before rejecting: every other exit from this interceptor hands back an
+        // ApiError, and callers are typed for it (`err.errorCode`, `err.message`). The
+        // refresh is an internal detail they never issued, so its AxiosError / ZodError /
+        // StaleAuthSessionError must not surface in its place.
+        //
+        // Report the REFRESH failure, not the original 401 — the 401 was expected and would
+        // have been handled; the refresh is why the request ultimately failed. This also
+        // keeps the status honest for retry policy: a terminal ERR_2004 carries 403 (not
+        // retriable), while a network blip carries 0, so TanStack Query can retry it
+        // instead of writing it off as a client error. Never an internal exception string.
+        throw (
+          parseApiError(refreshError) ??
+          synthesizeApiError(
+            'Unable to refresh your session. Please try again.',
+            (refreshError as AxiosError)?.response?.status ?? 0
+          )
+        );
       }
     }
 
@@ -223,10 +333,6 @@ apiClient.interceptors.response.use(
     }
 
     // Fallback error
-    throw {
-      message: error.message || 'Network error',
-      status: error.response?.status || 0,
-      timestamp: new Date().toISOString(),
-    } as ApiError;
+    throw synthesizeApiError(error.message || 'Network error', error.response?.status || 0);
   }
 );

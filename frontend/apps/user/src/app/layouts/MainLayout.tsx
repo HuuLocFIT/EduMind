@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
-import { useAuthUiReady, useTeacherApplication } from "../hooks";
+import { useAuthUiReady, useTeacherApplicationStatus, useTeacherRoleSync } from "../hooks";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -110,9 +110,9 @@ export const MainLayout: React.FC = () => {
     user?.roles.includes(UserRole.TEACHER) ||
     user?.roles.includes(UserRole.TEACHER_TRIAL);
 
-  const { data: applicationData } = useTeacherApplication();
+  const { application, status, hasApplication, isRejected } = useTeacherApplicationStatus();
+  useTeacherRoleSync({ applicationId: application?.id, status });
 
-  const hasApplication = Boolean(applicationData);
   const handleLogout = async () => {
     await logout();
     navigate(USER_ROUTES.LOGIN);
@@ -348,17 +348,32 @@ export const MainLayout: React.FC = () => {
                                   <span>Become a Teacher</span>
                                 </button>
                               ) : (
-                                <button
-                                  role="menuitem"
-                                  onClick={() => {
-                                    navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS);
-                                    setUserMenuOpen(false);
-                                  }}
-                                  className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <FileText className="w-4 h-4 mr-3 text-gray-400" aria-hidden="true" />
-                                  <span>Application Status</span>
-                                </button>
+                                <>
+                                  <button
+                                    role="menuitem"
+                                    onClick={() => {
+                                      navigate(USER_ROUTES.TEACHER_APPLICATION_STATUS);
+                                      setUserMenuOpen(false);
+                                    }}
+                                    className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <FileText className="w-4 h-4 mr-3 text-gray-400" aria-hidden="true" />
+                                    <span>Application Status</span>
+                                  </button>
+                                  {isRejected && (
+                                    <button
+                                      role="menuitem"
+                                      onClick={() => {
+                                        navigate(USER_ROUTES.TEACHER_APPLICATION);
+                                        setUserMenuOpen(false);
+                                      }}
+                                      className="w-full flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium"
+                                    >
+                                      <UserPlus className="w-4 h-4 mr-3" aria-hidden="true" />
+                                      <span>Apply Again</span>
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </>
                           )}
@@ -555,18 +570,34 @@ export const MainLayout: React.FC = () => {
                               </Link>
                             </li>
                           ) : (
-                            <li>
-                              <Link
-                                to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-                                className="flex items-center justify-between w-full text-gray-700 hover:text-blue-600"
-                                onClick={() => setMobileMenuOpen(false)}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <FileText className="w-5 h-5" />
-                                  <span>Application Status</span>
-                                </div>
-                              </Link>
-                            </li>
+                            <>
+                              <li>
+                                <Link
+                                  to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+                                  className="flex items-center justify-between w-full text-gray-700 hover:text-blue-600"
+                                  onClick={() => setMobileMenuOpen(false)}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="w-5 h-5" />
+                                    <span>Application Status</span>
+                                  </div>
+                                </Link>
+                              </li>
+                              {isRejected && (
+                                <li>
+                                  <Link
+                                    to={USER_ROUTES.TEACHER_APPLICATION}
+                                    className="flex items-center justify-between w-full text-blue-600 font-medium"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <UserPlus className="w-5 h-5" />
+                                      <span>Apply Again</span>
+                                    </div>
+                                  </Link>
+                                </li>
+                              )}
+                            </>
                           )}
                         </>
                       )}

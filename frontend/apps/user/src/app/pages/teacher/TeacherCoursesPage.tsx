@@ -139,11 +139,15 @@ export const TeacherCoursesPage: React.FC = () => {
       setCourseToArchive(null);
     },
     onError: (err: any) => {
-      const status = err?.response?.status;
-      const backendMessage = err?.response?.data?.message;
+      // apiClient's interceptor rejects with a FLAT ApiError ({ message, status, ... }),
+      // not an AxiosError — reading only err.response.* meant the 409 branch never fired
+      // and every archive failure fell through to the generic message. Keep the AxiosError
+      // shape as a fallback for errors raised outside the interceptor.
+      const status = err?.status ?? err?.response?.status;
+      const backendMessage = err?.message ?? err?.response?.data?.message;
       showError(status === 409
         ? "This course has protected students and must be archived by an administrator. Please contact an admin."
-        : backendMessage || err.message || "Failed to archive course");
+        : backendMessage || "Failed to archive course");
     },
   });
 

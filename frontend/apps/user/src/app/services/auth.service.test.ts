@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { authService } from './auth.service';
 
-// Mock apiClient
+const { mockRefreshAuthSession } = vi.hoisted(() => ({
+  mockRefreshAuthSession: vi.fn(),
+}));
+
+// Mock apiClient + the refresh pipeline (refreshToken delegates to refreshAuthSession)
 vi.mock('./api-client.service.js', () => ({
   apiClient: {
     post: vi.fn(),
@@ -9,6 +13,7 @@ vi.mock('./api-client.service.js', () => ({
     put: vi.fn(),
     delete: vi.fn(),
   },
+  refreshAuthSession: mockRefreshAuthSession,
 }));
 
 // Mock shared-utils
@@ -122,14 +127,15 @@ describe('authService', () => {
   });
 
   describe('refreshToken', () => {
-    it('should call refresh endpoint', async () => {
-      const mockResponse = { data: { accessToken: 'new-token' } };
-      vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+    it('should delegate to the refreshAuthSession pipeline', async () => {
+      const mockResult = { accessToken: 'new-token', tokenType: 'Bearer', user: { id: 1 } };
+      mockRefreshAuthSession.mockResolvedValue(mockResult);
 
       const result = await authService.refreshToken();
 
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/refresh', {});
-      expect(result).toEqual(mockResponse.data);
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+      expect(apiClient.post).not.toHaveBeenCalled();
+      expect(result).toEqual(mockResult);
     });
   });
 

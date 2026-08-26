@@ -48,7 +48,8 @@ export const NotificationsTab: React.FC = () => {
         
         alert('Notification settings updated!');
       } catch (err: any) {
-        alert(err.response?.data?.message || 'Failed to update settings');
+        // apiClient rejects with a flat ApiError — `.response` only exists on raw AxiosErrors.
+        alert(err.message || err.response?.data?.message || 'Failed to update settings');
       } finally {
         setLoading(false);
       }
