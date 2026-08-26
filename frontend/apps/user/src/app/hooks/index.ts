@@ -40,6 +40,9 @@ export {
   useTeacherApplicationStatus,
 } from "./useTeacherApplication";
 
+// Teacher role sync (keeps auth store roles in sync after application approval)
+export { useTeacherRoleSync } from "./useTeacherRoleSync";
+
 // Prerender/auth UI coordination
 export { useAuthUiReady } from "./useAuthUiReady";
 

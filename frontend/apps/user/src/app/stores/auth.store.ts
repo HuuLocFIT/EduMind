@@ -9,7 +9,74 @@ import type {
   JwtResponse,
 } from "@edumind/shared-types";
 import { authService } from '../services/auth.service';
+import {
+  refreshAuthSession,
+  isTerminalRefreshFailure,
+  isStaleAuthSessionError,
+  invalidateAuthSession,
+  clearStoredAuth,
+} from '../services/api-client.service';
 import { queryClient } from "../lib/query-client";
+
+// Attempt flags for the two independent role-sync triggers (post-approval sync in
+// MainLayout, direct-bookmark sync in TeacherGuard). Module-level (not component state):
+// TeacherGuard remounts on every navigate, which would reset a useRef/useState flag and
+// loop refresh<->redirect forever. Two separate keys because they dedupe on different
+// identities (user.id vs application.id) — a single shared flag would let a guard
+// attempt suppress the sync that must run right after an application gets approved.
+let guardAttemptedUserId: number | null = null;
+let approvedAttemptedApplicationId: number | null = null;
+
+export const hasGuardAttempted = (userId?: number) =>
+  userId != null && guardAttemptedUserId === userId;
+export const markGuardAttempted = (userId: number) => {
+  guardAttemptedUserId = userId;
+};
+
+export const hasApprovalAttempted = (applicationId?: number) =>
+  applicationId != null && approvedAttemptedApplicationId === applicationId;
+export const markApprovalAttempted = (applicationId: number) => {
+  approvedAttemptedApplicationId = applicationId;
+};
+
+export const resetRoleSyncAttempts = () => {
+  guardAttemptedUserId = null;
+  approvedAttemptedApplicationId = null;
+};
+
+/**
+ * Everything that must be reset when the identity behind the session changes (login,
+ * logout, forced clear): the role-sync attempt flags, plus the api-client's session
+ * generation so a refresh still in flight can't write back into the new session.
+ */
+function resetAuthSessionIdentity() {
+  invalidateAuthSession();
+  resetRoleSyncAttempts();
+}
+
+// Refresh mechanics belonging to the previous session. Reset when an auth attempt STARTS,
+// not only when it succeeds: resetAuthSessionIdentity() makes the refresh in flight stale,
+// and a stale refresh deliberately leaves isRefreshingSession alone (see refreshSession) —
+// so a login that then FAILS would leave the flag stuck on, with TeacherGuard showing
+// "Verifying access…" and the approved CTA disabled forever.
+//
+// Invariant: every caller of resetAuthSessionIdentity() must also apply this in the same
+// tick. That is what makes the stale-refresh early return safe.
+const REFRESH_STATE_RESET = {
+  isRefreshingSession: false,
+  sessionRefreshError: null,
+} satisfies Partial<AuthState>;
+
+// The above plus the login-page banner reason, which only a COMPLETED auth transition
+// retires — a failed login attempt leaves "your session expired" true and still worth
+// showing. None of it is persisted, so it only leaks across an in-memory logout → login
+// (no reload) — but there it leaks for good when nothing triggers another refresh: a
+// leftover 'SESSION_EXPIRED' hides the approved-application CTA and bounces TeacherGuard
+// to /login for a user who just signed in successfully.
+const SESSION_SCOPED_RESET = {
+  ...REFRESH_STATE_RESET,
+  sessionExpiredReason: null,
+} satisfies Partial<AuthState>;
 
 // Helper to avoid duplicating Sentry user context across 3 login paths
 function setSentryUser(user: { id: string | number; role?: string; roles?: string[] } | null) {
@@ -33,6 +100,10 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  isRefreshingSession: boolean;
+  sessionRefreshError: 'SESSION_EXPIRED' | 'TEMPORARY' | null;
+  // Read by LoginPage to show a "session expired" banner. NOT persisted — see partialize below.
+  sessionExpiredReason: 'SESSION_EXPIRED' | null;
 
   // Actions
   login: (credentials: LoginRequest) => Promise<void>;
@@ -43,6 +114,8 @@ interface AuthState {
   clearError: () => void;
   setUser: (user: User) => void;
   clearAuthState: () => void;
+  refreshSession: () => Promise<void>;
+  clearSessionExpiredReason: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -53,9 +126,19 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      isRefreshingSession: false,
+      sessionRefreshError: null,
+      sessionExpiredReason: null,
 
       login: async (credentials) => {
-        set({ isLoading: true, error: null });
+        // Before the first await, not after it: submitting credentials for somebody is the
+        // moment the previous session stops owning the store. A refresh that lands while
+        // the login request is on the wire would otherwise still be treated as current and
+        // write the old token back into localStorage. Cost of invalidating this early: if
+        // the login fails, the previous session's in-flight refresh is discarded — the next
+        // 401 simply starts a new one.
+        resetAuthSessionIdentity();
+        set({ isLoading: true, error: null, ...REFRESH_STATE_RESET });
         try {
           const response = await authService.login(credentials);
 
@@ -87,6 +170,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: jwtResponse.accessToken,
             isAuthenticated: true,
             isLoading: false,
+            ...SESSION_SCOPED_RESET,
           });
           setSentryUser(jwtResponse.user);
         } catch (error: any) {
@@ -102,7 +186,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       loginWith2FA: async (credentials) => {
-        set({ isLoading: true, error: null });
+        // Before the first await — see login().
+        resetAuthSessionIdentity();
+        set({ isLoading: true, error: null, ...REFRESH_STATE_RESET });
         try {
           const response = await authService.loginWith2FA(credentials);
 
@@ -117,6 +203,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: response.accessToken,
             isAuthenticated: true,
             isLoading: false,
+            ...SESSION_SCOPED_RESET,
           });
           setSentryUser(user);
         } catch (error: any) {
@@ -130,7 +217,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       loginWithOAuth2: async (token) => {
-        set({ isLoading: true, error: null });
+        // Before the first await — see login().
+        resetAuthSessionIdentity();
+        set({ isLoading: true, error: null, ...REFRESH_STATE_RESET });
         try {
           // Save access token
           localStorage.setItem("accessToken", token);
@@ -147,6 +236,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: token,
             isAuthenticated: true,
             isLoading: false,
+            ...SESSION_SCOPED_RESET,
           });
           setSentryUser(user);
         } catch (error: any) {
@@ -185,7 +275,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        set({ isLoading: true });
+        // Before the API call, not in the finally: a slow or hanging logout request would
+        // otherwise leave a whole round-trip during which an in-flight refresh still counts
+        // as current and writes the access token back into localStorage.
+        resetAuthSessionIdentity();
+        set({ isLoading: true, ...REFRESH_STATE_RESET });
         try {
           await authService.logout();
         } catch (error) {
@@ -196,6 +290,9 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem("user");
           // Clear React Query cache to avoid showing stale user data after logout
           queryClient.clear();
+          // Again after the request: authService.logout() goes through apiClient, so a 401
+          // on it can start a brand-new refresh under the generation set above.
+          resetAuthSessionIdentity();
 
           set({
             user: null,
@@ -203,6 +300,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            ...SESSION_SCOPED_RESET,
           });
           setSentryUser(null);
         }
@@ -217,6 +315,7 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
         queryClient.clear();
+        resetAuthSessionIdentity();
         setSentryUser(null);
         set({
           user: null,
@@ -224,8 +323,43 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
           error: null,
+          ...SESSION_SCOPED_RESET,
         });
       },
+
+      refreshSession: async () => {
+        let stale = false;
+        set({ isRefreshingSession: true, sessionRefreshError: null });
+        try {
+          // The 'auth:user-refreshed' listener below updates user/accessToken synchronously.
+          await refreshAuthSession();
+        } catch (error) {
+          if (isStaleAuthSessionError(error)) {
+            // Logout or another login happened while this was in flight. The session that
+            // asked for the refresh is gone, so there is nobody to report an error to —
+            // surfacing one here would paint the NEW session with the old one's failure.
+            stale = true;
+            return;
+          }
+          if (isTerminalRefreshFailure(error)) {
+            clearStoredAuth();
+            window.dispatchEvent(new CustomEvent('auth:session-expired'));
+            set({ sessionRefreshError: 'SESSION_EXPIRED' });
+          } else {
+            // Keep the session — retry is possible (network blip, timeout, 5xx, malformed response)
+            set({ sessionRefreshError: 'TEMPORARY' });
+          }
+        } finally {
+          // A stale refresh must not clear the flag — the session that owns the store now
+          // may have a refresh of its own in flight. Safe to skip only because every
+          // boundary that can make a refresh stale applies REFRESH_STATE_RESET itself.
+          if (!stale) {
+            set({ isRefreshingSession: false });
+          }
+        }
+      },
+
+      clearSessionExpiredReason: () => set({ sessionExpiredReason: null }),
     }),
     {
       name: "auth-storage",
@@ -245,5 +379,19 @@ export const useAuthStore = create<AuthState>()(
 if (typeof window !== 'undefined') {
   window.addEventListener('auth:session-expired', () => {
     useAuthStore.getState().clearAuthState();
+    // Set AFTER clearAuthState: clearAuthState resets state, so setting before it
+    // would be wiped out. LoginPage reads this to show a "session expired" banner —
+    // route state can't carry it (ProtectedRoute/interceptor don't have a route to attach it to).
+    useAuthStore.setState({ sessionExpiredReason: 'SESSION_EXPIRED' });
+  });
+
+  // Dispatched synchronously by refreshAuthSession() once the new access token + user
+  // are persisted to localStorage — only set(), never write 'auth-storage' directly here.
+  // The persist middleware writes it from partialize on every set() call; writing it by
+  // hand as well would race the middleware and leave the two out of sync.
+  window.addEventListener('auth:user-refreshed', (event) => {
+    const { user, accessToken } = (event as CustomEvent).detail;
+    useAuthStore.setState({ user, accessToken });
+    setSentryUser(user);
   });
 }

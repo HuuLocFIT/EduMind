@@ -3,12 +3,18 @@ import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TEACHER_ROUTES, USER_ROUTES, formatDate } from '@edumind/shared-utils';
 import { DocumentInfo, StatusHistoryResponse } from '@edumind/shared-types';
-import { useTeacherApplicationStatus } from '../../hooks';
+import { useTeacherApplicationStatus, useTeacherRoleSync } from '../../hooks';
+import { useAuthStore } from '../../stores/auth.store';
 
 export function ApplicationStatusPage() {
   const navigate = useNavigate();
 
-  const { application, isLoading: loading } = useTeacherApplicationStatus();
+  const { application, status, isLoading: loading } = useTeacherApplicationStatus();
+  const { hasTeacherRole, isRefreshingSession, sessionRefreshError } = useTeacherRoleSync({
+    applicationId: application?.id,
+    status,
+  });
+  const refreshSession = useAuthStore((state) => state.refreshSession);
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -287,13 +293,36 @@ const getStatusStyle = (status?: string | null) => {
             </p>
           )}
           
-          {application.status === 'APPROVED' && (
-            <Button
-              variant="primary"
-              onClick={() => navigate(TEACHER_ROUTES.DASHBOARD)}
-            >
-              Go to Teacher Dashboard
-            </Button>
+          {application.status === 'APPROVED' && sessionRefreshError !== 'SESSION_EXPIRED' && (
+            <>
+              {sessionRefreshError === 'TEMPORARY' ? (
+                <div className="flex flex-col items-center gap-3">
+                  <Alert
+                    variant="error"
+                    title="Couldn't connect"
+                    message="We couldn't verify your teacher access. Please check your connection and try again."
+                  />
+                  <Button variant="primary" onClick={() => void refreshSession()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : isRefreshingSession ? (
+                <Button variant="primary" disabled isLoading>
+                  Preparing your teacher access…
+                </Button>
+              ) : hasTeacherRole ? (
+                <Button
+                  variant="primary"
+                  onClick={() => navigate(TEACHER_ROUTES.DASHBOARD)}
+                >
+                  Go to Teacher Dashboard
+                </Button>
+              ) : (
+                <Button variant="primary" disabled>
+                  Teacher access is not available yet
+                </Button>
+              )}
+            </>
           )}
           
           {application.status === 'REJECTED' && (

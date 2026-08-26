@@ -21,7 +21,11 @@ const mockAuthState = vi.hoisted(() => ({
 const mockStatusState = vi.hoisted(() => ({
   hasApplication: false,
   isRejected: false,
+  application: undefined as { id: number } | undefined,
+  status: null as string | null,
 }));
+
+const mockRoleSync = vi.hoisted(() => vi.fn());
 
 vi.mock("../stores/auth.store", () => ({
   useAuthStore: (
@@ -32,6 +36,7 @@ vi.mock("../stores/auth.store", () => ({
 vi.mock("../hooks", () => ({
   useTeacherApplicationStatus: () => mockStatusState,
   useAuthUiReady: () => true,
+  useTeacherRoleSync: (args: unknown) => mockRoleSync(args),
 }));
 
 vi.mock("../components/payment-module", () => ({
@@ -61,6 +66,9 @@ describe("MainLayout teacher application menu", () => {
     mockAuthState.state.user.roles = [UserRole.STUDENT as string];
     mockStatusState.hasApplication = false;
     mockStatusState.isRejected = false;
+    mockStatusState.application = undefined;
+    mockStatusState.status = null;
+    mockRoleSync.mockClear();
   });
 
   it("shows only Become a Teacher when the student has no application (desktop menu)", async () => {
@@ -102,6 +110,35 @@ describe("MainLayout teacher application menu", () => {
     expect(menu.getByRole("menuitem", { name: /Application Status/ })).toBeInTheDocument();
     expect(menu.getByRole("menuitem", { name: /Teacher Dashboard/ })).toBeInTheDocument();
     expect(menu.queryByRole("menuitem", { name: /Become a Teacher/ })).not.toBeInTheDocument();
+  });
+
+  it("wires useTeacherRoleSync with the shared application id/status so post-approval sync can run", async () => {
+    mockStatusState.hasApplication = true;
+    mockStatusState.isRejected = false;
+    mockStatusState.application = { id: 42 };
+    mockStatusState.status = "APPROVED";
+    renderLayout();
+
+    expect(mockRoleSync).toHaveBeenCalledWith({ applicationId: 42, status: "APPROVED" });
+  });
+
+  it("shows Teacher Dashboard (desktop and mobile) once the role sync has updated the store's roles", async () => {
+    // Simulates the state after useTeacherRoleSync's refreshSession() call resolves and
+    // the auth:user-refreshed listener updates the store snapshot with the new role.
+    mockAuthState.state.user.roles = [UserRole.STUDENT, UserRole.TEACHER];
+    mockStatusState.hasApplication = true;
+    mockStatusState.isRejected = false;
+    mockStatusState.application = { id: 42 };
+    mockStatusState.status = "APPROVED";
+    renderLayout();
+
+    const menu = await openUserMenu();
+    expect(menu.getByRole("menuitem", { name: /Teacher Dashboard/ })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
+    const mobileNav = within(screen.getByRole("navigation", { name: "Mobile navigation" }));
+    expect(mobileNav.getByText("Teacher Dashboard")).toBeInTheDocument();
   });
 
   it("mirrors the same three states in the mobile menu", async () => {

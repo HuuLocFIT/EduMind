@@ -27,7 +27,15 @@ import { Shield, User } from "lucide-react";
 export const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWith2FA, isLoading, error, clearError } = useAuthStore();
+  const {
+    login,
+    loginWith2FA,
+    isLoading,
+    error,
+    clearError,
+    sessionExpiredReason,
+    clearSessionExpiredReason,
+  } = useAuthStore();
   const [needs2FA, setNeeds2FA] = useState(false);
   const [loginData, setLoginData] = useState<LoginRequest | null>(null);
   const [localError, setLocalError] = useState<ReactNode>("");
@@ -238,6 +246,17 @@ export const LoginPage = () => {
               variant="success"
               title="Success"
               message={successMessage}
+              className="mb-6"
+            />
+          )}
+
+          {/* Session Expired Banner */}
+          {sessionExpiredReason === 'SESSION_EXPIRED' && !needs2FA && (
+            <Alert
+              variant="warning"
+              title="Session expired"
+              message="Your session expired. Please sign in again."
+              onClose={clearSessionExpiredReason}
               className="mb-6"
             />
           )}

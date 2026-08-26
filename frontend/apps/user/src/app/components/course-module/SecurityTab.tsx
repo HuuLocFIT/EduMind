@@ -71,7 +71,8 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
       resetDisable();
     } catch (err: any) {
       showError(
-        err.response?.data?.message || "Failed to disable 2FA",
+        // apiClient rejects with a flat ApiError — `.response` only exists on raw AxiosErrors.
+        err.message || err.response?.data?.message || "Failed to disable 2FA",
         "Error"
       );
     } finally {
@@ -107,7 +108,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
       }, 300);
     } catch (err: any) {
       showError(
-        err.response?.data?.message || "Failed to delete account",
+        err.message || err.response?.data?.message || "Failed to delete account",
         "Error"
       );
       setLoading(false);

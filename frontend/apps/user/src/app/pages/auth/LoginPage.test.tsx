@@ -8,6 +8,7 @@ import { LoginPage } from './LoginPage';
 const mockLogin = vi.fn();
 const mockLoginWith2FA = vi.fn();
 const mockClearError = vi.fn();
+const mockClearSessionExpiredReason = vi.fn();
 const { mockResendVerification } = vi.hoisted(() => ({
   mockResendVerification: vi.fn(),
 }));
@@ -17,8 +18,10 @@ const mockUseAuthStore = vi.fn(() => ({
   loginWith2FA: mockLoginWith2FA,
   clearError: mockClearError,
   isLoading: false,
-  error: null,
+  error: null as string | null,
   isAuthenticated: false,
+  sessionExpiredReason: null as 'SESSION_EXPIRED' | null,
+  clearSessionExpiredReason: mockClearSessionExpiredReason,
 }));
 
 vi.mock('@user/stores/auth.store', () => ({
@@ -90,8 +93,15 @@ vi.mock('@edumind/user-ui', () => ({
       {error && <span>{error}</span>}
     </div>
   ),
-  Alert: ({ message, variant }: any) => (
-    <div role="alert" data-variant={variant}>{message}</div>
+  Alert: ({ message, variant, onClose }: any) => (
+    <div role="alert" data-variant={variant}>
+      {message}
+      {onClose && (
+        <button type="button" onClick={onClose} aria-label="Close alert">
+          Close
+        </button>
+      )}
+    </div>
   ),
   Card: ({ children }: any) => <div>{children}</div>,
   CardBody: ({ children }: any) => <div>{children}</div>,
@@ -127,6 +137,8 @@ describe('LoginPage', () => {
       isLoading: false,
       error: null,
       isAuthenticated: false,
+      sessionExpiredReason: null,
+      clearSessionExpiredReason: mockClearSessionExpiredReason,
     });
   });
 
@@ -151,6 +163,8 @@ describe('LoginPage', () => {
         isLoading: true,
         error: null,
         isAuthenticated: false,
+        sessionExpiredReason: null,
+        clearSessionExpiredReason: mockClearSessionExpiredReason,
       });
 
       renderLoginPage();
@@ -754,6 +768,54 @@ describe('LoginPage', () => {
       await waitFor(() => {
         expect(mockLogin).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('Session Expired Banner', () => {
+    it('should show banner when sessionExpiredReason is SESSION_EXPIRED', () => {
+      mockLocationState = {};
+      mockUseAuthStore.mockReturnValue({
+        login: mockLogin,
+        loginWith2FA: mockLoginWith2FA,
+        clearError: mockClearError,
+        isLoading: false,
+        error: null,
+        isAuthenticated: false,
+        sessionExpiredReason: 'SESSION_EXPIRED',
+        clearSessionExpiredReason: mockClearSessionExpiredReason,
+      });
+
+      renderLoginPage();
+
+      expect(screen.getByText(/your session expired/i)).toBeInTheDocument();
+    });
+
+    it('should not show banner when sessionExpiredReason is null', () => {
+      mockLocationState = {};
+      renderLoginPage();
+
+      expect(screen.queryByText(/your session expired/i)).not.toBeInTheDocument();
+    });
+
+    it('should call clearSessionExpiredReason when banner is dismissed', async () => {
+      const user = userEvent.setup();
+      mockLocationState = {};
+      mockUseAuthStore.mockReturnValue({
+        login: mockLogin,
+        loginWith2FA: mockLoginWith2FA,
+        clearError: mockClearError,
+        isLoading: false,
+        error: null,
+        isAuthenticated: false,
+        sessionExpiredReason: 'SESSION_EXPIRED',
+        clearSessionExpiredReason: mockClearSessionExpiredReason,
+      });
+
+      renderLoginPage();
+
+      await user.click(screen.getByRole('button', { name: /close alert/i }));
+
+      expect(mockClearSessionExpiredReason).toHaveBeenCalled();
     });
   });
 });

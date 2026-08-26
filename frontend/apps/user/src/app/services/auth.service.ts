@@ -1,4 +1,4 @@
-import { apiClient } from "./api-client.service.js";
+import { apiClient, refreshAuthSession } from "./api-client.service.js";
 import type {
   SignupRequest,
   LoginRequest,
@@ -7,7 +7,6 @@ import type {
   ResetPasswordRequest,
   ResendVerificationRequest,
   Verify2FACodeRequest,
-  RefreshTokenResponse,
   MessageResponse,
   Setup2FAResponse,
   JwtResponse,
@@ -50,13 +49,9 @@ export const authService = {
     return response.data;
   },
 
-  async refreshToken(): Promise<RefreshTokenResponse> {
-    const response = await apiClient.post<RefreshTokenResponse>(
-      AUTH_ENDPOINTS.REFRESH,
-      {} // Empty body - cookie is sent automatically
-    );
-    return response.data;
-  },
+  // Delegates to the single refresh pipeline in api-client.service.ts — it dedupes
+  // concurrent callers and keeps the auth store's user snapshot in sync with the new token.
+  refreshToken: refreshAuthSession,
 
   // ========== PASSWORD RESET ==========
 

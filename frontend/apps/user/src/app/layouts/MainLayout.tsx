@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { TEACHER_ROUTES, USER_ROUTES } from "@edumind/shared-utils";
 import { UserRole } from "@edumind/shared-constants";
-import { useAuthUiReady, useTeacherApplicationStatus } from "../hooks";
+import { useAuthUiReady, useTeacherApplicationStatus, useTeacherRoleSync } from "../hooks";
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -110,7 +110,8 @@ export const MainLayout: React.FC = () => {
     user?.roles.includes(UserRole.TEACHER) ||
     user?.roles.includes(UserRole.TEACHER_TRIAL);
 
-  const { hasApplication, isRejected } = useTeacherApplicationStatus();
+  const { application, status, hasApplication, isRejected } = useTeacherApplicationStatus();
+  useTeacherRoleSync({ applicationId: application?.id, status });
 
   const handleLogout = async () => {
     await logout();

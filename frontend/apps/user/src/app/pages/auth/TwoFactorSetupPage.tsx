@@ -71,7 +71,8 @@ export const TwoFactorSetupPage = () => {
       setSetupData(data);
     } catch (err: any) {
       showError(
-        err.response?.data?.message || "Failed to load 2FA setup data",
+        // apiClient rejects with a flat ApiError — `.response` only exists on raw AxiosErrors.
+        err.message || err.response?.data?.message || "Failed to load 2FA setup data",
         "Error"
       );
       navigate(USER_ROUTES.PROFILE_SETTINGS);
@@ -93,7 +94,7 @@ export const TwoFactorSetupPage = () => {
       setShowBackupCodes(true);
     } catch (err: any) {
       showError(
-        err.response?.data?.message || "Invalid verification code",
+        err.message || err.response?.data?.message || "Invalid verification code",
         "Verification Failed"
       );
     } finally {

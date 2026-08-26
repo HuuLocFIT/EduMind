@@ -38,6 +38,12 @@ vi.mock("../hooks", () => ({
     isRejected: false,
   }),
   useAuthUiReady: () => mockAuthUi.ready,
+  useTeacherRoleSync: () => ({
+    hasTeacherRole: false,
+    isRefreshingSession: false,
+    sessionRefreshError: null,
+    needsSync: false,
+  }),
 }));
 
 vi.mock("../components/payment-module", () => ({
