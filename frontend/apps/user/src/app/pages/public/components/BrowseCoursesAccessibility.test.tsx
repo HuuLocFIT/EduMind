@@ -45,6 +45,7 @@ const listProps = {
   handleEnrollFree: vi.fn(),
   activeFiltersCount: 0,
   onClearFilters: vi.fn(),
+  authUiReady: true,
 };
 
 describe("Browse courses accessibility", () => {

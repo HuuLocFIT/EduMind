@@ -2,7 +2,7 @@ import React from "react";
 
 export const ApplicationStatusSkeleton: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8" aria-hidden="true">
       <div className="max-w-4xl mx-auto animate-pulse">
         {/* Header */}
         <div className="text-center mb-8">
@@ -113,6 +113,12 @@ export const ApplicationStatusSkeleton: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-6 flex justify-center gap-3">
+          <div className="h-10 w-40 bg-gray-200 rounded-lg" />
+          <div className="h-10 w-40 bg-gray-200 rounded-lg" />
         </div>
       </div>
     </div>

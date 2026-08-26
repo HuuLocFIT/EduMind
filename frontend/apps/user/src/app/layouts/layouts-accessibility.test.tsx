@@ -30,6 +30,13 @@ vi.mock("../stores/auth.store", () => {
 
 vi.mock("../hooks", () => ({
   useTeacherApplication: () => ({ data: null }),
+  useTeacherApplicationStatus: () => ({
+    application: null,
+    status: null,
+    hasApplication: false,
+    canApply: true,
+    isRejected: false,
+  }),
   useAuthUiReady: () => mockAuthUi.ready,
 }));
 

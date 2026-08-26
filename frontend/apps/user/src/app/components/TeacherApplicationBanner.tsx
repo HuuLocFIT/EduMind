@@ -108,6 +108,8 @@ export const TeacherApplicationBanner: React.FC = () => {
       description:
         "Your teacher application has been submitted and is waiting for review.",
       badgeClass: "bg-yellow-100 text-yellow-800",
+      ctaLabel: "View Details",
+      ctaTo: USER_ROUTES.TEACHER_APPLICATION_STATUS,
     },
     REJECTED: {
       icon: XCircle,
@@ -119,6 +121,8 @@ export const TeacherApplicationBanner: React.FC = () => {
         application.rejectionReason ||
         "Unfortunately, your application was not approved. You can reapply after addressing the feedback.",
       badgeClass: "bg-red-100 text-red-800",
+      ctaLabel: "Apply Again",
+      ctaTo: USER_ROUTES.TEACHER_APPLICATION,
     },
   };
 
@@ -170,13 +174,23 @@ export const TeacherApplicationBanner: React.FC = () => {
               </p>
             )}
             <Link
-              to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+              to={config.ctaTo}
               className="ml-auto inline-flex flex-none items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-gray-900"
             >
-              View details
+              {config.ctaLabel}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
+          {status === "REJECTED" && (
+            <div className="mt-1 flex justify-end">
+              <Link
+                to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+                className="text-xs font-medium text-gray-500 hover:text-gray-700"
+              >
+                View details
+              </Link>
+            </div>
+          )}
         </div>
         <div className="hidden min-w-0 items-start gap-3 sm:flex">
           <div
@@ -204,13 +218,23 @@ export const TeacherApplicationBanner: React.FC = () => {
           </div>
         </div>
 
-        <Link
-          to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
-          className="hidden w-auto flex-none items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:inline-flex"
-        >
-          View Details
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+        <div className="hidden flex-none flex-col items-end gap-1.5 sm:flex">
+          <Link
+            to={config.ctaTo}
+            className="inline-flex w-auto flex-none items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            {config.ctaLabel}
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          {status === "REJECTED" && (
+            <Link
+              to={USER_ROUTES.TEACHER_APPLICATION_STATUS}
+              className="text-xs font-medium text-gray-500 hover:text-gray-700"
+            >
+              View details
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

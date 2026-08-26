@@ -27,7 +27,7 @@ export const useTeacherApplication = () => {
         throw error;
       }
     },
-    enabled: Boolean(isStudent && !isTeacher && isAuthenticated && user?.id),
+    enabled: Boolean(isAuthenticated && user?.id && (isStudent || isTeacher)),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: (failureCount, error: unknown) => {
@@ -35,4 +35,18 @@ export const useTeacherApplication = () => {
       return failureCount < 2;
     },
   });
+};
+
+export const useTeacherApplicationStatus = () => {
+  const query = useTeacherApplication();
+  const application = query.data ?? null;
+  const status = application?.status ?? null;
+  return {
+    ...query,
+    application,
+    status,
+    hasApplication: application !== null,
+    canApply: application === null || status === "REJECTED",
+    isRejected: status === "REJECTED",
+  };
 };

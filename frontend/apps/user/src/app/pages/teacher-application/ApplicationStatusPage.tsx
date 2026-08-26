@@ -1,30 +1,14 @@
 import { Alert, Button, Card, CardBody, CardHeader } from '@edumind/user-ui';
-import { teacherApplicationService } from '../../services/teacher-application.service';
 import { Clock, CheckCircle, XCircle, Calendar, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TEACHER_ROUTES, USER_ROUTES, formatDate } from '@edumind/shared-utils';
 import { DocumentInfo, StatusHistoryResponse } from '@edumind/shared-types';
-import { queryKeys } from '../../lib/query-keys';
-import { useAuthStore } from '../../stores/auth.store';
-import { useQuery } from '@tanstack/react-query';
+import { useTeacherApplicationStatus } from '../../hooks';
 
 export function ApplicationStatusPage() {
-  const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  const { data: application, isLoading: loading } = useQuery({
-    queryKey: queryKeys.teacherApplication.myApplication(user?.id),
-    queryFn: async () => {
-      try {
-        return await teacherApplicationService.getMyApplication();
-      } catch (error: any) {
-        return null;
-      }
-    },
-    enabled: Boolean(user?.id),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
+  const { application, isLoading: loading } = useTeacherApplicationStatus();
 
   const getStatusConfig = (status: string) => {
     const configs = {
@@ -90,7 +74,7 @@ const getStatusStyle = (status?: string | null) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -98,7 +82,7 @@ const getStatusStyle = (status?: string | null) => {
 
   if (!application) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">No application data found.</p>
           <Button variant="outline" onClick={() => navigate(USER_ROUTES.ROOT)}>
@@ -113,7 +97,7 @@ const getStatusStyle = (status?: string | null) => {
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -313,12 +297,20 @@ const getStatusStyle = (status?: string | null) => {
           )}
           
           {application.status === 'REJECTED' && (
-            <Button
-              variant="outline"
-              onClick={() => navigate(USER_ROUTES.ROOT)}
-            >
-              Back to Home
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="primary"
+                onClick={() => navigate(USER_ROUTES.TEACHER_APPLICATION)}
+              >
+                Apply Again
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(USER_ROUTES.ROOT)}
+              >
+                Back to Home
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -35,7 +35,10 @@ export {
 } from "./useInvoices";
 
 // Teacher application hooks
-export { useTeacherApplication } from "./useTeacherApplication";
+export {
+  useTeacherApplication,
+  useTeacherApplicationStatus,
+} from "./useTeacherApplication";
 
 // Prerender/auth UI coordination
 export { useAuthUiReady } from "./useAuthUiReady";

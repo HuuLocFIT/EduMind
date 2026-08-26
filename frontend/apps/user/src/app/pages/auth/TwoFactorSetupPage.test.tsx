@@ -43,7 +43,7 @@ vi.mock('react-router-dom', async () => {
 
 // Mock shared-utils (must include all exports used by dependencies)
 vi.mock('@edumind/shared-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('@edumind/shared-utils')>();
   return {
     ...actual,
     USER_ROUTES: {
