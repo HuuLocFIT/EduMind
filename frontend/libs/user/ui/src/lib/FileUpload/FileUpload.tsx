@@ -17,9 +17,18 @@ interface FileUploadProps {
   maxFiles?: number;
   onFilesChange: (files: UploadedFile[]) => void;
   helperText?: string;
+  /** Field-level validation error (e.g. "required"), shown below the dropzone with a red border. */
+  error?: string;
   required?: boolean;
   /** Hide the built-in selected-files list, e.g. when the parent renders its own list. */
   hideFileList?: boolean;
+  /**
+   * Optional controlled file list. When provided, the component renders and
+   * accumulates against this list instead of its own internal state, so the
+   * parent stays the single source of truth. Omit to keep the previous
+   * uncontrolled behavior unchanged.
+   */
+  files?: UploadedFile[];
 }
 
 export const FileUpload = ({
@@ -30,13 +39,17 @@ export const FileUpload = ({
   maxFiles = 1,
   onFilesChange,
   helperText,
+  error,
   required = false,
   hideFileList = false,
+  files,
 }: FileUploadProps) => {
   const generatedId = useId();
   const inputId = `${generatedId}-file-upload`;
   const helperTextId = `${inputId}-description`;
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const errorId = `${inputId}-error`;
+  const [internalFiles, setInternalFiles] = useState<UploadedFile[]>([]);
+  const displayedFiles = files ?? internalFiles;
   const [dragActive, setDragActive] = useState(false);
 
   const handleFiles = (newFiles: FileList | null) => {
@@ -57,7 +70,7 @@ export const FileUpload = ({
       }
 
       // Check max files
-      if (files.length + validFiles.length >= maxFiles) {
+      if (displayedFiles.length + validFiles.length >= maxFiles) {
         return;
       }
 
@@ -68,14 +81,14 @@ export const FileUpload = ({
       });
     });
 
-    const updatedFiles = multiple ? [...files, ...validFiles] : validFiles;
-    setFiles(updatedFiles);
+    const updatedFiles = multiple ? [...displayedFiles, ...validFiles] : validFiles;
+    setInternalFiles(updatedFiles);
     onFilesChange(updatedFiles);
   };
 
   const removeFile = (index: number) => {
-    const updatedFiles = files.filter((_, i) => i !== index);
-    setFiles(updatedFiles);
+    const updatedFiles = displayedFiles.filter((_, i) => i !== index);
+    setInternalFiles(updatedFiles);
     onFilesChange(updatedFiles);
   };
 
@@ -115,7 +128,7 @@ export const FileUpload = ({
         className={`
           relative block w-full border-2 border-dashed rounded-lg p-6
           transition-colors cursor-pointer
-          ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+          ${dragActive ? 'border-blue-500 bg-blue-50' : error ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'}
         `}
       >
         <input
@@ -124,7 +137,12 @@ export const FileUpload = ({
           accept={accept}
           multiple={multiple}
           required={required}
-          aria-describedby={helperText ? helperTextId : undefined}
+          aria-invalid={!!error}
+          aria-describedby={
+            [helperText ? helperTextId : null, error ? errorId : null]
+              .filter(Boolean)
+              .join(' ') || undefined
+          }
           onChange={(e) => handleFiles(e.target.files)}
           className="sr-only"
         />
@@ -141,14 +159,18 @@ export const FileUpload = ({
         </div>
       </label>
 
+      {error && (
+        <p id={errorId} className="mt-2 text-sm text-red-600">{error}</p>
+      )}
+
       {helperText && (
         <p id={helperTextId} className="mt-2 text-sm text-gray-500">{helperText}</p>
       )}
 
       {/* File List */}
-      {!hideFileList && files.length > 0 && (
+      {!hideFileList && displayedFiles.length > 0 && (
         <div className="mt-4 space-y-2">
-          {files.map((fileItem, index) => (
+          {displayedFiles.map((fileItem, index) => (
             <div
               key={index}
               className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"

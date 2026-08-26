@@ -36,7 +36,7 @@ export const AdminUpdateUserRoleRequestSchema = z.object({
 
 // Enums
 export const ApplicationStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
-export const DocumentTypeSchema = z.enum(["CERTIFICATE", "DEGREE", "ID_CARD"]);
+export const DocumentTypeSchema = z.enum(["CERTIFICATE", "DEGREE", "ID_CARD", "CV"]);
 export const ReviewActionSchema = z.enum(["APPROVE", "REJECT"]);
 export const TeacherTypeSchema = z.enum(["TRIAL", "FULL"]);
 

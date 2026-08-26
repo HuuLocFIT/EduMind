@@ -46,6 +46,7 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   CERTIFICATE: 'Certificate',
   DEGREE: 'Degree',
   ID_CARD: 'ID Card',
+  CV: 'CV',
 };
 
 /** Formats a document type code (e.g. "ID_CARD") for display. */

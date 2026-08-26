@@ -56,7 +56,7 @@ public class TeacherApplicationRequest {
         private String url;          // Cloudinary URL
 
         @NotNull(message = "Document type is required")
-        private DocumentType type;   // CERTIFICATE, DEGREE, ID_CARD
+        private DocumentType type;   // CERTIFICATE, DEGREE, ID_CARD, CV
 
         @NotBlank
         private String name;         // File name

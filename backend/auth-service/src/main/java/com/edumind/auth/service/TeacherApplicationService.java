@@ -9,6 +9,7 @@ import com.edumind.auth.dto.response.TeacherApplicationResponse;
 import com.edumind.auth.dto.response.TrialStatusResponse;
 import com.edumind.auth.entity.*;
 import com.edumind.auth.enums.ApplicationStatus;
+import com.edumind.auth.enums.DocumentType;
 import com.edumind.auth.enums.RoleName;
 import com.edumind.auth.event.*;
 import com.edumind.auth.repository.*;
@@ -120,6 +121,13 @@ public class TeacherApplicationService {
             } else if (status == ApplicationStatus.APPROVED) {
                 throw new BadRequestException("Your application was already approved!");
             }
+        }
+
+        boolean hasCv = request.getDocuments().stream()
+                .anyMatch(document -> document.getType() == DocumentType.CV);
+
+        if (!hasCv) {
+            throw new BadRequestException("CV document is required");
         }
 
         // Convert documents to JSON

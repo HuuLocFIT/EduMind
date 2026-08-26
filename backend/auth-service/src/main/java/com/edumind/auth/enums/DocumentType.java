@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum DocumentType {
     CERTIFICATE("certificate"),
     DEGREE("degree"),
-    ID_CARD("id_card");
+    ID_CARD("id_card"),
+    CV("cv");
 
     private final String value;
 
@@ -33,8 +34,8 @@ public enum DocumentType {
             }
         }
         
-        throw new IllegalArgumentException("Invalid document type: " + type + 
-                ". Valid types are: CERTIFICATE, DEGREE, ID_CARD (or certificate, degree, id_card)");
+        throw new IllegalArgumentException("Invalid document type: " + type +
+                ". Valid types are: CERTIFICATE, DEGREE, ID_CARD, CV (or certificate, degree, id_card, cv)");
     }
 
     /**
