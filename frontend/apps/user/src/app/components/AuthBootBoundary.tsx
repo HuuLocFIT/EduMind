@@ -16,6 +16,50 @@ function useAuthBootstrap() {
   }, []);
 }
 
+// Module-scope, not component state: the throttle must survive remounts of this boundary
+// (route changes don't unmount the app shell, but StrictMode and tests do) and there is only
+// ever one of these in the app. Exported reset is test-only — production code never calls it.
+const FOREGROUND_RECONCILE_THROTTLE_MS = 60_000;
+let lastForegroundReconcileAt = 0;
+
+export function __resetForegroundReconcileThrottleForTests() {
+  lastForegroundReconcileAt = 0;
+}
+
+/**
+ * Re-probes /auth/refresh whenever the tab regains focus, throttled to once per
+ * FOREGROUND_RECONCILE_THROTTLE_MS. Runs for both authenticated and unauthenticated
+ * snapshots — a cookie set by another tab or portal can change either one — but stays off
+ * during 'initializing' (the boot probe already owns that), portalMismatch, switchingAccount,
+ * and while a probe is already in flight (refreshAuthSession's own promise cache dedupes
+ * concurrent callers; this just avoids scheduling a redundant one). See
+ * fix_multiple_account_on_browser_profile.md P1-5.
+ */
+function useForegroundReconcile() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+
+      const state = useAuthStore.getState();
+      if (state.authBootStatus !== "ready") return;
+      if (state.sessionRefreshError === "PORTAL_MISMATCH") return;
+      if (state.isSwitchingAccount) return;
+      if (state.isRefreshingSession) return;
+
+      const now = Date.now();
+      if (now - lastForegroundReconcileAt < FOREGROUND_RECONCILE_THROTTLE_MS) return;
+      lastForegroundReconcileAt = now;
+
+      void state.refreshSession();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+}
+
 /**
  * App-shell boundary above all route content (public and protected alike) — not a route
  * guard. Never blocks LCP: while the probe is still running ('idle'/'checking'), route
@@ -28,9 +72,11 @@ function useAuthBootstrap() {
  */
 export function AuthBootBoundary({ children }: { children: ReactNode }) {
   useAuthBootstrap();
+  useForegroundReconcile();
   const authBootStatus = useAuthStore((state) => state.authBootStatus);
   const sessionRefreshError = useAuthStore((state) => state.sessionRefreshError);
   const isSwitchingAccount = useAuthStore((state) => state.isSwitchingAccount);
+  const isRefreshingSession = useAuthStore((state) => state.isRefreshingSession);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,5 +123,23 @@ export function AuthBootBoundary({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {isRefreshingSession && (
+        // A foreground reconcile is in flight: keep the current layout mounted (no full-page
+        // flash) but block auth-sensitive interaction (checkout, submit, update) until the
+        // identity behind this tab is confirmed — an unconfirmed access token must never back
+        // a new business request (fix_multiple_account_on_browser_profile.md invariant #7).
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 cursor-wait"
+          style={{ pointerEvents: "auto" }}
+        >
+          <span className="sr-only">Syncing your session…</span>
+        </div>
+      )}
+    </>
+  );
 }

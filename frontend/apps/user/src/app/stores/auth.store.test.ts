@@ -22,6 +22,7 @@ const {
   mockInvalidateAuthSession,
   mockClearStoredAuth,
   mockFetchCurrentUserWith,
+  mockClearCart,
 } = vi.hoisted(() => ({
   mockLogin: vi.fn(),
   mockLoginWith2FA: vi.fn(),
@@ -35,6 +36,7 @@ const {
   mockInvalidateAuthSession: vi.fn(),
   mockClearStoredAuth: vi.fn(),
   mockFetchCurrentUserWith: vi.fn(),
+  mockClearCart: vi.fn(),
 }));
 
 // Mock the auth service - must match the import path in auth.store.ts
@@ -69,6 +71,14 @@ vi.mock('../services/api-client.service', async (importOriginal) => {
 vi.mock('../lib/query-client', () => ({
   queryClient: {
     clear: mockQueryClientClear,
+  },
+}));
+
+// Mock the cart store — identity resets must clear it via clearCart() (pure local set()),
+// never by hitting CART_ENDPOINTS.
+vi.mock('./cart.store', () => ({
+  useCartStore: {
+    getState: () => ({ clearCart: mockClearCart }),
   },
 }));
 
@@ -1150,6 +1160,113 @@ describe('useAuthStore', () => {
 
       expect(mockClearStoredAuth).not.toHaveBeenCalled();
       expect(useAuthStore.getState().sessionRefreshError).toBeNull();
+    });
+  });
+
+  describe('refreshSession — reset data by identity', () => {
+    it('clears the query cache and cart when the reconciled identity differs from the current one', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 2, username: 'b', email: 'b@example.com' }, accessToken: 'token-b' },
+          }),
+        );
+        return { accessToken: 'token-b', user: { id: 2 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockQueryClientClear).toHaveBeenCalledTimes(1);
+      expect(mockClearCart).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not clear the query cache or cart when the reconciled identity is unchanged', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 1, username: 'a', email: 'a@example.com' }, accessToken: 'token-a2' },
+          }),
+        );
+        return { accessToken: 'token-a2', user: { id: 1 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockQueryClientClear).not.toHaveBeenCalled();
+      expect(mockClearCart).not.toHaveBeenCalled();
+    });
+
+    it('on a portal identity rejection, resets in-memory user/session state and clears the query cache and cart', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      const admin = { id: 9, username: 'admin', email: 'admin@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(mockQueryClientClear).toHaveBeenCalledTimes(1);
+      expect(mockClearCart).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not clear the query cache or cart on a terminal or temporary failure (handled elsewhere / snapshot kept)', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      mockRefreshAuthSession.mockRejectedValue({ message: 'Network Error' });
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockQueryClientClear).not.toHaveBeenCalled();
+      expect(mockClearCart).not.toHaveBeenCalled();
     });
   });
 

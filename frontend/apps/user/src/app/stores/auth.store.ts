@@ -20,6 +20,7 @@ import {
   fetchCurrentUserWith,
 } from '../services/api-client.service';
 import { queryClient } from "../lib/query-client";
+import { useCartStore } from "./cart.store";
 
 // Attempt flags for the two independent role-sync triggers (post-approval sync in
 // MainLayout, direct-bookmark sync in TeacherGuard). Module-level (not component state):
@@ -55,6 +56,17 @@ export const resetRoleSyncAttempts = () => {
 function resetAuthSessionIdentity() {
   invalidateAuthSession();
   resetRoleSyncAttempts();
+}
+
+/**
+ * Data scoped to a specific identity, reset whenever a reconcile discovers a different one
+ * (or rejects it outright): server-state cache and the locally-persisted cart. Cart reset is
+ * a pure local set() (`clearCart`) — never a CART_ENDPOINTS call, since that would be a
+ * business request made in the name of the identity we're in the middle of rejecting/replacing.
+ */
+function resetDataForIdentity() {
+  queryClient.clear();
+  useCartStore.getState().clearCart();
 }
 
 // Refresh mechanics belonging to the previous session. Reset when an auth attempt STARTS,
@@ -370,10 +382,17 @@ export const useAuthStore = create<AuthState>()(
 
       refreshSession: async () => {
         let stale = false;
+        // Captured before the probe: the only way to tell "reconcile confirmed the same
+        // identity" from "reconcile discovered a different one" (e.g. another tab/portal
+        // logged in as someone else on the shared cookie) once the new user is in state.
+        const previousUserId = get().user?.id ?? null;
         set({ isRefreshingSession: true, sessionRefreshError: null });
         try {
           // The 'auth:user-refreshed' listener below updates user/accessToken synchronously.
           await refreshAuthSession();
+          if ((get().user?.id ?? null) !== previousUserId) {
+            resetDataForIdentity();
+          }
         } catch (error) {
           if (isStaleAuthSessionError(error)) {
             // Logout or another login happened while this was in flight. The session that
@@ -384,10 +403,18 @@ export const useAuthStore = create<AuthState>()(
           }
           if (isPortalIdentityRejectedError(error)) {
             // Not a dead session — a real identity the user portal must not adopt. Clear the
-            // local snapshot but leave the shared cookie alone, and don't paint this as
-            // "session expired" (auth:session-expired is for SESSION_EXPIRED only).
+            // local snapshot (in-memory too, not just storage — a stale user object must
+            // never keep rendering as authenticated) but leave the shared cookie alone, and
+            // don't paint this as "session expired" (auth:session-expired is for
+            // SESSION_EXPIRED only).
             clearStoredAuth();
-            set({ sessionRefreshError: 'PORTAL_MISMATCH' });
+            resetDataForIdentity();
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              sessionRefreshError: 'PORTAL_MISMATCH',
+            });
           } else if (isTerminalRefreshFailure(error)) {
             clearStoredAuth();
             window.dispatchEvent(new CustomEvent('auth:session-expired'));
