@@ -93,6 +93,7 @@ describe('useAuthStore', () => {
     mockIsStaleAuthSessionError.mockReturnValue(false);
     mockIsTerminalRefreshFailure.mockReturnValue(false);
     localStorage.clear();
+    useAuthStore.setState({ authBootStatus: 'idle' });
   });
 
   describe('Initial State', () => {
@@ -1218,6 +1219,171 @@ describe('useAuthStore', () => {
       });
 
       expect(mockInvalidateAuthSession).toHaveBeenCalled();
+    });
+  });
+
+  describe('bootstrapAuthSession', () => {
+    it('starts idle', () => {
+      expect(useAuthStore.getState().authBootStatus).toBe('idle');
+    });
+
+    it('probes refresh once and adopts the identity on success', async () => {
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'boot-token' },
+          }),
+        );
+        return { accessToken: 'boot-token', user: { id: 1 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.accessToken).toBe('boot-token');
+    });
+
+    it('does not probe a second time once boot already started', async () => {
+      mockRefreshAuthSession.mockResolvedValue({ accessToken: 't', user: { id: 1 } } as any);
+
+      await act(async () => {
+        await Promise.all([
+          useAuthStore.getState().bootstrapAuthSession(),
+          useAuthStore.getState().bootstrapAuthSession(),
+        ]);
+      });
+
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks boot ready without touching state on a stale session result', async () => {
+      mockRefreshAuthSession.mockRejectedValue(new Error('stale'));
+      mockIsStaleAuthSessionError.mockReturnValue(true);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(false);
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+    });
+
+    it('clears local state and reports PORTAL_MISMATCH on a portal identity rejection, leaving the shared cookie alone', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(mockClearStoredAuth).toHaveBeenCalled();
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.authBootStatus).toBe('ready');
+    });
+
+    it('does not dispatch auth:session-expired for a guest with no prior local session', async () => {
+      const refreshError = { response: { data: { errorCode: 'ERR_2004' } } };
+      mockRefreshAuthSession.mockRejectedValue(refreshError);
+      mockIsTerminalRefreshFailure.mockReturnValue(true);
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.sessionExpiredReason).toBeNull();
+      const dispatchedSessionExpired = dispatchSpy.mock.calls
+        .map(([event]) => event as CustomEvent)
+        .some((event) => event.type === 'auth:session-expired');
+      expect(dispatchedSessionExpired).toBe(false);
+    });
+
+    it('dispatches auth:session-expired when a previously authenticated snapshot turns out to be terminally dead', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+      // Simulate a fresh page load: identity persisted, boot not yet run.
+      useAuthStore.setState({ authBootStatus: 'idle' });
+
+      const refreshError = { response: { data: { errorCode: 'ERR_2004' } } };
+      mockRefreshAuthSession.mockRejectedValue(refreshError);
+      mockIsTerminalRefreshFailure.mockReturnValue(true);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.sessionExpiredReason).toBe('SESSION_EXPIRED');
+    });
+
+    it('goes to retry status on a temporary boot failure and keeps the existing snapshot untouched', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+      useAuthStore.setState({ authBootStatus: 'idle' });
+
+      mockRefreshAuthSession.mockRejectedValue({ message: 'Network Error' });
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('retry');
+      expect(state.sessionRefreshError).toBe('TEMPORARY');
+      expect(state.isAuthenticated).toBe(true);
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+    });
+
+    it('can be re-run after a retry-status failure', async () => {
+      mockRefreshAuthSession.mockRejectedValue({ message: 'Network Error' });
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+      expect(useAuthStore.getState().authBootStatus).toBe('retry');
+
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'retried-token' },
+          }),
+        );
+        return { accessToken: 'retried-token', user: { id: 1 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(true);
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(2);
     });
   });
 

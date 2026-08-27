@@ -16,6 +16,7 @@ import { MainLayout, AuthLayout, TeacherLayout } from "./layouts";
 
 // Guards
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AuthBootBoundary } from "./components/AuthBootBoundary";
 import { TeacherGuard } from "./components/teacher/TeacherGuard";
 import {
   TeacherApplicationRoute,
@@ -227,6 +228,7 @@ function AppContent() {
       <ScrollToTop />
       <ToastContainer toasts={toasts} onClose={closeToast} />
 
+      <AuthBootBoundary>
       <AppErrorBoundary>
         <Routes>
           {/* ================================================================ */}
@@ -671,6 +673,7 @@ function AppContent() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppErrorBoundary>
+      </AuthBootBoundary>
     </BrowserRouter>
   );
 }

@@ -24,8 +24,15 @@ import { FullPageLoading } from "@edumind/user-ui";
  */
 export const TeacherGuard: React.FC = () => {
   const location = useLocation();
-  const { user, isAuthenticated, isLoading, refreshSession, isRefreshingSession, sessionRefreshError } =
-    useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    refreshSession,
+    isRefreshingSession,
+    sessionRefreshError,
+    authBootStatus,
+  } = useAuthStore();
 
   const isTeacher = user?.roles?.includes(UserRole.TEACHER);
   const isTrialTeacher = user?.roles?.includes(UserRole.TEACHER_TRIAL);
@@ -48,6 +55,13 @@ export const TeacherGuard: React.FC = () => {
 
   // Show loading while checking auth state
   if (isLoading) {
+    return <FullPageLoading message="Loading..." />;
+  }
+
+  // The persisted snapshot is a hint, not proof — see ProtectedRoute for the same guard and
+  // its rationale. Only wait when the snapshot says unauthenticated; an already-authenticated
+  // snapshot renders immediately and gets unwound by the boot probe if it turns out wrong.
+  if (!isAuthenticated && authBootStatus !== 'ready') {
     return <FullPageLoading message="Loading..." />;
   }
 

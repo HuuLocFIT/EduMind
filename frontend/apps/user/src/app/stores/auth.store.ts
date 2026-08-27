@@ -107,6 +107,13 @@ interface AuthState {
   sessionRefreshError: 'SESSION_EXPIRED' | 'TEMPORARY' | 'PORTAL_MISMATCH' | null;
   // Read by LoginPage to show a "session expired" banner. NOT persisted — see partialize below.
   sessionExpiredReason: 'SESSION_EXPIRED' | null;
+  // Lifecycle of the mandatory boot probe (bootstrapAuthSession). NOT persisted — every page
+  // load must re-probe /auth/refresh regardless of what the last session left in storage.
+  // 'retry' means the very first boot probe hit a temporary failure (network/5xx/malformed):
+  // nothing about the local snapshot is confirmed yet, so the app shell must show a retry
+  // screen instead of trusting it — distinct from a TEMPORARY failure during a later
+  // foreground reconcile (TeacherGuard's refreshSession), which keeps rendering normally.
+  authBootStatus: 'idle' | 'checking' | 'ready' | 'retry';
 
   // Actions
   login: (credentials: LoginRequest) => Promise<void>;
@@ -119,11 +126,12 @@ interface AuthState {
   clearAuthState: () => void;
   refreshSession: () => Promise<void>;
   clearSessionExpiredReason: () => void;
+  bootstrapAuthSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       isAuthenticated: false,
@@ -132,6 +140,7 @@ export const useAuthStore = create<AuthState>()(
       isRefreshingSession: false,
       sessionRefreshError: null,
       sessionExpiredReason: null,
+      authBootStatus: 'idle',
 
       login: async (credentials) => {
         // Before the first await, not after it: submitting credentials for somebody is the
@@ -365,6 +374,57 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearSessionExpiredReason: () => set({ sessionExpiredReason: null }),
+
+      bootstrapAuthSession: async () => {
+        // Guards the automatic mount-time call (StrictMode double-invoke, or a rerender
+        // firing the same effect) — a caller retrying after 'retry' still goes through.
+        if (get().authBootStatus === 'checking') return;
+
+        // Not read from the persisted snapshot alone: the whole point of this probe is that
+        // the snapshot might be lying (portal mismatch already cleared it, or it says
+        // authenticated for a cookie that's since been revoked). Captured before the probe
+        // so a terminal failure can tell "a real session just ended" from "no cookie, never
+        // was one" — only the former is worth an "your session expired" banner.
+        const wasAuthenticated = get().isAuthenticated;
+        set({ authBootStatus: 'checking' });
+
+        try {
+          await refreshAuthSession();
+          // 'auth:user-refreshed' (dispatched synchronously inside refreshAuthSession) has
+          // already written user/accessToken — this just confirms the identity as current.
+          set({ isAuthenticated: true, authBootStatus: 'ready' });
+        } catch (error) {
+          if (isStaleAuthSessionError(error)) {
+            // A login/logout landed while this was in flight; that transition owns the
+            // store's state now. Boot is still "done" — there is nothing left to reconcile.
+            set({ authBootStatus: 'ready' });
+            return;
+          }
+          if (isPortalIdentityRejectedError(error)) {
+            clearStoredAuth();
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              sessionRefreshError: 'PORTAL_MISMATCH',
+              authBootStatus: 'ready',
+            });
+            return;
+          }
+          if (isTerminalRefreshFailure(error)) {
+            clearStoredAuth();
+            set({ user: null, accessToken: null, isAuthenticated: false, authBootStatus: 'ready' });
+            if (wasAuthenticated) {
+              window.dispatchEvent(new CustomEvent('auth:session-expired'));
+            }
+            return;
+          }
+          // Network blip / timeout / 5xx / malformed response: nothing about the snapshot is
+          // confirmed. Leave it untouched (invariant #4) and let the shell show a retry UI
+          // rather than render it as authenticated.
+          set({ sessionRefreshError: 'TEMPORARY', authBootStatus: 'retry' });
+        }
+      },
     }),
     {
       name: "auth-storage",
