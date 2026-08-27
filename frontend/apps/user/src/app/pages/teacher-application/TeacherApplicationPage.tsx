@@ -43,7 +43,7 @@ export function TeacherApplicationPage() {
             </p>
           </CardHeader>
           <CardBody>
-            <form ref={formRef} onSubmit={submit} className="space-y-6">
+            <form ref={formRef} onSubmit={submit} className="space-y-6" noValidate>
               <PersonalInformationSection
                 register={form.register}
                 errors={form.formState.errors}

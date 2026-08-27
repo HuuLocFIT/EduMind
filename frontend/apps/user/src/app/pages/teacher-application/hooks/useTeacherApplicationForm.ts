@@ -77,6 +77,19 @@ export function useTeacherApplicationForm() {
     });
   };
 
+  const validateCv = () => {
+    const hasUsableCv =
+      cvFiles.some((file) => file.status !== "error") ||
+      retainedDocuments.some((document) => document.type === "CV");
+
+    if (hasUsableCv) return true;
+
+    setCvError(
+      "CV / Resume is required. If your previous application didn't have a separate CV, please upload one.",
+    );
+    return false;
+  };
+
   useEffect(() => {
     if (!isRejected || !application) return;
     if (initializedApplicationId.current === application.id) return;
@@ -163,13 +176,7 @@ export function useTeacherApplicationForm() {
     setIsSubmitting(true);
 
     try {
-      const hasUsableCv =
-        cvFiles.some((file) => file.status !== "error") ||
-        retainedDocuments.some((document) => document.type === "CV");
-      if (!hasUsableCv) {
-        setCvError(
-          "CV / Resume is required. If your previous application didn't have a separate CV, please upload one.",
-        );
+      if (!validateCv()) {
         focusFirstError();
         return;
       }
@@ -264,6 +271,11 @@ export function useTeacherApplicationForm() {
 
   const clearDocumentsError = () => setDocumentsError("");
 
+  const onInvalid = () => {
+    validateCv();
+    focusFirstError();
+  };
+
   return {
     form,
     formRef,
@@ -273,7 +285,7 @@ export function useTeacherApplicationForm() {
     cvError,
     files: { cvFiles, certificateFiles, degreeFiles, idCardFiles },
     retainedDocuments,
-    submit: form.handleSubmit(onSubmit, focusFirstError),
+    submit: form.handleSubmit(onSubmit, onInvalid),
     cancel: () => navigate(USER_ROUTES.ROOT),
     fileActions: {
       setCvFiles: (files: UploadedFile[]) => {
