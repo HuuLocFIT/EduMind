@@ -33,7 +33,7 @@ export function DocumentsSection({
 }: DocumentsSectionProps) {
   return (
     <div
-      className={`space-y-6 border-t pt-6 ${documentsError || cvError ? "border-red-500" : "border-gray-200"}`}
+      className="space-y-6 border-t border-gray-200 pt-6"
       aria-invalid={!!(documentsError || cvError)}
       aria-describedby={
         documentsError ? "teacher-application-documents-error" : undefined
@@ -107,7 +107,8 @@ export function DocumentsSection({
       )}
 
       <FileUpload
-        label="CV / Resume *"
+        label="CV / Resume"
+        required
         accept=".pdf,.docx"
         multiple={false}
         maxSize={5}

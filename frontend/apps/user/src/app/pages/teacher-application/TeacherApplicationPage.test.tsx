@@ -86,14 +86,16 @@ vi.mock('@edumind/user-ui', async () => {
       </div>
     ),
     useToast: () => ({ success: mockToastSuccess, error: mockToastError }),
-    FileUpload: ({ label, accept, helperText, error, files, onFilesChange }: any) => {
-      fileUploadCallbacks[label] = onFilesChange;
+    FileUpload: ({ label, required, accept, helperText, error, files, onFilesChange }: any) => {
+      const displayedLabel = `${label}${required ? ' *' : ''}`;
+      fileUploadCallbacks[displayedLabel] = onFilesChange;
       return (
         <div>
-          <span data-testid={`accept-${label}`}>{accept}</span>
-          <span data-testid={`helper-${label}`}>{helperText}</span>
+          <span data-testid={`accept-${displayedLabel}`}>{accept}</span>
+          <span data-testid={`helper-${displayedLabel}`}>{helperText}</span>
+          <span data-testid={`required-${displayedLabel}`}>{String(!!required)}</span>
           {error && <span>{error}</span>}
-          <pre data-testid={`files-${label}`}>
+          <pre data-testid={`files-${displayedLabel}`}>
             {JSON.stringify(
               (files ?? []).map((f: any) => ({
                 name: f.file.name,
@@ -234,6 +236,22 @@ describe('TeacherApplicationPage', () => {
       expect(accept).not.toMatch(/\.doc,/i);
       expect(accept).toBe('.pdf,.docx');
     }
+  });
+
+  it('marks the CV upload as required', () => {
+    renderPage();
+
+    expect(screen.getByTestId(`required-${CV_LABEL}`)).toHaveTextContent('true');
+  });
+
+  it('shows the CV error together with text-field errors on the first invalid submit', async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await submit(user);
+
+    expect(await screen.findByText('Motivation is required')).toBeInTheDocument();
+    expect(screen.getByText(/CV \/ Resume is required/i)).toBeInTheDocument();
   });
 
   // B-1 / B-2 ---------------------------------------------------------------
