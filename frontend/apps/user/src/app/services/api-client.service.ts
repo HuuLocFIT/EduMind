@@ -5,12 +5,16 @@ import {
   MessageResponseSchema,
   Setup2FAResponseSchema,
   ApiErrorSchema,
+  UserSchema,
   type ApiError,
   type RefreshTokenResponse,
+  type User,
 } from '@edumind/shared-types';
+import { UserRole } from '@edumind/shared-constants';
 import {
   unwrapApiResponse,
   AUTH_ENDPOINTS,
+  USER_ENDPOINTS,
   API_URL,
 } from '@edumind/shared-utils';
 
@@ -43,6 +47,44 @@ export class StaleAuthSessionError extends Error {
 
 export function isStaleAuthSessionError(error: unknown): error is StaleAuthSessionError {
   return error instanceof StaleAuthSessionError;
+}
+
+/**
+ * Thrown when an otherwise-valid identity carries ROLE_ADMIN — this portal is for
+ * students/teachers only. Carries the rejected user so the catcher (interceptor has none to
+ * pass) can report which identity was turned away.
+ */
+export class PortalIdentityRejectedError extends Error {
+  constructor(readonly rejectedUser: User) {
+    super('This account is not allowed on the student/teacher portal.');
+    this.name = 'PortalIdentityRejectedError';
+  }
+}
+
+export function isPortalIdentityRejectedError(error: unknown): error is PortalIdentityRejectedError {
+  return error instanceof PortalIdentityRejectedError;
+}
+
+/**
+ * Single policy shared by login, 2FA, OAuth, and refresh: an ADMIN-role identity (even
+ * multi-role) does not belong in the user portal. Call before persisting anything.
+ */
+export function validateUserPortalIdentity(user: User): void {
+  if (user.roles?.includes(UserRole.ADMIN)) {
+    throw new PortalIdentityRejectedError(user);
+  }
+}
+
+/**
+ * Fetches /users/me with an explicit candidate token, bypassing localStorage entirely — used
+ * by 2FA/OAuth login to validate an identity before committing it, so a rejected candidate
+ * never has to be written and then rolled back.
+ */
+export async function fetchCurrentUserWith(accessToken: string): Promise<User> {
+  const response = await axios.get(`${API_URL}${USER_ENDPOINTS.ME}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return UserSchema.parse(unwrapApiResponse(response.data));
 }
 
 /**
@@ -118,6 +160,8 @@ export async function refreshAuthSession(): Promise<RefreshTokenResponse> {
         throw new StaleAuthSessionError();
       }
 
+      validateUserPortalIdentity(user);
+
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('user', JSON.stringify(user)); // legacy key, still read by auth.service.ts
       // dispatchEvent is synchronous — the store is updated before this promise resolves
@@ -187,13 +231,10 @@ apiClient.interceptors.response.use(
         return response;
       }
       
-      // Otherwise, validate as JwtResponse
+      // Otherwise, validate as JwtResponse. Persistence happens in the auth store's action,
+      // after portal-role validation — this interceptor only parses/validates the shape.
       const result = JwtResponseSchema.safeParse(response.data);
       if (result.success) {
-        // Store access token and user info
-        // NOTE: refreshToken is NOT in response - it's in HTTP-Only Cookie
-        localStorage.setItem('accessToken', result.data.accessToken);
-        localStorage.setItem('user', JSON.stringify(result.data.user));
         response.data = result.data;
       }
     }

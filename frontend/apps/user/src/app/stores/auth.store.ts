@@ -13,8 +13,11 @@ import {
   refreshAuthSession,
   isTerminalRefreshFailure,
   isStaleAuthSessionError,
+  isPortalIdentityRejectedError,
   invalidateAuthSession,
   clearStoredAuth,
+  validateUserPortalIdentity,
+  fetchCurrentUserWith,
 } from '../services/api-client.service';
 import { queryClient } from "../lib/query-client";
 
@@ -101,7 +104,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   isRefreshingSession: boolean;
-  sessionRefreshError: 'SESSION_EXPIRED' | 'TEMPORARY' | null;
+  sessionRefreshError: 'SESSION_EXPIRED' | 'TEMPORARY' | 'PORTAL_MISMATCH' | null;
   // Read by LoginPage to show a "session expired" banner. NOT persisted — see partialize below.
   sessionExpiredReason: 'SESSION_EXPIRED' | null;
 
@@ -161,9 +164,11 @@ export const useAuthStore = create<AuthState>()(
 
           // Normal login response
           const jwtResponse = response as JwtResponse;
+          validateUserPortalIdentity(jwtResponse.user);
 
-          // Save tokens
+          // Save tokens (only after validation — an admin identity must never be persisted)
           localStorage.setItem("accessToken", jwtResponse.accessToken);
+          localStorage.setItem("user", JSON.stringify(jwtResponse.user));
 
           set({
             user: jwtResponse.user,
@@ -191,11 +196,11 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null, ...REFRESH_STATE_RESET });
         try {
           const response = await authService.loginWith2FA(credentials);
+          // Candidate token passed directly — never written to localStorage before validation.
+          const user = await fetchCurrentUserWith(response.accessToken);
+          validateUserPortalIdentity(user);
 
-          // Save tokens
           localStorage.setItem("accessToken", response.accessToken);
-          const user = await authService.fetchCurrentUser();
-          // unwrapApiResponse already unwraps the data, so user is the user object directly
           localStorage.setItem("user", JSON.stringify(user));
 
           set({
@@ -221,14 +226,11 @@ export const useAuthStore = create<AuthState>()(
         resetAuthSessionIdentity();
         set({ isLoading: true, error: null, ...REFRESH_STATE_RESET });
         try {
-          // Save access token
+          // Candidate token passed directly — never written to localStorage before validation.
+          const user = await fetchCurrentUserWith(token);
+          validateUserPortalIdentity(user);
+
           localStorage.setItem("accessToken", token);
-
-          // Fetch user info using the token
-          const userResponse = await authService.fetchCurrentUser();
-          const user = userResponse;
-
-          // Save user to localStorage
           localStorage.setItem("user", JSON.stringify(user));
 
           set({
@@ -240,9 +242,6 @@ export const useAuthStore = create<AuthState>()(
           });
           setSentryUser(user);
         } catch (error: any) {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("user");
-
           set({
             user: null,
             accessToken: null,
@@ -341,7 +340,13 @@ export const useAuthStore = create<AuthState>()(
             stale = true;
             return;
           }
-          if (isTerminalRefreshFailure(error)) {
+          if (isPortalIdentityRejectedError(error)) {
+            // Not a dead session — a real identity the user portal must not adopt. Clear the
+            // local snapshot but leave the shared cookie alone, and don't paint this as
+            // "session expired" (auth:session-expired is for SESSION_EXPIRED only).
+            clearStoredAuth();
+            set({ sessionRefreshError: 'PORTAL_MISMATCH' });
+          } else if (isTerminalRefreshFailure(error)) {
             clearStoredAuth();
             window.dispatchEvent(new CustomEvent('auth:session-expired'));
             set({ sessionRefreshError: 'SESSION_EXPIRED' });

@@ -22,6 +22,10 @@ import {
   isStaleAuthSessionError,
   invalidateAuthSession,
   clearStoredAuth,
+  validateUserPortalIdentity,
+  isPortalIdentityRejectedError,
+  PortalIdentityRejectedError,
+  fetchCurrentUserWith,
 } from './api-client.service';
 
 const validUser = {
@@ -50,6 +54,76 @@ describe('clearStoredAuth', () => {
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
     expect(localStorage.getItem('auth-storage')).toBeNull();
+  });
+});
+
+describe('validateUserPortalIdentity', () => {
+  it('does not throw for a non-admin user', () => {
+    expect(() => validateUserPortalIdentity(validUser)).not.toThrow();
+  });
+
+  it('throws PortalIdentityRejectedError for a user with ROLE_ADMIN', () => {
+    const admin = { ...validUser, roles: ['ROLE_ADMIN'] };
+    expect(() => validateUserPortalIdentity(admin as never)).toThrow(PortalIdentityRejectedError);
+  });
+
+  it('throws for a multi-role user that includes ROLE_ADMIN', () => {
+    const multiRole = { ...validUser, roles: ['ROLE_STUDENT', 'ROLE_ADMIN'] };
+    expect(() => validateUserPortalIdentity(multiRole as never)).toThrow(PortalIdentityRejectedError);
+  });
+
+  it('the rejected error carries the rejected user', () => {
+    const admin = { ...validUser, roles: ['ROLE_ADMIN'] };
+    try {
+      validateUserPortalIdentity(admin as never);
+      throw new Error('expected validateUserPortalIdentity to throw');
+    } catch (error) {
+      expect(isPortalIdentityRejectedError(error)).toBe(true);
+      expect((error as PortalIdentityRejectedError).rejectedUser).toEqual(admin);
+    }
+  });
+});
+
+describe('fetchCurrentUserWith', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockAxiosGet.mockReset();
+  });
+
+  it('fetches /users/me with the given token, ignoring any token in localStorage', async () => {
+    localStorage.setItem('accessToken', 'stale-token');
+    mockAxiosGet.mockResolvedValue({ data: envelope(validUser) });
+
+    const user = await fetchCurrentUserWith('candidate-token');
+
+    expect(user).toEqual(validUser);
+    const [, config] = mockAxiosGet.mock.calls[0];
+    expect(config.headers.Authorization).toBe('Bearer candidate-token');
+  });
+});
+
+describe('refreshAuthSession — portal identity rejection', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockAxiosPost.mockReset();
+  });
+
+  it('rejects with PortalIdentityRejectedError and persists nothing when the refreshed identity is an admin', async () => {
+    const admin = { ...validUser, roles: ['ROLE_ADMIN'] };
+    mockAxiosPost.mockResolvedValue({
+      data: envelope({ accessToken: 'admin-token', tokenType: 'Bearer', user: admin }),
+    });
+
+    let caught: unknown;
+    try {
+      await refreshAuthSession();
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isPortalIdentityRejectedError(caught)).toBe(true);
+    expect(localStorage.getItem('accessToken')).toBeNull();
+    expect(localStorage.getItem('user')).toBeNull();
   });
 });
 
