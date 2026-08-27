@@ -22,6 +22,25 @@ const timestamp = '2026-01-01T00:00:00.000Z';
 
 async function installDiscoverFixtures(page: import('@playwright/test').Page) {
   await page.route('**/api/**', async (route) => {
+    const requestPathname = new URL(route.request().url()).pathname;
+    if (requestPathname.endsWith('/auth/refresh')) {
+      // Guest throughout this suite: the mandatory boot probe (AuthBootBoundary ->
+      // bootstrapAuthSession) must fail with errorCode ERR_2004 specifically, or it's
+      // treated as transient and authBootStatus never leaves 'retry' — which leaves
+      // guest-only UI (e.g. the cart CTA) waiting on an auth check that never resolves.
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 401,
+          success: false,
+          message: 'No refresh token present',
+          errorCode: 'ERR_2004',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        }),
+      });
+      return;
+    }
     if (route.request().method() !== 'GET') {
       await route.fulfill({
         status: 405,

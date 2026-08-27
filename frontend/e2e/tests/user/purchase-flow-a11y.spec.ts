@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { checkA11y } from '../../utils/accessibility.js';
+import { mockAuthenticatedRefresh } from '../../utils/auth-mock.js';
 
 const { responseForApi } = require('../../pa11y/fixtures.cjs') as {
   responseForApi(pathname: string): { status: number; contentType: string; body: string };
@@ -68,18 +69,38 @@ const cartPayload = (items: Course[]) => ({
 const json = (route: Route, body: unknown, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
+const a11yStudent = {
+  id: 99,
+  username: 'a11y-student',
+  email: 'a11y@example.test',
+  // UserRoleSchema is z.nativeEnum(UserRole), whose STUDENT value is the string
+  // 'ROLE_STUDENT' (see @edumind/shared-constants) — the refresh mock response is
+  // parsed against RefreshTokenResponseSchema, so this must be the real enum value,
+  // not the bare role name.
+  roles: ['ROLE_STUDENT'],
+  isActive: true,
+  isEmailVerified: true,
+  is2faEnabled: false,
+  isTrial: false,
+  createdAt: now,
+  updatedAt: now,
+};
+
 async function installAuthenticatedCart(page: Page, initialItems: Course[], removeFails = false) {
   let items = [...initialItems];
 
-  await page.addInitScript(() => {
-    const user = { id: 99, username: 'a11y-student', email: 'a11y@example.test', roles: ['STUDENT'] };
+  await page.addInitScript((user) => {
     localStorage.setItem('accessToken', 'deterministic-a11y-token');
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('auth-storage', JSON.stringify({
       state: { user, accessToken: 'deterministic-a11y-token', isAuthenticated: true, isLoading: false, error: null },
       version: 0,
     }));
-  });
+  }, a11yStudent);
+  // The mandatory boot probe (AuthBootBoundary -> bootstrapAuthSession) confirms this
+  // snapshot against POST /api/auth/refresh before protected content renders; without a
+  // mock the app stays parked on authBootStatus 'retry' and never shows route content.
+  await mockAuthenticatedRefresh(page, a11yStudent, 'deterministic-a11y-token');
 
   await page.route('**/api/cart/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname;
@@ -145,6 +166,9 @@ test.describe('@a11y-purchase cart and drawer', () => {
     await installAuthenticatedCart(page, []);
     await page.route('**/api/**', async (route) => {
       const pathname = new URL(route.request().url()).pathname;
+      // Keep the mandatory AuthBootBoundary probe on the dedicated deterministic
+      // refresh mock registered by installAuthenticatedCart.
+      if (pathname.endsWith('/auth/refresh')) return route.fallback();
       // Course Detail issues these authenticated boolean reads before it can
       // decide whether purchase controls are applicable. The generic Pa11y
       // fallback returns an array for unknown endpoints, which fails boolean
