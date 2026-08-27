@@ -103,6 +103,16 @@ describe('AuthService', () => {
     user: mockAdminUser,
   };
 
+  // Post-P2-2, the service persists a single atomic 'admin_auth_storage' snapshot instead of
+  // the old independent 'admin_auth_token'/'admin_user' keys — these helpers write/read that
+  // snapshot the same way the service does.
+  const setAdminSnapshot = (accessToken: string | null, user: User | null) =>
+    localStorage.setItem('admin_auth_storage', JSON.stringify({ accessToken, user }));
+  const getAdminSnapshot = (): { accessToken: string | null; user: User | null } | null => {
+    const raw = localStorage.getItem('admin_auth_storage');
+    return raw ? JSON.parse(raw) : null;
+  };
+
   beforeEach(() => {
     // Clear localStorage
     localStorage.clear();
@@ -147,7 +157,7 @@ describe('AuthService', () => {
     it('should initialize with stored user from localStorage', () => {
       // Reset TestBed completely to get fresh DI container
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
@@ -233,18 +243,34 @@ describe('AuthService', () => {
     it('should store access token in localStorage on success', async () => {
       const loginPromise = service.login(credentials).toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
-      
+
       await loginPromise;
-      expect(localStorage.getItem('admin_auth_token')).toBe(mockLoginResponse.accessToken);
+      expect(service.getToken()).toBe(mockLoginResponse.accessToken);
     });
 
     it('should store user in localStorage on success', async () => {
       const loginPromise = service.login(credentials).toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
-      
+
       await loginPromise;
-      const storedUser = JSON.parse(localStorage.getItem('admin_user') || 'null');
-      expect(storedUser).toEqual(mockAdminUser);
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('persists the token and user in a single atomic localStorage write, never two independent keys', async () => {
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+      const loginPromise = service.login(credentials).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
+      await loginPromise;
+
+      const authWrites = setItemSpy.mock.calls.filter(([key]) => key !== 'other_data');
+      expect(authWrites).toHaveLength(1);
+      const [, value] = authWrites[0];
+      const snapshot = JSON.parse(value);
+      expect(snapshot.accessToken).toBe(mockLoginResponse.accessToken);
+      expect(snapshot.user).toEqual(mockAdminUser);
+
+      setItemSpy.mockRestore();
     });
 
     it('should update currentUserSubject on success', async () => {
@@ -448,16 +474,15 @@ describe('AuthService', () => {
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
       
       await refreshPromise;
-      expect(localStorage.getItem('admin_auth_token')).toBe(mockRefreshResponse.accessToken);
+      expect(getAdminSnapshot()?.accessToken).toBe(mockRefreshResponse.accessToken);
     });
 
     it('should update user in localStorage if provided', async () => {
       const refreshPromise = service.refreshToken().toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
-      
+
       await refreshPromise;
-      const storedUser = JSON.parse(localStorage.getItem('admin_user') || 'null');
-      expect(storedUser).toEqual(mockAdminUser);
+      expect(getAdminSnapshot()?.user).toEqual(mockAdminUser);
     });
 
     it('should update currentUserSubject if user provided', async () => {
@@ -507,8 +532,7 @@ describe('AuthService', () => {
         .flush(nonAdminRefreshResponse);
 
       await expect(refreshPromise).rejects.toThrow(AdminPortalIdentityRejectedError);
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('carries the rejected user on AdminPortalIdentityRejectedError from refresh', async () => {
@@ -541,7 +565,7 @@ describe('AuthService', () => {
         tokenType: 'Bearer',
       };
 
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       const originalUser = service.getCurrentUser();
 
       const refreshPromise = service.refreshToken().toPromise();
@@ -558,8 +582,7 @@ describe('AuthService', () => {
   describe('Logout Method', () => {
     beforeEach(() => {
       // Set up authenticated state
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
     });
 
     it('should call logout endpoint', () => {
@@ -587,8 +610,7 @@ describe('AuthService', () => {
       service.logout();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`).flush({});
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('should set currentUserSubject to null', () => {
@@ -612,35 +634,31 @@ describe('AuthService', () => {
         .flush(null, { status: 500, statusText: 'Server Error' });
 
       // Should still clear data and navigate
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(router.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
     });
 
     it('should clear all auth-related localStorage items', () => {
-      localStorage.setItem('admin_auth_token', 'token');
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot('token', mockAdminUser);
       localStorage.setItem('other_data', 'should remain');
 
       service.logout();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`).flush({});
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(localStorage.getItem('other_data')).toBe('should remain');
     });
   });
 
   describe('Force Logout Method', () => {
     beforeEach(() => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
     });
 
     it('should clear auth data from localStorage', () => {
       service.forceLogout();
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('should set currentUserSubject to null', () => {
@@ -701,8 +719,7 @@ describe('AuthService', () => {
 
   describe('markTemporaryReconcileFailure Method', () => {
     beforeEach(() => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
     });
 
     it('marks the temporaryReconcileFailure state', () => {
@@ -716,8 +733,7 @@ describe('AuthService', () => {
     it('does not clear the stored snapshot', () => {
       service.markTemporaryReconcileFailure();
 
-      expect(localStorage.getItem('admin_auth_token')).toEqual(createValidToken());
-      expect(localStorage.getItem('admin_user')).toEqual(JSON.stringify(mockAdminUser));
+      expect(getAdminSnapshot()).toEqual({ accessToken: createValidToken(), user: mockAdminUser });
     });
 
     it('does not touch currentUserSubject', async () => {
@@ -768,15 +784,13 @@ describe('AuthService', () => {
 
   describe('Reject Portal Identity Method', () => {
     beforeEach(() => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
     });
 
     it('clears auth data from localStorage', () => {
       service.rejectPortalIdentity(mockNonAdminUser);
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('sets currentUserSubject to null', () => {
@@ -815,7 +829,7 @@ describe('AuthService', () => {
   describe('Token Management', () => {
     it('getToken() should return token from localStorage', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      setAdminSnapshot(token, mockAdminUser);
 
       expect(service.getToken()).toBe(token);
     });
@@ -826,16 +840,18 @@ describe('AuthService', () => {
       expect(service.getToken()).toBeNull();
     });
 
-    it('setToken() should update token in localStorage', () => {
+    it('setToken() should update the token, preserving the current user in the snapshot', () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       const newToken = createValidToken();
+
       service.setToken(newToken);
 
-      expect(localStorage.getItem('admin_auth_token')).toBe(newToken);
+      expect(getAdminSnapshot()).toEqual({ accessToken: newToken, user: mockAdminUser });
     });
 
     it('isTokenExpired() should return true for expired token', () => {
       const expiredToken = createExpiredToken();
-      localStorage.setItem('admin_auth_token', expiredToken);
+      setAdminSnapshot(expiredToken, mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
     });
@@ -848,13 +864,13 @@ describe('AuthService', () => {
 
     it('isTokenExpired() should return false for valid token', () => {
       const validToken = createValidToken();
-      localStorage.setItem('admin_auth_token', validToken);
+      setAdminSnapshot(validToken, mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(false);
     });
 
     it('isTokenExpired() should handle invalid token format', () => {
-      localStorage.setItem('admin_auth_token', 'invalid.token');
+      setAdminSnapshot('invalid.token', mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
     });
@@ -863,7 +879,7 @@ describe('AuthService', () => {
   describe('Authentication Status', () => {
     it('isAuthenticated() should return true when valid token exists', () => {
       const validToken = createValidToken();
-      localStorage.setItem('admin_auth_token', validToken);
+      setAdminSnapshot(validToken, mockAdminUser);
 
       expect(service.isAuthenticated()).toBe(true);
     });
@@ -876,31 +892,27 @@ describe('AuthService', () => {
 
     it('isAuthenticated() should return false for expired token', () => {
       const expiredToken = createExpiredToken();
-      localStorage.setItem('admin_auth_token', expiredToken);
+      setAdminSnapshot(expiredToken, mockAdminUser);
 
       expect(service.isAuthenticated()).toBe(false);
     });
 
     it('isAuthenticated() should clear auth data for invalid token', () => {
-      localStorage.setItem('admin_auth_token', 'invalid.token');
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot('invalid.token', mockAdminUser);
 
       service.isAuthenticated();
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('isAuthenticated() should not clear auth data for expired token', () => {
       const expiredToken = createExpiredToken();
-      localStorage.setItem('admin_auth_token', expiredToken);
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(expiredToken, mockAdminUser);
 
       service.isAuthenticated();
 
       // Should not clear - let interceptor handle refresh
-      expect(localStorage.getItem('admin_auth_token')).toBe(expiredToken);
-      expect(localStorage.getItem('admin_user')).toBeTruthy();
+      expect(getAdminSnapshot()).toEqual({ accessToken: expiredToken, user: mockAdminUser });
     });
   });
 
@@ -908,7 +920,7 @@ describe('AuthService', () => {
     it('getCurrentUser() should return current user', () => {
       // Reset TestBed to get fresh service with localStorage
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
@@ -955,7 +967,7 @@ describe('AuthService', () => {
     it('should restore user from localStorage on initialization', () => {
       // Reset TestBed to get fresh service with localStorage
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
@@ -1064,19 +1076,19 @@ describe('AuthService', () => {
   describe('Token Decoding', () => {
     it('should decode valid JWT token', () => {
       const validToken = createValidToken();
-      localStorage.setItem('admin_auth_token', validToken);
+      setAdminSnapshot(validToken, mockAdminUser);
 
       expect(service.isAuthenticated()).toBe(true);
     });
 
     it('should throw error for invalid token format', () => {
-      localStorage.setItem('admin_auth_token', 'not.a.valid.token.format');
+      setAdminSnapshot('not.a.valid.token.format', mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
     });
 
     it('should handle malformed token gracefully', () => {
-      localStorage.setItem('admin_auth_token', 'invalid');
+      setAdminSnapshot('invalid', mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
       expect(service.isAuthenticated()).toBe(false);
@@ -1258,8 +1270,8 @@ describe('AuthService', () => {
     it('should handle malformed JSON in localStorage', () => {
       // Reset TestBed to get fresh service with localStorage state
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', 'invalid-json{');
-      
+      localStorage.setItem('admin_auth_storage', 'invalid-json{');
+
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
         providers: [
@@ -1275,8 +1287,8 @@ describe('AuthService', () => {
     it('should handle null values in localStorage', () => {
       // Reset TestBed to get fresh service with localStorage state
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', 'null');
-      
+      localStorage.setItem('admin_auth_storage', 'null');
+
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
         providers: [
@@ -1289,12 +1301,12 @@ describe('AuthService', () => {
       expect(freshService.getCurrentUser()).toBeNull();
     });
 
-    it('should handle empty string values', () => {
-      localStorage.setItem('admin_auth_token', '');
-      localStorage.setItem('admin_user', '');
+    it('should handle an empty string snapshot value', () => {
+      localStorage.setItem('admin_auth_storage', '');
 
-      expect(service.getToken()).toBe('');
-      // Empty string JSON.parse will throw, so user should be null from service initialization
+      // An empty string is falsy, so this reads the same as no snapshot at all.
+      expect(service.getToken()).toBeNull();
+      expect(service.getCurrentUser()).toBeNull();
     });
   });
 
@@ -1342,14 +1354,12 @@ describe('AuthService', () => {
       expect(service.portalMismatch()).toBe(true);
       expect(service.rejectedIdentity()).toEqual(nonAdminUser);
       expect(service.authBootStatus()).toBe('ready');
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(router.navigate).not.toHaveBeenCalled();
     });
 
     it('clears the local snapshot without navigating on a terminal refresh failure (no cookie / revoked)', async () => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
 
       service.bootstrapAuthSession();
       const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
@@ -1362,14 +1372,12 @@ describe('AuthService', () => {
       expect(service.authBootStatus()).toBe('ready');
       expect(service.portalMismatch()).toBe(false);
       expect(service.getCurrentUser()).toBeNull();
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(router.navigate).not.toHaveBeenCalled();
     });
 
     it('marks temporaryReconcileFailure and stays in retry on a network error, keeping the stored snapshot', async () => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
 
       service.bootstrapAuthSession();
       const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
@@ -1378,8 +1386,7 @@ describe('AuthService', () => {
 
       expect(service.authBootStatus()).toBe('retry');
       expect(service.temporaryReconcileFailure()).toBe(true);
-      expect(localStorage.getItem('admin_auth_token')).toEqual(createValidToken());
-      expect(localStorage.getItem('admin_user')).toEqual(JSON.stringify(mockAdminUser));
+      expect(getAdminSnapshot()).toEqual({ accessToken: createValidToken(), user: mockAdminUser });
       expect(router.navigate).not.toHaveBeenCalled();
     });
 
@@ -1520,8 +1527,7 @@ describe('AuthService', () => {
     });
 
     it('force-logs-out on a terminal refresh failure (confirmed dead session)', async () => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
 
       service.reconcileForeground();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(
@@ -1531,13 +1537,13 @@ describe('AuthService', () => {
       await Promise.resolve();
 
       expect(service.isRefreshingSession()).toBe(false);
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(router.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
     });
 
     it('marks temporaryReconcileFailure on a network error, keeping the stored snapshot', async () => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      const token = createValidToken();
+      setAdminSnapshot(token, mockAdminUser);
 
       service.reconcileForeground();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).error(new ProgressEvent('Network error'));
@@ -1545,8 +1551,57 @@ describe('AuthService', () => {
 
       expect(service.isRefreshingSession()).toBe(false);
       expect(service.temporaryReconcileFailure()).toBe(true);
-      expect(localStorage.getItem('admin_auth_token')).toEqual(createValidToken());
+      expect(getAdminSnapshot()).toEqual({ accessToken: token, user: mockAdminUser });
       expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Cross-tab sync (storage event)', () => {
+    const dispatchStorage = (key: string | null, newValue: string | null) =>
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue }));
+
+    it('adopts the identity another tab just wrote to admin_auth_storage', () => {
+      const otherUser: User = { ...mockAdminUser, id: 7, username: 'other-admin-tab' };
+      dispatchStorage('admin_auth_storage', JSON.stringify({ accessToken: 'from-other-tab', user: otherUser }));
+
+      expect(service.getCurrentUser()).toEqual(otherUser);
+    });
+
+    it('adopts unauthenticated when another tab logs out (key removed, newValue null)', () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+
+      dispatchStorage('admin_auth_storage', null);
+
+      expect(service.getCurrentUser()).toBeNull();
+    });
+
+    it('ignores storage events for unrelated keys', () => {
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+
+      dispatchStorage('some_other_key', 'anything');
+
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('does not adopt another tab identity while portalMismatch is active', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      dispatchStorage('admin_auth_storage', JSON.stringify({ accessToken: 'x', user: mockAdminUser }));
+
+      expect(service.getCurrentUser()).toBeNull();
+      expect(service.portalMismatch()).toBe(true);
+    });
+
+    it('does not adopt another tab identity while switching accounts', () => {
+      service.startSwitchingAccount('/dashboard');
+
+      dispatchStorage('admin_auth_storage', JSON.stringify({ accessToken: 'x', user: mockAdminUser }));
+
+      expect(service.getCurrentUser()).toBeNull();
+      expect(service.isSwitchingAccount()).toBe(true);
     });
   });
 });

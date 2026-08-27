@@ -77,7 +77,7 @@ describe('authInterceptor', () => {
   describe('Request Interception', () => {
     it('should add Authorization header for non-auth endpoints', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.get('/api/users').subscribe();
 
@@ -89,7 +89,7 @@ describe('authInterceptor', () => {
 
     it('should not add Authorization header for login endpoint', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.post(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`, {}).subscribe();
 
@@ -100,7 +100,7 @@ describe('authInterceptor', () => {
 
     it('should not add Authorization header for register endpoint', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.post(`${environment.apiUrl}/auth/register`, {}).subscribe();
 
@@ -111,7 +111,7 @@ describe('authInterceptor', () => {
 
     it('should not add Authorization header for refresh endpoint', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.post(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`, {}).subscribe();
 
@@ -130,7 +130,7 @@ describe('authInterceptor', () => {
 
     it('should clone request correctly without mutating original', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.get('/api/test').subscribe();
 
@@ -203,7 +203,7 @@ describe('authInterceptor', () => {
   describe('Token Refresh on 401', () => {
     beforeEach(() => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
     });
 
     it('should attempt token refresh on 401 error', async () => {
@@ -357,8 +357,7 @@ describe('authInterceptor', () => {
     it('marks a temporary reconcile failure (not forceLogout) when refresh fails without the terminal error code', async () => {
       const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
       const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockUser));
+      localStorage.setItem('admin_auth_storage', JSON.stringify({ accessToken: createValidToken(), user: mockUser }));
 
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
@@ -375,8 +374,9 @@ describe('authInterceptor', () => {
       expect(markTemporarySpy).toHaveBeenCalled();
       expect(forceLogoutSpy).not.toHaveBeenCalled();
       // Snapshot must survive a temporary failure
-      expect(localStorage.getItem('admin_auth_token')).not.toBeNull();
-      expect(localStorage.getItem('admin_user')).not.toBeNull();
+      const snapshot = JSON.parse(localStorage.getItem('admin_auth_storage') || 'null');
+      expect(snapshot?.accessToken).not.toBeNull();
+      expect(snapshot?.user).not.toBeNull();
     });
 
     it('marks a temporary reconcile failure when the refresh request errors at the network level', async () => {

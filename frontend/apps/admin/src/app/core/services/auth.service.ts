@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
@@ -57,11 +57,19 @@ export function isTerminalRefreshFailure(error: unknown): boolean {
 @Injectable({
   providedIn: 'root',
 })
-export class AuthService {
+export class AuthService implements OnDestroy {
   private readonly API_URL = environment.apiUrl;
-  private readonly TOKEN_KEY = 'admin_auth_token';
-  private readonly USER_KEY = 'admin_user';
-  
+  // Single key, written atomically — TOKEN_KEY/USER_KEY used to be two independent
+  // localStorage entries written by two separate setItem calls, which left a window where a
+  // reader (this tab or another) could see a new token paired with the old user, or vice
+  // versa. See fix_multiple_account_on_browser_profile.md P2-2.
+  private readonly AUTH_STORAGE_KEY = 'admin_auth_storage';
+  // Legacy keys nothing writes anymore, cleared defensively on every clearAuthData() call so
+  // a browser that still has them from before this snapshot became the only source doesn't
+  // keep them around.
+  private readonly LEGACY_TOKEN_KEY = 'admin_auth_token';
+  private readonly LEGACY_USER_KEY = 'admin_user';
+
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   // NOTE: REFRESH_TOKEN_KEY removed - refresh token is in HTTP-Only Cookie
@@ -113,6 +121,45 @@ export class AuthService {
     this.getUserFromStorage()
   );
   public currentUser$ = this.currentUserSubject.asObservable();
+
+  // Bound once so it can be added and later removed (ngOnDestroy) as the same function
+  // reference — an anonymous listener passed inline to addEventListener can never be
+  // unregistered, which leaks one 'storage' listener per instance for the lifetime of the
+  // page (harmless for the real app's single root singleton, but it accumulates across every
+  // TestBed-created instance in a test run).
+  private readonly onStorageEvent = (event: StorageEvent): void => {
+    if (event.key !== this.AUTH_STORAGE_KEY) return;
+    // A tab that has deliberately paused reconciliation (mismatch or switch-account in
+    // progress) must not have its local state silently overwritten out from under it.
+    if (this.isSwitchingAccount() || this.portalMismatch()) return;
+
+    const snapshot = this.parseAuthSnapshot(event.newValue);
+    this.currentUserSubject.next(snapshot.user);
+    Sentry.setUser(
+      snapshot.user
+        ? { id: String(snapshot.user.id), username: `admin-${snapshot.user.id}`, role: 'ADMIN' }
+        : null
+    );
+  };
+
+  constructor() {
+    // Cross-tab sync within this same app: another admin tab logging in, logging out, or
+    // discovering a different identity via reconcile changes 'admin_auth_storage', and every
+    // other tab should reflect it instead of keeping a stale in-memory snapshot. Browsers
+    // never fire 'storage' on the tab that made the write, only on other tabs, so this can't
+    // loop back on itself. NOT used for admin<->user sync - those are different origins
+    // (admin.edumind.* vs edumind.*, or :4200 vs :3000 in dev) and never receive each other's
+    // storage events; that direction is handled entirely by server reconcile.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', this.onStorageEvent);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('storage', this.onStorageEvent);
+    }
+  }
 
   /**
    * Login with credentials
@@ -167,8 +214,7 @@ export class AuthService {
           this.assertAdminPortalIdentity(response.user);
         }),
         tap((response) => {
-          localStorage.setItem(this.TOKEN_KEY, response.accessToken);
-          localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+          this.writeAuthSnapshot(response.accessToken, response.user);
           this.currentUserSubject.next(response.user);
           this.temporaryReconcileFailure.set(false);
           // A confirmed matching identity closes out any earlier mismatch -
@@ -345,8 +391,7 @@ export class AuthService {
   private handleAuthSuccess(authData: JwtResponse): void {
     const { user, accessToken } = authData;
 
-    localStorage.setItem(this.TOKEN_KEY, accessToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    this.writeAuthSnapshot(accessToken, user);
     // NOTE: refreshToken is in HTTP-Only Cookie, not stored in localStorage
 
     this.currentUserSubject.next(user);
@@ -452,23 +497,41 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    return this.readAuthSnapshot().accessToken;
   }
 
   /**
-   * Update token after refresh
+   * Update token after refresh. Reads the current user out of the snapshot first and writes
+   * both back together — never a token-only write, which would momentarily pair a new token
+   * with a stale (or absent) user for any reader of the snapshot.
    */
   setToken(token: string): void {
-    localStorage.setItem(this.TOKEN_KEY, token);
+    const { user } = this.readAuthSnapshot();
+    this.writeAuthSnapshot(token, user);
   }
 
   private getUserFromStorage(): AdminUser | null {
+    return this.readAuthSnapshot().user;
+  }
+
+  /** Reads the single 'admin_auth_storage' snapshot — the source of truth for token + user. */
+  private readAuthSnapshot(): { accessToken: string | null; user: AdminUser | null } {
+    return this.parseAuthSnapshot(localStorage.getItem(this.AUTH_STORAGE_KEY));
+  }
+
+  private parseAuthSnapshot(raw: string | null): { accessToken: string | null; user: AdminUser | null } {
+    if (!raw) return { accessToken: null, user: null };
     try {
-      const userJson = localStorage.getItem(this.USER_KEY);
-      return userJson ? JSON.parse(userJson) : null;
+      const parsed = JSON.parse(raw);
+      return { accessToken: parsed?.accessToken ?? null, user: parsed?.user ?? null };
     } catch {
-      return null;
+      return { accessToken: null, user: null };
     }
+  }
+
+  /** Single atomic write — token and user always land together, in one localStorage call. */
+  private writeAuthSnapshot(accessToken: string, user: AdminUser | null): void {
+    localStorage.setItem(this.AUTH_STORAGE_KEY, JSON.stringify({ accessToken, user }));
   }
 
   private decodeToken(token: string): { exp: number; [key: string]: unknown } {
@@ -481,8 +544,10 @@ export class AuthService {
   }
 
   private clearAuthData(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem(this.AUTH_STORAGE_KEY);
+    // Legacy keys nothing writes anymore — see the comment on LEGACY_TOKEN_KEY.
+    localStorage.removeItem(this.LEGACY_TOKEN_KEY);
+    localStorage.removeItem(this.LEGACY_USER_KEY);
     // NOTE: HTTP-Only Cookie cannot be cleared from JS
     // Backend clears it via Set-Cookie header in logout response
     Sentry.setUser(null);

@@ -515,4 +515,42 @@ if (typeof window !== 'undefined') {
     useAuthStore.setState({ user, accessToken });
     setSentryUser(user);
   });
+
+  // Cross-tab sync within this app: another tab logging in, logging out, or discovering a
+  // different identity via reconcile writes 'auth-storage' (the Zustand persist key), and
+  // every other tab should reflect it instead of keeping a stale in-memory snapshot. Browsers
+  // never fire 'storage' on the tab that made the write, only on other tabs, so this can't
+  // loop back on itself. NOT used for admin<->user sync - those are different origins
+  // (edumind.* vs admin.edumind.*, or :3000 vs :4200 in dev) and never receive each other's
+  // storage events; that direction is handled entirely by server reconcile.
+  window.addEventListener('storage', (event: StorageEvent) => {
+    if (event.key !== 'auth-storage') return;
+    // A tab that has deliberately paused reconciliation (mismatch or switch-account in
+    // progress) must not have its local state silently overwritten out from under it.
+    const { sessionRefreshError, isSwitchingAccount } = useAuthStore.getState();
+    if (isSwitchingAccount || sessionRefreshError === 'PORTAL_MISMATCH') return;
+
+    const previousUserId = useAuthStore.getState().user?.id ?? null;
+    let next: { user: User | null; accessToken: string | null; isAuthenticated: boolean };
+    if (!event.newValue) {
+      next = { user: null, accessToken: null, isAuthenticated: false };
+    } else {
+      try {
+        const parsed = JSON.parse(event.newValue);
+        next = {
+          user: parsed?.state?.user ?? null,
+          accessToken: parsed?.state?.accessToken ?? null,
+          isAuthenticated: !!parsed?.state?.isAuthenticated,
+        };
+      } catch {
+        return; // Malformed write from another tab — ignore rather than adopt garbage.
+      }
+    }
+
+    useAuthStore.setState(next);
+    if ((next.user?.id ?? null) !== previousUserId) {
+      resetDataForIdentity();
+    }
+    setSentryUser(next.user);
+  });
 }

@@ -1079,6 +1079,91 @@ describe('useAuthStore', () => {
     });
   });
 
+  describe('cross-tab sync (storage event)', () => {
+    const dispatchStorage = (key: string | null, newValue: string | null) =>
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue }));
+
+    it('adopts the identity another tab just wrote to auth-storage', () => {
+      const otherUser = { id: 7, username: 'other-tab-user', email: 'o@example.com' };
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: otherUser, accessToken: 'from-other-tab', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toEqual(otherUser);
+      expect(state.accessToken).toBe('from-other-tab');
+      expect(state.isAuthenticated).toBe(true);
+    });
+
+    it('adopts unauthenticated when another tab logs out (key removed, newValue null)', () => {
+      useAuthStore.setState({ user: { id: 1, username: 'u', email: 'u@example.com' } as any, accessToken: 't', isAuthenticated: true });
+
+      act(() => {
+        dispatchStorage('auth-storage', null);
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+    });
+
+    it('ignores storage events for unrelated keys', () => {
+      useAuthStore.setState({ user: { id: 1, username: 'u', email: 'u@example.com' } as any, accessToken: 't', isAuthenticated: true });
+
+      act(() => {
+        dispatchStorage('some_other_key', 'anything');
+      });
+
+      expect(useAuthStore.getState().accessToken).toBe('t');
+    });
+
+    it('clears identity-scoped data when the adopted user differs from the current one', () => {
+      useAuthStore.setState({ user: { id: 1, username: 'u', email: 'u@example.com' } as any, accessToken: 't', isAuthenticated: true });
+      const otherUser = { id: 2, username: 'other', email: 'o@example.com' };
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: otherUser, accessToken: 'x', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      expect(mockQueryClientClear).toHaveBeenCalled();
+      expect(mockClearCart).toHaveBeenCalled();
+    });
+
+    it('does not adopt another tab identity while a portal mismatch is active', () => {
+      useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, sessionRefreshError: 'PORTAL_MISMATCH' });
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'x', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      expect(useAuthStore.getState().user).toBeNull();
+    });
+
+    it('does not adopt another tab identity while switching accounts', () => {
+      useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, isSwitchingAccount: true });
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'x', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      expect(useAuthStore.getState().user).toBeNull();
+    });
+  });
+
   describe('auth:session-expired listener', () => {
     it('clears auth state and sets sessionExpiredReason (after clearAuthState, not before)', async () => {
       // Seed an authenticated state first.
