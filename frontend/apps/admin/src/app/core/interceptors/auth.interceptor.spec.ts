@@ -483,6 +483,34 @@ describe('authInterceptor', () => {
       // This might be a bug that should be fixed in the interceptor
     });
 
+    it('joins a direct AuthService.refreshToken() caller (boot/focus reconcile) with an interceptor-triggered refresh into one HTTP request', async () => {
+      const newToken = createValidToken();
+      const refreshResponse = {
+        accessToken: newToken,
+        tokenType: 'Bearer',
+        user: mockUser,
+      };
+
+      // Simulate a boot/focus reconcile calling the shared pipeline directly
+      const directRefreshPromise = authService.refreshToken().toPromise();
+
+      // Meanwhile a business request gets 401'd and goes through the interceptor's refresh path
+      const promise = httpClient.get('/api/protected').toPromise();
+      const req = httpMock.expectOne('/api/protected');
+      req.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      // Only one refresh request should be in flight, serving both callers
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush(refreshResponse);
+
+      const retryReq = httpMock.expectOne('/api/protected');
+      expect(retryReq.request.headers.get('Authorization')).toBe(`Bearer ${newToken}`);
+      retryReq.flush({ success: true });
+
+      const [directResult] = await Promise.all([directRefreshPromise, promise]);
+      expect(directResult).toEqual(refreshResponse);
+    });
+
     it('should not deadlock on concurrent refresh attempts', async () => {
       const newToken = createValidToken();
       const refreshResponse = {

@@ -7,13 +7,9 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { map, catchError, switchMap } from 'rxjs/operators';
-import { throwError, Subject, take } from 'rxjs';
+import { throwError } from 'rxjs';
 import { unwrapApiResponse } from '@edumind/shared-utils';
 import { AuthService } from '../services/auth.service';
-
-// Track refresh state across interceptor calls
-let isRefreshing = false;
-let refreshTokenSubject = new Subject<string>();
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -65,78 +61,44 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
 /**
  * Handle 401 Unauthorized error
- * Try to refresh token and retry the original request
+ * Try to refresh token and retry the original request.
+ *
+ * authService.refreshToken() owns the shared refresh pipeline - concurrent
+ * callers (this interceptor, boot reconcile, focus reconcile) all subscribe
+ * to the same in-flight request and get the same result, so no separate
+ * coordination state is kept here.
  */
 function handleUnauthorizedError(
   request: HttpRequest<unknown>,
   next: HttpHandlerFn,
   authService: AuthService
 ) {
-  if (!isRefreshing) {
-    isRefreshing = true;
-    // Create new Subject for this refresh cycle
-    refreshTokenSubject = new Subject<string>();
+  return authService.refreshToken().pipe(
+    switchMap((response) => {
+      // Retry original request with new token
+      const retryRequest = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${response.accessToken}`,
+        },
+      });
 
-    return authService.refreshToken().pipe(
-      switchMap((response) => {
-        isRefreshing = false;
-        refreshTokenSubject.next(response.accessToken);
-        refreshTokenSubject.complete();
-
-        // Retry original request with new token
-        const retryRequest = request.clone({
-          setHeaders: {
-            Authorization: `Bearer ${response.accessToken}`,
-          },
-        });
-
-        return next(retryRequest).pipe(
-          map((event) => {
-            if (event instanceof HttpResponse) {
-              const transformedBody = unwrapApiResponse(event.body);
-              if (transformedBody !== event.body) {
-                return event.clone({ body: transformedBody });
-              }
+      return next(retryRequest).pipe(
+        map((event) => {
+          if (event instanceof HttpResponse) {
+            const transformedBody = unwrapApiResponse(event.body);
+            if (transformedBody !== event.body) {
+              return event.clone({ body: transformedBody });
             }
-            return event;
-          })
-        );
-      }),
-      catchError((refreshErr) => {
-        isRefreshing = false;
-        // Propagate error to all queued requests
-        refreshTokenSubject.error(refreshErr);
+          }
+          return event;
+        })
+      );
+    }),
+    catchError((refreshErr) => {
+      // Refresh failed - force logout
+      authService.forceLogout();
 
-        // Refresh failed - force logout
-        authService.forceLogout();
-
-        return throwError(() => refreshErr);
-      })
-    );
-  } else {
-    // Another request is already refreshing - wait for it
-    return refreshTokenSubject.pipe(
-      take(1),
-      switchMap((token) => {
-        // Retry with the new token from the other request's refresh
-        const retryRequest = request.clone({
-          setHeaders: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        return next(retryRequest).pipe(
-          map((event) => {
-            if (event instanceof HttpResponse) {
-              const transformedBody = unwrapApiResponse(event.body);
-              if (transformedBody !== event.body) {
-                return event.clone({ body: transformedBody });
-              }
-            }
-            return event;
-          })
-        );
-      })
-    );
-  }
+      return throwError(() => refreshErr);
+    })
+  );
 }

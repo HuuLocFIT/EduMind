@@ -404,19 +404,42 @@ describe('AuthService', () => {
       req.flush(mockRefreshResponse);
     });
 
-    it('should prevent multiple simultaneous refresh attempts', async () => {
-      // Start first refresh - this sets isRefreshing to true
-      const firstRefresh = service.refreshToken();
-      firstRefresh.subscribe(); // Subscribe to initiate the request
-      
-      // Now try second refresh - should fail immediately
-      const secondRefresh = service.refreshToken();
-      const secondRefreshPromise = secondRefresh.toPromise();
-      
-      // Complete the first refresh
+    it('joins concurrent refresh calls into a single shared HTTP request', async () => {
+      const firstRefreshPromise = service.refreshToken().toPromise();
+      const secondRefreshPromise = service.refreshToken().toPromise();
+
+      // Only one HTTP request should be made for both callers
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(mockRefreshResponse);
+
+      const [firstResult, secondResult] = await Promise.all([
+        firstRefreshPromise,
+        secondRefreshPromise,
+      ]);
+
+      expect(firstResult).toEqual(mockRefreshResponse);
+      expect(secondResult).toEqual(mockRefreshResponse);
+    });
+
+    it('propagates the same failure to every joined caller', async () => {
+      const firstRefreshPromise = service.refreshToken().toPromise();
+      const secondRefreshPromise = service.refreshToken().toPromise();
+
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      await expect(firstRefreshPromise).rejects.toThrow();
+      await expect(secondRefreshPromise).rejects.toThrow();
+    });
+
+    it('starts a fresh HTTP request for a refresh call made after the previous one completed', async () => {
+      const firstRefreshPromise = service.refreshToken().toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
-      
-      await expect(secondRefreshPromise).rejects.toThrow('Refresh already in progress');
+      await firstRefreshPromise;
+
+      const secondRefreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await secondRefreshPromise;
     });
 
     it('should update access token in localStorage on success', async () => {

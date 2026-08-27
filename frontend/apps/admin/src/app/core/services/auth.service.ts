@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
-import { catchError, finalize, map, switchMap, tap } from 'rxjs/operators';
+import { catchError, finalize, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import * as Sentry from '@sentry/angular';
 import { environment } from '../../../environments/environment';
 import {
@@ -34,8 +34,10 @@ export class AuthService {
   isLoading = signal(false);
   error = signal<string | null>(null);
 
-  // Flag to prevent multiple refresh attempts
-  private isRefreshing = false;
+  // Shared in-flight refresh pipeline - every caller (boot, focus, interceptor)
+  // subscribes to this same observable and gets the same result, instead of
+  // racing separate refresh calls.
+  private refreshInProgress$: Observable<RefreshTokenResponse> | null = null;
 
   // BehaviorSubject for current user
   private currentUserSubject = new BehaviorSubject<AdminUser | null>(
@@ -78,13 +80,11 @@ export class AuthService {
    * No body needed - refresh token is sent via HTTP-Only Cookie
    */
   refreshToken(): Observable<RefreshTokenResponse> {
-    if (this.isRefreshing) {
-      return throwError(() => new Error('Refresh already in progress'));
+    if (this.refreshInProgress$) {
+      return this.refreshInProgress$;
     }
 
-    this.isRefreshing = true;
-
-    return this.http
+    const refresh$ = this.http
       .post<RefreshTokenResponse>(
         `${this.API_URL}${AUTH_ENDPOINTS.REFRESH}`,
         {}, // Empty body - cookie is sent automatically
@@ -98,9 +98,13 @@ export class AuthService {
           this.currentUserSubject.next(response.user);
         }),
         finalize(() => {
-          this.isRefreshing = false;
-        })
+          this.refreshInProgress$ = null;
+        }),
+        shareReplay(1)
       );
+
+    this.refreshInProgress$ = refresh$;
+    return refresh$;
   }
 
   /**
