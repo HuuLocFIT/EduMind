@@ -24,14 +24,15 @@ import com.edumind.common.exception.EmailNotVerifiedException;
 import com.edumind.common.exception.ResourceNotFoundException;
 import com.edumind.common.exception.TokenRefreshException;
 import com.edumind.common.response.MessageResponse;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -284,34 +285,28 @@ public class AuthService {
      * Set refresh token in HTTP-Only cookie
      */
     private void setRefreshTokenCookie(HttpServletResponse response, String token) {
-        Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, token);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecure);
-        cookie.setPath("/");
-        cookie.setMaxAge(REFRESH_TOKEN_COOKIE_MAX_AGE);
-        // Note: SameSite requires using ResponseCookie or setting header manually
-        response.addCookie(cookie);
-
-        // Set SameSite attribute via header (Cookie class doesn't support it directly)
-        response.setHeader("Set-Cookie",
-                String.format("%s=%s; Path=/; Max-Age=%d; HttpOnly; %s; SameSite=%s",
-                        REFRESH_TOKEN_COOKIE_NAME,
-                        token,
-                        REFRESH_TOKEN_COOKIE_MAX_AGE,
-                        cookieSecure ? "Secure" : "",
-                        cookieSameSite));
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(REFRESH_TOKEN_COOKIE_MAX_AGE)
+                .sameSite(cookieSameSite)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     /**
      * Clear refresh token cookie
      */
     private void clearRefreshTokenCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecure);
-        cookie.setPath("/");
-        cookie.setMaxAge(0); // Delete cookie
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(0)
+                .sameSite(cookieSameSite)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     // ==================== REFRESH TOKEN MANAGEMENT ====================
