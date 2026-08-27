@@ -121,7 +121,7 @@ export const Verify2FACodeRequestSchema = z.object({
 export const RefreshTokenResponseSchema = z.object({
   accessToken: z.string(),
   tokenType: z.string().default('Bearer'),
-  user: UserSchema.optional(),
+  user: UserSchema,
 });
 
 export const Setup2FAResponseSchema = z.object({

@@ -469,8 +469,8 @@ describe('AuthService', () => {
       await expect(refreshPromise).rejects.toThrow();
     });
 
-    it('should not update user if not provided in refresh response', async () => {
-      const refreshResponseWithoutUser: RefreshTokenResponse = {
+    it('rejects when the refresh response omits user (contract violation, no fallback)', async () => {
+      const refreshResponseWithoutUser = {
         accessToken: createValidToken(),
         tokenType: 'Bearer',
       };
@@ -482,9 +482,9 @@ describe('AuthService', () => {
       httpMock
         .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
         .flush(refreshResponseWithoutUser);
-      
-      await refreshPromise;
-      // User should remain unchanged
+
+      await expect(refreshPromise).rejects.toThrow();
+      // User should remain unchanged since the rejected response was never adopted
       expect(service.getCurrentUser()).toEqual(originalUser);
     });
   });

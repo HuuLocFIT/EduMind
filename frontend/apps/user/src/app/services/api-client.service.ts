@@ -5,14 +5,12 @@ import {
   MessageResponseSchema,
   Setup2FAResponseSchema,
   ApiErrorSchema,
-  UserSchema,
   type ApiError,
   type RefreshTokenResponse,
 } from '@edumind/shared-types';
 import {
   unwrapApiResponse,
   AUTH_ENDPOINTS,
-  USER_ENDPOINTS,
   API_URL,
 } from '@edumind/shared-utils';
 
@@ -89,13 +87,6 @@ export function isTerminalRefreshFailure(error: unknown): boolean {
   return parseApiError(error)?.errorCode === 'ERR_2004';
 }
 
-async function fetchCurrentUserWith(accessToken: string) {
-  const response = await axios.get(`${API_URL}${USER_ENDPOINTS.ME}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return UserSchema.parse(unwrapApiResponse(response.data));
-}
-
 /**
  * Refresh the access token using the refresh token from the HTTP-only cookie, and keep
  * the auth store's user snapshot in sync with the roles the new token carries.
@@ -117,11 +108,7 @@ export async function refreshAuthSession(): Promise<RefreshTokenResponse> {
     .then(async (response) => {
       // Parse, don't cast — this request bypasses the response interceptor's validation.
       const data = RefreshTokenResponseSchema.parse(unwrapApiResponse(response.data));
-
-      // user is optional in the schema — fall back to /users/me with the new token.
-      // Uses the token from the response directly, not localStorage, so nothing has to be
-      // persisted before the staleness check below.
-      const user = data.user ?? (await fetchCurrentUserWith(data.accessToken));
+      const user = data.user;
 
       // Logout (or a different user logging in) between the request and now means this
       // result belongs to a session that no longer exists: writing it would resurrect a
@@ -207,14 +194,6 @@ apiClient.interceptors.response.use(
         // NOTE: refreshToken is NOT in response - it's in HTTP-Only Cookie
         localStorage.setItem('accessToken', result.data.accessToken);
         localStorage.setItem('user', JSON.stringify(result.data.user));
-        response.data = result.data;
-      }
-    }
-
-    // Validate refresh response (accessToken persistence is handled by refreshAuthSession's pipeline)
-    if (endpoint?.includes(AUTH_ENDPOINTS.REFRESH)) {
-      const result = RefreshTokenResponseSchema.safeParse(response.data);
-      if (result.success) {
         response.data = result.data;
       }
     }

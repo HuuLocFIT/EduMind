@@ -14,6 +14,8 @@ import { authInterceptor } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
 import { AUTH_ENDPOINTS } from '@edumind/shared-utils';
 import { environment } from '../../../environments/environment';
+import { UserRole } from '@edumind/shared-constants';
+import type { User } from '@edumind/shared-types';
 
 describe('authInterceptor', () => {
   let httpClient: HttpClient;
@@ -31,6 +33,19 @@ describe('authInterceptor', () => {
       })
     );
     return `${header}.${payload}.signature`;
+  };
+
+  const mockUser: User = {
+    id: 1,
+    username: 'admin',
+    email: 'admin@example.com',
+    roles: [UserRole.ADMIN],
+    isActive: true,
+    isEmailVerified: true,
+    is2faEnabled: false,
+    isTrial: false,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   };
 
   beforeEach(() => {
@@ -194,6 +209,7 @@ describe('authInterceptor', () => {
     it('should attempt token refresh on 401 error', async () => {
       const refreshResponse = {
         accessToken: createValidToken(),
+        user: mockUser,
       };
 
       const promise = httpClient.get('/api/protected').toPromise();
@@ -235,6 +251,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       const promise = httpClient.get('/api/protected').toPromise();
@@ -260,6 +277,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       // Make two concurrent requests
@@ -325,6 +343,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
       // unwrapApiResponse only unwraps responses with status and success (ApiResponse envelope)
       const wrappedResponse = {
@@ -398,6 +417,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       // Make three concurrent requests
@@ -467,6 +487,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       // Make multiple requests that will trigger refresh

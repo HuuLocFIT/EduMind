@@ -114,18 +114,13 @@ describe('refreshAuthSession', () => {
     expect(dispatched?.detail).toEqual({ user: validUser, accessToken: 'new-token' });
   });
 
-  it('falls back to /users/me with the new token when the response omits user', async () => {
+  it('rejects when the refresh response omits user (contract violation, no fallback)', async () => {
     mockAxiosPost.mockResolvedValue({
       data: envelope({ accessToken: 'new-token', tokenType: 'Bearer' }),
     });
-    mockAxiosGet.mockResolvedValue({ data: envelope(validUser) });
 
-    const result = await refreshAuthSession();
-
-    expect(mockAxiosGet).toHaveBeenCalledTimes(1);
-    const [, getConfig] = mockAxiosGet.mock.calls[0];
-    expect(getConfig.headers.Authorization).toBe('Bearer new-token');
-    expect(result.user).toEqual(validUser);
+    await expect(refreshAuthSession()).rejects.toBeTruthy();
+    expect(mockAxiosGet).not.toHaveBeenCalled();
   });
 
   it('dedupes concurrent callers into a single POST /auth/refresh', async () => {

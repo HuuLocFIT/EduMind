@@ -93,14 +93,9 @@ export class AuthService {
       .pipe(
         map((response) => RefreshTokenResponseSchema.parse(response)),
         tap((response) => {
-          // Update access token
           localStorage.setItem(this.TOKEN_KEY, response.accessToken);
-          
-          // Update user if provided
-          if (response.user) {
-            localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-            this.currentUserSubject.next(response.user);
-          }
+          localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+          this.currentUserSubject.next(response.user);
         }),
         finalize(() => {
           this.isRefreshing = false;
