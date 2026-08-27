@@ -36,7 +36,17 @@ const baseState = () => ({
   sessionRefreshError: null as "SESSION_EXPIRED" | "TEMPORARY" | "PORTAL_MISMATCH" | null,
   isSwitchingAccount: false,
   isRefreshingSession: false,
+  // Read by hasUnconfirmedSession — a TEMPORARY failure only blocks rendering when there is a
+  // snapshot it failed to confirm. Default: a guest, with nothing at stake.
+  isAuthenticated: false,
+  user: null as { id: number } | null,
 });
+
+/** A local snapshot waiting to be confirmed — what makes an unconfirmed probe unsafe. */
+function withSnapshot(state: ReturnType<typeof baseState>) {
+  state.isAuthenticated = true;
+  state.user = { id: 1 };
+}
 
 function renderBoundary(children: React.ReactNode) {
   return render(<MemoryRouter>{children}</MemoryRouter>);
@@ -117,6 +127,8 @@ describe("AuthBootBoundary", () => {
 
   it("replaces route content with a retry screen on a temporary boot failure", async () => {
     state.authBootStatus = "retry";
+    state.sessionRefreshError = "TEMPORARY";
+    withSnapshot(state);
     const user = userEvent.setup();
 
     renderBoundary(
@@ -130,6 +142,62 @@ describe("AuthBootBoundary", () => {
 
     await user.click(retryButton);
     expect(mockBootstrapAuthSession).toHaveBeenCalledTimes(2); // once on mount, once on click
+  });
+
+  // The regression this whole boundary exists for: a foreground reconcile that fails for an
+  // unconfirmed reason leaves a snapshot that is no longer evidence of anything. The overlay
+  // below only covers the in-flight window, so before this the settled failure fell straight
+  // through to `children` and the unconfirmed identity kept rendering as authenticated —
+  // invariant #4, and the business requests it could still issue, invariant #7.
+  it("keeps route content blocked after a foreground reconcile fails temporarily (request settled)", async () => {
+    state.authBootStatus = "ready";
+    state.sessionRefreshError = "TEMPORARY";
+    state.isRefreshingSession = false; // the probe has finished — the overlay is gone
+    withSnapshot(state);
+    const user = userEvent.setup();
+
+    renderBoundary(
+      <AuthBootBoundary>
+        <div>route-content</div>
+      </AuthBootBoundary>,
+    );
+
+    expect(screen.queryByText("route-content")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    expect(mockBootstrapAuthSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders route content again once a retried probe confirms the session", () => {
+    state.authBootStatus = "ready";
+    state.sessionRefreshError = null; // cleared by bootstrapAuthSession's success path
+    withSnapshot(state);
+
+    renderBoundary(
+      <AuthBootBoundary>
+        <div>route-content</div>
+      </AuthBootBoundary>,
+    );
+
+    expect(screen.getByText("route-content")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("leaves public content alone when a guest's probe fails temporarily (no snapshot at stake)", () => {
+    state.authBootStatus = "retry";
+    state.sessionRefreshError = "TEMPORARY";
+    // No snapshot: nothing can be rendered as an unconfirmed identity, so an API hiccup must
+    // not take the public site (and prerendering/LCP with it) down to a retry screen.
+
+    renderBoundary(
+      <AuthBootBoundary>
+        <div>route-content</div>
+      </AuthBootBoundary>,
+    );
+
+    expect(screen.getByText("route-content")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 
   it("replaces route content with a portal-mismatch notice, keeping the URL unchanged (no Navigate)", () => {

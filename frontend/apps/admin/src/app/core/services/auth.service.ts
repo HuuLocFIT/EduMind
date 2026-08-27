@@ -84,8 +84,17 @@ export class AuthService implements OnDestroy {
   rejectedIdentity = signal<User | null>(null);
   // True after a refresh failure that does NOT prove the session is dead
   // (network/timeout/5xx/malformed/missing user). The stored snapshot is kept
-  // but must not be rendered as authenticated while this is true.
+  // but must not be rendered as authenticated while this is true - the app
+  // shell enforces that by pairing it with hasIdentitySnapshot() below.
   temporaryReconcileFailure = signal(false);
+
+  // Whether localStorage currently holds an identity snapshot. A signal rather
+  // than a read of currentUserSubject (a BehaviorSubject, which computed()
+  // cannot track) so the shell's viewState recomputes when it changes. Only
+  // meaningful next to temporaryReconcileFailure: an unconfirmed failure with
+  // no snapshot behind it (a logged-out tab on the login page hitting a
+  // network blip) has nothing unsafe to render and must not block anything.
+  hasIdentitySnapshot = signal(this.readAuthSnapshot().user !== null);
 
   // Boot-time reconcile status, read by the app shell to decide what to
   // render before any admin UI backed by the stored snapshot is shown.
@@ -135,6 +144,7 @@ export class AuthService implements OnDestroy {
 
     const snapshot = this.parseAuthSnapshot(event.newValue);
     this.currentUserSubject.next(snapshot.user);
+    this.hasIdentitySnapshot.set(snapshot.user !== null);
     Sentry.setUser(
       snapshot.user
         ? { id: String(snapshot.user.id), username: `admin-${snapshot.user.id}`, role: 'ADMIN' }
@@ -532,6 +542,7 @@ export class AuthService implements OnDestroy {
   /** Single atomic write — token and user always land together, in one localStorage call. */
   private writeAuthSnapshot(accessToken: string, user: AdminUser | null): void {
     localStorage.setItem(this.AUTH_STORAGE_KEY, JSON.stringify({ accessToken, user }));
+    this.hasIdentitySnapshot.set(user !== null);
   }
 
   private decodeToken(token: string): { exp: number; [key: string]: unknown } {
@@ -548,6 +559,7 @@ export class AuthService implements OnDestroy {
     // Legacy keys nothing writes anymore — see the comment on LEGACY_TOKEN_KEY.
     localStorage.removeItem(this.LEGACY_TOKEN_KEY);
     localStorage.removeItem(this.LEGACY_USER_KEY);
+    this.hasIdentitySnapshot.set(false);
     // NOTE: HTTP-Only Cookie cannot be cleared from JS
     // Backend clears it via Set-Cookie header in logout response
     Sentry.setUser(null);

@@ -26,6 +26,8 @@ describe('App', () => {
     portalMismatch: ReturnType<typeof signal<boolean>>;
     isSwitchingAccount: ReturnType<typeof signal<boolean>>;
     isRefreshingSession: ReturnType<typeof signal<boolean>>;
+    temporaryReconcileFailure: ReturnType<typeof signal<boolean>>;
+    hasIdentitySnapshot: ReturnType<typeof signal<boolean>>;
     bootstrapAuthSession: ReturnType<typeof vi.fn>;
     reconcileForeground: ReturnType<typeof vi.fn>;
   };
@@ -38,6 +40,8 @@ describe('App', () => {
       portalMismatch: signal(false),
       isSwitchingAccount: signal(false),
       isRefreshingSession: signal(false),
+      temporaryReconcileFailure: signal(false),
+      hasIdentitySnapshot: signal(false),
       bootstrapAuthSession: vi.fn(),
       reconcileForeground: vi.fn(),
     };
@@ -107,6 +111,38 @@ describe('App', () => {
     mockAuthService.isSwitchingAccount.set(true);
 
     expect(component.viewState()).toBe('content');
+  });
+
+  // Post-boot counterpart of the 'retry' boot status: markTemporaryReconcileFailure() used to
+  // set a signal nothing rendered from, so a foreground reconcile that failed for an
+  // unconfirmed reason left the stored admin snapshot rendering as authenticated.
+  it('resolves to the retry view when a post-boot reconcile fails with a snapshot at stake', () => {
+    mockAuthService.authBootStatus.set('ready');
+    mockAuthService.temporaryReconcileFailure.set(true);
+    mockAuthService.hasIdentitySnapshot.set(true);
+
+    expect(component.viewState()).toBe('retry');
+  });
+
+  it('stays on the content view when a reconcile fails temporarily with no snapshot to protect', () => {
+    // A logged-out tab on the login page: nothing unconfirmed can be rendered, so a network
+    // blip must not replace the login form with a retry screen.
+    mockAuthService.authBootStatus.set('ready');
+    mockAuthService.temporaryReconcileFailure.set(true);
+    mockAuthService.hasIdentitySnapshot.set(false);
+
+    expect(component.viewState()).toBe('content');
+  });
+
+  it('prefers the retry view over the mismatch view when both are set', () => {
+    // A mismatch flag that predates an unconfirmed probe is no more trustworthy than the
+    // snapshot itself — retry is the honest state.
+    mockAuthService.authBootStatus.set('ready');
+    mockAuthService.temporaryReconcileFailure.set(true);
+    mockAuthService.hasIdentitySnapshot.set(true);
+    mockAuthService.portalMismatch.set(true);
+
+    expect(component.viewState()).toBe('retry');
   });
 
   it('retryBoot() re-triggers the boot probe', () => {

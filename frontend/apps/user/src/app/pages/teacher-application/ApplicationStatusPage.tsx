@@ -295,6 +295,11 @@ const getStatusStyle = (status?: string | null) => {
           
           {application.status === 'APPROVED' && sessionRefreshError !== 'SESSION_EXPIRED' && (
             <>
+              {/* Defence in depth: AuthBootBoundary now replaces route content whenever a
+                  TEMPORARY failure leaves an unconfirmed snapshot, so this page-level retry
+                  is shadowed by the shell's in the real app. Kept because it is the narrower,
+                  teacher-access-specific message and costs nothing if the shell's gate ever
+                  narrows. */}
               {sessionRefreshError === 'TEMPORARY' ? (
                 <div className="flex flex-col items-center gap-3">
                   <Alert

@@ -124,10 +124,10 @@ interface AuthState {
   sessionExpiredReason: 'SESSION_EXPIRED' | null;
   // Lifecycle of the mandatory boot probe (bootstrapAuthSession). NOT persisted — every page
   // load must re-probe /auth/refresh regardless of what the last session left in storage.
-  // 'retry' means the very first boot probe hit a temporary failure (network/5xx/malformed):
-  // nothing about the local snapshot is confirmed yet, so the app shell must show a retry
-  // screen instead of trusting it — distinct from a TEMPORARY failure during a later
-  // foreground reconcile (TeacherGuard's refreshSession), which keeps rendering normally.
+  // 'retry' means the very first boot probe hit a temporary failure (network/5xx/malformed).
+  // It is only a lifecycle marker — what decides whether the shell may render a snapshot is
+  // hasUnconfirmedSession(), which treats a boot failure and a later foreground-reconcile
+  // failure the same way. See its comment below.
   authBootStatus: 'idle' | 'checking' | 'ready' | 'retry';
   // The escape hatch out of a portalMismatch dead end: while true, the app shell renders the
   // login route instead of the mismatch page, and reconciliation stays paused. NOT persisted —
@@ -153,7 +153,41 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      /**
+       * The single transition for "the server confirmed an identity this portal must not
+       * adopt", shared by all five paths that can discover one (login, 2FA, OAuth, foreground
+       * refresh, boot probe). One function on purpose: while each path cleaned up on its own,
+       * they drifted — login/2FA left the previous user, token and `isAuthenticated` in place,
+       * OAuth cleared memory but not the cart or query cache, and the boot probe cleared
+       * storage but not identity-scoped data. A mismatch reached through any of them must
+       * leave exactly the same thing behind: no local snapshot, no data belonging to the old
+       * identity, and the shared refresh cookie untouched (invariant #2 — clearing it would
+       * kick the rightful user out of the OTHER portal).
+       */
+      const applyPortalRejection = (extra?: Partial<AuthState>) => {
+        clearStoredAuth();
+        resetDataForIdentity();
+        // Sentry's scope is global and sticky: without this, every error raised afterwards —
+        // on the mismatch page itself, and through the whole switch-account flow — keeps being
+        // attributed to the identity that was just dropped, which is precisely the telemetry
+        // needed to debug this class of bug. The admin portal already clears it in
+        // clearAuthData(); this is the user portal's matching half.
+        setSentryUser(null);
+        set({
+          user: null,
+          accessToken: null,
+          isAuthenticated: false,
+          sessionRefreshError: 'PORTAL_MISMATCH',
+          // Any completed transition closes out a switch-account escape attempt — including
+          // this one, which sends the tab straight back to the mismatch page rather than
+          // leaving the login form up with a confusing "invalid credentials"-style error.
+          isSwitchingAccount: false,
+          ...extra,
+        });
+      };
+
+      return {
       user: null,
       accessToken: null,
       isAuthenticated: false,
@@ -214,10 +248,8 @@ export const useAuthStore = create<AuthState>()(
             throw error;
           }
           if (isPortalIdentityRejectedError(error)) {
-            // A real identity, just not one this portal accepts. If this attempt came from the
-            // switchingAccount escape hatch, send it right back to the mismatch page instead of
-            // leaving the login form to show a confusing "invalid credentials"-style error.
-            set({ isLoading: false, sessionRefreshError: 'PORTAL_MISMATCH', isSwitchingAccount: false });
+            // A real identity, just not one this portal accepts.
+            applyPortalRejection({ isLoading: false });
             throw error;
           }
           const errorMessage =
@@ -247,7 +279,7 @@ export const useAuthStore = create<AuthState>()(
           setSentryUser(user);
         } catch (error: any) {
           if (isPortalIdentityRejectedError(error)) {
-            set({ isLoading: false, sessionRefreshError: 'PORTAL_MISMATCH', isSwitchingAccount: false });
+            applyPortalRejection({ isLoading: false });
             throw error;
           }
           const errorMessage =
@@ -278,14 +310,7 @@ export const useAuthStore = create<AuthState>()(
           setSentryUser(user);
         } catch (error: any) {
           if (isPortalIdentityRejectedError(error)) {
-            set({
-              user: null,
-              accessToken: null,
-              isAuthenticated: false,
-              isLoading: false,
-              sessionRefreshError: 'PORTAL_MISMATCH',
-              isSwitchingAccount: false,
-            });
+            applyPortalRejection({ isLoading: false });
             throw error;
           }
           set({
@@ -380,6 +405,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           // The 'auth:user-refreshed' listener below updates user/accessToken synchronously.
           await refreshAuthSession();
+          // Set here rather than in that listener: the listener also runs for every
+          // interceptor-driven refresh, where confirming the identity isn't its job and there
+          // is no previousUserId to compare against. A reconcile can find a session where this
+          // tab thought there was none (another tab or portal logged in on the shared cookie),
+          // so this is a full transition to authenticated, not just a token swap — without it
+          // the store ends up with a non-null user and isAuthenticated === false.
+          set({ isAuthenticated: true });
           if ((get().user?.id ?? null) !== previousUserId) {
             resetDataForIdentity();
           }
@@ -397,14 +429,7 @@ export const useAuthStore = create<AuthState>()(
             // never keep rendering as authenticated) but leave the shared cookie alone, and
             // don't paint this as "session expired" (auth:session-expired is for
             // SESSION_EXPIRED only).
-            clearStoredAuth();
-            resetDataForIdentity();
-            set({
-              user: null,
-              accessToken: null,
-              isAuthenticated: false,
-              sessionRefreshError: 'PORTAL_MISMATCH',
-            });
+            applyPortalRejection();
           } else if (isTerminalRefreshFailure(error)) {
             clearStoredAuth();
             window.dispatchEvent(new CustomEvent('auth:session-expired'));
@@ -442,7 +467,10 @@ export const useAuthStore = create<AuthState>()(
           await refreshAuthSession();
           // 'auth:user-refreshed' (dispatched synchronously inside refreshAuthSession) has
           // already written user/accessToken — this just confirms the identity as current.
-          set({ isAuthenticated: true, authBootStatus: 'ready' });
+          // sessionRefreshError is cleared too: this is also the retry path out of a
+          // 'TEMPORARY' failure, and leaving the flag set would keep the shell on the retry
+          // screen forever even though the probe just succeeded.
+          set({ isAuthenticated: true, authBootStatus: 'ready', sessionRefreshError: null });
         } catch (error) {
           if (isStaleAuthSessionError(error)) {
             // A login/logout landed while this was in flight; that transition owns the
@@ -451,14 +479,7 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
           if (isPortalIdentityRejectedError(error)) {
-            clearStoredAuth();
-            set({
-              user: null,
-              accessToken: null,
-              isAuthenticated: false,
-              sessionRefreshError: 'PORTAL_MISMATCH',
-              authBootStatus: 'ready',
-            });
+            applyPortalRejection({ authBootStatus: 'ready' });
             return;
           }
           if (isTerminalRefreshFailure(error)) {
@@ -481,7 +502,8 @@ export const useAuthStore = create<AuthState>()(
       // Only the escape attempt ends — sessionRefreshError stays 'PORTAL_MISMATCH' so the app
       // shell falls back to the mismatch page rather than something ambiguous.
       cancelSwitchingAccount: () => set({ isSwitchingAccount: false }),
-    }),
+      };
+    },
     {
       name: "auth-storage",
       partialize: (state) => ({
@@ -492,6 +514,22 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+/**
+ * True when a probe failed for a reason that proves nothing (network blip, timeout, 5xx,
+ * malformed response) AND there is a local snapshot it failed to confirm. Both halves matter:
+ *
+ * - The snapshot half is what makes it unsafe — an unconfirmed identity must not be rendered
+ *   as authenticated or be allowed to issue business requests (invariants #4 and #7), whether
+ *   the failure came from the boot probe or from a later foreground reconcile. A confirmed
+ *   session can stop being the right one at any moment: the refresh cookie is shared with the
+ *   admin portal, so "it was fine when this page loaded" is not evidence about now.
+ * - The absence of a snapshot is what makes it harmless — a guest has no identity to leak, so
+ *   a failed probe there must not replace the public site with a retry screen (that would also
+ *   break prerendering and LCP for every visitor whenever the API hiccups).
+ */
+export const hasUnconfirmedSession = (state: AuthState): boolean =>
+  state.sessionRefreshError === 'TEMPORARY' && (state.isAuthenticated || state.user !== null);
 
 // Listen for session-expiry events dispatched by the API client when token refresh fails.
 // Using a custom event avoids a circular import (api-client → auth.store → auth.service → api-client).

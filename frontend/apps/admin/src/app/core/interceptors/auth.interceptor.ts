@@ -78,26 +78,11 @@ function handleUnauthorizedError(
   authService: AuthService
 ) {
   return authService.refreshToken().pipe(
-    switchMap((response) => {
-      // Retry original request with new token
-      const retryRequest = request.clone({
-        setHeaders: {
-          Authorization: `Bearer ${response.accessToken}`,
-        },
-      });
-
-      return next(retryRequest).pipe(
-        map((event) => {
-          if (event instanceof HttpResponse) {
-            const transformedBody = unwrapApiResponse(event.body);
-            if (transformedBody !== event.body) {
-              return event.clone({ body: transformedBody });
-            }
-          }
-          return event;
-        })
-      );
-    }),
+    // catchError BEFORE switchMap, deliberately: chained after it, this would also
+    // catch errors from next(retryRequest) below and classify an ordinary business
+    // failure as a refresh failure - a retried endpoint answering with errorCode
+    // ERR_2004 would even trip forceLogout(), since isTerminalRefreshFailure() reads
+    // the body's errorCode and never the URL. Here it only ever sees refresh errors.
     catchError((refreshErr) => {
       // Three-way classification, by type/errorCode - never by bare HTTP
       // status, since a wrong-portal rejection and a dead session can both
@@ -119,6 +104,28 @@ function handleUnauthorizedError(
       }
 
       return throwError(() => refreshErr);
+    }),
+    switchMap((response) => {
+      // Retry original request with new token. Its failures propagate untouched:
+      // the refresh itself already succeeded, so the session is confirmed good and
+      // nothing here may downgrade it.
+      const retryRequest = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${response.accessToken}`,
+        },
+      });
+
+      return next(retryRequest).pipe(
+        map((event) => {
+          if (event instanceof HttpResponse) {
+            const transformedBody = unwrapApiResponse(event.body);
+            if (transformedBody !== event.body) {
+              return event.clone({ body: transformedBody });
+            }
+          }
+          return event;
+        })
+      );
     })
   );
 }

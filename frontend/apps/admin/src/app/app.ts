@@ -36,11 +36,22 @@ export class App implements OnInit, OnDestroy {
    * boot probe has confirmed anything for the current cookie.
    * portalMismatch is overridden by isSwitchingAccount: that's the escape
    * hatch out of the mismatch dead end, and must let the login route render.
+   * A post-boot temporary reconcile failure lands on the same 'retry' screen:
+   * once a probe has failed for an unconfirmed reason, the stored snapshot is
+   * no longer evidence of anything, and rendering it as authenticated is
+   * exactly what invariant #4 forbids - the boot probe is just the first
+   * probe, not the only one that matters.
    */
   viewState = computed<AppViewState>(() => {
     const status = this.authService.authBootStatus();
     if (status === 'idle' || status === 'checking') return 'loading';
     if (status === 'retry') return 'retry';
+    // Guarded on hasIdentitySnapshot: a logged-out tab sitting on the login
+    // page has no unconfirmed identity to hide, so a network blip there must
+    // not replace the login form with a retry screen.
+    if (this.authService.temporaryReconcileFailure() && this.authService.hasIdentitySnapshot()) {
+      return 'retry';
+    }
     if (this.authService.portalMismatch() && !this.authService.isSwitchingAccount()) {
       return 'mismatch';
     }

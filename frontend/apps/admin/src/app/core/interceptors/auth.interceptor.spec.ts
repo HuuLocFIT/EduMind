@@ -379,6 +379,67 @@ describe('authInterceptor', () => {
       expect(snapshot?.user).not.toBeNull();
     });
 
+    // The classification must only ever see refresh errors. With catchError chained AFTER
+    // switchMap it also caught failures of the retried business request, so an ordinary 500
+    // downgraded a session the refresh had just confirmed - and a business endpoint answering
+    // with ERR_2004 logged the admin out, since isTerminalRefreshFailure() reads the body's
+    // errorCode and never the URL.
+    it('leaves the session alone when the refresh succeeds but the retried request fails', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+      const rejectPortalSpy = vi.spyOn(authService, 'rejectPortalIdentity');
+
+      let caught: unknown = null;
+      const promise = httpClient
+        .get('/api/protected')
+        .toPromise()
+        .catch((err) => {
+          caught = err;
+        });
+
+      httpMock.expectOne('/api/protected').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush({ accessToken: createValidToken(), user: mockUser });
+
+      httpMock
+        .expectOne('/api/protected')
+        .flush({ message: 'Boom' }, { status: 500, statusText: 'Server Error' });
+
+      await promise;
+
+      expect(markTemporarySpy).not.toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      expect(rejectPortalSpy).not.toHaveBeenCalled();
+      // The business failure still reaches the caller untouched.
+      expect((caught as { status?: number } | null)?.status).toBe(500);
+    });
+
+    it('does not log out when the retried request itself answers with the terminal error code', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      httpMock.expectOne('/api/protected').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush({ accessToken: createValidToken(), user: mockUser });
+
+      httpMock
+        .expectOne('/api/protected')
+        .flush(
+          { success: false, message: 'Refresh token is not in database', errorCode: 'ERR_2004' },
+          { status: 403, statusText: 'Forbidden' }
+        );
+
+      await promise;
+
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      expect(markTemporarySpy).not.toHaveBeenCalled();
+    });
+
     it('marks a temporary reconcile failure when the refresh request errors at the network level', async () => {
       const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
       const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');

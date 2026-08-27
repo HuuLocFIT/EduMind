@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { useAuthStore } from "../stores/auth.store";
+import { useAuthStore, hasUnconfirmedSession } from "../stores/auth.store";
 import { PortalMismatchPage } from "../pages/auth/PortalMismatchPage";
 
 /**
@@ -64,20 +64,24 @@ function useForegroundReconcile() {
  * guard. Never blocks LCP: while the probe is still running ('idle'/'checking'), route
  * content renders immediately and auth-dependent controls stay neutral via useAuthUiReady.
  * Only a definitive bad outcome replaces route content:
- * - 'retry': the very first probe failed for an unconfirmed reason (network/5xx/malformed) —
- *   nothing about the local snapshot is trustworthy yet, so there is nothing safe to render.
+ * - hasUnconfirmedSession: a probe failed for an unconfirmed reason (network/5xx/malformed)
+ *   while a local snapshot was waiting on it — nothing about that snapshot is trustworthy, so
+ *   there is nothing safe to render. Applies to the boot probe and to every later foreground
+ *   reconcile alike: the refresh cookie is shared with the admin portal, so an identity
+ *   confirmed at page load can stop being the right one at any moment. A guest (no snapshot)
+ *   is unaffected — public content keeps rendering through an API hiccup.
  * - PORTAL_MISMATCH: a confirmed identity that does not belong on this portal. The URL is
  *   left untouched (no <Navigate>, no route change) — see fix_multiple_account_on_browser_profile.md.
  */
 export function AuthBootBoundary({ children }: { children: ReactNode }) {
   useAuthBootstrap();
   useForegroundReconcile();
-  const authBootStatus = useAuthStore((state) => state.authBootStatus);
+  const unconfirmedSession = useAuthStore(hasUnconfirmedSession);
   const sessionRefreshError = useAuthStore((state) => state.sessionRefreshError);
   const isSwitchingAccount = useAuthStore((state) => state.isSwitchingAccount);
   const isRefreshingSession = useAuthStore((state) => state.isRefreshingSession);
 
-  if (authBootStatus === "retry") {
+  if (unconfirmedSession) {
     return (
       <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-gray-700">
@@ -85,6 +89,9 @@ export function AuthBootBoundary({ children }: { children: ReactNode }) {
         </p>
         <button
           type="button"
+          // bootstrapAuthSession, not refreshSession, for both the boot and the foreground
+          // case: it always probes (it only skips while one is already 'checking') and its
+          // success path is the one that confirms the identity and clears the TEMPORARY flag.
           onClick={() => void useAuthStore.getState().bootstrapAuthSession()}
           className="px-4 py-2 rounded-lg bg-blue-600 text-white"
         >

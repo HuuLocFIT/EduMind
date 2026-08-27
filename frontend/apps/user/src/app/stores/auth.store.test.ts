@@ -23,6 +23,7 @@ const {
   mockClearStoredAuth,
   mockFetchCurrentUserWith,
   mockClearCart,
+  mockSentrySetUser,
 } = vi.hoisted(() => ({
   mockLogin: vi.fn(),
   mockLoginWith2FA: vi.fn(),
@@ -44,6 +45,14 @@ const {
   }),
   mockFetchCurrentUserWith: vi.fn(),
   mockClearCart: vi.fn(),
+  mockSentrySetUser: vi.fn(),
+}));
+
+// Only setUser is replaced — the rest of the SDK stays real so nothing else in the module
+// graph changes behavior just because one call is being observed here.
+vi.mock('@sentry/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentry/react')>()),
+  setUser: mockSentrySetUser,
 }));
 
 // Mock the auth service - must match the import path in auth.store.ts
@@ -377,6 +386,68 @@ describe('useAuthStore', () => {
       const state = useAuthStore.getState();
       expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
       expect(state.isSwitchingAccount).toBe(false);
+    });
+
+    // Starting from an ALREADY authenticated store, not clean storage: that is the case the
+    // per-path cleanup used to miss. The login path only flagged the mismatch, so the previous
+    // student's snapshot, cart and query cache survived the rejection.
+    it.each([
+      ['login', async () => {
+        const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+        mockLogin.mockResolvedValue({ accessToken: 'admin-token', user: admin });
+        await useAuthStore.getState().login({ usernameOrEmail: 'admin', password: 'p' });
+      }],
+      ['2FA', async () => {
+        mockLoginWith2FA.mockResolvedValue({ accessToken: 'admin-token' });
+        mockFetchCurrentUserWith.mockResolvedValue({
+          id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'],
+        });
+        await useAuthStore.getState().loginWith2FA({
+          usernameOrEmail: 'a@example.com', password: 'p', code: '000000',
+        });
+      }],
+    ])('wipes the previous identity when %s is rejected from an authenticated session', async (_name, attempt) => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'student-token',
+        user: { id: 1, username: 'student', email: 's@example.com', roles: ['ROLE_STUDENT'] },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'student', password: 'p' });
+      });
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      mockClearStoredAuth.mockClear();
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      // The rejection is awaited INSIDE act(), not via expect(act(...)).rejects: the latter
+      // settles a microtask before the store's catch has run on the longer (2FA) path, and
+      // would assert against the pre-rejection state.
+      await act(async () => {
+        await expect(attempt()).rejects.toThrow();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+      expect(mockClearStoredAuth).toHaveBeenCalled();
+      // The persist middleware rewrites 'auth-storage' from the nulled state, so the key
+      // exists but must carry no identity — that is the property that matters.
+      expect(JSON.parse(localStorage.getItem('auth-storage') ?? '{}').state).toMatchObject({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+      });
+      // Data belonging to the identity being dropped, reset locally only — never through
+      // /auth/logout (shared cookie) or a cart API call made in the rejected identity's name.
+      expect(mockQueryClientClear).toHaveBeenCalled();
+      expect(mockClearCart).toHaveBeenCalled();
+      expect(mockLogout).not.toHaveBeenCalled();
+      // Sentry's scope is global and sticky — leaving the dropped identity on it would
+      // attribute every later error (the mismatch page, the whole switch-account flow) to the
+      // wrong user, exactly where that telemetry is most needed.
+      expect(mockSentrySetUser).toHaveBeenLastCalledWith(null);
     });
   });
 
@@ -1240,7 +1311,37 @@ describe('useAuthStore', () => {
 
       expect(mockClearStoredAuth).not.toHaveBeenCalled();
       expect(useAuthStore.getState().sessionRefreshError).toBe('TEMPORARY');
+      // The snapshot is KEPT — a temporary failure must never become a logout (invariant #4).
+      // Keeping it is not the same as trusting it: hasUnconfirmedSession() flags this exact
+      // state and AuthBootBoundary refuses to render it as authenticated. See
+      // AuthBootBoundary.test.tsx, "keeps route content blocked after a foreground reconcile
+      // fails temporarily".
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
+
+    // A tab that booted as a guest can find a live session on a later probe: another tab, or
+    // the admin portal, may have written the shared cookie since. Adopting the user and token
+    // without flipping isAuthenticated left the store internally inconsistent — a non-null
+    // user that every guard still treated as a guest.
+    it('transitions an unauthenticated tab to authenticated when a reconcile finds a session', async () => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 7, username: 's', email: 's@example.com' }, accessToken: 'fresh' },
+          }),
+        );
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user?.id).toBe(7);
+      expect(state.accessToken).toBe('fresh');
+      expect(state.sessionRefreshError).toBeNull();
     });
 
     it('sets sessionRefreshError to PORTAL_MISMATCH, clears storage, and does not dispatch auth:session-expired on a portal identity rejection', async () => {
@@ -1570,6 +1671,10 @@ describe('useAuthStore', () => {
       expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
       expect(state.isAuthenticated).toBe(false);
       expect(state.authBootStatus).toBe('ready');
+      // Storage alone was not enough: the cart and query cache belong to the identity being
+      // rejected too, and used to survive a boot mismatch untouched.
+      expect(mockQueryClientClear).toHaveBeenCalled();
+      expect(mockClearCart).toHaveBeenCalled();
       // Portal mismatch is a purely local rejection — revoking the shared refresh-token
       // cookie via /auth/logout would also sign the user out of the OTHER portal, which is
       // exactly the cross-portal damage this whole fix exists to prevent.
