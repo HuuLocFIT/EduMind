@@ -335,6 +335,9 @@ describe('useAuthStore', () => {
       expect(state.user).toBeNull();
       expect(localStorage.getItem('accessToken')).toBeNull();
       expect(localStorage.getItem('user')).toBeNull();
+      // Rejecting the identity locally must never revoke the shared refresh-token cookie —
+      // that would also sign the user out of the other portal.
+      expect(mockLogout).not.toHaveBeenCalled();
     });
 
     it('sends a wrong-role login attempt back to portalMismatch, ending any switchingAccount escape', async () => {
@@ -1147,6 +1150,7 @@ describe('useAuthStore', () => {
         .map(([event]) => event as CustomEvent)
         .some((event) => event.type === 'auth:session-expired');
       expect(dispatchedSessionExpired).toBe(false);
+      expect(mockLogout).not.toHaveBeenCalled();
     });
 
     it('checks StaleAuthSessionError before PortalIdentityRejectedError', async () => {
@@ -1458,6 +1462,26 @@ describe('useAuthStore', () => {
       expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
       expect(state.isAuthenticated).toBe(false);
       expect(state.authBootStatus).toBe('ready');
+      // Portal mismatch is a purely local rejection — revoking the shared refresh-token
+      // cookie via /auth/logout would also sign the user out of the OTHER portal, which is
+      // exactly the cross-portal damage this whole fix exists to prevent.
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('still probes /auth/refresh on boot even when the persisted snapshot says unauthenticated', async () => {
+      // A prior mismatch (or a fresh profile) can leave isAuthenticated:false locally while
+      // another tab/portal has since set a fresh shared cookie. The snapshot is only a hint
+      // (invariant #1) — boot must probe regardless of what it says.
+      useAuthStore.setState({ isAuthenticated: false, authBootStatus: 'idle' });
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+      expect(useAuthStore.getState().sessionRefreshError).toBe('PORTAL_MISMATCH');
     });
 
     it('does not dispatch auth:session-expired for a guest with no prior local session', async () => {

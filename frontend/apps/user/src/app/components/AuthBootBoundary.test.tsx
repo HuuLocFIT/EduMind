@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { AuthBootBoundary, __resetForegroundReconcileThrottleForTests } from "./AuthBootBoundary";
 
 const mockBootstrapAuthSession = vi.fn();
@@ -40,6 +40,20 @@ const baseState = () => ({
 
 function renderBoundary(children: React.ReactNode) {
   return render(<MemoryRouter>{children}</MemoryRouter>);
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="current-path">{location.pathname}</span>;
+}
+
+function renderBoundaryAt(path: string, children: React.ReactNode) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <LocationProbe />
+      {children}
+    </MemoryRouter>,
+  );
 }
 
 describe("AuthBootBoundary", () => {
@@ -130,6 +144,26 @@ describe("AuthBootBoundary", () => {
 
     expect(screen.queryByText("route-content")).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("shows the mismatch notice on a public route without navigating away from it", () => {
+    // ProtectedRoute never runs on a public route like /courses, so this boundary is the
+    // only place a mismatch can be caught there. If it navigated instead of overlaying, a
+    // deep-linked public page would silently redirect a legitimate visitor of the OTHER
+    // portal's identity.
+    state.authBootStatus = "ready";
+    state.sessionRefreshError = "PORTAL_MISMATCH";
+
+    renderBoundaryAt(
+      "/courses",
+      <AuthBootBoundary>
+        <div>course-catalog</div>
+      </AuthBootBoundary>,
+    );
+
+    expect(screen.queryByText("course-catalog")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/courses");
   });
 
   describe("switchingAccount", () => {
@@ -300,6 +334,27 @@ describe("AuthBootBoundary", () => {
 
       expect(screen.getByText("route-content")).toBeInTheDocument();
       expect(screen.getByRole("status")).toBeInTheDocument();
+    });
+
+    it("covers the full viewport and captures pointer events, so no auth-sensitive control underneath is reachable by a click", () => {
+      // jsdom does not perform real hit-testing, so a simulated click on the button below
+      // would still fire even with the overlay present — that isn't evidence either way.
+      // What we can assert, and what real-browser blocking actually depends on, is that the
+      // overlay is a fixed, full-viewport, pointer-capturing layer above everything else
+      // (invariant #7: no business request may fire on an unconfirmed identity).
+      state.authBootStatus = "ready";
+      state.isRefreshingSession = true;
+
+      renderBoundary(
+        <AuthBootBoundary>
+          <button type="button">Checkout</button>
+        </AuthBootBoundary>,
+      );
+
+      const overlay = screen.getByRole("status");
+      expect(overlay.className).toMatch(/\binset-0\b/);
+      expect(overlay.className).toMatch(/\bz-50\b/);
+      expect(overlay).toHaveStyle({ pointerEvents: "auto" });
     });
 
     it("does not render the overlay when no reconcile is in flight", () => {
