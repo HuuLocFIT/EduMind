@@ -1,4 +1,6 @@
 import { useEffect, type ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from "../stores/auth.store";
 
 /**
@@ -28,6 +30,9 @@ export function AuthBootBoundary({ children }: { children: ReactNode }) {
   useAuthBootstrap();
   const authBootStatus = useAuthStore((state) => state.authBootStatus);
   const sessionRefreshError = useAuthStore((state) => state.sessionRefreshError);
+  const isSwitchingAccount = useAuthStore((state) => state.isSwitchingAccount);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   if (authBootStatus === "retry") {
     return (
@@ -46,12 +51,28 @@ export function AuthBootBoundary({ children }: { children: ReactNode }) {
     );
   }
 
-  if (sessionRefreshError === "PORTAL_MISMATCH") {
+  // switchingAccount is the escape hatch out of the block above: it renders route content (the
+  // login route) even though sessionRefreshError is still PORTAL_MISMATCH, so the login form can
+  // mount. A successful login clears both fields via SESSION_SCOPED_RESET; a wrong-role login
+  // attempt sets isSwitchingAccount back to false, which falls through to the mismatch notice
+  // below on the next render. Local portal state was already cleared when PORTAL_MISMATCH was
+  // first set — the shared cookie is untouched either way.
+  if (sessionRefreshError === "PORTAL_MISMATCH" && !isSwitchingAccount) {
     return (
       <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-gray-700">
           This account isn't available on this portal.
         </p>
+        <button
+          type="button"
+          onClick={() => {
+            useAuthStore.getState().startSwitchingAccount();
+            navigate(USER_ROUTES.LOGIN, { state: { from: location } });
+          }}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+        >
+          Log in with a different account
+        </button>
       </div>
     );
   }

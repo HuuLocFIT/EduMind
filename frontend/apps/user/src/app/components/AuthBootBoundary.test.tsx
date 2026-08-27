@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { AuthBootBoundary } from "./AuthBootBoundary";
 
 const mockBootstrapAuthSession = vi.fn();
+const mockStartSwitchingAccount = vi.fn();
 
 vi.mock("../stores/auth.store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../stores/auth.store")>();
@@ -20,7 +22,12 @@ const mockAuthStore = vi.mocked(useAuthStore);
 const baseState = () => ({
   authBootStatus: "idle" as "idle" | "checking" | "ready" | "retry",
   sessionRefreshError: null as "SESSION_EXPIRED" | "TEMPORARY" | "PORTAL_MISMATCH" | null,
+  isSwitchingAccount: false,
 });
+
+function renderBoundary(children: React.ReactNode) {
+  return render(<MemoryRouter>{children}</MemoryRouter>);
+}
 
 describe("AuthBootBoundary", () => {
   let state: ReturnType<typeof baseState>;
@@ -33,8 +40,10 @@ describe("AuthBootBoundary", () => {
     mockAuthStore.getState = vi.fn(() => ({
       ...state,
       bootstrapAuthSession: mockBootstrapAuthSession,
+      startSwitchingAccount: mockStartSwitchingAccount,
     })) as any;
     mockBootstrapAuthSession.mockClear();
+    mockStartSwitchingAccount.mockClear();
   });
 
   afterEach(() => {
@@ -42,7 +51,7 @@ describe("AuthBootBoundary", () => {
   });
 
   it("triggers the boot probe once on mount", () => {
-    render(
+    renderBoundary(
       <AuthBootBoundary>
         <div>route-content</div>
       </AuthBootBoundary>,
@@ -54,7 +63,7 @@ describe("AuthBootBoundary", () => {
   it("renders route content immediately while the boot probe is still checking (does not block LCP)", () => {
     state.authBootStatus = "checking";
 
-    render(
+    renderBoundary(
       <AuthBootBoundary>
         <div>route-content</div>
       </AuthBootBoundary>,
@@ -66,7 +75,7 @@ describe("AuthBootBoundary", () => {
   it("renders route content once boot is ready with no mismatch", () => {
     state.authBootStatus = "ready";
 
-    render(
+    renderBoundary(
       <AuthBootBoundary>
         <div>route-content</div>
       </AuthBootBoundary>,
@@ -79,7 +88,7 @@ describe("AuthBootBoundary", () => {
     state.authBootStatus = "retry";
     const user = userEvent.setup();
 
-    render(
+    renderBoundary(
       <AuthBootBoundary>
         <div>route-content</div>
       </AuthBootBoundary>,
@@ -96,7 +105,7 @@ describe("AuthBootBoundary", () => {
     state.authBootStatus = "ready";
     state.sessionRefreshError = "PORTAL_MISMATCH";
 
-    render(
+    renderBoundary(
       <AuthBootBoundary>
         <div>route-content</div>
       </AuthBootBoundary>,
@@ -104,5 +113,39 @@ describe("AuthBootBoundary", () => {
 
     expect(screen.queryByText("route-content")).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  describe("switchingAccount", () => {
+    it("offers a way to log in with a different account from the mismatch notice", async () => {
+      state.authBootStatus = "ready";
+      state.sessionRefreshError = "PORTAL_MISMATCH";
+      const user = userEvent.setup();
+
+      renderBoundary(
+        <AuthBootBoundary>
+          <div>route-content</div>
+        </AuthBootBoundary>,
+      );
+
+      const switchButton = screen.getByRole("button", { name: /log in with a different account/i });
+      await user.click(switchButton);
+
+      expect(mockStartSwitchingAccount).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders route content (the login route) once isSwitchingAccount is true, even though sessionRefreshError is still PORTAL_MISMATCH", () => {
+      state.authBootStatus = "ready";
+      state.sessionRefreshError = "PORTAL_MISMATCH";
+      state.isSwitchingAccount = true;
+
+      renderBoundary(
+        <AuthBootBoundary>
+          <div>route-content</div>
+        </AuthBootBoundary>,
+      );
+
+      expect(screen.getByText("route-content")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 });

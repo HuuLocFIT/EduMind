@@ -76,9 +76,12 @@ const REFRESH_STATE_RESET = {
 // (no reload) — but there it leaks for good when nothing triggers another refresh: a
 // leftover 'SESSION_EXPIRED' hides the approved-application CTA and bounces TeacherGuard
 // to /login for a user who just signed in successfully.
+// isSwitchingAccount rides along with it: any completed transition (successful login, logout,
+// a fresh portal rejection) closes out the escape attempt, whether it used it or not.
 const SESSION_SCOPED_RESET = {
   ...REFRESH_STATE_RESET,
   sessionExpiredReason: null,
+  isSwitchingAccount: false,
 } satisfies Partial<AuthState>;
 
 // Helper to avoid duplicating Sentry user context across 3 login paths
@@ -114,6 +117,11 @@ interface AuthState {
   // screen instead of trusting it — distinct from a TEMPORARY failure during a later
   // foreground reconcile (TeacherGuard's refreshSession), which keeps rendering normally.
   authBootStatus: 'idle' | 'checking' | 'ready' | 'retry';
+  // The escape hatch out of a portalMismatch dead end: while true, the app shell renders the
+  // login route instead of the mismatch page, and reconciliation stays paused. NOT persisted —
+  // it only makes sense for the tab that clicked "log in with a different account". Cleared by
+  // any completed auth transition (successful login, logout, another portal rejection).
+  isSwitchingAccount: boolean;
 
   // Actions
   login: (credentials: LoginRequest) => Promise<void>;
@@ -127,6 +135,8 @@ interface AuthState {
   refreshSession: () => Promise<void>;
   clearSessionExpiredReason: () => void;
   bootstrapAuthSession: () => Promise<void>;
+  startSwitchingAccount: () => void;
+  cancelSwitchingAccount: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -141,6 +151,7 @@ export const useAuthStore = create<AuthState>()(
       sessionRefreshError: null,
       sessionExpiredReason: null,
       authBootStatus: 'idle',
+      isSwitchingAccount: false,
 
       login: async (credentials) => {
         // Before the first await, not after it: submitting credentials for somebody is the
@@ -192,6 +203,13 @@ export const useAuthStore = create<AuthState>()(
           if (error.requires2FA) {
             throw error;
           }
+          if (isPortalIdentityRejectedError(error)) {
+            // A real identity, just not one this portal accepts. If this attempt came from the
+            // switchingAccount escape hatch, send it right back to the mismatch page instead of
+            // leaving the login form to show a confusing "invalid credentials"-style error.
+            set({ isLoading: false, sessionRefreshError: 'PORTAL_MISMATCH', isSwitchingAccount: false });
+            throw error;
+          }
           const errorMessage =
             error.response?.data?.message || error.message || "Login failed";
           set({ error: errorMessage, isLoading: false });
@@ -221,6 +239,10 @@ export const useAuthStore = create<AuthState>()(
           });
           setSentryUser(user);
         } catch (error: any) {
+          if (isPortalIdentityRejectedError(error)) {
+            set({ isLoading: false, sessionRefreshError: 'PORTAL_MISMATCH', isSwitchingAccount: false });
+            throw error;
+          }
           const errorMessage =
             error.response?.data?.message ||
             error.message ||
@@ -251,6 +273,17 @@ export const useAuthStore = create<AuthState>()(
           });
           setSentryUser(user);
         } catch (error: any) {
+          if (isPortalIdentityRejectedError(error)) {
+            set({
+              user: null,
+              accessToken: null,
+              isAuthenticated: false,
+              isLoading: false,
+              sessionRefreshError: 'PORTAL_MISMATCH',
+              isSwitchingAccount: false,
+            });
+            throw error;
+          }
           set({
             user: null,
             accessToken: null,
@@ -425,6 +458,12 @@ export const useAuthStore = create<AuthState>()(
           set({ sessionRefreshError: 'TEMPORARY', authBootStatus: 'retry' });
         }
       },
+
+      startSwitchingAccount: () => set({ isSwitchingAccount: true }),
+
+      // Only the escape attempt ends — sessionRefreshError stays 'PORTAL_MISMATCH' so the app
+      // shell falls back to the mismatch page rather than something ambiguous.
+      cancelSwitchingAccount: () => set({ isSwitchingAccount: false }),
     }),
     {
       name: "auth-storage",

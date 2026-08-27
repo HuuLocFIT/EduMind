@@ -326,6 +326,59 @@ describe('useAuthStore', () => {
       expect(localStorage.getItem('accessToken')).toBeNull();
       expect(localStorage.getItem('user')).toBeNull();
     });
+
+    it('sends a wrong-role login attempt back to portalMismatch, ending any switchingAccount escape', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockLogin.mockResolvedValue({ accessToken: 'admin-token', user: admin });
+      useAuthStore.getState().startSwitchingAccount();
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().login({ usernameOrEmail: 'admin', password: 'p' });
+        })
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(state.isSwitchingAccount).toBe(false);
+    });
+  });
+
+  describe('switchingAccount', () => {
+    it('starts with isSwitchingAccount false', () => {
+      expect(useAuthStore.getState().isSwitchingAccount).toBe(false);
+    });
+
+    it('startSwitchingAccount sets isSwitchingAccount to true', () => {
+      useAuthStore.getState().startSwitchingAccount();
+
+      expect(useAuthStore.getState().isSwitchingAccount).toBe(true);
+    });
+
+    it('cancelSwitchingAccount reverts isSwitchingAccount to false, leaving portalMismatch in place', () => {
+      useAuthStore.setState({ sessionRefreshError: 'PORTAL_MISMATCH' });
+      useAuthStore.getState().startSwitchingAccount();
+
+      useAuthStore.getState().cancelSwitchingAccount();
+
+      const state = useAuthStore.getState();
+      expect(state.isSwitchingAccount).toBe(false);
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+    });
+
+    it('a successful login clears isSwitchingAccount', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'test-token',
+        user: { id: 1, username: 'testuser', email: 'test@example.com' },
+      });
+      useAuthStore.getState().startSwitchingAccount();
+
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
+      });
+
+      expect(useAuthStore.getState().isSwitchingAccount).toBe(false);
+    });
   });
 
   describe('signup', () => {

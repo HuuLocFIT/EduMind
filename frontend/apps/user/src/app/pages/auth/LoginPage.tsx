@@ -35,6 +35,8 @@ export const LoginPage = () => {
     clearError,
     sessionExpiredReason,
     clearSessionExpiredReason,
+    isSwitchingAccount,
+    cancelSwitchingAccount,
   } = useAuthStore();
   const [needs2FA, setNeeds2FA] = useState(false);
   const [loginData, setLoginData] = useState<LoginRequest | null>(null);
@@ -259,6 +261,30 @@ export const LoginPage = () => {
               onClose={clearSessionExpiredReason}
               className="mb-6"
             />
+          )}
+
+          {/* Switching Accounts Banner — reached via the portal-mismatch "log in with a
+              different account" CTA. Cancel returns to the mismatch notice without touching
+              the shared cookie; it does not navigate, since AuthBootBoundary renders the
+              mismatch page for the current URL once isSwitchingAccount flips back to false. */}
+          {isSwitchingAccount && !needs2FA && (
+            <Alert
+              variant="info"
+              title="Switching accounts"
+              message="Sign in with a different account to continue."
+              className="mb-6"
+            />
+          )}
+          {isSwitchingAccount && !needs2FA && (
+            <div className="mb-6 text-right">
+              <button
+                type="button"
+                onClick={cancelSwitchingAccount}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
           )}
 
           {/* Error Alert */}
