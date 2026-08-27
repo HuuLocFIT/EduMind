@@ -6,6 +6,7 @@ import { PortalMismatchComponent } from './portal-mismatch.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserRole } from '@edumind/shared-constants';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
+import { environment } from '../../../../environments/environment';
 import type { User } from '@edumind/shared-types';
 
 describe('PortalMismatchComponent', () => {
@@ -72,6 +73,12 @@ describe('PortalMismatchComponent', () => {
       component.switchAccount();
 
       expect(mockRouter.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
+    });
+  });
+
+  describe('userPortalUrl', () => {
+    it('exposes the configured user portal URL, not a hardcoded domain', () => {
+      expect(component.userPortalUrl).toBe(environment.userPortalUrl);
     });
   });
 });

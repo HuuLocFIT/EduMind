@@ -6,3 +6,4 @@ export { ResetPasswordPage } from "./ResetPasswordPage";
 export { EmailVerificationPage } from "./EmailVerificationPage";
 export { TwoFactorSetupPage } from "./TwoFactorSetupPage";
 export { TwoFactorRecoveryPage } from "./TwoFactorRecoveryPage";
+export { PortalMismatchPage } from "./PortalMismatchPage";

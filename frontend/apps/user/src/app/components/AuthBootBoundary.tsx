@@ -1,7 +1,6 @@
 import { useEffect, type ReactNode } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { USER_ROUTES } from "@edumind/shared-utils";
 import { useAuthStore } from "../stores/auth.store";
+import { PortalMismatchPage } from "../pages/auth/PortalMismatchPage";
 
 /**
  * Fires the mandatory boot probe once per page load. Guarded by `typeof window` so it never
@@ -77,8 +76,6 @@ export function AuthBootBoundary({ children }: { children: ReactNode }) {
   const sessionRefreshError = useAuthStore((state) => state.sessionRefreshError);
   const isSwitchingAccount = useAuthStore((state) => state.isSwitchingAccount);
   const isRefreshingSession = useAuthStore((state) => state.isRefreshingSession);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   if (authBootStatus === "retry") {
     return (
@@ -104,23 +101,7 @@ export function AuthBootBoundary({ children }: { children: ReactNode }) {
   // below on the next render. Local portal state was already cleared when PORTAL_MISMATCH was
   // first set — the shared cookie is untouched either way.
   if (sessionRefreshError === "PORTAL_MISMATCH" && !isSwitchingAccount) {
-    return (
-      <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-gray-700">
-          This account isn't available on this portal.
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            useAuthStore.getState().startSwitchingAccount();
-            navigate(USER_ROUTES.LOGIN, { state: { from: location } });
-          }}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white"
-        >
-          Log in with a different account
-        </button>
-      </div>
-    );
+    return <PortalMismatchPage />;
   }
 
   return (

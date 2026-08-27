@@ -4,13 +4,16 @@ import { Router } from '@angular/router';
 import { ButtonComponent } from '@edumind/admin-ui';
 import { AuthService } from '../../../core/services/auth.service';
 import { ADMIN_ROUTES } from '@edumind/shared-utils';
+import { environment } from '../../../../environments/environment';
 
 /**
  * Rendered by the app shell in place of the router outlet when the boot
  * probe confirms a non-admin identity. Local portal state is already
  * cleared (see AuthService.rejectPortalIdentity) - the shared refresh
  * cookie is left untouched, so this is intentionally not a logout screen.
- * The "go to the other portal" CTA is P1-11, a separate task.
+ * No default logout CTA - the plan doc requires any logout button here to
+ * be explicitly scoped ("Log out of all devices"), which this page doesn't
+ * need since the escape hatch and cross-portal link cover the real cases.
  */
 @Component({
   selector: 'app-portal-mismatch',
@@ -45,9 +48,19 @@ import { ADMIN_ROUTES } from '@edumind/shared-utils';
             }
           </div>
 
-          <app-button variant="primary" [fullWidth]="true" (click)="switchAccount()">
-            Log in with a different account
-          </app-button>
+          <div class="flex w-full flex-col gap-3">
+            <app-button variant="primary" [fullWidth]="true" (click)="switchAccount()">
+              Log in with a different account
+            </app-button>
+            @if (userPortalUrl) {
+              <a
+                [href]="userPortalUrl"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 font-semibold text-brand-700 transition-all duration-200 hover:border-brand-300 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+              >
+                Go to the user portal
+              </a>
+            }
+          </div>
         </div>
       </div>
     </div>
@@ -58,6 +71,9 @@ export class PortalMismatchComponent {
   private router = inject(Router);
 
   rejectedIdentity = this.authService.rejectedIdentity;
+  // Never hardcoded - comes from environment.ts/environment.prod.ts
+  // (fix_multiple_account_on_browser_profile.md P1-11).
+  userPortalUrl = environment.userPortalUrl;
 
   /**
    * Opens the switch-account escape hatch (fix_multiple_account_on_browser_profile.md
