@@ -113,7 +113,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={className}>
+    <form onSubmit={handleSubmit} className={className} noValidate>
       {/* Rating Stars */}
       <div className="mb-4">
         <div className="block text-sm font-medium text-gray-700 mb-2">

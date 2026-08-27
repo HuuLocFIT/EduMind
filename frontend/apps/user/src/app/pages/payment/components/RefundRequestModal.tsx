@@ -238,7 +238,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
               </div>
 
               {/* Form */}
-              <form id="refund-request-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+              <form id="refund-request-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
                 {/* Bank Account Information - Only shown for SePay (manual refund) */}
                 {requiresBankInfo && (
                   <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-lg border border-blue-200/50">

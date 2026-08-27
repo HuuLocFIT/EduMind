@@ -332,6 +332,7 @@ export const LoginPage = () => {
               <form
                 onSubmit={handleSubmit2FA(on2FASubmit)}
                 className="space-y-6"
+                noValidate
               >
                 <div>
                   <label htmlFor="two-factor-code" className="block text-sm font-medium text-gray-700 mb-2 text-center">

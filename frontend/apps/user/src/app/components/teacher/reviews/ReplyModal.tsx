@@ -152,7 +152,7 @@ export const ReplyModal: React.FC<ReplyModalProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-5">
+          <form onSubmit={handleSubmit} className="p-5" noValidate>
             <div className="space-y-4">
               <div>
                 <label

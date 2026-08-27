@@ -251,6 +251,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
           <form
             onSubmit={handleSubmitDisable(onDisable2FA)}
             className="space-y-4"
+            noValidate
           >
             <div>
               <label htmlFor="disable-2fa-password" className="block text-sm font-medium text-gray-700 mb-2">

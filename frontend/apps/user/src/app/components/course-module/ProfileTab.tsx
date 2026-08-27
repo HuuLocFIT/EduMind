@@ -116,7 +116,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ user, updateUser }) => {
           Profile Information
         </h2>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
           <input
             ref={fileInputRef}
             type="file"

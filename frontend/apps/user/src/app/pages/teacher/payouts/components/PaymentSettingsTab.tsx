@@ -117,6 +117,7 @@ export const PaymentSettingsTab: React.FC = () => {
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="bg-white rounded-xl border border-gray-200 p-6 space-y-6"
+        noValidate
       >
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
