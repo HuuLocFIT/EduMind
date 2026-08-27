@@ -330,8 +330,9 @@ describe('authInterceptor', () => {
       httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
     });
 
-    it('should force logout if refresh fails', async () => {
+    it('should force logout only for a terminal refresh failure (ERR_2004 - dead/revoked session)', async () => {
       const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
 
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
@@ -340,14 +341,99 @@ describe('authInterceptor', () => {
       const firstReq = httpMock.expectOne('/api/protected');
       firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
 
-      // Refresh fails
+      // Refresh fails with the terminal error code
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
+
+      await promise;
+
+      expect(forceLogoutSpy).toHaveBeenCalled();
+      expect(markTemporarySpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure (not forceLogout) when refresh fails without the terminal error code', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockUser));
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      // Refresh itself fails with a plain 401 - no errorCode, so it doesn't prove the session is dead
       const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
       refreshReq.flush(null, { status: 401, statusText: 'Unauthorized' });
 
       await promise;
 
-      // Should force logout
-      expect(forceLogoutSpy).toHaveBeenCalled();
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      // Snapshot must survive a temporary failure
+      expect(localStorage.getItem('admin_auth_token')).not.toBeNull();
+      expect(localStorage.getItem('admin_user')).not.toBeNull();
+    });
+
+    it('marks a temporary reconcile failure when the refresh request errors at the network level', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.error(new ProgressEvent('Network error'));
+
+      await promise;
+
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure when refresh returns a 5xx', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush(null, { status: 503, statusText: 'Service Unavailable' });
+
+      await promise;
+
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure when refresh succeeds at the HTTP level but the response omits user (schema contract violation)', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush({ accessToken: createValidToken(), tokenType: 'Bearer' });
+
+      await promise;
+
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
     });
 
     it('should propagate refresh error if refresh fails', async () => {
@@ -491,9 +577,12 @@ describe('authInterceptor', () => {
       const req2 = httpMock.expectOne('/api/resource2');
       req2.flush(null, { status: 401, statusText: 'Unauthorized' });
 
-      // Refresh fails - first request should fail, second will be queued
+      // Refresh fails with the terminal error code - first request should fail, second will be queued
       const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
-      refreshReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+      refreshReq.flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
 
       // First request should fail immediately
       await expect(promise1).rejects.toThrow();

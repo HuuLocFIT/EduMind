@@ -4,8 +4,9 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
-import { AuthService, AdminPortalIdentityRejectedError } from './auth.service';
+import { AuthService, AdminPortalIdentityRejectedError, isTerminalRefreshFailure } from './auth.service';
 import { environment } from '../../../environments/environment';
 import { UserRole } from '@edumind/shared-constants';
 import { AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
@@ -658,6 +659,110 @@ describe('AuthService', () => {
       service.forceLogout();
 
       httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+  });
+
+  describe('isTerminalRefreshFailure', () => {
+    it('returns true for an HttpErrorResponse carrying errorCode ERR_2004', () => {
+      const error = new HttpErrorResponse({
+        error: { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        status: 403,
+        statusText: 'Forbidden',
+      });
+
+      expect(isTerminalRefreshFailure(error)).toBe(true);
+    });
+
+    it('returns false for an HttpErrorResponse with a different errorCode', () => {
+      const error = new HttpErrorResponse({
+        error: { message: 'Bad request', status: 400, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_1000' },
+        status: 400,
+        statusText: 'Bad Request',
+      });
+
+      expect(isTerminalRefreshFailure(error)).toBe(false);
+    });
+
+    it('returns false for an HttpErrorResponse with no parseable body (network error, malformed response)', () => {
+      const error = new HttpErrorResponse({
+        error: null,
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+
+      expect(isTerminalRefreshFailure(error)).toBe(false);
+    });
+
+    it('returns false for a non-HttpErrorResponse error (schema violation, AdminPortalIdentityRejectedError)', () => {
+      expect(isTerminalRefreshFailure(new Error('boom'))).toBe(false);
+      expect(isTerminalRefreshFailure(new AdminPortalIdentityRejectedError(mockNonAdminUser))).toBe(false);
+    });
+  });
+
+  describe('markTemporaryReconcileFailure Method', () => {
+    beforeEach(() => {
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+    });
+
+    it('marks the temporaryReconcileFailure state', () => {
+      expect(service.temporaryReconcileFailure()).toBe(false);
+
+      service.markTemporaryReconcileFailure();
+
+      expect(service.temporaryReconcileFailure()).toBe(true);
+    });
+
+    it('does not clear the stored snapshot', () => {
+      service.markTemporaryReconcileFailure();
+
+      expect(localStorage.getItem('admin_auth_token')).toEqual(createValidToken());
+      expect(localStorage.getItem('admin_user')).toEqual(JSON.stringify(mockAdminUser));
+    });
+
+    it('does not touch currentUserSubject', async () => {
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await refreshPromise;
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+
+      service.markTemporaryReconcileFailure();
+
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('does not navigate', () => {
+      service.markTemporaryReconcileFailure();
+
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('does not call the logout API endpoint', () => {
+      service.markTemporaryReconcileFailure();
+
+      httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+
+    it('clears once a subsequent refresh succeeds', async () => {
+      service.markTemporaryReconcileFailure();
+      expect(service.temporaryReconcileFailure()).toBe(true);
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await refreshPromise;
+
+      expect(service.temporaryReconcileFailure()).toBe(false);
+    });
+
+    it('clears once a subsequent login succeeds', async () => {
+      service.markTemporaryReconcileFailure();
+      expect(service.temporaryReconcileFailure()).toBe(true);
+
+      const loginPromise = service.login({ usernameOrEmail: 'admin', password: 'password123' }).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
+      await loginPromise;
+
+      expect(service.temporaryReconcileFailure()).toBe(false);
     });
   });
 

@@ -9,7 +9,11 @@ import { inject } from '@angular/core';
 import { map, catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { unwrapApiResponse } from '@edumind/shared-utils';
-import { AuthService, isAdminPortalIdentityRejectedError } from '../services/auth.service';
+import {
+  AuthService,
+  isAdminPortalIdentityRejectedError,
+  isTerminalRefreshFailure,
+} from '../services/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -95,13 +99,23 @@ function handleUnauthorizedError(
       );
     }),
     catchError((refreshErr) => {
-      // A confirmed wrong-portal identity is not a dead session - reject it
-      // locally instead of the blanket forceLogout(), which would revoke
-      // every device via /auth/logout semantics.
+      // Three-way classification, by type/errorCode - never by bare HTTP
+      // status, since a wrong-portal rejection and a dead session can both
+      // arrive as 403/401.
       if (isAdminPortalIdentityRejectedError(refreshErr)) {
+        // Confirmed wrong-portal identity - reject it locally instead of the
+        // blanket forceLogout(), which would revoke every device via
+        // /auth/logout semantics.
         authService.rejectPortalIdentity(refreshErr.rejectedUser);
-      } else {
+      } else if (isTerminalRefreshFailure(refreshErr)) {
+        // Refresh token itself is confirmed dead/revoked - only this branch
+        // may force a logout.
         authService.forceLogout();
+      } else {
+        // Network error, timeout, 5xx, malformed body, or a schema contract
+        // violation (e.g. missing user) - none of these prove the session is
+        // dead. Keep the stored snapshot and let the caller retry.
+        authService.markTemporaryReconcileFailure();
       }
 
       return throwError(() => refreshErr);

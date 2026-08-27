@@ -6,6 +6,7 @@ import { catchError, finalize, map, shareReplay, switchMap, tap } from 'rxjs/ope
 import * as Sentry from '@sentry/angular';
 import { environment } from '../../../environments/environment';
 import {
+  ApiErrorSchema,
   JwtResponseSchema,
   RefreshTokenResponseSchema,
   type LoginRequest,
@@ -37,6 +38,22 @@ export function isAdminPortalIdentityRejectedError(
   return error instanceof AdminPortalIdentityRejectedError;
 }
 
+/**
+ * A terminal refresh failure (missing/revoked/expired refresh token, backend
+ * errorCode ERR_2004) means the session is dead. Everything else - network
+ * error, timeout, 5xx, malformed body, schema contract violation - proves
+ * nothing about the session and must NOT be treated as a logout. Classifying
+ * by errorCode rather than HTTP status matters: a wrong-portal identity also
+ * arrives as 403, and a real 401 can be transient.
+ */
+export function isTerminalRefreshFailure(error: unknown): boolean {
+  if (!(error instanceof HttpErrorResponse)) {
+    return false;
+  }
+  const parsed = ApiErrorSchema.safeParse(error.error);
+  return parsed.success && parsed.data.errorCode === 'ERR_2004';
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -57,6 +74,10 @@ export class AuthService {
   portalMismatch = signal(false);
   // The identity that was rejected, for the mismatch UI to reference.
   rejectedIdentity = signal<User | null>(null);
+  // True after a refresh failure that does NOT prove the session is dead
+  // (network/timeout/5xx/malformed/missing user). The stored snapshot is kept
+  // but must not be rendered as authenticated while this is true.
+  temporaryReconcileFailure = signal(false);
 
   // Shared in-flight refresh pipeline - every caller (boot, focus, interceptor)
   // subscribes to this same observable and gets the same result, instead of
@@ -125,6 +146,7 @@ export class AuthService {
           localStorage.setItem(this.TOKEN_KEY, response.accessToken);
           localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
           this.currentUserSubject.next(response.user);
+          this.temporaryReconcileFailure.set(false);
         }),
         finalize(() => {
           this.refreshInProgress$ = null;
@@ -179,6 +201,15 @@ export class AuthService {
     this.rejectedIdentity.set(rejectedUser);
   }
 
+  /**
+   * A refresh failed in a way that does not prove the session is dead.
+   * Leaves storage and currentUserSubject untouched - only the caller's
+   * pending business request should reject, not the whole session.
+   */
+  markTemporaryReconcileFailure(): void {
+    this.temporaryReconcileFailure.set(true);
+  }
+
   private assertAdminPortalIdentity(user: User): void {
     const hasAdminRole = user.roles?.includes(UserRole.ADMIN);
     if (!hasAdminRole) {
@@ -194,6 +225,7 @@ export class AuthService {
     // NOTE: refreshToken is in HTTP-Only Cookie, not stored in localStorage
 
     this.currentUserSubject.next(user);
+    this.temporaryReconcileFailure.set(false);
 
     // Set Sentry user context — do NOT send email (PII)
     Sentry.setUser({
