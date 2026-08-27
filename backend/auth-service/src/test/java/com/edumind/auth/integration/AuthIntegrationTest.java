@@ -205,6 +205,63 @@ class AuthIntegrationTest extends BaseIntegrationTest {
     }
 
     @Nested
+    @DisplayName("Refresh Token Invariant Tests")
+    class RefreshTokenInvariantTests {
+
+        @Test
+        @DisplayName("POST /auth/refresh does not emit a new Set-Cookie")
+        void refresh_ShouldNotRotateCookie() throws Exception {
+            User user = createTestUser("refreshnocookie", "refreshnocookie@example.com");
+            user.setIsEmailVerified(true);
+            userRepository.save(user);
+
+            LoginRequest login = new LoginRequest("refreshnocookie", "Password123!");
+            MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(login)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            Cookie refreshCookie = loginResult.getResponse().getCookie("refreshToken");
+            assertNotNull(refreshCookie);
+
+            // Two user-portal and admin-portal frontends share this single refresh-token
+            // cookie. If /auth/refresh rotated it, reconciling one portal would silently
+            // invalidate the other portal's still-valid session.
+            mockMvc.perform(post("/auth/refresh").cookie(refreshCookie))
+                    .andExpect(status().isOk())
+                    .andExpect(header().doesNotExist("Set-Cookie"));
+        }
+
+        @Test
+        @DisplayName("POST /auth/refresh does not revoke the refresh token being used")
+        void refresh_ShouldNotRevokeTokenUsed() throws Exception {
+            User user = createTestUser("refreshnorevoke", "refreshnorevoke@example.com");
+            user.setIsEmailVerified(true);
+            userRepository.save(user);
+
+            LoginRequest login = new LoginRequest("refreshnorevoke", "Password123!");
+            MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(login)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            Cookie refreshCookie = loginResult.getResponse().getCookie("refreshToken");
+            assertNotNull(refreshCookie);
+
+            mockMvc.perform(post("/auth/refresh").cookie(refreshCookie))
+                    .andExpect(status().isOk());
+
+            // Same cookie must still work on a subsequent reconcile - proves the first
+            // refresh call did not revoke the token it consumed.
+            mockMvc.perform(post("/auth/refresh").cookie(refreshCookie))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.user.username").value("refreshnorevoke"));
+        }
+    }
+
+    @Nested
     @DisplayName("Password Reset Session Revocation Tests")
     class PasswordResetSessionRevocationTests {
 
