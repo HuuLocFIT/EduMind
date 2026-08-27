@@ -79,6 +79,13 @@ export class AuthService {
   // but must not be rendered as authenticated while this is true.
   temporaryReconcileFailure = signal(false);
 
+  // Boot-time reconcile status, read by the app shell to decide what to
+  // render before any admin UI backed by the stored snapshot is shown.
+  // 'idle' -> 'checking' -> 'ready' (success, mismatch, or terminal failure -
+  // all are settled outcomes) or 'retry' (unconfirmed failure, stored
+  // snapshot kept but must not be rendered as authenticated).
+  authBootStatus = signal<'idle' | 'checking' | 'ready' | 'retry'>('idle');
+
   // Shared in-flight refresh pipeline - every caller (boot, focus, interceptor)
   // subscribes to this same observable and gets the same result, instead of
   // racing separate refresh calls.
@@ -208,6 +215,40 @@ export class AuthService {
    */
   markTemporaryReconcileFailure(): void {
     this.temporaryReconcileFailure.set(true);
+  }
+
+  /**
+   * Mandatory boot-time probe. Always calls /auth/refresh regardless of any
+   * local snapshot - a stale 'admin_user' from a previous, different
+   * identity is only a hint and must never be rendered as authenticated
+   * before the server confirms it (fix_multiple_account_on_browser_profile.md
+   * P1-9). Idempotent while a probe is already in flight.
+   */
+  bootstrapAuthSession(): void {
+    if (this.authBootStatus() === 'checking') return;
+    this.authBootStatus.set('checking');
+
+    this.refreshToken().subscribe({
+      next: () => this.authBootStatus.set('ready'),
+      error: (error: unknown) => {
+        if (isAdminPortalIdentityRejectedError(error)) {
+          this.rejectPortalIdentity(error.rejectedUser);
+          this.authBootStatus.set('ready');
+        } else if (isTerminalRefreshFailure(error)) {
+          // No cookie, or a revoked/expired one - a plain logged-out guest.
+          // Clear directly rather than forceLogout(): the app shell hasn't
+          // rendered anything yet, so there is nothing to navigate away from.
+          this.clearAuthData();
+          this.currentUserSubject.next(null);
+          this.authBootStatus.set('ready');
+        } else {
+          // Network error, timeout, 5xx, malformed body, or missing user -
+          // none of these prove the session is dead. Keep the snapshot.
+          this.markTemporaryReconcileFailure();
+          this.authBootStatus.set('retry');
+        }
+      },
+    });
   }
 
   private assertAdminPortalIdentity(user: User): void {

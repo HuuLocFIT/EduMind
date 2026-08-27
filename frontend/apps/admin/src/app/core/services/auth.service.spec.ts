@@ -1297,5 +1297,98 @@ describe('AuthService', () => {
       // Empty string JSON.parse will throw, so user should be null from service initialization
     });
   });
+
+  describe('bootstrapAuthSession Method', () => {
+    it('starts in idle status', () => {
+      expect(service.authBootStatus()).toBe('idle');
+    });
+
+    it('transitions to checking, then ready, on a successful boot probe', async () => {
+      service.bootstrapAuthSession();
+      expect(service.authBootStatus()).toBe('checking');
+
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(mockRefreshResponse);
+      // let the observable's next/subscribe microtask flush
+      await Promise.resolve();
+
+      expect(service.authBootStatus()).toBe('ready');
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('always probes /auth/refresh on boot, even with no local snapshot', () => {
+      localStorage.clear();
+
+      service.bootstrapAuthSession();
+
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      expect(req.request.method).toBe('POST');
+      req.flush(mockRefreshResponse);
+    });
+
+    it('rejects a non-admin identity into portalMismatch, without navigating', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      const nonAdminRefreshResponse: RefreshTokenResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      };
+
+      service.bootstrapAuthSession();
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(nonAdminRefreshResponse);
+      await Promise.resolve();
+
+      expect(service.portalMismatch()).toBe(true);
+      expect(service.rejectedIdentity()).toEqual(nonAdminUser);
+      expect(service.authBootStatus()).toBe('ready');
+      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('clears the local snapshot without navigating on a terminal refresh failure (no cookie / revoked)', async () => {
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+
+      service.bootstrapAuthSession();
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
+      await Promise.resolve();
+
+      expect(service.authBootStatus()).toBe('ready');
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.getCurrentUser()).toBeNull();
+      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('marks temporaryReconcileFailure and stays in retry on a network error, keeping the stored snapshot', async () => {
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+
+      service.bootstrapAuthSession();
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.error(new ProgressEvent('Network error'));
+      await Promise.resolve();
+
+      expect(service.authBootStatus()).toBe('retry');
+      expect(service.temporaryReconcileFailure()).toBe(true);
+      expect(localStorage.getItem('admin_auth_token')).toEqual(createValidToken());
+      expect(localStorage.getItem('admin_user')).toEqual(JSON.stringify(mockAdminUser));
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('ignores a second call while a boot probe is already in flight', () => {
+      service.bootstrapAuthSession();
+      service.bootstrapAuthSession();
+
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+    });
+  });
 });
 
