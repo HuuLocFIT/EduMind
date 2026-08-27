@@ -440,7 +440,7 @@ export const TwoFactorSetupPage = () => {
                   the setup:
                 </p>
 
-                <form onSubmit={handleSubmit(onVerify)} className="space-y-6">
+                <form onSubmit={handleSubmit(onVerify)} className="space-y-6" noValidate>
                   <div>
                     <label htmlFor="verify-2fa-code" className="block text-sm font-medium text-gray-700 mb-2">
                       Verification Code

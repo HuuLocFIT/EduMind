@@ -58,7 +58,7 @@ export const PasswordTab: React.FC = () => {
     <Card className="p-6">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Change Password</h2>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-md">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-md" noValidate>
         <div>
           <PasswordInput
             label="Current Password"
