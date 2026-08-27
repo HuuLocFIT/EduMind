@@ -1390,5 +1390,164 @@ describe('AuthService', () => {
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
     });
   });
+
+  describe('Switching Account', () => {
+    it('starts with isSwitchingAccount false', () => {
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+
+    it('startSwitchingAccount sets isSwitchingAccount true', () => {
+      service.startSwitchingAccount('/courses');
+
+      expect(service.isSwitchingAccount()).toBe(true);
+    });
+
+    it('consumeReturnUrl returns the stored url and clears it (one-time use)', () => {
+      service.startSwitchingAccount('/courses/42');
+
+      expect(service.consumeReturnUrl()).toBe('/courses/42');
+      expect(service.consumeReturnUrl()).toBe(ADMIN_ROUTES.DASHBOARD);
+    });
+
+    it('consumeReturnUrl returns the dashboard route when no return url was stored', () => {
+      expect(service.consumeReturnUrl()).toBe(ADMIN_ROUTES.DASHBOARD);
+    });
+
+    it('cancelSwitchingAccount sets isSwitchingAccount back to false', () => {
+      service.startSwitchingAccount('/courses');
+
+      service.cancelSwitchingAccount();
+
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+  });
+
+  describe('Mismatch state clears on a confirmed matching identity', () => {
+    it('a successful login resets portalMismatch, rejectedIdentity and isSwitchingAccount', async () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+      service.startSwitchingAccount('/courses');
+      expect(service.portalMismatch()).toBe(true);
+      expect(service.isSwitchingAccount()).toBe(true);
+
+      const loginPromise = service
+        .login({ usernameOrEmail: 'admin', password: 'password123' })
+        .toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
+      await loginPromise;
+
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.rejectedIdentity()).toBeNull();
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+
+    it('a successful refresh resets portalMismatch, rejectedIdentity and isSwitchingAccount', async () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+      service.startSwitchingAccount('/courses');
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await refreshPromise;
+
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.rejectedIdentity()).toBeNull();
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+  });
+
+  describe('Login rejection while switching account falls back to mismatch', () => {
+    it('a wrong-role login attempt made mid-switch closes the escape and keeps portalMismatch', async () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+      service.startSwitchingAccount('/courses');
+
+      const anotherNonAdminUser: User = { ...mockNonAdminUser, id: 3, username: 'other-student' };
+      const nonAdminResponse: JwtResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: anotherNonAdminUser,
+      };
+
+      const loginPromise = service
+        .login({ usernameOrEmail: 'other-student', password: 'password123' })
+        .toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(nonAdminResponse);
+      await expect(loginPromise).rejects.toThrow();
+
+      expect(service.isSwitchingAccount()).toBe(false);
+      expect(service.portalMismatch()).toBe(true);
+      expect(service.rejectedIdentity()).toEqual(anotherNonAdminUser);
+    });
+
+    it('a plain wrong-role login attempt (not mid-switch) does not open the mismatch state', async () => {
+      const loginPromise = service
+        .login({ usernameOrEmail: 'student', password: 'password123' })
+        .toPromise();
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`)
+        .flush({ accessToken: createValidToken(), tokenType: 'Bearer', user: mockNonAdminUser });
+      await expect(loginPromise).rejects.toThrow();
+
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+  });
+
+  describe('reconcileForeground Method', () => {
+    it('sets isRefreshingSession true while the probe is in flight, then false on success', async () => {
+      expect(service.isRefreshingSession()).toBe(false);
+
+      service.reconcileForeground();
+      expect(service.isRefreshingSession()).toBe(true);
+
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('rejects a non-admin identity into portalMismatch, without navigating', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      service.reconcileForeground();
+
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush({ accessToken: createValidToken(), tokenType: 'Bearer', user: nonAdminUser });
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(service.portalMismatch()).toBe(true);
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('force-logs-out on a terminal refresh failure (confirmed dead session)', async () => {
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(router.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
+    });
+
+    it('marks temporaryReconcileFailure on a network error, keeping the stored snapshot', async () => {
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).error(new ProgressEvent('Network error'));
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(service.temporaryReconcileFailure()).toBe(true);
+      expect(localStorage.getItem('admin_auth_token')).toEqual(createValidToken());
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
 });
 

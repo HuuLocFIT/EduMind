@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { App } from './app';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { App, __resetForegroundReconcileThrottleForTests } from './app';
 import { AuthService } from './core/services/auth.service';
 
 /**
@@ -12,19 +12,34 @@ import { AuthService } from './core/services/auth.service';
  * inject()) instead of TestBed.createComponent — we assert on the class's
  * public state and behavior, not on rendered DOM.
  */
+function setVisibility(state: 'visible' | 'hidden') {
+  Object.defineProperty(document, 'visibilityState', {
+    value: state,
+    configurable: true,
+  });
+}
+
 describe('App', () => {
   let component: App;
   let mockAuthService: {
     authBootStatus: ReturnType<typeof signal<'idle' | 'checking' | 'ready' | 'retry'>>;
     portalMismatch: ReturnType<typeof signal<boolean>>;
+    isSwitchingAccount: ReturnType<typeof signal<boolean>>;
+    isRefreshingSession: ReturnType<typeof signal<boolean>>;
     bootstrapAuthSession: ReturnType<typeof vi.fn>;
+    reconcileForeground: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
+    __resetForegroundReconcileThrottleForTests();
+
     mockAuthService = {
       authBootStatus: signal('idle'),
       portalMismatch: signal(false),
+      isSwitchingAccount: signal(false),
+      isRefreshingSession: signal(false),
       bootstrapAuthSession: vi.fn(),
+      reconcileForeground: vi.fn(),
     };
 
     TestBed.configureTestingModule({
@@ -32,6 +47,10 @@ describe('App', () => {
     });
 
     component = TestBed.runInInjectionContext(() => new App());
+  });
+
+  afterEach(() => {
+    component.ngOnDestroy();
   });
 
   it('fires the mandatory boot probe on init', () => {
@@ -82,9 +101,110 @@ describe('App', () => {
     expect(component.viewState()).toBe('loading');
   });
 
+  it('resolves to the content view when portalMismatch is true but a switch-account escape is in progress', () => {
+    mockAuthService.authBootStatus.set('ready');
+    mockAuthService.portalMismatch.set(true);
+    mockAuthService.isSwitchingAccount.set(true);
+
+    expect(component.viewState()).toBe('content');
+  });
+
   it('retryBoot() re-triggers the boot probe', () => {
     component.retryBoot();
 
     expect(mockAuthService.bootstrapAuthSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes isRefreshingSession from AuthService', () => {
+    mockAuthService.isRefreshingSession.set(true);
+
+    expect(component.isRefreshingSession()).toBe(true);
+  });
+
+  describe('foreground reconcile', () => {
+    it('triggers a reconcile on tab focus once the boot probe has settled', () => {
+      mockAuthService.authBootStatus.set('ready');
+      component.ngOnInit();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not trigger while the boot probe has not settled yet', () => {
+      mockAuthService.authBootStatus.set('checking');
+      component.ngOnInit();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger while portalMismatch is active and not being escaped', () => {
+      mockAuthService.authBootStatus.set('ready');
+      mockAuthService.portalMismatch.set(true);
+      component.ngOnInit();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger while a switch-account escape is in progress', () => {
+      mockAuthService.authBootStatus.set('ready');
+      mockAuthService.isSwitchingAccount.set(true);
+      component.ngOnInit();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger while a reconcile is already in flight', () => {
+      mockAuthService.authBootStatus.set('ready');
+      mockAuthService.isRefreshingSession.set(true);
+      component.ngOnInit();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger when the tab becomes hidden', () => {
+      mockAuthService.authBootStatus.set('ready');
+      component.ngOnInit();
+      setVisibility('hidden');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).not.toHaveBeenCalled();
+    });
+
+    it('throttles consecutive reconciles', () => {
+      mockAuthService.authBootStatus.set('ready');
+      component.ngOnInit();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops listening after ngOnDestroy', () => {
+      mockAuthService.authBootStatus.set('ready');
+      component.ngOnInit();
+      component.ngOnDestroy();
+      setVisibility('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(mockAuthService.reconcileForeground).not.toHaveBeenCalled();
+    });
   });
 });

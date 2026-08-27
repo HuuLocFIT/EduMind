@@ -1,24 +1,39 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { Router } from '@angular/router';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PortalMismatchComponent } from './portal-mismatch.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserRole } from '@edumind/shared-constants';
+import { ADMIN_ROUTES } from '@edumind/shared-utils';
 import type { User } from '@edumind/shared-types';
 
 describe('PortalMismatchComponent', () => {
   let component: PortalMismatchComponent;
   let mockAuthService: {
     rejectedIdentity: ReturnType<typeof signal<User | null>>;
+    startSwitchingAccount: ReturnType<typeof vi.fn>;
+  };
+  let mockRouter: {
+    url: string;
+    navigate: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     mockAuthService = {
       rejectedIdentity: signal(null),
+      startSwitchingAccount: vi.fn(),
+    };
+    mockRouter = {
+      url: '/courses/42',
+      navigate: vi.fn(),
     };
 
     TestBed.configureTestingModule({
-      providers: [{ provide: AuthService, useValue: mockAuthService }],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: Router, useValue: mockRouter },
+      ],
     });
 
     component = TestBed.runInInjectionContext(() => new PortalMismatchComponent());
@@ -44,5 +59,19 @@ describe('PortalMismatchComponent', () => {
 
   it('returns null when nothing has been rejected yet', () => {
     expect(component.rejectedIdentity()).toBeNull();
+  });
+
+  describe('switchAccount', () => {
+    it('starts the switch-account escape with the current deep-link as the return url', () => {
+      component.switchAccount();
+
+      expect(mockAuthService.startSwitchingAccount).toHaveBeenCalledWith('/courses/42');
+    });
+
+    it('navigates to the login route', () => {
+      component.switchAccount();
+
+      expect(mockRouter.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
+    });
   });
 });

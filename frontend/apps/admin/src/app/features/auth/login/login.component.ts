@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { ADMIN_ROUTES } from '@edumind/shared-utils';
 import {
   ButtonComponent,
   InputComponent,
@@ -59,7 +58,10 @@ export class LoginComponent implements OnInit {
     this.authService.clearError();
     this.authService.login(this.loginForm.value).subscribe({
       next: () => {
-        this.router.navigate([ADMIN_ROUTES.DASHBOARD]);
+        // consumeReturnUrl() defaults to the dashboard route, and returns the
+        // deep-link the user was on if this login came through the
+        // switch-account escape hatch (fix_multiple_account_on_browser_profile.md P1-10).
+        this.router.navigate([this.authService.consumeReturnUrl()]);
       },
       error: (error) => {
         console.error('Login error:', error);

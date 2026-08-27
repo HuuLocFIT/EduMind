@@ -86,6 +86,23 @@ export class AuthService {
   // snapshot kept but must not be rendered as authenticated).
   authBootStatus = signal<'idle' | 'checking' | 'ready' | 'retry'>('idle');
 
+  // True while the escape hatch out of a portalMismatch dead end is active:
+  // local state is cleared, the shared cookie is left untouched, and the
+  // login route is allowed to render even though portalMismatch is still
+  // true. Closed by any completed transition (successful login/refresh, or
+  // another wrong-role login attempt falling back to the mismatch page).
+  isSwitchingAccount = signal(false);
+  // The deep-link the user was on when the escape hatch was opened, so a
+  // successful switch-account login can return them to it. One-time use -
+  // see consumeReturnUrl().
+  private pendingReturnUrl: string | null = null;
+
+  // True while a foreground (visibility-triggered) reconcile probe is in
+  // flight. The app shell blocks auth-sensitive interaction while this is
+  // true, without unmounting the current layout - see
+  // fix_multiple_account_on_browser_profile.md P1-10, invariant #7.
+  isRefreshingSession = signal(false);
+
   // Shared in-flight refresh pipeline - every caller (boot, focus, interceptor)
   // subscribes to this same observable and gets the same result, instead of
   // racing separate refresh calls.
@@ -154,6 +171,12 @@ export class AuthService {
           localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
           this.currentUserSubject.next(response.user);
           this.temporaryReconcileFailure.set(false);
+          // A confirmed matching identity closes out any earlier mismatch -
+          // whether this refresh was a normal reconcile or the tail end of a
+          // successful switch-account escape.
+          this.portalMismatch.set(false);
+          this.rejectedIdentity.set(null);
+          this.isSwitchingAccount.set(false);
         }),
         finalize(() => {
           this.refreshInProgress$ = null;
@@ -218,6 +241,67 @@ export class AuthService {
   }
 
   /**
+   * Opens the escape hatch out of a portalMismatch dead end: local state is
+   * cleared already (by rejectPortalIdentity), the shared cookie stays
+   * untouched, and the login route becomes renderable again. `returnUrl` is
+   * the deep-link the mismatch happened on, consumed once login succeeds.
+   */
+  startSwitchingAccount(returnUrl: string): void {
+    this.isSwitchingAccount.set(true);
+    this.pendingReturnUrl = returnUrl;
+  }
+
+  /**
+   * Only the escape attempt ends - callers that want the mismatch page
+   * itself dismissed should rely on a confirmed matching identity instead
+   * (see the refreshToken/handleAuthSuccess resets).
+   */
+  cancelSwitchingAccount(): void {
+    this.isSwitchingAccount.set(false);
+  }
+
+  /**
+   * One-time read of the return url stored by startSwitchingAccount, falling
+   * back to the dashboard when none was stored (e.g. a direct login, not a
+   * switch-account escape).
+   */
+  consumeReturnUrl(): string {
+    const url = this.pendingReturnUrl ?? ADMIN_ROUTES.DASHBOARD;
+    this.pendingReturnUrl = null;
+    return url;
+  }
+
+  /**
+   * Foreground (visibility-triggered) reconcile - a cookie set by another
+   * tab or portal can change the confirmed identity at any time, so this
+   * re-probes /auth/refresh on tab focus. Uses the same three-way
+   * classification as bootstrapAuthSession, via the same shared refresh
+   * pipeline (dedupes with a concurrent boot probe or interceptor retry).
+   */
+  reconcileForeground(): void {
+    this.isRefreshingSession.set(true);
+
+    this.refreshToken()
+      .pipe(finalize(() => this.isRefreshingSession.set(false)))
+      .subscribe({
+        next: () => {
+          // Persistence and mismatch-state reset already happened in
+          // refreshToken()'s own tap.
+        },
+        error: (error: unknown) => {
+          if (isAdminPortalIdentityRejectedError(error)) {
+            this.rejectPortalIdentity(error.rejectedUser);
+          } else if (isTerminalRefreshFailure(error)) {
+            // Confirmed dead session - only this branch may force a logout.
+            this.forceLogout();
+          } else {
+            this.markTemporaryReconcileFailure();
+          }
+        },
+      });
+  }
+
+  /**
    * Mandatory boot-time probe. Always calls /auth/refresh regardless of any
    * local snapshot - a stale 'admin_user' from a previous, different
    * identity is only a hint and must never be rendered as authenticated
@@ -267,6 +351,12 @@ export class AuthService {
 
     this.currentUserSubject.next(user);
     this.temporaryReconcileFailure.set(false);
+    // A confirmed matching identity closes out any earlier mismatch -
+    // whether this is a first login or the tail end of a switch-account
+    // escape.
+    this.portalMismatch.set(false);
+    this.rejectedIdentity.set(null);
+    this.isSwitchingAccount.set(false);
 
     // Set Sentry user context — do NOT send email (PII)
     Sentry.setUser({
@@ -288,6 +378,13 @@ export class AuthService {
     if (isAdminPortalIdentityRejectedError(error)) {
       const errorMessage = 'Access denied. Admin privileges required.';
       this.error.set(errorMessage);
+      // A plain first-time login attempt with the wrong role is just an
+      // inline form error - portalMismatch stays whatever it already was.
+      // But a login attempt made mid switch-account escape must close the
+      // escape and fall back to the (still active) mismatch page with the
+      // newly attempted identity.
+      this.rejectedIdentity.set(error.rejectedUser);
+      this.isSwitchingAccount.set(false);
       return throwError(() => new Error(errorMessage));
     }
 
