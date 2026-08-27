@@ -198,10 +198,8 @@ export const useAuthStore = create<AuthState>()(
           const jwtResponse = response as JwtResponse;
           validateUserPortalIdentity(jwtResponse.user);
 
-          // Save tokens (only after validation — an admin identity must never be persisted)
-          localStorage.setItem("accessToken", jwtResponse.accessToken);
-          localStorage.setItem("user", JSON.stringify(jwtResponse.user));
-
+          // set() below is the only persistence: the store's persist middleware writes the
+          // whole snapshot into 'auth-storage' — no separate raw-key write to keep in sync.
           set({
             user: jwtResponse.user,
             accessToken: jwtResponse.accessToken,
@@ -239,9 +237,6 @@ export const useAuthStore = create<AuthState>()(
           const user = await fetchCurrentUserWith(response.accessToken);
           validateUserPortalIdentity(user);
 
-          localStorage.setItem("accessToken", response.accessToken);
-          localStorage.setItem("user", JSON.stringify(user));
-
           set({
             user: user,
             accessToken: response.accessToken,
@@ -272,9 +267,6 @@ export const useAuthStore = create<AuthState>()(
           // Candidate token passed directly — never written to localStorage before validation.
           const user = await fetchCurrentUserWith(token);
           validateUserPortalIdentity(user);
-
-          localStorage.setItem("accessToken", token);
-          localStorage.setItem("user", JSON.stringify(user));
 
           set({
             user,
@@ -339,8 +331,7 @@ export const useAuthStore = create<AuthState>()(
           console.error("Logout error:", error);
         } finally {
           // Clear all auth data
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("user");
+          clearStoredAuth();
           // Clear React Query cache to avoid showing stale user data after logout
           queryClient.clear();
           // Again after the request: authService.logout() goes through apiClient, so a 401
@@ -365,8 +356,7 @@ export const useAuthStore = create<AuthState>()(
 
       // Clear auth state without calling API (useful for account deletion)
       clearAuthState: () => {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("user");
+        clearStoredAuth();
         queryClient.clear();
         resetAuthSessionIdentity();
         setSentryUser(null);

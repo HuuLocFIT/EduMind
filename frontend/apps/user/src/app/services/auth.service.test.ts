@@ -5,16 +5,22 @@ const { mockRefreshAuthSession } = vi.hoisted(() => ({
   mockRefreshAuthSession: vi.fn(),
 }));
 
-// Mock apiClient + the refresh pipeline (refreshToken delegates to refreshAuthSession)
-vi.mock('./api-client.service.js', () => ({
-  apiClient: {
-    post: vi.fn(),
-    get: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
-  refreshAuthSession: mockRefreshAuthSession,
-}));
+// Mock apiClient + the refresh pipeline (refreshToken delegates to refreshAuthSession).
+// clearStoredAuth is kept real (via importOriginal) — it's a plain localStorage cleanup,
+// and auth.service's Helper-method tests assert against actual storage state.
+vi.mock('./api-client.service.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./api-client.service.js')>();
+  return {
+    ...actual,
+    apiClient: {
+      post: vi.fn(),
+      get: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    },
+    refreshAuthSession: mockRefreshAuthSession,
+  };
+});
 
 // Mock shared-utils
 vi.mock('@edumind/shared-utils', () => ({
@@ -268,41 +274,48 @@ describe('authService', () => {
   });
 
   describe('Helper methods', () => {
-    it('getCurrentUser should return user from localStorage', () => {
+    function setAuthStorage(user: unknown, accessToken: string | null) {
+      localStorage.setItem(
+        'auth-storage',
+        JSON.stringify({ state: { user, accessToken, isAuthenticated: !!accessToken }, version: 0 })
+      );
+    }
+
+    it('getCurrentUser should return the user from the auth-storage snapshot', () => {
       const user = { id: 1, username: 'testuser' };
-      localStorage.setItem('user', JSON.stringify(user));
+      setAuthStorage(user, 'test-token');
 
       expect(authService.getCurrentUser()).toEqual(user);
     });
 
-    it('getCurrentUser should return null if no user', () => {
+    it('getCurrentUser should return null if no snapshot exists', () => {
       expect(authService.getCurrentUser()).toBeNull();
     });
 
-    it('getAccessToken should return token from localStorage', () => {
-      localStorage.setItem('accessToken', 'test-token');
+    it('getAccessToken should return the token from the auth-storage snapshot', () => {
+      setAuthStorage({ id: 1 }, 'test-token');
 
       expect(authService.getAccessToken()).toBe('test-token');
     });
 
-    it('getAccessToken should return null if no token', () => {
+    it('getAccessToken should return null if no snapshot exists', () => {
       expect(authService.getAccessToken()).toBeNull();
     });
 
-    it('isAuthenticated should return true when token exists', () => {
-      localStorage.setItem('accessToken', 'test-token');
+    it('isAuthenticated should return true when a token exists in the snapshot', () => {
+      setAuthStorage({ id: 1 }, 'test-token');
 
       expect(authService.isAuthenticated()).toBe(true);
     });
 
-    it('isAuthenticated should return false when no token', () => {
+    it('isAuthenticated should return false when no snapshot exists', () => {
       expect(authService.isAuthenticated()).toBe(false);
     });
 
-    it('clearAuth should remove all auth items from localStorage', () => {
+    it('clearAuth should remove the auth-storage snapshot (and any legacy raw keys)', () => {
       localStorage.setItem('accessToken', 'test-token');
       localStorage.setItem('user', JSON.stringify({ id: 1 }));
-      localStorage.setItem('auth-storage', 'data');
+      setAuthStorage({ id: 1 }, 'test-token');
 
       authService.clearAuth();
 
@@ -353,7 +366,7 @@ describe('authService', () => {
       expect(result).toEqual(mockUser);
     });
 
-    it('updateProfile should call update endpoint and update localStorage', async () => {
+    it('updateProfile should call the update endpoint and return the updated user', async () => {
       const updateData = { firstName: 'Updated', lastName: 'User' };
       const mockUpdatedUser = { id: 1, username: 'testuser', firstName: 'Updated', lastName: 'User' };
       vi.mocked(apiClient.put).mockResolvedValue({ data: mockUpdatedUser });
@@ -362,7 +375,6 @@ describe('authService', () => {
 
       expect(apiClient.put).toHaveBeenCalledWith('/users/profile', updateData);
       expect(result).toEqual(mockUpdatedUser);
-      expect(JSON.parse(localStorage.getItem('user') || '{}')).toEqual(mockUpdatedUser);
     });
 
     it('changePassword should call change password endpoint', async () => {

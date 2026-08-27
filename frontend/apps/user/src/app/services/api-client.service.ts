@@ -17,6 +17,7 @@ import {
   USER_ENDPOINTS,
   API_URL,
 } from '@edumind/shared-utils';
+import { getStoredAccessToken } from './auth-storage.util';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -98,7 +99,11 @@ export function invalidateAuthSession(): void {
   refreshTokenPromise = null;
 }
 
-/** Clears every piece of persisted auth state (access token, user snapshot, Zustand persist key). */
+/**
+ * Clears the persisted auth snapshot ('auth-storage', the single source of truth). Also
+ * removes the legacy 'accessToken'/'user' keys nothing writes anymore, so a browser that
+ * still has them from before this snapshot became the only source doesn't keep them around.
+ */
 export function clearStoredAuth(): void {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
@@ -162,9 +167,10 @@ export async function refreshAuthSession(): Promise<RefreshTokenResponse> {
 
       validateUserPortalIdentity(user);
 
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('user', JSON.stringify(user)); // legacy key, still read by auth.service.ts
-      // dispatchEvent is synchronous — the store is updated before this promise resolves
+      // No direct localStorage write here — the 'auth:user-refreshed' listener in
+      // auth.store.ts calls setState(), and the store's persist middleware writes the
+      // single 'auth-storage' snapshot from that. dispatchEvent is synchronous, so the
+      // store (and its persisted snapshot) is updated before this promise resolves.
       window.dispatchEvent(
         new CustomEvent('auth:user-refreshed', { detail: { user, accessToken: data.accessToken } })
       );
@@ -200,7 +206,7 @@ apiClient.interceptors.request.use(
       endpoint.includes('/auth/oauth2');
     
     if (!isAuthEndpoint) {
-      const token = localStorage.getItem('accessToken');
+      const token = getStoredAccessToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

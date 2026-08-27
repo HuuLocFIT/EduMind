@@ -108,7 +108,6 @@ export const TwoFactorSetupPage = () => {
       // Refresh user data before navigating
       const updatedUser = await authService.fetchCurrentUser();
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
 
       // Navigate to settings
       navigate(USER_ROUTES.PROFILE_SETTINGS, {

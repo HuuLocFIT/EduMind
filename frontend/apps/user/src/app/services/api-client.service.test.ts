@@ -177,8 +177,11 @@ describe('refreshAuthSession', () => {
 
     expect(result.accessToken).toBe('new-token');
     expect(result.user).toEqual(validUser);
-    expect(localStorage.getItem('accessToken')).toBe('new-token');
-    expect(JSON.parse(localStorage.getItem('user')!)).toEqual(validUser);
+    // No direct localStorage write here — persistence happens in auth.store.ts's
+    // 'auth:user-refreshed' listener (asserted via the dispatched event below), which is the
+    // single writer of the 'auth-storage' snapshot. This module-level test has no store
+    // listener attached, so storage staying empty is the expected, isolated behavior.
+    expect(localStorage.getItem('auth-storage')).toBeNull();
     expect(mockAxiosGet).not.toHaveBeenCalled();
 
     const dispatched = dispatchSpy.mock.calls
@@ -324,7 +327,6 @@ describe('refreshAuthSession — session changed while in flight', () => {
 
     expect(mockAxiosPost).toHaveBeenCalledTimes(2);
     expect(result.accessToken).toBe('new-session-token');
-    expect(localStorage.getItem('accessToken')).toBe('new-session-token');
   });
 });
 

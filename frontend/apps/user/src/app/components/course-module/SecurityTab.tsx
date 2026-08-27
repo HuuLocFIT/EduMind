@@ -64,7 +64,6 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({ user }) => {
       // Refresh user data
       const updatedUser = await authService.fetchCurrentUser();
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
 
       success("2FA disabled successfully!", "Success");
       setShowDisableModal(false);

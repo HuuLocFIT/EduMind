@@ -34,7 +34,14 @@ const {
   mockIsTerminalRefreshFailure: vi.fn(),
   mockIsStaleAuthSessionError: vi.fn(),
   mockInvalidateAuthSession: vi.fn(),
-  mockClearStoredAuth: vi.fn(),
+  // Real cleanup, not a no-op: tests assert both that this was called (coordination) and
+  // that storage is actually empty afterward (behavior) — a bare vi.fn() would satisfy the
+  // former while silently breaking the latter.
+  mockClearStoredAuth: vi.fn(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+  }),
   mockFetchCurrentUserWith: vi.fn(),
   mockClearCart: vi.fn(),
 }));
@@ -135,7 +142,24 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBe('test-token');
       expect(state.user).toEqual(mockResponse.user);
       expect(state.isLoading).toBe(false);
-      expect(localStorage.getItem('accessToken')).toBe('test-token');
+    });
+
+    it('persists only through the auth-storage snapshot, never the legacy raw keys', async () => {
+      const mockResponse = {
+        accessToken: 'test-token',
+        user: { id: 1, username: 'testuser', email: 'test@example.com' },
+      };
+      mockLogin.mockResolvedValue(mockResponse);
+
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
+      });
+
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      const snapshot = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+      expect(snapshot.state.accessToken).toBe('test-token');
+      expect(snapshot.state.user).toEqual(mockResponse.user);
     });
 
     it('should throw special error when 2FA is required', async () => {
@@ -208,7 +232,6 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(true);
       expect(state.accessToken).toBe('oauth-token-123');
       expect(state.user).toEqual(mockUser);
-      expect(localStorage.getItem('accessToken')).toBe('oauth-token-123');
     });
 
     it('should handle oauth2 login failure', async () => {
