@@ -29,6 +29,7 @@ describe('LoginComponent', () => {
     error: () => string | null;
     login: Mock;
     clearError: Mock;
+    consumeReturnUrl: Mock;
     _isLoading: boolean;
     _error: string | null;
   };
@@ -66,6 +67,7 @@ describe('LoginComponent', () => {
       error: function() { return this._error; },
       login: vi.fn(),
       clearError: vi.fn(),
+      consumeReturnUrl: vi.fn(() => ADMIN_ROUTES.DASHBOARD),
     };
 
     mockRouter = {
@@ -241,6 +243,15 @@ describe('LoginComponent', () => {
       component.onSubmit();
 
       expect(mockRouter.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.DASHBOARD]);
+    });
+
+    it('should navigate to the stored deep-link when returning from a switch-account escape', () => {
+      mockAuthService.login.mockReturnValue(of(mockLoginResponse));
+      mockAuthService.consumeReturnUrl.mockReturnValue('/courses/42');
+
+      component.onSubmit();
+
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/courses/42']);
     });
 
     it('should handle login error', () => {

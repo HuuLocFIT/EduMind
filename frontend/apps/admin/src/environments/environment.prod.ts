@@ -7,4 +7,6 @@ export const environment = {
   sentryEnvironment: 'production',
   // CI injects the real version via sed before build (see .github/workflows/frontend-release.yml)
   appVersion: '0.0.0',
+  // Base URL of the user portal, for the "go to the other portal" CTA on the
+  userPortalUrl: 'https://edumind.nguyenloc.dev',
 };

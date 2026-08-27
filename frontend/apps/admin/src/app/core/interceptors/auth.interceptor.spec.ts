@@ -14,6 +14,8 @@ import { authInterceptor } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
 import { AUTH_ENDPOINTS } from '@edumind/shared-utils';
 import { environment } from '../../../environments/environment';
+import { UserRole } from '@edumind/shared-constants';
+import type { User } from '@edumind/shared-types';
 
 describe('authInterceptor', () => {
   let httpClient: HttpClient;
@@ -31,6 +33,19 @@ describe('authInterceptor', () => {
       })
     );
     return `${header}.${payload}.signature`;
+  };
+
+  const mockUser: User = {
+    id: 1,
+    username: 'admin',
+    email: 'admin@example.com',
+    roles: [UserRole.ADMIN],
+    isActive: true,
+    isEmailVerified: true,
+    is2faEnabled: false,
+    isTrial: false,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   };
 
   beforeEach(() => {
@@ -62,7 +77,7 @@ describe('authInterceptor', () => {
   describe('Request Interception', () => {
     it('should add Authorization header for non-auth endpoints', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.get('/api/users').subscribe();
 
@@ -74,7 +89,7 @@ describe('authInterceptor', () => {
 
     it('should not add Authorization header for login endpoint', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.post(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`, {}).subscribe();
 
@@ -85,7 +100,7 @@ describe('authInterceptor', () => {
 
     it('should not add Authorization header for register endpoint', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.post(`${environment.apiUrl}/auth/register`, {}).subscribe();
 
@@ -96,7 +111,7 @@ describe('authInterceptor', () => {
 
     it('should not add Authorization header for refresh endpoint', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.post(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`, {}).subscribe();
 
@@ -115,7 +130,7 @@ describe('authInterceptor', () => {
 
     it('should clone request correctly without mutating original', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
 
       httpClient.get('/api/test').subscribe();
 
@@ -188,12 +203,13 @@ describe('authInterceptor', () => {
   describe('Token Refresh on 401', () => {
     beforeEach(() => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      authService.setToken(token);
     });
 
     it('should attempt token refresh on 401 error', async () => {
       const refreshResponse = {
         accessToken: createValidToken(),
+        user: mockUser,
       };
 
       const promise = httpClient.get('/api/protected').toPromise();
@@ -235,6 +251,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       const promise = httpClient.get('/api/protected').toPromise();
@@ -260,6 +277,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       // Make two concurrent requests
@@ -287,8 +305,34 @@ describe('authInterceptor', () => {
       await Promise.all([promise1, promise2]);
     });
 
-    it('should force logout if refresh fails', async () => {
+    it('rejects the portal identity instead of forcing logout when refresh returns a non-admin user', async () => {
       const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const rejectSpy = vi.spyOn(authService, 'rejectPortalIdentity');
+      const nonAdminUser: User = { ...mockUser, roles: [UserRole.STUDENT] };
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush({
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      });
+
+      await promise;
+
+      expect(rejectSpy).toHaveBeenCalledWith(nonAdminUser);
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+
+    it('should force logout only for a terminal refresh failure (ERR_2004 - dead/revoked session)', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
 
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
@@ -297,14 +341,160 @@ describe('authInterceptor', () => {
       const firstReq = httpMock.expectOne('/api/protected');
       firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
 
-      // Refresh fails
+      // Refresh fails with the terminal error code
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
+
+      await promise;
+
+      expect(forceLogoutSpy).toHaveBeenCalled();
+      expect(markTemporarySpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure (not forceLogout) when refresh fails without the terminal error code', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+      localStorage.setItem('admin_auth_storage', JSON.stringify({ accessToken: createValidToken(), user: mockUser }));
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      // Refresh itself fails with a plain 401 - no errorCode, so it doesn't prove the session is dead
       const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
       refreshReq.flush(null, { status: 401, statusText: 'Unauthorized' });
 
       await promise;
 
-      // Should force logout
-      expect(forceLogoutSpy).toHaveBeenCalled();
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      // Snapshot must survive a temporary failure
+      const snapshot = JSON.parse(localStorage.getItem('admin_auth_storage') || 'null');
+      expect(snapshot?.accessToken).not.toBeNull();
+      expect(snapshot?.user).not.toBeNull();
+    });
+
+    // The classification must only ever see refresh errors. With catchError chained AFTER
+    // switchMap it also caught failures of the retried business request, so an ordinary 500
+    // downgraded a session the refresh had just confirmed - and a business endpoint answering
+    // with ERR_2004 logged the admin out, since isTerminalRefreshFailure() reads the body's
+    // errorCode and never the URL.
+    it('leaves the session alone when the refresh succeeds but the retried request fails', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+      const rejectPortalSpy = vi.spyOn(authService, 'rejectPortalIdentity');
+
+      let caught: unknown = null;
+      const promise = httpClient
+        .get('/api/protected')
+        .toPromise()
+        .catch((err) => {
+          caught = err;
+        });
+
+      httpMock.expectOne('/api/protected').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush({ accessToken: createValidToken(), user: mockUser });
+
+      httpMock
+        .expectOne('/api/protected')
+        .flush({ message: 'Boom' }, { status: 500, statusText: 'Server Error' });
+
+      await promise;
+
+      expect(markTemporarySpy).not.toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      expect(rejectPortalSpy).not.toHaveBeenCalled();
+      // The business failure still reaches the caller untouched.
+      expect((caught as { status?: number } | null)?.status).toBe(500);
+    });
+
+    it('does not log out when the retried request itself answers with the terminal error code', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      httpMock.expectOne('/api/protected').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush({ accessToken: createValidToken(), user: mockUser });
+
+      httpMock
+        .expectOne('/api/protected')
+        .flush(
+          { success: false, message: 'Refresh token is not in database', errorCode: 'ERR_2004' },
+          { status: 403, statusText: 'Forbidden' }
+        );
+
+      await promise;
+
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      expect(markTemporarySpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure when the refresh request errors at the network level', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.error(new ProgressEvent('Network error'));
+
+      await promise;
+
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure when refresh returns a 5xx', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush(null, { status: 503, statusText: 'Service Unavailable' });
+
+      await promise;
+
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+    });
+
+    it('marks a temporary reconcile failure when refresh succeeds at the HTTP level but the response omits user (schema contract violation)', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const markTemporarySpy = vi.spyOn(authService, 'markTemporaryReconcileFailure');
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush({ accessToken: createValidToken(), tokenType: 'Bearer' });
+
+      await promise;
+
+      expect(markTemporarySpy).toHaveBeenCalled();
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
     });
 
     it('should propagate refresh error if refresh fails', async () => {
@@ -325,6 +515,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
       // unwrapApiResponse only unwraps responses with status and success (ApiResponse envelope)
       const wrappedResponse = {
@@ -398,6 +589,7 @@ describe('authInterceptor', () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       // Make three concurrent requests
@@ -446,9 +638,12 @@ describe('authInterceptor', () => {
       const req2 = httpMock.expectOne('/api/resource2');
       req2.flush(null, { status: 401, statusText: 'Unauthorized' });
 
-      // Refresh fails - first request should fail, second will be queued
+      // Refresh fails with the terminal error code - first request should fail, second will be queued
       const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
-      refreshReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+      refreshReq.flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
 
       // First request should fail immediately
       await expect(promise1).rejects.toThrow();
@@ -463,10 +658,39 @@ describe('authInterceptor', () => {
       // This might be a bug that should be fixed in the interceptor
     });
 
+    it('joins a direct AuthService.refreshToken() caller (boot/focus reconcile) with an interceptor-triggered refresh into one HTTP request', async () => {
+      const newToken = createValidToken();
+      const refreshResponse = {
+        accessToken: newToken,
+        tokenType: 'Bearer',
+        user: mockUser,
+      };
+
+      // Simulate a boot/focus reconcile calling the shared pipeline directly
+      const directRefreshPromise = authService.refreshToken().toPromise();
+
+      // Meanwhile a business request gets 401'd and goes through the interceptor's refresh path
+      const promise = httpClient.get('/api/protected').toPromise();
+      const req = httpMock.expectOne('/api/protected');
+      req.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      // Only one refresh request should be in flight, serving both callers
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush(refreshResponse);
+
+      const retryReq = httpMock.expectOne('/api/protected');
+      expect(retryReq.request.headers.get('Authorization')).toBe(`Bearer ${newToken}`);
+      retryReq.flush({ success: true });
+
+      const [directResult] = await Promise.all([directRefreshPromise, promise]);
+      expect(directResult).toEqual(refreshResponse);
+    });
+
     it('should not deadlock on concurrent refresh attempts', async () => {
       const newToken = createValidToken();
       const refreshResponse = {
         accessToken: newToken,
+        user: mockUser,
       };
 
       // Make multiple requests that will trigger refresh

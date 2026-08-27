@@ -173,7 +173,7 @@ describe('auth session boundaries — a refresh in flight must not survive them'
   it('loginWith2FA: the code-verification request is already a new session', async () => {
     const verifyCall = deferred<unknown>();
     mockLoginWith2FA.mockReturnValue(verifyCall.promise);
-    mockFetchCurrentUser.mockResolvedValue(userB);
+    mockAxiosGet.mockResolvedValue({ data: envelope(userB) });
 
     const refresh = startPendingRefresh();
     const loginDone = useAuthStore.getState().loginWith2FA({ email: 'b@example.com', code: '123456' } as never);
@@ -187,20 +187,22 @@ describe('auth session boundaries — a refresh in flight must not survive them'
 
   it('loginWithOAuth2: the /users/me fetch is already a new session', async () => {
     const meCall = deferred<unknown>();
-    mockFetchCurrentUser.mockReturnValue(meCall.promise);
+    mockAxiosGet.mockReturnValue(meCall.promise);
 
     const refresh = startPendingRefresh();
     const loginDone = useAuthStore.getState().loginWithOAuth2('oauth-token-b');
 
-    // loginWithOAuth2 writes its own token synchronously before awaiting; the refresh
-    // must not be able to replace it while /users/me is in flight.
+    // loginWithOAuth2 no longer persists the candidate token before validating it, so
+    // localStorage still holds session A's token while the candidate-token /users/me fetch
+    // is in flight — the refresh landing here must still be rejected as stale and write
+    // nothing on top of it.
     refresh.land('resurrected-token');
     const outcome = await refresh.result;
     expect(isStaleAuthSessionError((outcome as { error: unknown }).error)).toBe(true);
-    expect(localStorage.getItem('accessToken')).toBe('oauth-token-b');
+    expect(localStorage.getItem('accessToken')).toBe('session-a-token');
     expect(userRefreshedCount()).toBe(0);
 
-    meCall.resolve(userB);
+    meCall.resolve({ data: envelope(userB) });
     await loginDone;
     expect(useAuthStore.getState().user?.id).toBe(2);
   });
@@ -295,7 +297,7 @@ describe('auth session boundaries — refresh state survives a failed auth attem
     }],
     ['loginWithOAuth2', () => {
       const call = deferred<unknown>();
-      mockFetchCurrentUser.mockReturnValue(call.promise);
+      mockAxiosGet.mockReturnValue(call.promise);
       return {
         attempt: useAuthStore.getState().loginWithOAuth2('bad-oauth-token').catch(() => undefined),
         fail: () => call.reject(new Error('Unauthorized')),

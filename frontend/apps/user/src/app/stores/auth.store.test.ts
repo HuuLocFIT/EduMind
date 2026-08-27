@@ -21,6 +21,9 @@ const {
   mockIsStaleAuthSessionError,
   mockInvalidateAuthSession,
   mockClearStoredAuth,
+  mockFetchCurrentUserWith,
+  mockClearCart,
+  mockSentrySetUser,
 } = vi.hoisted(() => ({
   mockLogin: vi.fn(),
   mockLoginWith2FA: vi.fn(),
@@ -32,7 +35,24 @@ const {
   mockIsTerminalRefreshFailure: vi.fn(),
   mockIsStaleAuthSessionError: vi.fn(),
   mockInvalidateAuthSession: vi.fn(),
-  mockClearStoredAuth: vi.fn(),
+  // Real cleanup, not a no-op: tests assert both that this was called (coordination) and
+  // that storage is actually empty afterward (behavior) — a bare vi.fn() would satisfy the
+  // former while silently breaking the latter.
+  mockClearStoredAuth: vi.fn(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth-storage');
+  }),
+  mockFetchCurrentUserWith: vi.fn(),
+  mockClearCart: vi.fn(),
+  mockSentrySetUser: vi.fn(),
+}));
+
+// Only setUser is replaced — the rest of the SDK stays real so nothing else in the module
+// graph changes behavior just because one call is being observed here.
+vi.mock('@sentry/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentry/react')>()),
+  setUser: mockSentrySetUser,
 }));
 
 // Mock the auth service - must match the import path in auth.store.ts
@@ -46,14 +66,22 @@ vi.mock('../services/auth.service', () => ({
   },
 }));
 
-// Mock the refresh pipeline - must match the import path in auth.store.ts
-vi.mock('../services/api-client.service', () => ({
-  refreshAuthSession: mockRefreshAuthSession,
-  isTerminalRefreshFailure: mockIsTerminalRefreshFailure,
-  isStaleAuthSessionError: mockIsStaleAuthSessionError,
-  invalidateAuthSession: mockInvalidateAuthSession,
-  clearStoredAuth: mockClearStoredAuth,
-}));
+// Mock the refresh pipeline - must match the import path in auth.store.ts. Keep
+// validateUserPortalIdentity/PortalIdentityRejectedError/isPortalIdentityRejectedError real
+// (via importOriginal): they are pure role checks, and re-mocking them per test would just
+// duplicate the logic under test instead of exercising it.
+vi.mock('../services/api-client.service', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services/api-client.service')>();
+  return {
+    ...actual,
+    refreshAuthSession: mockRefreshAuthSession,
+    isTerminalRefreshFailure: mockIsTerminalRefreshFailure,
+    isStaleAuthSessionError: mockIsStaleAuthSessionError,
+    invalidateAuthSession: mockInvalidateAuthSession,
+    clearStoredAuth: mockClearStoredAuth,
+    fetchCurrentUserWith: mockFetchCurrentUserWith,
+  };
+});
 
 // Mock the query client
 vi.mock('../lib/query-client', () => ({
@@ -61,6 +89,16 @@ vi.mock('../lib/query-client', () => ({
     clear: mockQueryClientClear,
   },
 }));
+
+// Mock the cart store — identity resets must clear it via clearCart() (pure local set()),
+// never by hitting CART_ENDPOINTS.
+vi.mock('./cart.store', () => ({
+  useCartStore: {
+    getState: () => ({ clearCart: mockClearCart }),
+  },
+}));
+
+import { PortalIdentityRejectedError } from '../services/api-client.service';
 
 // Import the mocked service (for type compatibility, but we use the hoisted mocks directly)
 import { authService } from '../services/auth.service';
@@ -81,6 +119,7 @@ describe('useAuthStore', () => {
     mockIsStaleAuthSessionError.mockReturnValue(false);
     mockIsTerminalRefreshFailure.mockReturnValue(false);
     localStorage.clear();
+    useAuthStore.setState({ authBootStatus: 'idle' });
   });
 
   describe('Initial State', () => {
@@ -112,7 +151,24 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBe('test-token');
       expect(state.user).toEqual(mockResponse.user);
       expect(state.isLoading).toBe(false);
-      expect(localStorage.getItem('accessToken')).toBe('test-token');
+    });
+
+    it('persists only through the auth-storage snapshot, never the legacy raw keys', async () => {
+      const mockResponse = {
+        accessToken: 'test-token',
+        user: { id: 1, username: 'testuser', email: 'test@example.com' },
+      };
+      mockLogin.mockResolvedValue(mockResponse);
+
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
+      });
+
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      const snapshot = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+      expect(snapshot.state.accessToken).toBe('test-token');
+      expect(snapshot.state.user).toEqual(mockResponse.user);
     });
 
     it('should throw special error when 2FA is required', async () => {
@@ -175,7 +231,7 @@ describe('useAuthStore', () => {
   describe('loginWithOAuth2', () => {
     it('should login with oauth2 token successfully', async () => {
       const mockUser = { id: 1, username: 'oauth-user', email: 'oauth@example.com' };
-      mockFetchCurrentUser.mockResolvedValue(mockUser);
+      mockFetchCurrentUserWith.mockResolvedValue(mockUser);
 
       await act(async () => {
         await useAuthStore.getState().loginWithOAuth2('oauth-token-123');
@@ -185,12 +241,11 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(true);
       expect(state.accessToken).toBe('oauth-token-123');
       expect(state.user).toEqual(mockUser);
-      expect(localStorage.getItem('accessToken')).toBe('oauth-token-123');
     });
 
     it('should handle oauth2 login failure', async () => {
       const error = new Error('Failed to fetch user');
-      mockFetchCurrentUser.mockRejectedValue(error);
+      mockFetchCurrentUserWith.mockRejectedValue(error);
 
       await expect(
         act(async () => {
@@ -203,6 +258,33 @@ describe('useAuthStore', () => {
       expect(state.accessToken).toBeNull();
       expect(state.error).toBe('Failed to fetch user');
     });
+
+    it('fetches the profile with the candidate token directly, not via localStorage', async () => {
+      mockFetchCurrentUserWith.mockResolvedValue({ id: 1, username: 'u', email: 'u@example.com' });
+
+      await act(async () => {
+        await useAuthStore.getState().loginWithOAuth2('oauth-token-candidate');
+      });
+
+      expect(mockFetchCurrentUserWith).toHaveBeenCalledWith('oauth-token-candidate');
+    });
+
+    it('rejects an admin identity without persisting anything', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockFetchCurrentUserWith.mockResolvedValue(admin);
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().loginWithOAuth2('admin-token');
+        })
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.user).toBeNull();
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+    });
   });
 
   describe('loginWith2FA', () => {
@@ -211,15 +293,15 @@ describe('useAuthStore', () => {
         accessToken: '2fa-token',
       };
       const mockUser = { id: 1, username: 'testuser', email: 'test@example.com' };
-      
+
       mockLoginWith2FA.mockResolvedValue(mockJwtResponse);
-      mockFetchCurrentUser.mockResolvedValue(mockUser);
+      mockFetchCurrentUserWith.mockResolvedValue(mockUser);
 
       await act(async () => {
-        await useAuthStore.getState().loginWith2FA({ 
-          usernameOrEmail: 'test@example.com', 
+        await useAuthStore.getState().loginWith2FA({
+          usernameOrEmail: 'test@example.com',
           password: 'Password123!',
-          code: '123456' 
+          code: '123456'
         });
       });
 
@@ -227,6 +309,182 @@ describe('useAuthStore', () => {
       expect(state.isAuthenticated).toBe(true);
       expect(state.accessToken).toBe('2fa-token');
       expect(state.user).toEqual(mockUser);
+    });
+
+    it('fetches the profile with the candidate token directly, not via localStorage', async () => {
+      mockLoginWith2FA.mockResolvedValue({ accessToken: '2fa-token-candidate' });
+      mockFetchCurrentUserWith.mockResolvedValue({ id: 1, username: 'u', email: 'u@example.com' });
+
+      await act(async () => {
+        await useAuthStore.getState().loginWith2FA({
+          usernameOrEmail: 'u@example.com',
+          password: 'Password123!',
+          code: '123456',
+        });
+      });
+
+      expect(mockFetchCurrentUserWith).toHaveBeenCalledWith('2fa-token-candidate');
+    });
+
+    it('rejects an admin identity without persisting anything', async () => {
+      mockLoginWith2FA.mockResolvedValue({ accessToken: '2fa-admin-token' });
+      mockFetchCurrentUserWith.mockResolvedValue({
+        id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'],
+      });
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().loginWith2FA({
+            usernameOrEmail: 'a@example.com',
+            password: 'Password123!',
+            code: '000000',
+          });
+        })
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+    });
+  });
+
+  describe('login — portal identity rejection', () => {
+    it('rejects an admin identity without persisting anything, even multi-role', async () => {
+      const admin = {
+        id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_STUDENT', 'ROLE_ADMIN'],
+      };
+      mockLogin.mockResolvedValue({ accessToken: 'admin-token', user: admin });
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().login({ usernameOrEmail: 'admin', password: 'p' });
+        })
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.user).toBeNull();
+      expect(localStorage.getItem('accessToken')).toBeNull();
+      expect(localStorage.getItem('user')).toBeNull();
+      // Rejecting the identity locally must never revoke the shared refresh-token cookie —
+      // that would also sign the user out of the other portal.
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('sends a wrong-role login attempt back to portalMismatch, ending any switchingAccount escape', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockLogin.mockResolvedValue({ accessToken: 'admin-token', user: admin });
+      useAuthStore.getState().startSwitchingAccount();
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().login({ usernameOrEmail: 'admin', password: 'p' });
+        })
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(state.isSwitchingAccount).toBe(false);
+    });
+
+    // Starting from an ALREADY authenticated store, not clean storage: that is the case the
+    // per-path cleanup used to miss. The login path only flagged the mismatch, so the previous
+    // student's snapshot, cart and query cache survived the rejection.
+    it.each([
+      ['login', async () => {
+        const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+        mockLogin.mockResolvedValue({ accessToken: 'admin-token', user: admin });
+        await useAuthStore.getState().login({ usernameOrEmail: 'admin', password: 'p' });
+      }],
+      ['2FA', async () => {
+        mockLoginWith2FA.mockResolvedValue({ accessToken: 'admin-token' });
+        mockFetchCurrentUserWith.mockResolvedValue({
+          id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'],
+        });
+        await useAuthStore.getState().loginWith2FA({
+          usernameOrEmail: 'a@example.com', password: 'p', code: '000000',
+        });
+      }],
+    ])('wipes the previous identity when %s is rejected from an authenticated session', async (_name, attempt) => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'student-token',
+        user: { id: 1, username: 'student', email: 's@example.com', roles: ['ROLE_STUDENT'] },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'student', password: 'p' });
+      });
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      mockClearStoredAuth.mockClear();
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      // The rejection is awaited INSIDE act(), not via expect(act(...)).rejects: the latter
+      // settles a microtask before the store's catch has run on the longer (2FA) path, and
+      // would assert against the pre-rejection state.
+      await act(async () => {
+        await expect(attempt()).rejects.toThrow();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+      expect(mockClearStoredAuth).toHaveBeenCalled();
+      // The persist middleware rewrites 'auth-storage' from the nulled state, so the key
+      // exists but must carry no identity — that is the property that matters.
+      expect(JSON.parse(localStorage.getItem('auth-storage') ?? '{}').state).toMatchObject({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+      });
+      // Data belonging to the identity being dropped, reset locally only — never through
+      // /auth/logout (shared cookie) or a cart API call made in the rejected identity's name.
+      expect(mockQueryClientClear).toHaveBeenCalled();
+      expect(mockClearCart).toHaveBeenCalled();
+      expect(mockLogout).not.toHaveBeenCalled();
+      // Sentry's scope is global and sticky — leaving the dropped identity on it would
+      // attribute every later error (the mismatch page, the whole switch-account flow) to the
+      // wrong user, exactly where that telemetry is most needed.
+      expect(mockSentrySetUser).toHaveBeenLastCalledWith(null);
+    });
+  });
+
+  describe('switchingAccount', () => {
+    it('starts with isSwitchingAccount false', () => {
+      expect(useAuthStore.getState().isSwitchingAccount).toBe(false);
+    });
+
+    it('startSwitchingAccount sets isSwitchingAccount to true', () => {
+      useAuthStore.getState().startSwitchingAccount();
+
+      expect(useAuthStore.getState().isSwitchingAccount).toBe(true);
+    });
+
+    it('cancelSwitchingAccount reverts isSwitchingAccount to false, leaving portalMismatch in place', () => {
+      useAuthStore.setState({ sessionRefreshError: 'PORTAL_MISMATCH' });
+      useAuthStore.getState().startSwitchingAccount();
+
+      useAuthStore.getState().cancelSwitchingAccount();
+
+      const state = useAuthStore.getState();
+      expect(state.isSwitchingAccount).toBe(false);
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+    });
+
+    it('a successful login clears isSwitchingAccount', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'test-token',
+        user: { id: 1, username: 'testuser', email: 'test@example.com' },
+      });
+      useAuthStore.getState().startSwitchingAccount();
+
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'testuser', password: 'password' });
+      });
+
+      expect(useAuthStore.getState().isSwitchingAccount).toBe(false);
     });
   });
 
@@ -413,7 +671,7 @@ describe('useAuthStore', () => {
 
       it('should handle network errors during OAuth2 login', async () => {
         const networkError = new Error('Network Error');
-        mockFetchCurrentUser.mockRejectedValue(networkError);
+        mockFetchCurrentUserWith.mockRejectedValue(networkError);
 
         await expect(
           act(async () => {
@@ -639,7 +897,7 @@ describe('useAuthStore', () => {
         resolve2FA = resolve;
       });
       mockLoginWith2FA.mockReturnValue(twoFAPromise as any);
-      mockFetchCurrentUser.mockResolvedValue({ id: 1, username: 'test' } as any);
+      mockFetchCurrentUserWith.mockResolvedValue({ id: 1, username: 'test' } as any);
 
       const twoFAOperation = useAuthStore.getState().loginWith2FA({
         usernameOrEmail: 'test@example.com',
@@ -667,7 +925,7 @@ describe('useAuthStore', () => {
       const fetchPromise = new Promise((resolve) => {
         resolveFetch = resolve;
       });
-      mockFetchCurrentUser.mockReturnValue(fetchPromise as any);
+      mockFetchCurrentUserWith.mockReturnValue(fetchPromise as any);
 
       const oauthOperation = useAuthStore.getState().loginWithOAuth2('token');
 
@@ -892,6 +1150,91 @@ describe('useAuthStore', () => {
     });
   });
 
+  describe('cross-tab sync (storage event)', () => {
+    const dispatchStorage = (key: string | null, newValue: string | null) =>
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue }));
+
+    it('adopts the identity another tab just wrote to auth-storage', () => {
+      const otherUser = { id: 7, username: 'other-tab-user', email: 'o@example.com' };
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: otherUser, accessToken: 'from-other-tab', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toEqual(otherUser);
+      expect(state.accessToken).toBe('from-other-tab');
+      expect(state.isAuthenticated).toBe(true);
+    });
+
+    it('adopts unauthenticated when another tab logs out (key removed, newValue null)', () => {
+      useAuthStore.setState({ user: { id: 1, username: 'u', email: 'u@example.com' } as any, accessToken: 't', isAuthenticated: true });
+
+      act(() => {
+        dispatchStorage('auth-storage', null);
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+    });
+
+    it('ignores storage events for unrelated keys', () => {
+      useAuthStore.setState({ user: { id: 1, username: 'u', email: 'u@example.com' } as any, accessToken: 't', isAuthenticated: true });
+
+      act(() => {
+        dispatchStorage('some_other_key', 'anything');
+      });
+
+      expect(useAuthStore.getState().accessToken).toBe('t');
+    });
+
+    it('clears identity-scoped data when the adopted user differs from the current one', () => {
+      useAuthStore.setState({ user: { id: 1, username: 'u', email: 'u@example.com' } as any, accessToken: 't', isAuthenticated: true });
+      const otherUser = { id: 2, username: 'other', email: 'o@example.com' };
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: otherUser, accessToken: 'x', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      expect(mockQueryClientClear).toHaveBeenCalled();
+      expect(mockClearCart).toHaveBeenCalled();
+    });
+
+    it('does not adopt another tab identity while a portal mismatch is active', () => {
+      useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, sessionRefreshError: 'PORTAL_MISMATCH' });
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'x', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      expect(useAuthStore.getState().user).toBeNull();
+    });
+
+    it('does not adopt another tab identity while switching accounts', () => {
+      useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, isSwitchingAccount: true });
+
+      act(() => {
+        dispatchStorage(
+          'auth-storage',
+          JSON.stringify({ state: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'x', isAuthenticated: true }, version: 0 })
+        );
+      });
+
+      expect(useAuthStore.getState().user).toBeNull();
+    });
+  });
+
   describe('auth:session-expired listener', () => {
     it('clears auth state and sets sessionExpiredReason (after clearAuthState, not before)', async () => {
       // Seed an authenticated state first.
@@ -968,7 +1311,175 @@ describe('useAuthStore', () => {
 
       expect(mockClearStoredAuth).not.toHaveBeenCalled();
       expect(useAuthStore.getState().sessionRefreshError).toBe('TEMPORARY');
+      // The snapshot is KEPT — a temporary failure must never become a logout (invariant #4).
+      // Keeping it is not the same as trusting it: hasUnconfirmedSession() flags this exact
+      // state and AuthBootBoundary refuses to render it as authenticated. See
+      // AuthBootBoundary.test.tsx, "keeps route content blocked after a foreground reconcile
+      // fails temporarily".
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
+
+    // A tab that booted as a guest can find a live session on a later probe: another tab, or
+    // the admin portal, may have written the shared cookie since. Adopting the user and token
+    // without flipping isAuthenticated left the store internally inconsistent — a non-null
+    // user that every guard still treated as a guest.
+    it('transitions an unauthenticated tab to authenticated when a reconcile finds a session', async () => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 7, username: 's', email: 's@example.com' }, accessToken: 'fresh' },
+          }),
+        );
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user?.id).toBe(7);
+      expect(state.accessToken).toBe('fresh');
+      expect(state.sessionRefreshError).toBeNull();
+    });
+
+    it('sets sessionRefreshError to PORTAL_MISMATCH, clears storage, and does not dispatch auth:session-expired on a portal identity rejection', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockClearStoredAuth).toHaveBeenCalled();
+      expect(useAuthStore.getState().sessionRefreshError).toBe('PORTAL_MISMATCH');
+      const dispatchedSessionExpired = dispatchSpy.mock.calls
+        .map(([event]) => event as CustomEvent)
+        .some((event) => event.type === 'auth:session-expired');
+      expect(dispatchedSessionExpired).toBe(false);
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('checks StaleAuthSessionError before PortalIdentityRejectedError', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+      mockIsStaleAuthSessionError.mockReturnValue(true);
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().sessionRefreshError).toBeNull();
+    });
+  });
+
+  describe('refreshSession — reset data by identity', () => {
+    it('clears the query cache and cart when the reconciled identity differs from the current one', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 2, username: 'b', email: 'b@example.com' }, accessToken: 'token-b' },
+          }),
+        );
+        return { accessToken: 'token-b', user: { id: 2 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockQueryClientClear).toHaveBeenCalledTimes(1);
+      expect(mockClearCart).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not clear the query cache or cart when the reconciled identity is unchanged', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 1, username: 'a', email: 'a@example.com' }, accessToken: 'token-a2' },
+          }),
+        );
+        return { accessToken: 'token-a2', user: { id: 1 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockQueryClientClear).not.toHaveBeenCalled();
+      expect(mockClearCart).not.toHaveBeenCalled();
+    });
+
+    it('on a portal identity rejection, resets in-memory user/session state and clears the query cache and cart', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      const admin = { id: 9, username: 'admin', email: 'admin@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.user).toBeNull();
+      expect(state.accessToken).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(mockQueryClientClear).toHaveBeenCalledTimes(1);
+      expect(mockClearCart).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not clear the query cache or cart on a terminal or temporary failure (handled elsewhere / snapshot kept)', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token-a',
+        user: { id: 1, username: 'a', email: 'a@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'a', password: 'p' });
+      });
+      mockQueryClientClear.mockClear();
+      mockClearCart.mockClear();
+
+      mockRefreshAuthSession.mockRejectedValue({ message: 'Network Error' });
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().refreshSession();
+      });
+
+      expect(mockQueryClientClear).not.toHaveBeenCalled();
+      expect(mockClearCart).not.toHaveBeenCalled();
     });
   });
 
@@ -1091,6 +1602,195 @@ describe('useAuthStore', () => {
       });
 
       expect(mockInvalidateAuthSession).toHaveBeenCalled();
+    });
+  });
+
+  describe('bootstrapAuthSession', () => {
+    it('starts idle', () => {
+      expect(useAuthStore.getState().authBootStatus).toBe('idle');
+    });
+
+    it('probes refresh once and adopts the identity on success', async () => {
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'boot-token' },
+          }),
+        );
+        return { accessToken: 'boot-token', user: { id: 1 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.accessToken).toBe('boot-token');
+    });
+
+    it('does not probe a second time once boot already started', async () => {
+      mockRefreshAuthSession.mockResolvedValue({ accessToken: 't', user: { id: 1 } } as any);
+
+      await act(async () => {
+        await Promise.all([
+          useAuthStore.getState().bootstrapAuthSession(),
+          useAuthStore.getState().bootstrapAuthSession(),
+        ]);
+      });
+
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks boot ready without touching state on a stale session result', async () => {
+      mockRefreshAuthSession.mockRejectedValue(new Error('stale'));
+      mockIsStaleAuthSessionError.mockReturnValue(true);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(false);
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+    });
+
+    it('clears local state and reports PORTAL_MISMATCH on a portal identity rejection, leaving the shared cookie alone', async () => {
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(mockClearStoredAuth).toHaveBeenCalled();
+      expect(state.sessionRefreshError).toBe('PORTAL_MISMATCH');
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.authBootStatus).toBe('ready');
+      // Storage alone was not enough: the cart and query cache belong to the identity being
+      // rejected too, and used to survive a boot mismatch untouched.
+      expect(mockQueryClientClear).toHaveBeenCalled();
+      expect(mockClearCart).toHaveBeenCalled();
+      // Portal mismatch is a purely local rejection — revoking the shared refresh-token
+      // cookie via /auth/logout would also sign the user out of the OTHER portal, which is
+      // exactly the cross-portal damage this whole fix exists to prevent.
+      expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('still probes /auth/refresh on boot even when the persisted snapshot says unauthenticated', async () => {
+      // A prior mismatch (or a fresh profile) can leave isAuthenticated:false locally while
+      // another tab/portal has since set a fresh shared cookie. The snapshot is only a hint
+      // (invariant #1) — boot must probe regardless of what it says.
+      useAuthStore.setState({ isAuthenticated: false, authBootStatus: 'idle' });
+      const admin = { id: 9, username: 'admin', email: 'a@example.com', roles: ['ROLE_ADMIN'] };
+      mockRefreshAuthSession.mockRejectedValue(new PortalIdentityRejectedError(admin as never));
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(1);
+      expect(useAuthStore.getState().sessionRefreshError).toBe('PORTAL_MISMATCH');
+    });
+
+    it('does not dispatch auth:session-expired for a guest with no prior local session', async () => {
+      const refreshError = { response: { data: { errorCode: 'ERR_2004' } } };
+      mockRefreshAuthSession.mockRejectedValue(refreshError);
+      mockIsTerminalRefreshFailure.mockReturnValue(true);
+      const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.sessionExpiredReason).toBeNull();
+      const dispatchedSessionExpired = dispatchSpy.mock.calls
+        .map(([event]) => event as CustomEvent)
+        .some((event) => event.type === 'auth:session-expired');
+      expect(dispatchedSessionExpired).toBe(false);
+    });
+
+    it('dispatches auth:session-expired when a previously authenticated snapshot turns out to be terminally dead', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+      // Simulate a fresh page load: identity persisted, boot not yet run.
+      useAuthStore.setState({ authBootStatus: 'idle' });
+
+      const refreshError = { response: { data: { errorCode: 'ERR_2004' } } };
+      mockRefreshAuthSession.mockRejectedValue(refreshError);
+      mockIsTerminalRefreshFailure.mockReturnValue(true);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.sessionExpiredReason).toBe('SESSION_EXPIRED');
+    });
+
+    it('goes to retry status on a temporary boot failure and keeps the existing snapshot untouched', async () => {
+      mockLogin.mockResolvedValue({
+        accessToken: 'token',
+        user: { id: 1, username: 'u', email: 'u@example.com' },
+      });
+      await act(async () => {
+        await useAuthStore.getState().login({ usernameOrEmail: 'u', password: 'p' });
+      });
+      useAuthStore.setState({ authBootStatus: 'idle' });
+
+      mockRefreshAuthSession.mockRejectedValue({ message: 'Network Error' });
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('retry');
+      expect(state.sessionRefreshError).toBe('TEMPORARY');
+      expect(state.isAuthenticated).toBe(true);
+      expect(mockClearStoredAuth).not.toHaveBeenCalled();
+    });
+
+    it('can be re-run after a retry-status failure', async () => {
+      mockRefreshAuthSession.mockRejectedValue({ message: 'Network Error' });
+      mockIsTerminalRefreshFailure.mockReturnValue(false);
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+      expect(useAuthStore.getState().authBootStatus).toBe('retry');
+
+      mockRefreshAuthSession.mockImplementation(async () => {
+        window.dispatchEvent(
+          new CustomEvent('auth:user-refreshed', {
+            detail: { user: { id: 1, username: 'u', email: 'u@example.com' }, accessToken: 'retried-token' },
+          }),
+        );
+        return { accessToken: 'retried-token', user: { id: 1 } } as any;
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().bootstrapAuthSession();
+      });
+
+      const state = useAuthStore.getState();
+      expect(state.authBootStatus).toBe('ready');
+      expect(state.isAuthenticated).toBe(true);
+      expect(mockRefreshAuthSession).toHaveBeenCalledTimes(2);
     });
   });
 

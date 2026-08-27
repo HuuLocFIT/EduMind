@@ -22,6 +22,7 @@ import {
   TranscribeRequestSchema,
 } from "@edumind/shared-types";
 import { AI_ENDPOINTS, buildApiUrl } from "@edumind/shared-utils";
+import { getStoredAccessToken } from "./auth-storage.util";
 
 /**
  * Signals a server-side SSE error event (as opposed to a network/connection error).
@@ -143,7 +144,7 @@ export const aiService = {
     const { onChunk, onMetadata, onError, onClose, signal } = callbacks;
 
     const url = buildApiUrl(AI_ENDPOINTS.CHAT_STREAM(courseId));
-    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+    const token = typeof window !== "undefined" ? getStoredAccessToken() : null;
 
     // Manual breadcrumb — browserTracingIntegration() does not categorize SSE streams
     Sentry.addBreadcrumb({

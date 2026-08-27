@@ -134,6 +134,20 @@ async function installAuthFixtures(
       return;
     }
 
+    if (pathname.endsWith('/auth/refresh')) {
+      // This suite never seeds a refresh-token cookie, so every scenario here is a guest
+      // as far as the mandatory boot probe is concerned (AuthBootBoundary ->
+      // bootstrapAuthSession). It must fail with errorCode ERR_2004 specifically —
+      // anything else is treated as transient and parks authBootStatus at 'retry'
+      // forever, which leaves ProtectedRoute stuck on "Checking authentication...".
+      await json(
+        route,
+        { ...apiError(401, 'No refresh token present', pathname), success: false, errorCode: 'ERR_2004' },
+        401,
+      );
+      return;
+    }
+
     await json(route, apiError(404, 'Unknown auth fixture', pathname), 404);
   });
 }

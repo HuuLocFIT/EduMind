@@ -1,4 +1,5 @@
-import { apiClient, refreshAuthSession } from "./api-client.service.js";
+import { apiClient, refreshAuthSession, clearStoredAuth } from "./api-client.service.js";
+import { getStoredAccessToken, getStoredUser } from "./auth-storage.util.js";
 import type {
   SignupRequest,
   LoginRequest,
@@ -43,9 +44,7 @@ export const authService = {
     const response = await apiClient.post<MessageResponse>(
       AUTH_ENDPOINTS.LOGOUT
     );
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth-storage");
+    clearStoredAuth();
     return response.data;
   },
 
@@ -173,7 +172,8 @@ export const authService = {
       USER_ENDPOINTS.UPDATE_PROFILE(),
       data
     );
-    localStorage.setItem("user", JSON.stringify(response.data));
+    // Callers update the auth store's user snapshot themselves (e.g. ProfileTab.tsx calls
+    // setUser()) — that's what persists it into 'auth-storage', the single source of truth.
     return response.data;
   },
 
@@ -196,12 +196,11 @@ export const authService = {
   // ========== HELPERS ==========
 
   getCurrentUser() {
-    const userStr = localStorage.getItem("user");
-    return userStr ? JSON.parse(userStr) : null;
+    return getStoredUser();
   },
 
   getAccessToken(): string | null {
-    return localStorage.getItem("accessToken");
+    return getStoredAccessToken();
   },
 
   isAuthenticated(): boolean {
@@ -209,9 +208,7 @@ export const authService = {
   },
 
   clearAuth(): void {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-    localStorage.removeItem("auth-storage");
+    clearStoredAuth();
   },
 };
 

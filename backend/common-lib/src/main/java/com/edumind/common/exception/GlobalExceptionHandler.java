@@ -140,7 +140,10 @@ public class GlobalExceptionHandler {
             TokenRefreshException ex, HttpServletRequest request) {
 
         String requestId = generateRequestId();
-        logger.error("❌ [{}] Token refresh failed: {}", requestId, ex.getMessage());
+        // Boot-time reconcile probes run on every page load without a refresh cookie,
+        // so a missing/expired/revoked token here is routine guest traffic, not an
+        // operational error.
+        logger.debug("[{}] Token refresh failed: {}", requestId, ex.getMessage());
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .status(HttpStatus.FORBIDDEN.value())

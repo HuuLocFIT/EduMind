@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { checkA11y } from '../../utils/accessibility.js';
 import { CoursePlayerPage } from '../../page-objects/user/CoursePlayerPage.js';
+import { mockAuthenticatedRefresh } from '../../utils/auth-mock.js';
 
 const timestamp = '2026-01-01T00:00:00.000Z';
 const courseId = 9901;
@@ -107,7 +108,11 @@ const fixtureUser = {
   id: 101,
   username: 'a11y_student',
   email: 'student@example.test',
-  roles: ['STUDENT'],
+  // UserRoleSchema is z.nativeEnum(UserRole), whose STUDENT value is the string
+  // 'ROLE_STUDENT' (see @edumind/shared-constants) — the refresh mock response is
+  // parsed against RefreshTokenResponseSchema, so this must be the real enum value,
+  // not the bare role name.
+  roles: ['ROLE_STUDENT'],
   isActive: true,
   isEmailVerified: true,
   is2faEnabled: false,
@@ -138,6 +143,10 @@ async function seedAuthenticatedSession(page: Page) {
     },
     { user: fixtureUser, accessToken: fixtureAccessToken },
   );
+  // The mandatory boot probe (AuthBootBoundary -> bootstrapAuthSession) confirms this
+  // snapshot against POST /api/auth/refresh before protected content renders; without a
+  // mock the app stays parked on authBootStatus 'retry' and never shows route content.
+  await mockAuthenticatedRefresh(page, fixtureUser, fixtureAccessToken);
 }
 
 async function installCoursePlayerFixtures(page: Page, enrolled = true) {
@@ -162,6 +171,11 @@ async function installCoursePlayerFixtures(page: Page, enrolled = true) {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     const fulfill = (data: unknown, pagination?: object) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(envelope(data, pagination)) });
+
+    // Playwright evaluates matching handlers in reverse registration order.
+    // Let the dedicated auth mock installed by seedAuthenticatedSession handle
+    // the mandatory AuthBootBoundary probe instead of sending it to the network.
+    if (pathname.endsWith('/auth/refresh')) return route.fallback();
 
     // The header cart badge (MainLayout) fetches these on every page boot,
     // regardless of route — must be mocked or the app's 401 → refresh → logout

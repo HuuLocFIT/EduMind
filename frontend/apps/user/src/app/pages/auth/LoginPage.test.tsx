@@ -9,6 +9,7 @@ const mockLogin = vi.fn();
 const mockLoginWith2FA = vi.fn();
 const mockClearError = vi.fn();
 const mockClearSessionExpiredReason = vi.fn();
+const mockCancelSwitchingAccount = vi.fn();
 const { mockResendVerification } = vi.hoisted(() => ({
   mockResendVerification: vi.fn(),
 }));
@@ -22,6 +23,8 @@ const mockUseAuthStore = vi.fn(() => ({
   isAuthenticated: false,
   sessionExpiredReason: null as 'SESSION_EXPIRED' | null,
   clearSessionExpiredReason: mockClearSessionExpiredReason,
+  isSwitchingAccount: false,
+  cancelSwitchingAccount: mockCancelSwitchingAccount,
 }));
 
 vi.mock('@user/stores/auth.store', () => ({
@@ -139,6 +142,8 @@ describe('LoginPage', () => {
       isAuthenticated: false,
       sessionExpiredReason: null,
       clearSessionExpiredReason: mockClearSessionExpiredReason,
+      isSwitchingAccount: false,
+      cancelSwitchingAccount: mockCancelSwitchingAccount,
     });
   });
 
@@ -816,6 +821,36 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /close alert/i }));
 
       expect(mockClearSessionExpiredReason).toHaveBeenCalled();
+    });
+  });
+
+  describe('Switching accounts', () => {
+    it('does not show a cancel affordance when not switching accounts', () => {
+      renderLoginPage();
+
+      expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+    });
+
+    it('offers a way to cancel and go back to the mismatch notice when switching accounts', async () => {
+      const user = userEvent.setup();
+      mockUseAuthStore.mockReturnValue({
+        login: mockLogin,
+        loginWith2FA: mockLoginWith2FA,
+        clearError: mockClearError,
+        isLoading: false,
+        error: null,
+        isAuthenticated: false,
+        sessionExpiredReason: null,
+        clearSessionExpiredReason: mockClearSessionExpiredReason,
+        isSwitchingAccount: true,
+        cancelSwitchingAccount: mockCancelSwitchingAccount,
+      });
+
+      renderLoginPage();
+
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(mockCancelSwitchingAccount).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -8,13 +8,16 @@ import {
   UserSchema,
   type ApiError,
   type RefreshTokenResponse,
+  type User,
 } from '@edumind/shared-types';
+import { UserRole } from '@edumind/shared-constants';
 import {
   unwrapApiResponse,
   AUTH_ENDPOINTS,
   USER_ENDPOINTS,
   API_URL,
 } from '@edumind/shared-utils';
+import { getStoredAccessToken } from './auth-storage.util';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -48,6 +51,44 @@ export function isStaleAuthSessionError(error: unknown): error is StaleAuthSessi
 }
 
 /**
+ * Thrown when an otherwise-valid identity carries ROLE_ADMIN — this portal is for
+ * students/teachers only. Carries the rejected user so the catcher (interceptor has none to
+ * pass) can report which identity was turned away.
+ */
+export class PortalIdentityRejectedError extends Error {
+  constructor(readonly rejectedUser: User) {
+    super('This account is not allowed on the student/teacher portal.');
+    this.name = 'PortalIdentityRejectedError';
+  }
+}
+
+export function isPortalIdentityRejectedError(error: unknown): error is PortalIdentityRejectedError {
+  return error instanceof PortalIdentityRejectedError;
+}
+
+/**
+ * Single policy shared by login, 2FA, OAuth, and refresh: an ADMIN-role identity (even
+ * multi-role) does not belong in the user portal. Call before persisting anything.
+ */
+export function validateUserPortalIdentity(user: User): void {
+  if (user.roles?.includes(UserRole.ADMIN)) {
+    throw new PortalIdentityRejectedError(user);
+  }
+}
+
+/**
+ * Fetches /users/me with an explicit candidate token, bypassing localStorage entirely — used
+ * by 2FA/OAuth login to validate an identity before committing it, so a rejected candidate
+ * never has to be written and then rolled back.
+ */
+export async function fetchCurrentUserWith(accessToken: string): Promise<User> {
+  const response = await axios.get(`${API_URL}${USER_ENDPOINTS.ME}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return UserSchema.parse(unwrapApiResponse(response.data));
+}
+
+/**
  * Ends the current auth session's identity: any refresh still in flight becomes stale and
  * will neither persist its tokens nor notify the store, and the cached promise is dropped
  * so the next caller starts a fresh request instead of adopting the previous session's one.
@@ -58,7 +99,11 @@ export function invalidateAuthSession(): void {
   refreshTokenPromise = null;
 }
 
-/** Clears every piece of persisted auth state (access token, user snapshot, Zustand persist key). */
+/**
+ * Clears the persisted auth snapshot ('auth-storage', the single source of truth). Also
+ * removes the legacy 'accessToken'/'user' keys nothing writes anymore, so a browser that
+ * still has them from before this snapshot became the only source doesn't keep them around.
+ */
 export function clearStoredAuth(): void {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('user');
@@ -89,13 +134,6 @@ export function isTerminalRefreshFailure(error: unknown): boolean {
   return parseApiError(error)?.errorCode === 'ERR_2004';
 }
 
-async function fetchCurrentUserWith(accessToken: string) {
-  const response = await axios.get(`${API_URL}${USER_ENDPOINTS.ME}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return UserSchema.parse(unwrapApiResponse(response.data));
-}
-
 /**
  * Refresh the access token using the refresh token from the HTTP-only cookie, and keep
  * the auth store's user snapshot in sync with the roles the new token carries.
@@ -117,11 +155,7 @@ export async function refreshAuthSession(): Promise<RefreshTokenResponse> {
     .then(async (response) => {
       // Parse, don't cast — this request bypasses the response interceptor's validation.
       const data = RefreshTokenResponseSchema.parse(unwrapApiResponse(response.data));
-
-      // user is optional in the schema — fall back to /users/me with the new token.
-      // Uses the token from the response directly, not localStorage, so nothing has to be
-      // persisted before the staleness check below.
-      const user = data.user ?? (await fetchCurrentUserWith(data.accessToken));
+      const user = data.user;
 
       // Logout (or a different user logging in) between the request and now means this
       // result belongs to a session that no longer exists: writing it would resurrect a
@@ -131,9 +165,12 @@ export async function refreshAuthSession(): Promise<RefreshTokenResponse> {
         throw new StaleAuthSessionError();
       }
 
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('user', JSON.stringify(user)); // legacy key, still read by auth.service.ts
-      // dispatchEvent is synchronous — the store is updated before this promise resolves
+      validateUserPortalIdentity(user);
+
+      // No direct localStorage write here — the 'auth:user-refreshed' listener in
+      // auth.store.ts calls setState(), and the store's persist middleware writes the
+      // single 'auth-storage' snapshot from that. dispatchEvent is synchronous, so the
+      // store (and its persisted snapshot) is updated before this promise resolves.
       window.dispatchEvent(
         new CustomEvent('auth:user-refreshed', { detail: { user, accessToken: data.accessToken } })
       );
@@ -169,7 +206,7 @@ apiClient.interceptors.request.use(
       endpoint.includes('/auth/oauth2');
     
     if (!isAuthEndpoint) {
-      const token = localStorage.getItem('accessToken');
+      const token = getStoredAccessToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -200,20 +237,9 @@ apiClient.interceptors.response.use(
         return response;
       }
       
-      // Otherwise, validate as JwtResponse
+      // Otherwise, validate as JwtResponse. Persistence happens in the auth store's action,
+      // after portal-role validation — this interceptor only parses/validates the shape.
       const result = JwtResponseSchema.safeParse(response.data);
-      if (result.success) {
-        // Store access token and user info
-        // NOTE: refreshToken is NOT in response - it's in HTTP-Only Cookie
-        localStorage.setItem('accessToken', result.data.accessToken);
-        localStorage.setItem('user', JSON.stringify(result.data.user));
-        response.data = result.data;
-      }
-    }
-
-    // Validate refresh response (accessToken persistence is handled by refreshAuthSession's pipeline)
-    if (endpoint?.includes(AUTH_ENDPOINTS.REFRESH)) {
-      const result = RefreshTokenResponseSchema.safeParse(response.data);
       if (result.success) {
         response.data = result.data;
       }

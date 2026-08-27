@@ -7,13 +7,13 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { map, catchError, switchMap } from 'rxjs/operators';
-import { throwError, Subject, take } from 'rxjs';
+import { throwError } from 'rxjs';
 import { unwrapApiResponse } from '@edumind/shared-utils';
-import { AuthService } from '../services/auth.service';
-
-// Track refresh state across interceptor calls
-let isRefreshing = false;
-let refreshTokenSubject = new Subject<string>();
+import {
+  AuthService,
+  isAdminPortalIdentityRejectedError,
+  isTerminalRefreshFailure,
+} from '../services/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -65,78 +65,67 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
 /**
  * Handle 401 Unauthorized error
- * Try to refresh token and retry the original request
+ * Try to refresh token and retry the original request.
+ *
+ * authService.refreshToken() owns the shared refresh pipeline - concurrent
+ * callers (this interceptor, boot reconcile, focus reconcile) all subscribe
+ * to the same in-flight request and get the same result, so no separate
+ * coordination state is kept here.
  */
 function handleUnauthorizedError(
   request: HttpRequest<unknown>,
   next: HttpHandlerFn,
   authService: AuthService
 ) {
-  if (!isRefreshing) {
-    isRefreshing = true;
-    // Create new Subject for this refresh cycle
-    refreshTokenSubject = new Subject<string>();
-
-    return authService.refreshToken().pipe(
-      switchMap((response) => {
-        isRefreshing = false;
-        refreshTokenSubject.next(response.accessToken);
-        refreshTokenSubject.complete();
-
-        // Retry original request with new token
-        const retryRequest = request.clone({
-          setHeaders: {
-            Authorization: `Bearer ${response.accessToken}`,
-          },
-        });
-
-        return next(retryRequest).pipe(
-          map((event) => {
-            if (event instanceof HttpResponse) {
-              const transformedBody = unwrapApiResponse(event.body);
-              if (transformedBody !== event.body) {
-                return event.clone({ body: transformedBody });
-              }
-            }
-            return event;
-          })
-        );
-      }),
-      catchError((refreshErr) => {
-        isRefreshing = false;
-        // Propagate error to all queued requests
-        refreshTokenSubject.error(refreshErr);
-
-        // Refresh failed - force logout
+  return authService.refreshToken().pipe(
+    // catchError BEFORE switchMap, deliberately: chained after it, this would also
+    // catch errors from next(retryRequest) below and classify an ordinary business
+    // failure as a refresh failure - a retried endpoint answering with errorCode
+    // ERR_2004 would even trip forceLogout(), since isTerminalRefreshFailure() reads
+    // the body's errorCode and never the URL. Here it only ever sees refresh errors.
+    catchError((refreshErr) => {
+      // Three-way classification, by type/errorCode - never by bare HTTP
+      // status, since a wrong-portal rejection and a dead session can both
+      // arrive as 403/401.
+      if (isAdminPortalIdentityRejectedError(refreshErr)) {
+        // Confirmed wrong-portal identity - reject it locally instead of the
+        // blanket forceLogout(), which would revoke every device via
+        // /auth/logout semantics.
+        authService.rejectPortalIdentity(refreshErr.rejectedUser);
+      } else if (isTerminalRefreshFailure(refreshErr)) {
+        // Refresh token itself is confirmed dead/revoked - only this branch
+        // may force a logout.
         authService.forceLogout();
+      } else {
+        // Network error, timeout, 5xx, malformed body, or a schema contract
+        // violation (e.g. missing user) - none of these prove the session is
+        // dead. Keep the stored snapshot and let the caller retry.
+        authService.markTemporaryReconcileFailure();
+      }
 
-        return throwError(() => refreshErr);
-      })
-    );
-  } else {
-    // Another request is already refreshing - wait for it
-    return refreshTokenSubject.pipe(
-      take(1),
-      switchMap((token) => {
-        // Retry with the new token from the other request's refresh
-        const retryRequest = request.clone({
-          setHeaders: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      return throwError(() => refreshErr);
+    }),
+    switchMap((response) => {
+      // Retry original request with new token. Its failures propagate untouched:
+      // the refresh itself already succeeded, so the session is confirmed good and
+      // nothing here may downgrade it.
+      const retryRequest = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${response.accessToken}`,
+        },
+      });
 
-        return next(retryRequest).pipe(
-          map((event) => {
-            if (event instanceof HttpResponse) {
-              const transformedBody = unwrapApiResponse(event.body);
-              if (transformedBody !== event.body) {
-                return event.clone({ body: transformedBody });
-              }
+      return next(retryRequest).pipe(
+        map((event) => {
+          if (event instanceof HttpResponse) {
+            const transformedBody = unwrapApiResponse(event.body);
+            if (transformedBody !== event.body) {
+              return event.clone({ body: transformedBody });
             }
-            return event;
-          })
-        );
-      })
-    );
-  }
+          }
+          return event;
+        })
+      );
+    })
+  );
 }

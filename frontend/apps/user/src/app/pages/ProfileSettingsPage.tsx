@@ -29,7 +29,6 @@ export const ProfileSettingsPage: React.FC = () => {
         try {
           const updatedUser = await authService.fetchCurrentUser();
           setUser(updatedUser);
-          localStorage.setItem('user', JSON.stringify(updatedUser));
         } catch (error) {
           console.error('Failed to refresh user data:', error);
         }

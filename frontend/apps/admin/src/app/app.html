@@ -1,1 +1,61 @@
-<router-outlet></router-outlet>
+@switch (viewState()) {
+  @case ('loading') {
+    <div
+      data-testid="admin-boot-loading"
+      role="status"
+      aria-live="polite"
+      class="flex min-h-screen items-center justify-center bg-neutral-50"
+    >
+      <svg class="h-10 w-10 animate-spin text-brand-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        />
+      </svg>
+      <span class="sr-only">Verifying your session…</span>
+    </div>
+  }
+  @case ('retry') {
+    <div
+      data-testid="admin-boot-retry"
+      class="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-16"
+    >
+      <div class="w-full max-w-md space-y-6">
+        <app-alert
+          variant="error"
+          title="Couldn't verify your session"
+          message="Check your connection and try again."
+        />
+        <app-button variant="primary" [fullWidth]="true" (click)="retryBoot()">
+          Retry
+        </app-button>
+      </div>
+    </div>
+  }
+  @case ('mismatch') {
+    <app-portal-mismatch />
+  }
+  @default {
+    <router-outlet></router-outlet>
+    @if (isRefreshingSession()) {
+      <div
+        data-testid="admin-reconciling-overlay"
+        role="status"
+        aria-live="polite"
+        class="fixed inset-0 z-50 flex cursor-wait items-center justify-center bg-white/60 backdrop-blur-sm"
+      >
+        <svg class="h-8 w-8 animate-spin text-brand-600" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+        <span class="sr-only">Syncing your session…</span>
+      </div>
+    }
+  }
+}

@@ -26,6 +26,7 @@ const baseState = () => ({
   isLoading: false,
   isRefreshingSession: false,
   sessionRefreshError: null as "SESSION_EXPIRED" | "TEMPORARY" | null,
+  authBootStatus: "ready" as "idle" | "checking" | "ready" | "retry",
   refreshSession: vi.fn(),
 });
 
@@ -63,6 +64,17 @@ describe("TeacherGuard", () => {
     expect(screen.getByText("Verifying access…")).toBeInTheDocument();
     expect(screen.queryByText("login-page")).not.toBeInTheDocument();
     expect(screen.queryByText("student-dashboard")).not.toBeInTheDocument();
+  });
+
+  it("waits for the boot probe instead of redirecting to login when the local snapshot says unauthenticated", () => {
+    state.isAuthenticated = false;
+    state.user = null as any;
+    state.authBootStatus = "checking";
+
+    renderGuard();
+
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.queryByText("login-page")).not.toBeInTheDocument();
   });
 
   it("calls refreshSession exactly once after the sync effect runs", async () => {

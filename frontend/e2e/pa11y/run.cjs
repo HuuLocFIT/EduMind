@@ -18,37 +18,38 @@ const reportDirectory = path.resolve(process.cwd(), config.reportDirectory);
 // generic "block every non-GET write" rule below must not 405 them.
 const SAFE_NON_GET_READS = [/\/checkout\/preview$/, /\/checkout\/direct\/preview$/];
 
+// UserRoleSchema is z.nativeEnum(UserRole), whose STUDENT value is the string
+// 'ROLE_STUDENT' (see @edumind/shared-constants) — the refresh mock response below is
+// parsed against RefreshTokenResponseSchema, so this must be the real enum value.
+const PA11Y_USER = {
+  id: 99001,
+  username: 'pa11y-student',
+  email: 'pa11y@example.invalid',
+  firstName: 'Pa11y',
+  lastName: 'Student',
+  roles: ['ROLE_STUDENT'],
+  isActive: true,
+  isEmailVerified: true,
+  is2faEnabled: false,
+  isTrial: false,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+const PA11Y_ACCESS_TOKEN = 'pa11y-local-fixture-token';
+
 async function preparePage(browser, route) {
   const page = await browser.newPage();
   if (route.requiresAuth) {
-    await page.evaluateOnNewDocument(() => {
-      const user = {
-        id: 99001,
-        username: 'pa11y-student',
-        email: 'pa11y@example.invalid',
-        firstName: 'Pa11y',
-        lastName: 'Student',
-        roles: ['STUDENT'],
-        isActive: true,
-        isEmailVerified: true,
-        is2faEnabled: false,
-        isTrial: false,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      };
-      localStorage.setItem('accessToken', 'pa11y-local-fixture-token');
+    await page.evaluateOnNewDocument((user, accessToken) => {
+      localStorage.setItem('accessToken', accessToken);
       localStorage.setItem(
         'auth-storage',
         JSON.stringify({
-          state: {
-            user,
-            accessToken: 'pa11y-local-fixture-token',
-            isAuthenticated: true,
-          },
+          state: { user, accessToken, isAuthenticated: true },
           version: 0,
         }),
       );
-    });
+    }, PA11Y_USER, PA11Y_ACCESS_TOKEN);
   }
   await page.setRequestInterception(true);
   page.on('request', async (request) => {
@@ -63,6 +64,38 @@ async function preparePage(browser, route) {
         // below would — fails the preflight and silently drops the real
         // request, which starved every `requiresAuth` route's data fetch.
         await request.respond({status: 204, headers: fixtureCorsHeaders()});
+      } else if (isApi && url.pathname.endsWith('/auth/refresh')) {
+        // The mandatory boot probe (AuthBootBoundary -> bootstrapAuthSession) calls
+        // this on every page load before protected content renders. Left to the
+        // generic "block writes" branch below, it gets a 405 with no errorCode; since
+        // isTerminalRefreshFailure only resolves for errorCode 'ERR_2004', that response
+        // is treated as transient and authBootStatus never leaves 'retry' — every
+        // requiresAuth route hangs on "Checking authentication...".
+        if (route.requiresAuth) {
+          await request.respond({
+            status: 200,
+            contentType: 'application/json',
+            headers: fixtureCorsHeaders(),
+            body: JSON.stringify({
+              status: 200,
+              success: true,
+              data: { accessToken: PA11Y_ACCESS_TOKEN, tokenType: 'Bearer', user: PA11Y_USER },
+            }),
+          });
+        } else {
+          await request.respond({
+            status: 401,
+            contentType: 'application/json',
+            headers: fixtureCorsHeaders(),
+            body: JSON.stringify({
+              status: 401,
+              success: false,
+              message: 'No refresh token present',
+              errorCode: 'ERR_2004',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            }),
+          });
+        }
       } else if (
         isApi &&
         request.method() !== 'GET' &&

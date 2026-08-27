@@ -22,6 +22,10 @@ import {
   isStaleAuthSessionError,
   invalidateAuthSession,
   clearStoredAuth,
+  validateUserPortalIdentity,
+  isPortalIdentityRejectedError,
+  PortalIdentityRejectedError,
+  fetchCurrentUserWith,
 } from './api-client.service';
 
 const validUser = {
@@ -50,6 +54,76 @@ describe('clearStoredAuth', () => {
     expect(localStorage.getItem('accessToken')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
     expect(localStorage.getItem('auth-storage')).toBeNull();
+  });
+});
+
+describe('validateUserPortalIdentity', () => {
+  it('does not throw for a non-admin user', () => {
+    expect(() => validateUserPortalIdentity(validUser)).not.toThrow();
+  });
+
+  it('throws PortalIdentityRejectedError for a user with ROLE_ADMIN', () => {
+    const admin = { ...validUser, roles: ['ROLE_ADMIN'] };
+    expect(() => validateUserPortalIdentity(admin as never)).toThrow(PortalIdentityRejectedError);
+  });
+
+  it('throws for a multi-role user that includes ROLE_ADMIN', () => {
+    const multiRole = { ...validUser, roles: ['ROLE_STUDENT', 'ROLE_ADMIN'] };
+    expect(() => validateUserPortalIdentity(multiRole as never)).toThrow(PortalIdentityRejectedError);
+  });
+
+  it('the rejected error carries the rejected user', () => {
+    const admin = { ...validUser, roles: ['ROLE_ADMIN'] };
+    try {
+      validateUserPortalIdentity(admin as never);
+      throw new Error('expected validateUserPortalIdentity to throw');
+    } catch (error) {
+      expect(isPortalIdentityRejectedError(error)).toBe(true);
+      expect((error as PortalIdentityRejectedError).rejectedUser).toEqual(admin);
+    }
+  });
+});
+
+describe('fetchCurrentUserWith', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockAxiosGet.mockReset();
+  });
+
+  it('fetches /users/me with the given token, ignoring any token in localStorage', async () => {
+    localStorage.setItem('accessToken', 'stale-token');
+    mockAxiosGet.mockResolvedValue({ data: envelope(validUser) });
+
+    const user = await fetchCurrentUserWith('candidate-token');
+
+    expect(user).toEqual(validUser);
+    const [, config] = mockAxiosGet.mock.calls[0];
+    expect(config.headers.Authorization).toBe('Bearer candidate-token');
+  });
+});
+
+describe('refreshAuthSession — portal identity rejection', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockAxiosPost.mockReset();
+  });
+
+  it('rejects with PortalIdentityRejectedError and persists nothing when the refreshed identity is an admin', async () => {
+    const admin = { ...validUser, roles: ['ROLE_ADMIN'] };
+    mockAxiosPost.mockResolvedValue({
+      data: envelope({ accessToken: 'admin-token', tokenType: 'Bearer', user: admin }),
+    });
+
+    let caught: unknown;
+    try {
+      await refreshAuthSession();
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isPortalIdentityRejectedError(caught)).toBe(true);
+    expect(localStorage.getItem('accessToken')).toBeNull();
+    expect(localStorage.getItem('user')).toBeNull();
   });
 });
 
@@ -103,8 +177,11 @@ describe('refreshAuthSession', () => {
 
     expect(result.accessToken).toBe('new-token');
     expect(result.user).toEqual(validUser);
-    expect(localStorage.getItem('accessToken')).toBe('new-token');
-    expect(JSON.parse(localStorage.getItem('user')!)).toEqual(validUser);
+    // No direct localStorage write here — persistence happens in auth.store.ts's
+    // 'auth:user-refreshed' listener (asserted via the dispatched event below), which is the
+    // single writer of the 'auth-storage' snapshot. This module-level test has no store
+    // listener attached, so storage staying empty is the expected, isolated behavior.
+    expect(localStorage.getItem('auth-storage')).toBeNull();
     expect(mockAxiosGet).not.toHaveBeenCalled();
 
     const dispatched = dispatchSpy.mock.calls
@@ -114,18 +191,13 @@ describe('refreshAuthSession', () => {
     expect(dispatched?.detail).toEqual({ user: validUser, accessToken: 'new-token' });
   });
 
-  it('falls back to /users/me with the new token when the response omits user', async () => {
+  it('rejects when the refresh response omits user (contract violation, no fallback)', async () => {
     mockAxiosPost.mockResolvedValue({
       data: envelope({ accessToken: 'new-token', tokenType: 'Bearer' }),
     });
-    mockAxiosGet.mockResolvedValue({ data: envelope(validUser) });
 
-    const result = await refreshAuthSession();
-
-    expect(mockAxiosGet).toHaveBeenCalledTimes(1);
-    const [, getConfig] = mockAxiosGet.mock.calls[0];
-    expect(getConfig.headers.Authorization).toBe('Bearer new-token');
-    expect(result.user).toEqual(validUser);
+    await expect(refreshAuthSession()).rejects.toBeTruthy();
+    expect(mockAxiosGet).not.toHaveBeenCalled();
   });
 
   it('dedupes concurrent callers into a single POST /auth/refresh', async () => {
@@ -255,7 +327,6 @@ describe('refreshAuthSession — session changed while in flight', () => {
 
     expect(mockAxiosPost).toHaveBeenCalledTimes(2);
     expect(result.accessToken).toBe('new-session-token');
-    expect(localStorage.getItem('accessToken')).toBe('new-session-token');
   });
 });
 

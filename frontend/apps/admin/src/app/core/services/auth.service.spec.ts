@@ -4,8 +4,9 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
-import { AuthService } from './auth.service';
+import { AuthService, AdminPortalIdentityRejectedError, isTerminalRefreshFailure } from './auth.service';
 import { environment } from '../../../environments/environment';
 import { UserRole } from '@edumind/shared-constants';
 import { AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
@@ -102,6 +103,16 @@ describe('AuthService', () => {
     user: mockAdminUser,
   };
 
+  // Post-P2-2, the service persists a single atomic 'admin_auth_storage' snapshot instead of
+  // the old independent 'admin_auth_token'/'admin_user' keys — these helpers write/read that
+  // snapshot the same way the service does.
+  const setAdminSnapshot = (accessToken: string | null, user: User | null) =>
+    localStorage.setItem('admin_auth_storage', JSON.stringify({ accessToken, user }));
+  const getAdminSnapshot = (): { accessToken: string | null; user: User | null } | null => {
+    const raw = localStorage.getItem('admin_auth_storage');
+    return raw ? JSON.parse(raw) : null;
+  };
+
   beforeEach(() => {
     // Clear localStorage
     localStorage.clear();
@@ -146,7 +157,7 @@ describe('AuthService', () => {
     it('should initialize with stored user from localStorage', () => {
       // Reset TestBed completely to get fresh DI container
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
@@ -232,18 +243,34 @@ describe('AuthService', () => {
     it('should store access token in localStorage on success', async () => {
       const loginPromise = service.login(credentials).toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
-      
+
       await loginPromise;
-      expect(localStorage.getItem('admin_auth_token')).toBe(mockLoginResponse.accessToken);
+      expect(service.getToken()).toBe(mockLoginResponse.accessToken);
     });
 
     it('should store user in localStorage on success', async () => {
       const loginPromise = service.login(credentials).toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
-      
+
       await loginPromise;
-      const storedUser = JSON.parse(localStorage.getItem('admin_user') || 'null');
-      expect(storedUser).toEqual(mockAdminUser);
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('persists the token and user in a single atomic localStorage write, never two independent keys', async () => {
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+      const loginPromise = service.login(credentials).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
+      await loginPromise;
+
+      const authWrites = setItemSpy.mock.calls.filter(([key]) => key !== 'other_data');
+      expect(authWrites).toHaveLength(1);
+      const [, value] = authWrites[0];
+      const snapshot = JSON.parse(value);
+      expect(snapshot.accessToken).toBe(mockLoginResponse.accessToken);
+      expect(snapshot.user).toEqual(mockAdminUser);
+
+      setItemSpy.mockRestore();
     });
 
     it('should update currentUserSubject on success', async () => {
@@ -404,19 +431,42 @@ describe('AuthService', () => {
       req.flush(mockRefreshResponse);
     });
 
-    it('should prevent multiple simultaneous refresh attempts', async () => {
-      // Start first refresh - this sets isRefreshing to true
-      const firstRefresh = service.refreshToken();
-      firstRefresh.subscribe(); // Subscribe to initiate the request
-      
-      // Now try second refresh - should fail immediately
-      const secondRefresh = service.refreshToken();
-      const secondRefreshPromise = secondRefresh.toPromise();
-      
-      // Complete the first refresh
+    it('joins concurrent refresh calls into a single shared HTTP request', async () => {
+      const firstRefreshPromise = service.refreshToken().toPromise();
+      const secondRefreshPromise = service.refreshToken().toPromise();
+
+      // Only one HTTP request should be made for both callers
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(mockRefreshResponse);
+
+      const [firstResult, secondResult] = await Promise.all([
+        firstRefreshPromise,
+        secondRefreshPromise,
+      ]);
+
+      expect(firstResult).toEqual(mockRefreshResponse);
+      expect(secondResult).toEqual(mockRefreshResponse);
+    });
+
+    it('propagates the same failure to every joined caller', async () => {
+      const firstRefreshPromise = service.refreshToken().toPromise();
+      const secondRefreshPromise = service.refreshToken().toPromise();
+
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      await expect(firstRefreshPromise).rejects.toThrow();
+      await expect(secondRefreshPromise).rejects.toThrow();
+    });
+
+    it('starts a fresh HTTP request for a refresh call made after the previous one completed', async () => {
+      const firstRefreshPromise = service.refreshToken().toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
-      
-      await expect(secondRefreshPromise).rejects.toThrow('Refresh already in progress');
+      await firstRefreshPromise;
+
+      const secondRefreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await secondRefreshPromise;
     });
 
     it('should update access token in localStorage on success', async () => {
@@ -424,16 +474,15 @@ describe('AuthService', () => {
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
       
       await refreshPromise;
-      expect(localStorage.getItem('admin_auth_token')).toBe(mockRefreshResponse.accessToken);
+      expect(getAdminSnapshot()?.accessToken).toBe(mockRefreshResponse.accessToken);
     });
 
     it('should update user in localStorage if provided', async () => {
       const refreshPromise = service.refreshToken().toPromise();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
-      
+
       await refreshPromise;
-      const storedUser = JSON.parse(localStorage.getItem('admin_user') || 'null');
-      expect(storedUser).toEqual(mockAdminUser);
+      expect(getAdminSnapshot()?.user).toEqual(mockAdminUser);
     });
 
     it('should update currentUserSubject if user provided', async () => {
@@ -469,22 +518,63 @@ describe('AuthService', () => {
       await expect(refreshPromise).rejects.toThrow();
     });
 
-    it('should not update user if not provided in refresh response', async () => {
-      const refreshResponseWithoutUser: RefreshTokenResponse = {
+    it('rejects with AdminPortalIdentityRejectedError when refresh returns a non-admin identity, without persisting it', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      const nonAdminRefreshResponse: RefreshTokenResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      };
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush(nonAdminRefreshResponse);
+
+      await expect(refreshPromise).rejects.toThrow(AdminPortalIdentityRejectedError);
+      expect(getAdminSnapshot()).toBeNull();
+    });
+
+    it('carries the rejected user on AdminPortalIdentityRejectedError from refresh', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      const nonAdminRefreshResponse: RefreshTokenResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      };
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush(nonAdminRefreshResponse);
+
+      let caught: unknown;
+      try {
+        await refreshPromise;
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(AdminPortalIdentityRejectedError);
+      expect((caught as AdminPortalIdentityRejectedError).rejectedUser).toEqual(nonAdminUser);
+    });
+
+    it('rejects when the refresh response omits user (contract violation, no fallback)', async () => {
+      const refreshResponseWithoutUser = {
         accessToken: createValidToken(),
         tokenType: 'Bearer',
       };
 
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       const originalUser = service.getCurrentUser();
 
       const refreshPromise = service.refreshToken().toPromise();
       httpMock
         .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
         .flush(refreshResponseWithoutUser);
-      
-      await refreshPromise;
-      // User should remain unchanged
+
+      await expect(refreshPromise).rejects.toThrow();
+      // User should remain unchanged since the rejected response was never adopted
       expect(service.getCurrentUser()).toEqual(originalUser);
     });
   });
@@ -492,8 +582,7 @@ describe('AuthService', () => {
   describe('Logout Method', () => {
     beforeEach(() => {
       // Set up authenticated state
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
     });
 
     it('should call logout endpoint', () => {
@@ -521,8 +610,7 @@ describe('AuthService', () => {
       service.logout();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`).flush({});
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('should set currentUserSubject to null', () => {
@@ -546,35 +634,31 @@ describe('AuthService', () => {
         .flush(null, { status: 500, statusText: 'Server Error' });
 
       // Should still clear data and navigate
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(router.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
     });
 
     it('should clear all auth-related localStorage items', () => {
-      localStorage.setItem('admin_auth_token', 'token');
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot('token', mockAdminUser);
       localStorage.setItem('other_data', 'should remain');
 
       service.logout();
       httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`).flush({});
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
       expect(localStorage.getItem('other_data')).toBe('should remain');
     });
   });
 
   describe('Force Logout Method', () => {
     beforeEach(() => {
-      localStorage.setItem('admin_auth_token', createValidToken());
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
     });
 
     it('should clear auth data from localStorage', () => {
       service.forceLogout();
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('should set currentUserSubject to null', () => {
@@ -596,10 +680,156 @@ describe('AuthService', () => {
     });
   });
 
+  describe('isTerminalRefreshFailure', () => {
+    it('returns true for an HttpErrorResponse carrying errorCode ERR_2004', () => {
+      const error = new HttpErrorResponse({
+        error: { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        status: 403,
+        statusText: 'Forbidden',
+      });
+
+      expect(isTerminalRefreshFailure(error)).toBe(true);
+    });
+
+    it('returns false for an HttpErrorResponse with a different errorCode', () => {
+      const error = new HttpErrorResponse({
+        error: { message: 'Bad request', status: 400, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_1000' },
+        status: 400,
+        statusText: 'Bad Request',
+      });
+
+      expect(isTerminalRefreshFailure(error)).toBe(false);
+    });
+
+    it('returns false for an HttpErrorResponse with no parseable body (network error, malformed response)', () => {
+      const error = new HttpErrorResponse({
+        error: null,
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+
+      expect(isTerminalRefreshFailure(error)).toBe(false);
+    });
+
+    it('returns false for a non-HttpErrorResponse error (schema violation, AdminPortalIdentityRejectedError)', () => {
+      expect(isTerminalRefreshFailure(new Error('boom'))).toBe(false);
+      expect(isTerminalRefreshFailure(new AdminPortalIdentityRejectedError(mockNonAdminUser))).toBe(false);
+    });
+  });
+
+  describe('markTemporaryReconcileFailure Method', () => {
+    beforeEach(() => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+    });
+
+    it('marks the temporaryReconcileFailure state', () => {
+      expect(service.temporaryReconcileFailure()).toBe(false);
+
+      service.markTemporaryReconcileFailure();
+
+      expect(service.temporaryReconcileFailure()).toBe(true);
+    });
+
+    it('does not clear the stored snapshot', () => {
+      service.markTemporaryReconcileFailure();
+
+      expect(getAdminSnapshot()).toEqual({ accessToken: createValidToken(), user: mockAdminUser });
+    });
+
+    it('does not touch currentUserSubject', async () => {
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await refreshPromise;
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+
+      service.markTemporaryReconcileFailure();
+
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('does not navigate', () => {
+      service.markTemporaryReconcileFailure();
+
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('does not call the logout API endpoint', () => {
+      service.markTemporaryReconcileFailure();
+
+      httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+
+    it('clears once a subsequent refresh succeeds', async () => {
+      service.markTemporaryReconcileFailure();
+      expect(service.temporaryReconcileFailure()).toBe(true);
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await refreshPromise;
+
+      expect(service.temporaryReconcileFailure()).toBe(false);
+    });
+
+    it('clears once a subsequent login succeeds', async () => {
+      service.markTemporaryReconcileFailure();
+      expect(service.temporaryReconcileFailure()).toBe(true);
+
+      const loginPromise = service.login({ usernameOrEmail: 'admin', password: 'password123' }).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
+      await loginPromise;
+
+      expect(service.temporaryReconcileFailure()).toBe(false);
+    });
+  });
+
+  describe('Reject Portal Identity Method', () => {
+    beforeEach(() => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+    });
+
+    it('clears auth data from localStorage', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(getAdminSnapshot()).toBeNull();
+    });
+
+    it('sets currentUserSubject to null', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(service.getCurrentUser()).toBeNull();
+    });
+
+    it('marks the portalMismatch state', () => {
+      expect(service.portalMismatch()).toBe(false);
+
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(service.portalMismatch()).toBe(true);
+    });
+
+    it('does not call the logout API endpoint', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+
+    it('does not navigate', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('records the rejected identity', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(service.rejectedIdentity()).toEqual(mockNonAdminUser);
+    });
+  });
+
   describe('Token Management', () => {
     it('getToken() should return token from localStorage', () => {
       const token = createValidToken();
-      localStorage.setItem('admin_auth_token', token);
+      setAdminSnapshot(token, mockAdminUser);
 
       expect(service.getToken()).toBe(token);
     });
@@ -610,16 +840,18 @@ describe('AuthService', () => {
       expect(service.getToken()).toBeNull();
     });
 
-    it('setToken() should update token in localStorage', () => {
+    it('setToken() should update the token, preserving the current user in the snapshot', () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       const newToken = createValidToken();
+
       service.setToken(newToken);
 
-      expect(localStorage.getItem('admin_auth_token')).toBe(newToken);
+      expect(getAdminSnapshot()).toEqual({ accessToken: newToken, user: mockAdminUser });
     });
 
     it('isTokenExpired() should return true for expired token', () => {
       const expiredToken = createExpiredToken();
-      localStorage.setItem('admin_auth_token', expiredToken);
+      setAdminSnapshot(expiredToken, mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
     });
@@ -632,13 +864,13 @@ describe('AuthService', () => {
 
     it('isTokenExpired() should return false for valid token', () => {
       const validToken = createValidToken();
-      localStorage.setItem('admin_auth_token', validToken);
+      setAdminSnapshot(validToken, mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(false);
     });
 
     it('isTokenExpired() should handle invalid token format', () => {
-      localStorage.setItem('admin_auth_token', 'invalid.token');
+      setAdminSnapshot('invalid.token', mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
     });
@@ -647,7 +879,7 @@ describe('AuthService', () => {
   describe('Authentication Status', () => {
     it('isAuthenticated() should return true when valid token exists', () => {
       const validToken = createValidToken();
-      localStorage.setItem('admin_auth_token', validToken);
+      setAdminSnapshot(validToken, mockAdminUser);
 
       expect(service.isAuthenticated()).toBe(true);
     });
@@ -660,31 +892,27 @@ describe('AuthService', () => {
 
     it('isAuthenticated() should return false for expired token', () => {
       const expiredToken = createExpiredToken();
-      localStorage.setItem('admin_auth_token', expiredToken);
+      setAdminSnapshot(expiredToken, mockAdminUser);
 
       expect(service.isAuthenticated()).toBe(false);
     });
 
     it('isAuthenticated() should clear auth data for invalid token', () => {
-      localStorage.setItem('admin_auth_token', 'invalid.token');
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot('invalid.token', mockAdminUser);
 
       service.isAuthenticated();
 
-      expect(localStorage.getItem('admin_auth_token')).toBeNull();
-      expect(localStorage.getItem('admin_user')).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
     });
 
     it('isAuthenticated() should not clear auth data for expired token', () => {
       const expiredToken = createExpiredToken();
-      localStorage.setItem('admin_auth_token', expiredToken);
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(expiredToken, mockAdminUser);
 
       service.isAuthenticated();
 
       // Should not clear - let interceptor handle refresh
-      expect(localStorage.getItem('admin_auth_token')).toBe(expiredToken);
-      expect(localStorage.getItem('admin_user')).toBeTruthy();
+      expect(getAdminSnapshot()).toEqual({ accessToken: expiredToken, user: mockAdminUser });
     });
   });
 
@@ -692,7 +920,7 @@ describe('AuthService', () => {
     it('getCurrentUser() should return current user', () => {
       // Reset TestBed to get fresh service with localStorage
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
@@ -739,7 +967,7 @@ describe('AuthService', () => {
     it('should restore user from localStorage on initialization', () => {
       // Reset TestBed to get fresh service with localStorage
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+      setAdminSnapshot(createValidToken(), mockAdminUser);
       
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
@@ -848,19 +1076,19 @@ describe('AuthService', () => {
   describe('Token Decoding', () => {
     it('should decode valid JWT token', () => {
       const validToken = createValidToken();
-      localStorage.setItem('admin_auth_token', validToken);
+      setAdminSnapshot(validToken, mockAdminUser);
 
       expect(service.isAuthenticated()).toBe(true);
     });
 
     it('should throw error for invalid token format', () => {
-      localStorage.setItem('admin_auth_token', 'not.a.valid.token.format');
+      setAdminSnapshot('not.a.valid.token.format', mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
     });
 
     it('should handle malformed token gracefully', () => {
-      localStorage.setItem('admin_auth_token', 'invalid');
+      setAdminSnapshot('invalid', mockAdminUser);
 
       expect(service.isTokenExpired()).toBe(true);
       expect(service.isAuthenticated()).toBe(false);
@@ -879,6 +1107,25 @@ describe('AuthService', () => {
       
       await loginPromise;
       expect(service.getCurrentUser()?.roles).toContain(UserRole.ADMIN);
+    });
+
+    it('surfaces the admin-privileges-required message via a typed AdminPortalIdentityRejectedError, without a fake 403 HttpErrorResponse', async () => {
+      const credentials: LoginRequest = {
+        usernameOrEmail: 'student',
+        password: 'password123',
+      };
+
+      const nonAdminResponse: JwtResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: mockNonAdminUser,
+      };
+
+      const loginPromise = service.login(credentials).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(nonAdminResponse);
+
+      await expect(loginPromise).rejects.toThrow('Access denied. Admin privileges required.');
+      expect(service.error()).toBe('Access denied. Admin privileges required.');
     });
 
     it('should reject user with STUDENT role', async () => {
@@ -1023,8 +1270,8 @@ describe('AuthService', () => {
     it('should handle malformed JSON in localStorage', () => {
       // Reset TestBed to get fresh service with localStorage state
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', 'invalid-json{');
-      
+      localStorage.setItem('admin_auth_storage', 'invalid-json{');
+
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
         providers: [
@@ -1040,8 +1287,8 @@ describe('AuthService', () => {
     it('should handle null values in localStorage', () => {
       // Reset TestBed to get fresh service with localStorage state
       TestBed.resetTestingModule();
-      localStorage.setItem('admin_user', 'null');
-      
+      localStorage.setItem('admin_auth_storage', 'null');
+
       TestBed.configureTestingModule({
         imports: [HttpClientTestingModule],
         providers: [
@@ -1054,12 +1301,307 @@ describe('AuthService', () => {
       expect(freshService.getCurrentUser()).toBeNull();
     });
 
-    it('should handle empty string values', () => {
-      localStorage.setItem('admin_auth_token', '');
-      localStorage.setItem('admin_user', '');
+    it('should handle an empty string snapshot value', () => {
+      localStorage.setItem('admin_auth_storage', '');
 
-      expect(service.getToken()).toBe('');
-      // Empty string JSON.parse will throw, so user should be null from service initialization
+      // An empty string is falsy, so this reads the same as no snapshot at all.
+      expect(service.getToken()).toBeNull();
+      expect(service.getCurrentUser()).toBeNull();
+    });
+  });
+
+  describe('bootstrapAuthSession Method', () => {
+    it('starts in idle status', () => {
+      expect(service.authBootStatus()).toBe('idle');
+    });
+
+    it('transitions to checking, then ready, on a successful boot probe', async () => {
+      service.bootstrapAuthSession();
+      expect(service.authBootStatus()).toBe('checking');
+
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(mockRefreshResponse);
+      // let the observable's next/subscribe microtask flush
+      await Promise.resolve();
+
+      expect(service.authBootStatus()).toBe('ready');
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('always probes /auth/refresh on boot, even with no local snapshot', () => {
+      localStorage.clear();
+
+      service.bootstrapAuthSession();
+
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      expect(req.request.method).toBe('POST');
+      req.flush(mockRefreshResponse);
+    });
+
+    it('rejects a non-admin identity into portalMismatch, without navigating', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      const nonAdminRefreshResponse: RefreshTokenResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      };
+
+      service.bootstrapAuthSession();
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(nonAdminRefreshResponse);
+      await Promise.resolve();
+
+      expect(service.portalMismatch()).toBe(true);
+      expect(service.rejectedIdentity()).toEqual(nonAdminUser);
+      expect(service.authBootStatus()).toBe('ready');
+      expect(getAdminSnapshot()).toBeNull();
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('clears the local snapshot without navigating on a terminal refresh failure (no cookie / revoked)', async () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+
+      service.bootstrapAuthSession();
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
+      await Promise.resolve();
+
+      expect(service.authBootStatus()).toBe('ready');
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.getCurrentUser()).toBeNull();
+      expect(getAdminSnapshot()).toBeNull();
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('marks temporaryReconcileFailure and stays in retry on a network error, keeping the stored snapshot', async () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+
+      service.bootstrapAuthSession();
+      const req = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      req.error(new ProgressEvent('Network error'));
+      await Promise.resolve();
+
+      expect(service.authBootStatus()).toBe('retry');
+      expect(service.temporaryReconcileFailure()).toBe(true);
+      expect(getAdminSnapshot()).toEqual({ accessToken: createValidToken(), user: mockAdminUser });
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('ignores a second call while a boot probe is already in flight', () => {
+      service.bootstrapAuthSession();
+      service.bootstrapAuthSession();
+
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+    });
+  });
+
+  describe('Switching Account', () => {
+    it('starts with isSwitchingAccount false', () => {
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+
+    it('startSwitchingAccount sets isSwitchingAccount true', () => {
+      service.startSwitchingAccount('/courses');
+
+      expect(service.isSwitchingAccount()).toBe(true);
+    });
+
+    it('consumeReturnUrl returns the stored url and clears it (one-time use)', () => {
+      service.startSwitchingAccount('/courses/42');
+
+      expect(service.consumeReturnUrl()).toBe('/courses/42');
+      expect(service.consumeReturnUrl()).toBe(ADMIN_ROUTES.DASHBOARD);
+    });
+
+    it('consumeReturnUrl returns the dashboard route when no return url was stored', () => {
+      expect(service.consumeReturnUrl()).toBe(ADMIN_ROUTES.DASHBOARD);
+    });
+
+    it('cancelSwitchingAccount sets isSwitchingAccount back to false', () => {
+      service.startSwitchingAccount('/courses');
+
+      service.cancelSwitchingAccount();
+
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+  });
+
+  describe('Mismatch state clears on a confirmed matching identity', () => {
+    it('a successful login resets portalMismatch, rejectedIdentity and isSwitchingAccount', async () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+      service.startSwitchingAccount('/courses');
+      expect(service.portalMismatch()).toBe(true);
+      expect(service.isSwitchingAccount()).toBe(true);
+
+      const loginPromise = service
+        .login({ usernameOrEmail: 'admin', password: 'password123' })
+        .toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(mockLoginResponse);
+      await loginPromise;
+
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.rejectedIdentity()).toBeNull();
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+
+    it('a successful refresh resets portalMismatch, rejectedIdentity and isSwitchingAccount', async () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+      service.startSwitchingAccount('/courses');
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await refreshPromise;
+
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.rejectedIdentity()).toBeNull();
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+  });
+
+  describe('Login rejection while switching account falls back to mismatch', () => {
+    it('a wrong-role login attempt made mid-switch closes the escape and keeps portalMismatch', async () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+      service.startSwitchingAccount('/courses');
+
+      const anotherNonAdminUser: User = { ...mockNonAdminUser, id: 3, username: 'other-student' };
+      const nonAdminResponse: JwtResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: anotherNonAdminUser,
+      };
+
+      const loginPromise = service
+        .login({ usernameOrEmail: 'other-student', password: 'password123' })
+        .toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(nonAdminResponse);
+      await expect(loginPromise).rejects.toThrow();
+
+      expect(service.isSwitchingAccount()).toBe(false);
+      expect(service.portalMismatch()).toBe(true);
+      expect(service.rejectedIdentity()).toEqual(anotherNonAdminUser);
+    });
+
+    it('a plain wrong-role login attempt (not mid-switch) does not open the mismatch state', async () => {
+      const loginPromise = service
+        .login({ usernameOrEmail: 'student', password: 'password123' })
+        .toPromise();
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`)
+        .flush({ accessToken: createValidToken(), tokenType: 'Bearer', user: mockNonAdminUser });
+      await expect(loginPromise).rejects.toThrow();
+
+      expect(service.portalMismatch()).toBe(false);
+      expect(service.isSwitchingAccount()).toBe(false);
+    });
+  });
+
+  describe('reconcileForeground Method', () => {
+    it('sets isRefreshingSession true while the probe is in flight, then false on success', async () => {
+      expect(service.isRefreshingSession()).toBe(false);
+
+      service.reconcileForeground();
+      expect(service.isRefreshingSession()).toBe(true);
+
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('rejects a non-admin identity into portalMismatch, without navigating', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      service.reconcileForeground();
+
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush({ accessToken: createValidToken(), tokenType: 'Bearer', user: nonAdminUser });
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(service.portalMismatch()).toBe(true);
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('force-logs-out on a terminal refresh failure (confirmed dead session)', async () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(
+        { message: 'Refresh token invalid', status: 403, timestamp: '2026-01-01T00:00:00Z', errorCode: 'ERR_2004' },
+        { status: 403, statusText: 'Forbidden' }
+      );
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(getAdminSnapshot()).toBeNull();
+      expect(router.navigate).toHaveBeenCalledWith([ADMIN_ROUTES.AUTH_LOGIN]);
+    });
+
+    it('marks temporaryReconcileFailure on a network error, keeping the stored snapshot', async () => {
+      const token = createValidToken();
+      setAdminSnapshot(token, mockAdminUser);
+
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).error(new ProgressEvent('Network error'));
+      await Promise.resolve();
+
+      expect(service.isRefreshingSession()).toBe(false);
+      expect(service.temporaryReconcileFailure()).toBe(true);
+      expect(getAdminSnapshot()).toEqual({ accessToken: token, user: mockAdminUser });
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Cross-tab sync (storage event)', () => {
+    const dispatchStorage = (key: string | null, newValue: string | null) =>
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue }));
+
+    it('adopts the identity another tab just wrote to admin_auth_storage', () => {
+      const otherUser: User = { ...mockAdminUser, id: 7, username: 'other-admin-tab' };
+      dispatchStorage('admin_auth_storage', JSON.stringify({ accessToken: 'from-other-tab', user: otherUser }));
+
+      expect(service.getCurrentUser()).toEqual(otherUser);
+    });
+
+    it('adopts unauthenticated when another tab logs out (key removed, newValue null)', () => {
+      setAdminSnapshot(createValidToken(), mockAdminUser);
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+
+      dispatchStorage('admin_auth_storage', null);
+
+      expect(service.getCurrentUser()).toBeNull();
+    });
+
+    it('ignores storage events for unrelated keys', () => {
+      service.reconcileForeground();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`).flush(mockRefreshResponse);
+
+      dispatchStorage('some_other_key', 'anything');
+
+      expect(service.getCurrentUser()).toEqual(mockAdminUser);
+    });
+
+    it('does not adopt another tab identity while portalMismatch is active', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      dispatchStorage('admin_auth_storage', JSON.stringify({ accessToken: 'x', user: mockAdminUser }));
+
+      expect(service.getCurrentUser()).toBeNull();
+      expect(service.portalMismatch()).toBe(true);
+    });
+
+    it('does not adopt another tab identity while switching accounts', () => {
+      service.startSwitchingAccount('/dashboard');
+
+      dispatchStorage('admin_auth_storage', JSON.stringify({ accessToken: 'x', user: mockAdminUser }));
+
+      expect(service.getCurrentUser()).toBeNull();
+      expect(service.isSwitchingAccount()).toBe(true);
     });
   });
 });
