@@ -5,7 +5,7 @@ import {
 } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
-import { AuthService } from './auth.service';
+import { AuthService, AdminPortalIdentityRejectedError } from './auth.service';
 import { environment } from '../../../environments/environment';
 import { UserRole } from '@edumind/shared-constants';
 import { AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
@@ -492,6 +492,48 @@ describe('AuthService', () => {
       await expect(refreshPromise).rejects.toThrow();
     });
 
+    it('rejects with AdminPortalIdentityRejectedError when refresh returns a non-admin identity, without persisting it', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      const nonAdminRefreshResponse: RefreshTokenResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      };
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush(nonAdminRefreshResponse);
+
+      await expect(refreshPromise).rejects.toThrow(AdminPortalIdentityRejectedError);
+      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(localStorage.getItem('admin_user')).toBeNull();
+    });
+
+    it('carries the rejected user on AdminPortalIdentityRejectedError from refresh', async () => {
+      const nonAdminUser: User = { ...mockAdminUser, roles: [UserRole.STUDENT] };
+      const nonAdminRefreshResponse: RefreshTokenResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      };
+
+      const refreshPromise = service.refreshToken().toPromise();
+      httpMock
+        .expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`)
+        .flush(nonAdminRefreshResponse);
+
+      let caught: unknown;
+      try {
+        await refreshPromise;
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(AdminPortalIdentityRejectedError);
+      expect((caught as AdminPortalIdentityRejectedError).rejectedUser).toEqual(nonAdminUser);
+    });
+
     it('rejects when the refresh response omits user (contract violation, no fallback)', async () => {
       const refreshResponseWithoutUser = {
         accessToken: createValidToken(),
@@ -616,6 +658,52 @@ describe('AuthService', () => {
       service.forceLogout();
 
       httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+  });
+
+  describe('Reject Portal Identity Method', () => {
+    beforeEach(() => {
+      localStorage.setItem('admin_auth_token', createValidToken());
+      localStorage.setItem('admin_user', JSON.stringify(mockAdminUser));
+    });
+
+    it('clears auth data from localStorage', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(localStorage.getItem('admin_auth_token')).toBeNull();
+      expect(localStorage.getItem('admin_user')).toBeNull();
+    });
+
+    it('sets currentUserSubject to null', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(service.getCurrentUser()).toBeNull();
+    });
+
+    it('marks the portalMismatch state', () => {
+      expect(service.portalMismatch()).toBe(false);
+
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(service.portalMismatch()).toBe(true);
+    });
+
+    it('does not call the logout API endpoint', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+
+    it('does not navigate', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('records the rejected identity', () => {
+      service.rejectPortalIdentity(mockNonAdminUser);
+
+      expect(service.rejectedIdentity()).toEqual(mockNonAdminUser);
     });
   });
 
@@ -902,6 +990,25 @@ describe('AuthService', () => {
       
       await loginPromise;
       expect(service.getCurrentUser()?.roles).toContain(UserRole.ADMIN);
+    });
+
+    it('surfaces the admin-privileges-required message via a typed AdminPortalIdentityRejectedError, without a fake 403 HttpErrorResponse', async () => {
+      const credentials: LoginRequest = {
+        usernameOrEmail: 'student',
+        password: 'password123',
+      };
+
+      const nonAdminResponse: JwtResponse = {
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: mockNonAdminUser,
+      };
+
+      const loginPromise = service.login(credentials).toPromise();
+      httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGIN}`).flush(nonAdminResponse);
+
+      await expect(loginPromise).rejects.toThrow('Access denied. Admin privileges required.');
+      expect(service.error()).toBe('Access denied. Admin privileges required.');
     });
 
     it('should reject user with STUDENT role', async () => {

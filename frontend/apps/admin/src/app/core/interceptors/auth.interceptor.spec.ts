@@ -305,6 +305,31 @@ describe('authInterceptor', () => {
       await Promise.all([promise1, promise2]);
     });
 
+    it('rejects the portal identity instead of forcing logout when refresh returns a non-admin user', async () => {
+      const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
+      const rejectSpy = vi.spyOn(authService, 'rejectPortalIdentity');
+      const nonAdminUser: User = { ...mockUser, roles: [UserRole.STUDENT] };
+
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const promise = httpClient.get('/api/protected').toPromise().catch(() => {});
+
+      const firstReq = httpMock.expectOne('/api/protected');
+      firstReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      const refreshReq = httpMock.expectOne(`${environment.apiUrl}${AUTH_ENDPOINTS.REFRESH}`);
+      refreshReq.flush({
+        accessToken: createValidToken(),
+        tokenType: 'Bearer',
+        user: nonAdminUser,
+      });
+
+      await promise;
+
+      expect(rejectSpy).toHaveBeenCalledWith(nonAdminUser);
+      expect(forceLogoutSpy).not.toHaveBeenCalled();
+      httpMock.expectNone(`${environment.apiUrl}${AUTH_ENDPOINTS.LOGOUT}`);
+    });
+
     it('should force logout if refresh fails', async () => {
       const forceLogoutSpy = vi.spyOn(authService, 'forceLogout');
 

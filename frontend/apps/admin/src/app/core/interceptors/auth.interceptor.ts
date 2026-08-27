@@ -9,7 +9,7 @@ import { inject } from '@angular/core';
 import { map, catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { unwrapApiResponse } from '@edumind/shared-utils';
-import { AuthService } from '../services/auth.service';
+import { AuthService, isAdminPortalIdentityRejectedError } from '../services/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -95,8 +95,14 @@ function handleUnauthorizedError(
       );
     }),
     catchError((refreshErr) => {
-      // Refresh failed - force logout
-      authService.forceLogout();
+      // A confirmed wrong-portal identity is not a dead session - reject it
+      // locally instead of the blanket forceLogout(), which would revoke
+      // every device via /auth/logout semantics.
+      if (isAdminPortalIdentityRejectedError(refreshErr)) {
+        authService.rejectPortalIdentity(refreshErr.rejectedUser);
+      } else {
+        authService.forceLogout();
+      }
 
       return throwError(() => refreshErr);
     })

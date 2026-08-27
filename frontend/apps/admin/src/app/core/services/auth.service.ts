@@ -18,6 +18,25 @@ import { AUTH_ENDPOINTS, ADMIN_ROUTES } from '@edumind/shared-utils';
 
 export type AdminUser = User;
 
+/**
+ * Thrown when an authenticated identity is confirmed to belong to another
+ * portal (no ROLE_ADMIN). Carries the rejected user so callers (interceptor,
+ * boot/focus reconcile) can hand it to rejectPortalIdentity() without status
+ * codes - 403 alone doesn't distinguish this from a revoked/expired token.
+ */
+export class AdminPortalIdentityRejectedError extends Error {
+  constructor(readonly rejectedUser: User) {
+    super('Authenticated identity is not allowed in the admin portal');
+    this.name = 'AdminPortalIdentityRejectedError';
+  }
+}
+
+export function isAdminPortalIdentityRejectedError(
+  error: unknown
+): error is AdminPortalIdentityRejectedError {
+  return error instanceof AdminPortalIdentityRejectedError;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -33,6 +52,11 @@ export class AuthService {
   // Signals for reactive state
   isLoading = signal(false);
   error = signal<string | null>(null);
+  // True once a confirmed identity has been rejected as belonging to another
+  // portal. Distinct from a plain logged-out state - see rejectPortalIdentity().
+  portalMismatch = signal(false);
+  // The identity that was rejected, for the mismatch UI to reference.
+  rejectedIdentity = signal<User | null>(null);
 
   // Shared in-flight refresh pipeline - every caller (boot, focus, interceptor)
   // subscribes to this same observable and gets the same result, instead of
@@ -66,7 +90,7 @@ export class AuthService {
           }
 
           const validated = JwtResponseSchema.parse(response);
-          this.validateAdminRole(validated.user);
+          this.assertAdminPortalIdentity(validated.user);
           this.handleAuthSuccess(validated);
           return of(validated);
         }),
@@ -92,6 +116,11 @@ export class AuthService {
       )
       .pipe(
         map((response) => RefreshTokenResponseSchema.parse(response)),
+        tap((response) => {
+          // Validate before any persistence - a rejected identity must never
+          // be written to storage, even transiently.
+          this.assertAdminPortalIdentity(response.user);
+        }),
         tap((response) => {
           localStorage.setItem(this.TOKEN_KEY, response.accessToken);
           localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
@@ -137,10 +166,23 @@ export class AuthService {
     this.router.navigate([ADMIN_ROUTES.AUTH_LOGIN]);
   }
 
-  private validateAdminRole(user: User): void {
+  /**
+   * A confirmed identity does not belong to this portal. Reject it locally:
+   * clear this portal's own state, but never call /auth/logout (that revokes
+   * every device) and never navigate - the shared cookie and the other
+   * portal's session must be left untouched.
+   */
+  rejectPortalIdentity(rejectedUser: User): void {
+    this.clearAuthData();
+    this.currentUserSubject.next(null);
+    this.portalMismatch.set(true);
+    this.rejectedIdentity.set(rejectedUser);
+  }
+
+  private assertAdminPortalIdentity(user: User): void {
     const hasAdminRole = user.roles?.includes(UserRole.ADMIN);
     if (!hasAdminRole) {
-      throw this.createError('Access denied. Admin privileges required.', 403);
+      throw new AdminPortalIdentityRejectedError(user);
     }
   }
 
@@ -169,8 +211,14 @@ export class AuthService {
     });
   }
 
-  private handleError(error: HttpErrorResponse): Observable<never> {
-    const errorMessage = this.extractErrorMessage(error);
+  private handleError(error: unknown): Observable<never> {
+    if (isAdminPortalIdentityRejectedError(error)) {
+      const errorMessage = 'Access denied. Admin privileges required.';
+      this.error.set(errorMessage);
+      return throwError(() => new Error(errorMessage));
+    }
+
+    const errorMessage = this.extractErrorMessage(error as HttpErrorResponse);
     this.error.set(errorMessage);
     return throwError(() => new Error(errorMessage));
   }
