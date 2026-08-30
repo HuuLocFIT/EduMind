@@ -31,6 +31,24 @@ describe('AiChatPanel announcements', () => {
     vi.clearAllMocks();
     useAiChatStore.setState({ chatsByCourse: {} });
     Element.prototype.scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollTo = vi.fn();
+  });
+
+  it('keeps message auto-scroll inside the chat panel', async () => {
+    const user = userEvent.setup();
+    vi.mocked(aiService.chatStream).mockImplementation(async () => undefined);
+    useAiChatStore.getState().addMessage(6, { role: 'user', content: 'First question' });
+    useAiChatStore.getState().addMessage(6, { role: 'ai', content: 'First answer' });
+
+    render(<AiChatPanel courseId={6} onClose={vi.fn()} />);
+    await user.type(
+      screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' }),
+      'Second question',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(HTMLElement.prototype.scrollTo).toHaveBeenCalled());
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
   });
 
   it('announces each hard failure once and keeps Retry outside the alert', async () => {
