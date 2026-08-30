@@ -235,7 +235,6 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
   // get a single "done" cue instead of being read every typewriter tick.
   const [announcement, setAnnouncement] = useState('');
 
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const prevMessagesLengthRef = useRef(messages.length);
@@ -296,7 +295,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
     if (messages.length > prevMessagesLengthRef.current || isLoading) {
       prevMessagesLengthRef.current = messages.length;
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const container = messagesContainerRef.current;
+      container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
     }
 
     return () => {
@@ -626,8 +626,6 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
 
           return <CompletedAiMessageBubble key={index} msg={msg} />;
         })}
-
-        <div ref={bottomRef} />
       </div>
 
       {/* Announced once when a stream finishes — not wrapped around the streaming
