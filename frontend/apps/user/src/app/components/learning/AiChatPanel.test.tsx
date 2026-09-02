@@ -146,6 +146,28 @@ describe('AiChatPanel announcements', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('does not fall back to synchronous chat after an intentional abort', async () => {
+    const user = userEvent.setup();
+    let activeCallbacks: StreamCallbacks | undefined;
+    vi.mocked(aiService.chatStream).mockImplementation(
+      async (_courseId, _request, callbacks) => {
+        activeCallbacks = callbacks;
+      },
+    );
+
+    render(<AiChatPanel courseId={13} onClose={vi.fn()} />);
+    await user.type(
+      screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' }),
+      'Explain abort handling',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(aiService.chatStream).toHaveBeenCalledOnce());
+
+    act(() => activeCallbacks?.onError?.(new DOMException('Aborted', 'AbortError')));
+
+    expect(aiService.chat).not.toHaveBeenCalled();
+  });
+
   it('shows the server-provided confidence tier instead of inferring it from the answer', async () => {
     const user = userEvent.setup();
     vi.mocked(aiService.chatStream).mockImplementation(
