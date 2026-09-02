@@ -380,16 +380,16 @@ Event sequence:
 1. Zero or more `event: chunk` events — `data` is a raw text fragment of the streamed answer (not JSON).
 2. One final `event: metadata` event — `data` is JSON:
    ```json
-   {"sourceLessons": [{"id": 12, "title": "Intro to Loops"}], "confidenceTier": "HIGH"}
+   {"sourceLessons": [{"lessonId": 12, "lessonTitle": "Intro to Loops"}], "confidenceTier": "HIGH", "questionScope": "IN_SCOPE_IT"}
    ```
-   `confidenceTier` is one of `HIGH` / `MEDIUM` / `GAP`.
+   `questionScope` is `IN_SCOPE_IT` or `OFF_TOPIC`. For an off-topic question, retrieval is skipped, `sourceLessons` is empty, and `confidenceTier` is `null`; otherwise `confidenceTier` is one of `HIGH` / `MEDIUM` / `GAP`.
 3. On any failure (rate limit, access denied, upstream error), a single `event: error` event instead — `data`:
    ```json
    {"message": "Daily AI chat limit exceeded (20/day)."}
    ```
    The HTTP status for the stream itself is always `200` — errors are carried inside the SSE stream, not as an HTTP error code, because the client has already committed to `Accept: text/event-stream`.
 
-Rate limit: 20 chats/day per user. A non-streaming counterpart exists at `POST /ai/chat/courses/{courseId}` returning a plain `ApiResponse<ChatResponse>` for clients that don't need streaming.
+Rate limit: 20 chats/day per user. A non-streaming counterpart exists at `POST /ai/chat/courses/{courseId}` returning `ApiResponse<ChatResponse>`, where `ChatResponse` contains the same `answer`, `sourceLessons`, nullable `confidenceTier`, and `questionScope` metadata. The service classifies scope before retrieval; only in-scope IT questions can be recorded as knowledge gaps.
 
 ## AI async job pattern (202 Accepted + polling)
 

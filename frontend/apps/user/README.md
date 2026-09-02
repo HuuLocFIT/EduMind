@@ -341,7 +341,7 @@ All located in `src/app/services/*.service.ts`. Each function returns a typed Pr
 
 | Component | Description |
 |-----------|-------------|
-| `AiChatPanel.tsx` | SSE streaming chat, Markdown + code syntax highlighting, source lesson citations, typewriter effect |
+| `AiChatPanel.tsx` | SSE streaming chat, Markdown + code syntax highlighting, server-owned scope/coverage labels, clickable source lessons, typewriter effect |
 | `LessonSummaryPanel.tsx` | Displays generated summary (keyPoints, vocabulary) |
 | `QuizTakerModal.tsx` | Multi-step quiz UI, question display, submit + review |
 | `ArticleViewer.tsx` | Renders lesson article HTML/Markdown |

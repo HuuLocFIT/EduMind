@@ -806,36 +806,44 @@ sequenceDiagram
         RagService-->>Controller: throw 429 Too Many Requests
     end
 
-    Note over RagService: Step 3 — Embed Question
-    RagService->>EmbModel: embed(question) → float[768]
-    EmbModel-->>RagService: queryVector[768]
+    Note over RagService: Step 3 — Classify Question Scope
+    RagService->>ChatModel: classify current question + history<br/>→ IN_SCOPE_IT | OFF_TOPIC
+    alt Scope = OFF_TOPIC
+        RagService->>ChatModel: generate a brief same-language refusal
+        ChatModel-->>RagService: refusal text
+        RagService-->>Controller: ChatResponse<br/>{ answer, sourceLessons: [], confidenceTier: null, questionScope: OFF_TOPIC }
+    else Scope = IN_SCOPE_IT
+        Note over RagService: Step 4 — Embed In-Scope Question
+        RagService->>EmbModel: embed(question) → float[768]
+        EmbModel-->>RagService: queryVector[768]
 
-    Note over RagService: Step 4 — Vector Search (Top-5)
-    RagService->>VectorDB: findTopK(courseId, queryVector, k=5)<br>ORDER BY embedding <=> :queryVector LIMIT 5
-    VectorDB-->>RagService: List<LessonChunkProjection><br>{ lessonId, chunkText, distance }
+        Note over RagService: Step 5 — Vector Search (Top-5)
+        RagService->>VectorDB: findTopK(courseId, queryVector, k=5)<br>ORDER BY embedding <=> :queryVector LIMIT 5
+        VectorDB-->>RagService: List<LessonChunkProjection><br>{ lessonId, chunkText, distance }
 
-    Note over RagService: Step 5 — Classify Confidence (top-1 chunk, not an average)
+    Note over RagService: Step 6 — Classify Retrieval Confidence (top-1 chunk, not an average)
     RagService->>RagService: topDistance = chunks[0].distance
     Note over RagService: HIGH:   topDistance ≤ 0.30<br>MEDIUM: 0.30 < topDistance ≤ 0.60<br>GAP:    topDistance > 0.60 (or zero chunks retrieved)
-
-    alt Confidence = GAP
-        Note over RagService: Step 6 — Log Knowledge Gap
-        RagService->>GapDB: save(userId, courseId, questionText, confidenceScore)
-    end
 
     Note over RagService: Step 7 — Resolve Source Lessons
     RagService->>LessonQuerySvc: findLessonsByIds(deduplicated lessonIds)
     LessonQuerySvc-->>RagService: List<SourceLessonDto> { lessonId, title }
 
-    Note over RagService: Step 8 — Build RAG Prompt
-    RagService->>PromptBuilder: buildRagPrompt(chunks, question, history, tier)
-    Note over PromptBuilder: Injects retrieved chunks as context<br>Includes conversation history<br>If GAP: instructs model to acknowledge<br>"I don't have info on this topic"
+    alt Confidence = GAP
+        Note over RagService: Step 8 — Log Knowledge Gap
+        RagService->>GapDB: save(courseId, questionText, askedAt)
+    end
 
-    Note over RagService: Step 9 — Generate Answer
+    Note over RagService: Step 9 — Build RAG Prompt
+    RagService->>PromptBuilder: buildRagPrompt(chunks, question, history, tier)
+    Note over PromptBuilder: Injects retrieved chunks as context<br>Includes conversation history<br>Includes only the policy for the classified tier<br>If GAP: instructs model to acknowledge the lesson gap<br>Internal tier names must not appear in the answer
+
+    Note over RagService: Step 10 — Generate Answer
     RagService->>ChatModel: call(prompt) — synchronous
     ChatModel-->>RagService: answerText
 
-    RagService-->>Controller: ChatResponse<br>{ answer, sourceLessons[], confidenceTier }
+        RagService-->>Controller: ChatResponse<br>{ answer, sourceLessons[], confidenceTier, questionScope: IN_SCOPE_IT }
+    end
     Controller-->>Client: 200 OK
 ```
 
@@ -853,7 +861,7 @@ sequenceDiagram
 
     Client->>Controller: POST /api/ai/chat/courses/{courseId}/stream<br>Accept: text/event-stream
 
-    Note over Controller: Same ACL, rate limit, embed, vector search,<br>confidence classification as sync flow (steps 1-8) —<br>but deferred until subscription (Flux.defer)
+    Note over Controller: Same ACL, rate limit, scope classification, embed,<br>vector search and confidence classification as sync flow —<br>but deferred until subscription (Flux.defer)
 
     Controller->>RagService: chatStream(userId, courseId, request)
     RagService-->>Controller: Flux<ServerSentEvent<String>>
@@ -870,7 +878,7 @@ sequenceDiagram
     end
 
     Note over RagService: Metadata is appended AFTER all chunks via<br>Flux.concat(chunkEvents, metadataEvent) — NOT sent first
-    RagService-->>Client: event: metadata<br>data: { "sourceLessons": [...], "confidenceTier": "HIGH" }
+    RagService-->>Client: event: metadata<br>data: { "sourceLessons": [...], "confidenceTier": "HIGH", "questionScope": "IN_SCOPE_IT" }
 
     alt Error during token streaming
         RagService-->>Client: event: error<br>data: { "message": "..." } (via onErrorResume on the chunk Flux)
@@ -883,7 +891,17 @@ sequenceDiagram
 
 There is no `[DONE]` sentinel and no explicit `emitter.complete()` call in this implementation — the `Flux` simply completes when its underlying publisher completes, which is standard WebFlux behavior, not something the service code manages manually.
 
-### 7.3 Confidence Tier Classification
+### 7.3 Question Scope and Confidence Classification
+
+Question scope and retrieval confidence are separate decisions:
+
+- `questionScope = OFF_TOPIC` means the question is outside the broad IT/software/computing learning domain. The service skips embedding/vector search, returns a brief refusal with `confidenceTier = null`, and does **not** write `knowledge_gap_questions`.
+- `questionScope = IN_SCOPE_IT` continues through retrieval. Only then does top-1 cosine distance determine `HIGH`, `MEDIUM`, or `GAP`.
+- If scope-classifier output is invalid or the classification call fails, the service conservatively defaults to `IN_SCOPE_IT` so a classifier failure does not incorrectly reject a legitimate learning question.
+
+The scope classifier receives the current question plus truncated recent history to resolve short follow-ups, and must return a closed JSON enum. This adds one model call before each chat answer.
+
+#### Retrieval confidence tiers
 
 Confidence is determined by the cosine distance of the **single closest (top-1) retrieved chunk**, not an average across the top-5 — the other four chunks retrieved in §7.1 step 4 are used as prompt context, but only the nearest one drives the tier decision. Cosine distance is in the range `[0, 2]` where `0` = identical vectors.
 
@@ -905,7 +923,7 @@ topDistance = chunks[0].distance   (chunks ordered by ascending distance; GAP if
 └─────────────────┴────────────────────┴───────────────────────────────────────┘
 ```
 
-Knowledge-gap logging happens identically in both the sync (`chat()`) and streaming (`chatStream()`) code paths whenever the tier resolves to `GAP` — the streaming path logs it before the metadata event is emitted.
+Knowledge-gap logging happens identically in both the sync (`chat()`) and streaming (`chatStream()`) code paths whenever an `IN_SCOPE_IT` question resolves to `GAP` — the streaming path logs it before the metadata event is emitted. `OFF_TOPIC` questions are never knowledge gaps.
 
 ### 7.4 Rate Limiting Detail
 
@@ -954,7 +972,8 @@ The RAG chat SSE stream is consumed by `chatStream()` in [`ai.service.ts`](../..
 
 - **Leading-whitespace-preserving token parsing**: `data:` lines are sliced with `.slice(5)` (cutting only the `"data:"` prefix), not the SSE-spec-typical `.slice(6)` which would also strip the single leading space — doing that would merge tokens like `" distinguishes"` into `"distinguishes"` when concatenated.
 - **Multiline `data:` handling**: multiple `data:` lines within one event are accumulated and joined with `"\n"` before dispatch, per the SSE spec. A byte-buffer carries partial lines across `reader.read()` chunks so a split in the middle of a line is never lost.
-- **Recognized event types**: `event: metadata` → parsed JSON `{ sourceLessons, confidenceTier }`; `event: error` → parsed JSON `{ message }`, surfaced as an `SseStreamError`; anything else with a `data:` line (including the backend's `event: chunk`) is treated as a raw token and passed to `onChunk`.
+- **Recognized event types**: `event: metadata` → parsed JSON `{ sourceLessons, confidenceTier, questionScope }`; `event: error` → parsed JSON `{ message }`, surfaced as an `SseStreamError`; anything else with a `data:` line (including the backend's `event: chunk`) is treated as a raw token and passed to `onChunk`.
+- **Server-owned scope/confidence display**: `questionScope` and `confidenceTier` from the metadata event are persisted with the AI message and rendered as a user-facing coverage label. The frontend never infers either value from model-generated answer text.
 - **Typewriter buffering**: incoming tokens are appended to a ref (not React state) and drained into visible state by a single `setInterval` at **16ms (~60fps)**, revealing 3 characters per tick normally or up to 12/tick if the undisplayed backlog exceeds 80 characters — so a burst of tokens catches up instead of visibly lagging.
 - **Sync fallback is narrowly scoped**: on a stream error, the client falls back to a one-shot non-streaming request **only if zero chunks were received before the error**. If any partial text had already streamed, it shows "Response may be incomplete. Please try again if needed." and stops — it does not retry or auto-resubmit.
 - **No auto-resubmission of partial responses**: on `AbortError` (e.g. the user sends a new message or closes the panel mid-stream) or a post-partial-content error, whatever text had accumulated is committed as the final message and streaming stops. The user must manually resend to get a complete answer.

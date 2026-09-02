@@ -427,7 +427,7 @@ Groq HTTP 429 responses move transcription jobs to `DELAYED`. The retry schedule
 
 ### SSE chat
 
-`POST /ai/chat/courses/{courseId}/stream` produces `text/event-stream`. Clients must handle incremental data, connection closure, authentication failure, and reconnection at the application level. The non-streaming alternative is `POST /ai/chat/courses/{courseId}`.
+`POST /ai/chat/courses/{courseId}/stream` produces `text/event-stream`. Answer chunks are followed by metadata containing `sourceLessons`, nullable `confidenceTier`, and `questionScope` (`IN_SCOPE_IT` or `OFF_TOPIC`). Off-topic questions skip retrieval and return no sources. Clients must handle incremental data, connection closure, authentication failure, and reconnection at the application level. The non-streaming alternative is `POST /ai/chat/courses/{courseId}`.
 
 ## Testing
 

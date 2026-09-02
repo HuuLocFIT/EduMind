@@ -173,7 +173,6 @@ export function useLessonCompletion({
     const lessonId = currentLesson.id;
     const enrollmentId = enrollment.id;
 
-    if (findLessonProgress(allLessonProgress, lessonId)?.isCompleted) return;
     // Synchronous guard prevents a double-submit on rapid double activation.
     if (completingLessonRef.current !== null) return;
 
@@ -218,7 +217,13 @@ export function useLessonCompletion({
       if (!lessonVersion.isCurrent(version)) return;
 
       const nextLesson = getNextLesson();
-      const { progressPercentage } = calculateOptimisticCourseProgress(enrollment, lessons.length);
+      // A watch-progress autosave can mark a video complete at 90% before the
+      // native `ended` event arrives. In that case the local lesson record is
+      // already complete, but we must still reconcile the enrollment and start
+      // auto-advance. Do not announce a second optimistic course-progress bump.
+      const progressPercentage = snapshot.alreadyCompleted
+        ? enrollment.progressPercentage
+        : calculateOptimisticCourseProgress(enrollment, lessons.length).progressPercentage;
       const pct = progressPercentage ?? 0;
 
       setCompletionAnnouncement(

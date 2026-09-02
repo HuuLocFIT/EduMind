@@ -18,6 +18,8 @@ import {
   ChatResponseSchema,
   type ChatRequest,
   type ChatResponse,
+  type ConfidenceTier,
+  type QuestionScope,
   type SourceLessonDto,
   TranscribeRequestSchema,
 } from "@edumind/shared-types";
@@ -135,7 +137,11 @@ export const aiService = {
     request: ChatRequest,
     callbacks: {
       onChunk: (text: string) => void;
-      onMetadata: (data: { sourceLessons: SourceLessonDto[]; confidenceTier: string }) => void;
+      onMetadata: (data: {
+        sourceLessons: SourceLessonDto[];
+        confidenceTier: ConfidenceTier | null;
+        questionScope: QuestionScope;
+      }) => void;
       onError?: (error: unknown) => void;
       onClose?: () => void;
       signal?: AbortSignal;
@@ -198,7 +204,11 @@ export const aiService = {
 
       if (eventType === "metadata") {
         try {
-          onMetadata(JSON.parse(data) as { sourceLessons: SourceLessonDto[]; confidenceTier: string });
+          onMetadata(JSON.parse(data) as {
+            sourceLessons: SourceLessonDto[];
+            confidenceTier: ConfidenceTier | null;
+            questionScope: QuestionScope;
+          });
         } catch (e) {
           onError?.(e);
         }
