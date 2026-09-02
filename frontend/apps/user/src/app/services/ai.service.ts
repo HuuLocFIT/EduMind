@@ -173,14 +173,16 @@ export const aiService = {
         signal,
       });
     } catch (err) {
-      if ((err as { name?: string })?.name !== 'AbortError') {
-        Sentry.addBreadcrumb({
-          category: 'ai.chat',
-          message: `AI Chat stream failed — course ${courseId}`,
-          level: 'error',
-          data: { courseId },
-        });
+      if ((err as { name?: string })?.name === 'AbortError') {
+        return;
       }
+
+      Sentry.addBreadcrumb({
+        category: 'ai.chat',
+        message: `AI Chat stream failed — course ${courseId}`,
+        level: 'error',
+        data: { courseId },
+      });
       onError?.(err);
       return;
     }

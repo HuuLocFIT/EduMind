@@ -482,6 +482,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose, onS
           }));
         },
         onError: (err: unknown) => {
+          if ((err as { name?: string })?.name === 'AbortError') return;
+
           if (typewriterIntervalRef.current) {
             clearInterval(typewriterIntervalRef.current);
             typewriterIntervalRef.current = null;
