@@ -55,6 +55,7 @@ export class AllPayoutsComponent implements OnInit {
 
   private async = injectAsyncState();
   isLoading = this.async.isLoading;
+  isSubmitting = this.async.isSubmitting;
   errorMessage = this.async.errorMessage;
   successMessage = this.async.successMessage;
   modalErrorMessage = signal('');
