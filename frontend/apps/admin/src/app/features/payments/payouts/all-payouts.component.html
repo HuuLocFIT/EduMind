@@ -110,6 +110,9 @@
     [isOpen]="showProcessModal()"
     title="Process Payout"
     size="sm"
+    [showCloseButton]="!isSubmitting()"
+    [closeOnOverlayClick]="!isSubmitting()"
+    [closeOnEscape]="!isSubmitting()"
     (close)="showProcessModal.set(false)"
   >
     <div class="space-y-4 text-neutral-800">
@@ -125,8 +128,8 @@
       <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
     }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
-      <app-button variant="outline" (click)="showProcessModal.set(false)">Cancel</app-button>
-      <app-button variant="primary" (click)="processPayout()">
+      <app-button variant="outline" (click)="showProcessModal.set(false)" [disabled]="isSubmitting()">Cancel</app-button>
+      <app-button variant="primary" (click)="processPayout()" [isLoading]="isSubmitting()">
         Confirm Process
       </app-button>
     </div>
@@ -137,6 +140,9 @@
     [isOpen]="showEditRecipientModal()"
     title="Edit Recipient Information"
     size="sm"
+    [showCloseButton]="!isSubmitting()"
+    [closeOnOverlayClick]="!isSubmitting()"
+    [closeOnEscape]="!isSubmitting()"
     (close)="showEditRecipientModal.set(false)"
   >
     <div class="space-y-4 text-neutral-800">
@@ -216,8 +222,8 @@
       <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
     }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
-      <app-button variant="outline" (click)="showEditRecipientModal.set(false)">Cancel</app-button>
-      <app-button variant="primary" (click)="updateRecipient()">
+      <app-button variant="outline" (click)="showEditRecipientModal.set(false)" [disabled]="isSubmitting()">Cancel</app-button>
+      <app-button variant="primary" (click)="updateRecipient()" [isLoading]="isSubmitting()">
         Save Changes
       </app-button>
     </div>
@@ -228,6 +234,9 @@
     [isOpen]="showConfirmManualModal()"
     title="Confirm Manual Payout"
     size="sm"
+    [showCloseButton]="!isSubmitting()"
+    [closeOnOverlayClick]="!isSubmitting()"
+    [closeOnEscape]="!isSubmitting()"
     (close)="showConfirmManualModal.set(false)"
   >
     <div class="space-y-4 text-neutral-800">
@@ -275,8 +284,8 @@
       <app-alert class="block mt-4" variant="error" [message]="modalErrorMessage()" [dismissible]="true" (onClose)="modalErrorMessage.set('')" />
     }
     <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-neutral-200">
-      <app-button variant="outline" (click)="showConfirmManualModal.set(false)">Cancel</app-button>
-      <app-button variant="primary" (click)="confirmManualPayout()" [disabled]="!bankTransferReference.trim()">
+      <app-button variant="outline" (click)="showConfirmManualModal.set(false)" [disabled]="isSubmitting()">Cancel</app-button>
+      <app-button variant="primary" (click)="confirmManualPayout()" [disabled]="!bankTransferReference.trim()" [isLoading]="isSubmitting()">
         Confirm Transfer
       </app-button>
     </div>
