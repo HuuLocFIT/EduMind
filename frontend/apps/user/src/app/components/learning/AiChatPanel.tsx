@@ -102,25 +102,66 @@ const aiBubbleClass =
   'bg-white text-gray-800 border border-gray-100 rounded-bl-sm ' +
   'prose prose-sm prose-indigo max-w-none [&_pre]:overflow-x-auto [&_pre]:max-w-full';
 
+const confidenceLabels = {
+  HIGH: 'Based on course material',
+  MEDIUM: 'Includes supplementary knowledge',
+  GAP: 'Not covered in this course',
+} as const;
+
+function CoverageBadge({
+  tier,
+  scope,
+}: {
+  tier?: AiChatMessage['confidenceTier'];
+  scope?: AiChatMessage['questionScope'];
+}) {
+  const label = scope === 'OFF_TOPIC'
+    ? 'Outside course scope'
+    : tier
+      ? confidenceLabels[tier]
+      : null;
+  if (!label) return null;
+
+  return (
+    <p className="not-prose mt-3 mb-0 text-[11px] font-medium text-gray-500">
+      {label}
+    </p>
+  );
+}
+
 // Source lessons badge list
 const SourceLessons = React.memo(function SourceLessons({
   lessons,
+  onSelectLesson,
 }: {
   lessons: SourceLessonDto[];
+  onSelectLesson?: (lessonId: number) => void;
 }) {
   return (
     <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5 items-center">
       <span className="text-[11px] text-gray-500 font-medium mr-1 uppercase tracking-wider">
         Sources:
       </span>
-      {lessons.map((lesson) => (
-        <span
-          key={lesson.lessonId}
-          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 shadow-sm hover:border-gray-300 transition-colors"
-        >
-          {lesson.lessonTitle}
-        </span>
-      ))}
+      {lessons.map((lesson) =>
+        onSelectLesson ? (
+          <button
+            key={lesson.lessonId}
+            type="button"
+            onClick={() => onSelectLesson(lesson.lessonId)}
+            aria-label={`Open source lesson: ${lesson.lessonTitle}`}
+            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-indigo-700 border border-gray-200 shadow-sm hover:border-indigo-300 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 transition-colors"
+          >
+            {lesson.lessonTitle}
+          </button>
+        ) : (
+          <span
+            key={lesson.lessonId}
+            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 shadow-sm"
+          >
+            {lesson.lessonTitle}
+          </span>
+        ),
+      )}
     </div>
   );
 });
@@ -153,8 +194,10 @@ const UserMessageBubble = React.memo(function UserMessageBubble({
 // Memoized completed AI bubble — won't re-render during the 60fps streaming ticks.
 const CompletedAiMessageBubble = React.memo(function CompletedAiMessageBubble({
   msg,
+  onSelectLesson,
 }: {
   msg: AiChatMessage;
+  onSelectLesson?: (lessonId: number) => void;
 }) {
   return (
     <div className="flex justify-start">
@@ -166,8 +209,11 @@ const CompletedAiMessageBubble = React.memo(function CompletedAiMessageBubble({
             {msg.content}
           </ReactMarkdown>
         </div>
+        {(msg.confidenceTier || msg.questionScope === 'OFF_TOPIC') && (
+          <CoverageBadge tier={msg.confidenceTier} scope={msg.questionScope} />
+        )}
         {msg.sourceLessons && msg.sourceLessons.length > 0 && (
-          <SourceLessons lessons={msg.sourceLessons} />
+          <SourceLessons lessons={msg.sourceLessons} onSelectLesson={onSelectLesson} />
         )}
       </div>
     </div>
@@ -179,9 +225,15 @@ const CompletedAiMessageBubble = React.memo(function CompletedAiMessageBubble({
 function StreamingAiMessageBubble({
   displayText,
   sourceLessons,
+  confidenceTier,
+  questionScope,
+  onSelectLesson,
 }: {
   displayText: string;
   sourceLessons?: SourceLessonDto[];
+  confidenceTier?: AiChatMessage['confidenceTier'];
+  questionScope?: AiChatMessage['questionScope'];
+  onSelectLesson?: (lessonId: number) => void;
 }) {
   const isWaiting = displayText === '';
   return (
@@ -203,8 +255,11 @@ function StreamingAiMessageBubble({
             <span className="inline-block w-[7px] h-[1em] ml-[1px] align-baseline bg-gray-400 animate-pulse motion-reduce:animate-none" />
           </div>
         )}
+        {(confidenceTier || questionScope === 'OFF_TOPIC') && (
+          <CoverageBadge tier={confidenceTier} scope={questionScope} />
+        )}
         {sourceLessons && sourceLessons.length > 0 && (
-          <SourceLessons lessons={sourceLessons} />
+          <SourceLessons lessons={sourceLessons} onSelectLesson={onSelectLesson} />
         )}
       </div>
     </div>
@@ -216,9 +271,10 @@ function StreamingAiMessageBubble({
 interface AiChatPanelProps {
   courseId: number;
   onClose: () => void;
+  onSelectLesson?: (lessonId: number) => void;
 }
 
-export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) => {
+export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose, onSelectLesson }) => {
   const panelRef = useFocusTrap(true, onClose);
   const storedMessages = useAiChatStore(
     (state) => state.chatsByCourse[courseId.toString()]
@@ -421,6 +477,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
           updateLastAiMessage(courseId, (prev) => ({
             ...prev,
             sourceLessons: data.sourceLessons ?? prev.sourceLessons,
+            confidenceTier: data.confidenceTier ?? prev.confidenceTier,
+            questionScope: data.questionScope ?? prev.questionScope,
           }));
         },
         onError: (err: unknown) => {
@@ -464,6 +522,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
                 ...prev,
                 content: response.answer,
                 sourceLessons: response.sourceLessons,
+                confidenceTier: response.confidenceTier,
+                questionScope: response.questionScope,
               }));
               setError(null);
               setAnnouncement('AI tutor response ready.');
@@ -620,11 +680,20 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ courseId, onClose }) =
                 key={index}
                 displayText={streamingDisplayText}
                 sourceLessons={msg.sourceLessons}
+                confidenceTier={msg.confidenceTier}
+                questionScope={msg.questionScope}
+                onSelectLesson={onSelectLesson}
               />
             );
           }
 
-          return <CompletedAiMessageBubble key={index} msg={msg} />;
+          return (
+            <CompletedAiMessageBubble
+              key={index}
+              msg={msg}
+              onSelectLesson={onSelectLesson}
+            />
+          );
         })}
       </div>
 

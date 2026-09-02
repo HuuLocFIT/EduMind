@@ -254,7 +254,7 @@ flowchart TB
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **RAG Chat Assistant** | Vector search over lesson embeddings, context-aware answers streamed via SSE (or sync). Rate-limited to 20 queries/day/user; low-confidence answers logged as knowledge gaps. | ✅ Active |
+| **RAG Chat Assistant** | Classifies broad IT scope before retrieval, then uses vector search over lesson embeddings for context-aware answers streamed via SSE (or sync). Off-topic questions skip retrieval and are declined; only in-scope low-confidence questions are logged as knowledge gaps. Rate-limited to 20 queries/day/user. | ✅ Active |
 | **Lesson Embeddings** | Auto-triggered by `LessonContentUpdatedEvent`. Splits content into 500-word chunks (50-word overlap), embeds via Gemini `gemini-embedding-001` (768 dims), stores in `ai.lesson_embeddings` with an ivfflat index. | ✅ Active |
 | **Lesson Summaries** | Generates structured JSON summaries (summary text, key points, vocabulary), upserted into `ai.lesson_summaries`. | ✅ Active |
 | **Quiz Generation** | Async job generates multiple-choice questions; students receive questions without `correctIndex`/`explanation`, full answers returned after submission with scoring. | ✅ Active |

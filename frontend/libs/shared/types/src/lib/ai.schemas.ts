@@ -110,14 +110,21 @@ export const SourceLessonDtoSchema = z.object({
   lessonTitle: z.string(),
 });
 
+export const ConfidenceTierSchema = z.enum(["HIGH", "MEDIUM", "GAP"]);
+export const QuestionScopeSchema = z.enum(["IN_SCOPE_IT", "OFF_TOPIC"]);
+
 export const ChatResponseSchema = z.object({
   answer: z.string(),
   sourceLessons: z.array(SourceLessonDtoSchema),
+  confidenceTier: ConfidenceTierSchema.nullable(),
+  questionScope: QuestionScopeSchema,
 });
 
 export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type SourceLessonDto = z.infer<typeof SourceLessonDtoSchema>;
+export type ConfidenceTier = z.infer<typeof ConfidenceTierSchema>;
+export type QuestionScope = z.infer<typeof QuestionScopeSchema>;
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 
 export const TranscribeRequestSchema = z.object({

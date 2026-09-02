@@ -562,6 +562,31 @@ describe('CoursePlayerPage media/content/progress accessibility', () => {
     await waitFor(() => expect(lessonProgressService.completeLesson).toHaveBeenCalledTimes(1));
   });
 
+  it('reconciles course progress and auto-advances when video autosave completed the lesson before ended', async () => {
+    vi.mocked(lessonProgressService.getEnrollmentProgress).mockResolvedValue([completedProgress]);
+    vi.mocked(enrollmentService.getMyEnrollmentForCourse)
+      .mockResolvedValueOnce(baseEnrollment)
+      .mockResolvedValueOnce({
+        ...baseEnrollment,
+        completedLessons: 1,
+        progressPercentage: 67,
+      });
+    const { container } = await renderPage();
+
+    fireEvent.ended(container.querySelector('video')!);
+
+    await waitFor(() => {
+      expect(lessonProgressService.completeLesson).toHaveBeenCalledWith(50, 1);
+      expect(
+        screen.getByText('Lesson completed. Moving to Read the guide in 10 seconds.'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('progressbar', { name: 'Course progress' })).toHaveAttribute(
+        'aria-valuenow',
+        '67',
+      );
+    });
+  });
+
   it('announces the completed lesson and reconciled percentage', async () => {
     vi.mocked(lessonProgressService.completeLesson).mockResolvedValue({} as any);
     await renderPage();

@@ -11,12 +11,14 @@ export interface AiTutorOverlayProps {
   courseId: number;
   hidden?: boolean;
   anchorToPlayerHeader?: boolean;
+  onSelectLesson?: (lessonId: number) => void;
 }
 
 export const AiTutorOverlay: React.FC<AiTutorOverlayProps> = ({
   courseId,
   hidden = false,
   anchorToPlayerHeader = false,
+  onSelectLesson,
 }) => {
   const { isOpen: isChatOpen, closeChat, toggleChat } = useAiChatStore();
 
@@ -48,7 +50,16 @@ export const AiTutorOverlay: React.FC<AiTutorOverlayProps> = ({
             />
 
             <React.Suspense fallback={null}>
-              <AiChatPanel courseId={courseId} onClose={closeChat} />
+              <AiChatPanel
+                courseId={courseId}
+                onClose={closeChat}
+                onSelectLesson={onSelectLesson
+                  ? (lessonId) => {
+                      onSelectLesson(lessonId);
+                      closeChat();
+                    }
+                  : undefined}
+              />
             </React.Suspense>
           </>,
           document.body

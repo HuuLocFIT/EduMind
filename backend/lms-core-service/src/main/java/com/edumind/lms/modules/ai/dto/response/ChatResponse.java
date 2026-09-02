@@ -19,7 +19,12 @@ public class ChatResponse {
 
     /**
      * Confidence tier derived from retrieval scores: "HIGH", "MEDIUM", or "GAP".
+     * Null for OFF_TOPIC questions because retrieval is intentionally skipped.
      */
     private String confidenceTier;
-}
 
+    /**
+     * Whether the question belongs to the course's broad IT learning domain.
+     */
+    private QuestionScope questionScope;
+}

@@ -331,6 +331,12 @@ export const CoursePlayerPage: React.FC = () => {
             courseId={resolvedCourseId}
             hidden={layout.sidebarOpen && !layout.isDesktop}
             anchorToPlayerHeader
+            onSelectLesson={(lessonId) => {
+              const sourceLesson = lessons.find((lesson) => lesson.id === lessonId);
+              if (sourceLesson) {
+                navigation.selectLesson(sourceLesson, { focusContent: true });
+              }
+            }}
           />
         ) : null}
       />

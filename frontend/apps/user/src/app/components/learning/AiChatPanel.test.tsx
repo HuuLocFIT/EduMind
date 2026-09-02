@@ -22,6 +22,11 @@ vi.mock('../../services/ai.service', () => ({
 
 type StreamCallbacks = {
   onChunk: (text: string) => void;
+  onMetadata?: (data: {
+    sourceLessons: Array<{ lessonId: number; lessonTitle: string }>;
+    confidenceTier: 'HIGH' | 'MEDIUM' | 'GAP' | null;
+    questionScope: 'IN_SCOPE_IT' | 'OFF_TOPIC';
+  }) => void;
   onError?: (error: unknown) => void;
   onClose?: () => void;
 };
@@ -49,6 +54,32 @@ describe('AiChatPanel announcements', () => {
 
     await waitFor(() => expect(HTMLElement.prototype.scrollTo).toHaveBeenCalled());
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('opens a cited source lesson when its source button is selected', async () => {
+    const user = userEvent.setup();
+    const onSelectLesson = vi.fn();
+    useAiChatStore.getState().addMessage(10, { role: 'user', content: 'Explain streams' });
+    useAiChatStore.getState().addMessage(10, {
+      role: 'ai',
+      content: 'A stream delivers data incrementally.',
+      sourceLessons: [{ lessonId: 42, lessonTitle: 'Reactive Streams' }],
+    });
+
+    render(
+      <AiChatPanel
+        courseId={10}
+        onClose={vi.fn()}
+        onSelectLesson={onSelectLesson}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Open source lesson: Reactive Streams' }),
+    );
+
+    expect(onSelectLesson).toHaveBeenCalledOnce();
+    expect(onSelectLesson).toHaveBeenCalledWith(42);
   });
 
   it('announces each hard failure once and keeps Retry outside the alert', async () => {
@@ -113,6 +144,56 @@ describe('AiChatPanel announcements', () => {
       expect(screen.getByRole('status')).toHaveTextContent('AI tutor response ready.');
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the server-provided confidence tier instead of inferring it from the answer', async () => {
+    const user = userEvent.setup();
+    vi.mocked(aiService.chatStream).mockImplementation(
+      async (_courseId, _request, callbacks) => {
+        callbacks.onChunk('The instructor has not covered this topic.');
+        callbacks.onMetadata({
+          sourceLessons: [],
+          confidenceTier: 'GAP',
+          questionScope: 'IN_SCOPE_IT',
+        });
+        callbacks.onClose?.();
+      },
+    );
+
+    render(<AiChatPanel courseId={11} onClose={vi.fn()} />);
+    await user.type(
+      screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' }),
+      'Explain an uncovered topic',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText('Not covered in this course')).toBeVisible();
+    expect(useAiChatStore.getState().getMessages(11).at(-1)?.confidenceTier).toBe('GAP');
+  });
+
+  it('uses question scope to distinguish off-topic answers from knowledge gaps', async () => {
+    const user = userEvent.setup();
+    vi.mocked(aiService.chatStream).mockImplementation(
+      async (_courseId, _request, callbacks) => {
+        callbacks.onChunk('Please ask me about this IT course.');
+        callbacks.onMetadata({
+          sourceLessons: [],
+          confidenceTier: null,
+          questionScope: 'OFF_TOPIC',
+        });
+        callbacks.onClose?.();
+      },
+    );
+
+    render(<AiChatPanel courseId={12} onClose={vi.fn()} />);
+    await user.type(
+      screen.getByRole('textbox', { name: 'Ask the AI Tutor a question' }),
+      'What should I cook tonight?',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText('Outside course scope')).toBeVisible();
+    expect(screen.queryByText('Not covered in this course')).not.toBeInTheDocument();
   });
 
   it('announces a partial stream failure once through the status region', async () => {

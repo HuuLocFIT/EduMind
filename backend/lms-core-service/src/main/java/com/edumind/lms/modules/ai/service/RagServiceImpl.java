@@ -3,6 +3,7 @@ package com.edumind.lms.modules.ai.service;
 import com.edumind.common.exception.TooManyRequestsException;
 import com.edumind.lms.modules.ai.dto.request.ChatRequest;
 import com.edumind.lms.modules.ai.dto.response.ChatResponse;
+import com.edumind.lms.modules.ai.dto.response.QuestionScope;
 import com.edumind.lms.modules.ai.dto.response.SourceLessonDto;
 import com.edumind.lms.modules.ai.entity.KnowledgeGapQuestion;
 import com.edumind.lms.modules.ai.repository.LessonChunkProjection;
@@ -75,6 +76,19 @@ public class RagServiceImpl implements RagService {
             throw new BadRequestException("AI service is not available. Please configure GEMINI_API_KEY.");
         }
 
+        QuestionScope questionScope = classifyQuestionScope(request);
+        if (questionScope == QuestionScope.OFF_TOPIC) {
+            String answer = chatClient.prompt(AiPromptBuilder.buildOffTopicPrompt(request.getQuestion()))
+                    .call()
+                    .content();
+            return ChatResponse.builder()
+                    .answer(answer)
+                    .sourceLessons(List.of())
+                    .confidenceTier(null)
+                    .questionScope(questionScope)
+                    .build();
+        }
+
         // 2. Embed question & vector search
         List<LessonChunkProjection> topChunks = findRelevantChunks(courseId, request.getQuestion());
 
@@ -83,6 +97,7 @@ public class RagServiceImpl implements RagService {
 
         // 4. Classify confidence based on retrieval scores
         String confidenceHint = classifyConfidence(topChunks);
+        logClassification(courseId, topChunks, confidenceHint);
 
         // 5. Optionally log knowledge gaps when retrieval confidence is low
         if ("GAP".equals(confidenceHint)) {
@@ -111,6 +126,7 @@ public class RagServiceImpl implements RagService {
                 .answer(answer)
                 .sourceLessons(sourceLessons)
                 .confidenceTier(confidenceHint)
+                .questionScope(questionScope)
                 .build();
     }
 
@@ -134,9 +150,26 @@ public class RagServiceImpl implements RagService {
                 throw new BadRequestException("AI service is not available. Please configure GEMINI_API_KEY.");
             }
 
+            QuestionScope questionScope = classifyQuestionScope(request);
+            if (questionScope == QuestionScope.OFF_TOPIC) {
+                Flux<ServerSentEvent<String>> offTopicChunks = chatClient
+                        .prompt(AiPromptBuilder.buildOffTopicPrompt(request.getQuestion()))
+                        .stream()
+                        .content()
+                        .map(chunk -> ServerSentEvent.<String>builder()
+                                .event("chunk")
+                                .data(chunk)
+                                .build());
+                return Flux.concat(
+                        offTopicChunks,
+                        metadataEvent(List.of(), null, questionScope)
+                );
+            }
+
             List<LessonChunkProjection> topChunks = findRelevantChunks(courseId, request.getQuestion());
             List<SourceLessonDto> sourceLessons = resolveSourceLessons(topChunks);
             String confidenceHint = classifyConfidence(topChunks);
+            logClassification(courseId, topChunks, confidenceHint);
 
             if ("GAP".equals(confidenceHint)) {
                 knowledgeGapQuestionRepository.save(
@@ -176,26 +209,10 @@ public class RagServiceImpl implements RagService {
                                 .build());
                     });
 
-            Mono<ServerSentEvent<String>> metadataEvent = Mono.fromCallable(() -> {
-                Map<String, Object> metadata = new LinkedHashMap<>();
-                metadata.put("sourceLessons", sourceLessons);
-                metadata.put("confidenceTier", confidenceHint);
-
-                String json;
-                try {
-                    json = objectMapper.writeValueAsString(metadata);
-                } catch (JsonProcessingException e) {
-                    log.error("Failed to serialize AI chat metadata", e);
-                    json = "{\"sourceLessons\":[],\"confidenceTier\":\"GAP\"}";
-                }
-
-                return ServerSentEvent.<String>builder()
-                        .event("metadata")
-                        .data(json)
-                        .build();
-            });
-
-            return Flux.concat(chunkEvents, metadataEvent);
+            return Flux.concat(
+                    chunkEvents,
+                    metadataEvent(sourceLessons, confidenceHint, questionScope)
+            );
         })
         .onErrorResume(TooManyRequestsException.class, e ->
                 sseErrorFlux("Daily AI chat limit exceeded (20/day)."))
@@ -218,6 +235,50 @@ public class RagServiceImpl implements RagService {
                 .event("error")
                 .data(errorJson)
                 .build());
+    }
+
+    private Mono<ServerSentEvent<String>> metadataEvent(
+            List<SourceLessonDto> sourceLessons,
+            String confidenceTier,
+            QuestionScope questionScope
+    ) {
+        return Mono.fromCallable(() -> {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("sourceLessons", sourceLessons);
+            metadata.put("confidenceTier", confidenceTier);
+            metadata.put("questionScope", questionScope.name());
+
+            String json;
+            try {
+                json = objectMapper.writeValueAsString(metadata);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to serialize AI chat metadata", e);
+                json = "{\"sourceLessons\":[],\"confidenceTier\":\"GAP\",\"questionScope\":\"IN_SCOPE_IT\"}";
+            }
+
+            return ServerSentEvent.<String>builder()
+                    .event("metadata")
+                    .data(json)
+                    .build();
+        });
+    }
+
+    private QuestionScope classifyQuestionScope(ChatRequest request) {
+        try {
+            String result = chatClient.prompt(AiPromptBuilder.buildQuestionScopePrompt(
+                            request.getQuestion(),
+                            Optional.ofNullable(request.getRecentHistory()).orElseGet(ArrayList::new)
+                    ))
+                    .call()
+                    .content();
+            String scope = objectMapper.readTree(result).path("scope").asText();
+            return QuestionScope.OFF_TOPIC.name().equals(scope)
+                    ? QuestionScope.OFF_TOPIC
+                    : QuestionScope.IN_SCOPE_IT;
+        } catch (Exception e) {
+            log.warn("Question-scope classification failed; defaulting to IN_SCOPE_IT: {}", e.getMessage());
+            return QuestionScope.IN_SCOPE_IT;
+        }
     }
 
     private void ensureCourseAccess(Long courseId, Long userId) {
@@ -273,5 +334,20 @@ public class RagServiceImpl implements RagService {
         }
         return "HIGH";
     }
-}
 
+    private void logClassification(
+            Long courseId,
+            List<LessonChunkProjection> chunks,
+            String confidenceTier
+    ) {
+        Double topDistance = chunks == null || chunks.isEmpty()
+                ? null
+                : chunks.get(0).getDistance();
+        log.info(
+                "RAG classification: courseId={}, topDistance={}, tier={}",
+                courseId,
+                topDistance,
+                confidenceTier
+        );
+    }
+}

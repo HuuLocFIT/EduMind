@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { SourceLessonDto } from "@edumind/shared-types";
+import type { ConfidenceTier, QuestionScope, SourceLessonDto } from "@edumind/shared-types";
 
 export type AiChatMessage = {
   role: "user" | "ai";
   content: string;
   sourceLessons?: SourceLessonDto[];
+  confidenceTier?: ConfidenceTier | null;
+  questionScope?: QuestionScope;
 };
 
 interface AiChatState {
@@ -108,4 +110,3 @@ export const useAiChatStore = create<AiChatState>()(
     }
   )
 );
-
