@@ -305,6 +305,10 @@ describe('TeacherApplicationPage', () => {
 
     await waitFor(() => expect(mockSubmitApplication).toHaveBeenCalledTimes(1));
     expect(mockUploadFile).toHaveBeenCalledTimes(1);
+    expect(mockUploadFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'cv.pdf' }),
+      'documents/teacher-applications',
+    );
 
     const payload = mockSubmitApplication.mock.calls[0][0];
     expect(payload.documents).toEqual([
@@ -376,7 +380,8 @@ describe('TeacherApplicationPage', () => {
     await waitFor(() => expect(mockSubmitApplication).toHaveBeenCalledTimes(1));
     expect(mockUploadFile).toHaveBeenCalledTimes(1);
     expect(mockUploadFile).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'good.pdf' })
+      expect.objectContaining({ name: 'good.pdf' }),
+      'documents/teacher-applications',
     );
 
     const state = getBucketState(CV_LABEL);
@@ -466,7 +471,8 @@ describe('TeacherApplicationPage', () => {
     // The CV file must not have been re-uploaded because of the Certificate upload.
     expect(mockUploadFile).toHaveBeenCalledTimes(1);
     expect(mockUploadFile).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'cert.pdf' })
+      expect.objectContaining({ name: 'cert.pdf' }),
+      'documents/teacher-applications',
     );
   });
 

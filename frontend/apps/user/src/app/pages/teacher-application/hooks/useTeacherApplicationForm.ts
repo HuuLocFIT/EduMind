@@ -134,7 +134,9 @@ export function useTeacherApplicationForm() {
     );
 
     const settled = await Promise.allSettled(
-      pendingItems.map((item) => fileUploadService.uploadFile(item.file)),
+      pendingItems.map((item) =>
+        fileUploadService.uploadFile(item.file, "documents/teacher-applications"),
+      ),
     );
     const newResults = [...existingResults];
     let hasError = false;
