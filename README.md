@@ -9,12 +9,7 @@ AI accelerated research and implementation; technical decisions, review, and val
 
 **[Explore the live student experience ↗](https://edumind.nguyenloc.dev/courses?filter=free)** — create an account, enroll in a free course, and open the Course Player and cited AI tutor.
 
-> **GHI CHÚ — ẢNH HERO (bắt buộc, ưu tiên 1).**
-> - Chụp Course Player desktop 1920×1080: curriculum bên trái, video + captions ở giữa, AI tutor panel mở.
-> - Xuất WebP, nén < 300 KB, lưu `docs/media/course-player-hero.webp`.
-> - Che email, token, user ID, dữ liệu thanh toán.
-> - Thay note này bằng `![...](docs/media/course-player-hero.webp)` với alt text mô tả bố cục, không phải "screenshot".
-> - Sau khi có video tour: thêm CTA phụ `**[Watch the 90-second tour](...)**` ngay dưới CTA chính, giữ đúng một CTA chính.
+![EduMind Course Player with a captioned lesson video, an open AI tutor over the center, and the course curriculum on the right](docs/media/course-player-hero.webp)
 
 [![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](frontend/apps/user)
 [![Angular 20](https://img.shields.io/badge/Angular-20-DD0031?logo=angular&logoColor=white)](frontend/apps/admin)
@@ -44,21 +39,12 @@ AI accelerated research and implementation; technical decisions, review, and val
 | Role | Journey to explore | Access |
 | --- | --- | --- |
 | **Student** | Discover a [free course](https://edumind.nguyenloc.dev/courses?filter=free), enroll, learn in the Course Player, and ask the cited AI tutor. | Live — self-signup |
-| **Teacher** | Author content, process video and captions, inspect analytics, and manage earnings. | **GHI CHÚ:** link video walkthrough |
-| **Admin** | Moderate courses and teacher applications, then operate refunds and payouts. | **GHI CHÚ:** link video walkthrough |
+| **Teacher** | Author content, process video and captions, inspect analytics, and manage earnings. | [Watch the Teacher walkthrough](https://res.cloudinary.com/dvznchhww/video/upload/v1788405423/video_demo_teacher_k2vvzs.mp4) |
+| **Admin** | Moderate courses and teacher applications, then operate refunds and payouts. | [Watch the Admin walkthrough](https://res.cloudinary.com/dvznchhww/video/upload/v1788405504/video_demo_admin_hg4mle.mp4) |
 
 Admin and teacher operations are demonstrated through recorded walkthroughs; privileged access is not publicly exposed.
 
-> **GHI CHÚ — PRODUCT MEDIA (ưu tiên 2).**
-> **Ảnh composite ba vai trò** → `docs/media/roles-overview.webp`, chèn ngay dưới bảng này.
->
-> **Video walkthrough Teacher (~45–60s)** → upload MP4 vào một issue/PR trên GitHub để lấy URL CDN, dán vào ô Access của hàng Teacher. Không commit binary vào repo. Nội dung: mở course editor → sửa lesson → upload/process video → hiện caption đã transcribe → analytics và earnings. Bỏ qua CRUD form thuần.
->
-> **Video walkthrough Admin (~45–60s)** → tương tự, hàng Admin. Nội dung bám đúng 4 claim: duyệt teacher application → moderate course → duyệt refund → xử lý payout.
->
-> **Video tour tổng 60–90s (tuỳ thời gian, làm sau)** → link vào CTA phụ ở hero. Timeline: 0–10s home/discovery · 10–35s Course Player (autosave → completion → auto-advance) · 35–50s AI tutor stream + citation · 50–65s teacher authoring · 65–80s admin refund/payout · 80–90s testing evidence.
->
-> **Áp dụng cho MỌI video ở trên:** MP4 có controls, **không dùng GIF** (GIF loop không dừng được, vi phạm WCAG 2.2.2 — mâu thuẫn với chính claim a11y của README). 1080p, chữ đọc được, cắt thời gian loading, có caption tiếng Anh + transcript. Che email, token, ID giao dịch, số liệu tài chính thật.
+![EduMind product views for a student continuing a course, a teacher editing course content, and an administrator monitoring platform activity](docs/media/roles-overview.webp)
 
 ## Engineering deep dive
 
@@ -108,10 +94,11 @@ flowchart LR
 
 Evidence: [implementation](frontend/apps/user/src/app/pages/learning/course-player/hooks/useLessonCompletion.ts) · [regression tests](frontend/apps/user/src/app/pages/learning/course-player/CoursePlayerAccessibility.test.tsx) · [Playwright learning journey](frontend/e2e/tests/user/learning-flow-a11y.spec.ts)
 
-> **GHI CHÚ — COURSE PLAYER MEDIA (ưu tiên 2).**
-> - **Clip kỹ thuật `MP4`, ~20–30s** — quay đúng chuỗi: phát video → autosave chạy → đánh dấu hoàn thành → auto-advance sang bài kế. Nếu dựng được cảnh completion request fail rồi video progress vẫn còn nguyên thì quay luôn, đó là bằng chứng trực tiếp cho invariant ở trên. Upload qua issue/PR lấy URL CDN. **Không dùng GIF.**
-> - **Ảnh mobile** curriculum drawer đang mở → `docs/media/course-player-mobile.webp`.
-> - Ảnh desktop đã dùng làm hero ở đầu README, không lặp lại ở đây.
+**[Watch the Course Player walkthrough ↗](https://res.cloudinary.com/dvznchhww/video/upload/v1788406083/video_demo_course_player_eyn9mb.mp4)** — lesson playback, progress tracking, completion, and curriculum navigation.
+
+<p align="center">
+  <img src="docs/media/course-player-mobile.webp" width="360" alt="EduMind Course Player on mobile with the curriculum drawer open over the lesson video">
+</p>
 
 ### Accessibility: complete journeys, not a compliance badge
 
@@ -154,11 +141,16 @@ flowchart LR
 
 Counts describe the committed deterministic artifacts and dated manual checklists, not every application state or a full-site conformance audit. The Pa11y after-scan adds authenticated cart, checkout, My Learning, Course Player, and SePay QR states beyond the original nine-route baseline, so its route count is intentionally larger.
 
-> **GHI CHÚ — ẢNH ACCESSIBILITY (ưu tiên 1, rẻ nhất — chỉ cần chụp lại artifact đã có sẵn trong repo).**
-> - **Ảnh before:** mở một report trong `frontend/e2e/accessibility-reports/before/` hoặc `before/pa11y/*.html`, chụp phần thấy rõ rule ID, selector và element bị ảnh hưởng → `docs/media/a11y-before.webp`.
-> - **Ảnh after:** cùng màn hình đó sau khi sửa, có focus ring hiển thị rõ → `docs/media/a11y-after.webp`.
-> - Đặt hai ảnh cạnh nhau ngay dưới bảng remediation, alt text nêu rule nào đã được sửa.
-> - Không dùng ảnh chứa thông tin tài khoản thật.
+<table>
+  <tr>
+    <th scope="col">Before remediation</th>
+    <th scope="col">After remediation</th>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/media/a11y-before.webp"><img src="docs/media/a11y-before.webp" alt="Login accessibility report before remediation showing five errors, including H91.InputText.Name and F68 failures with the affected input selector"></a></td>
+    <td width="50%"><a href="docs/media/a11y-after.webp"><img src="docs/media/a11y-after.webp" alt="Login accessibility report after accessible-name remediation showing zero errors, warnings, and notices"></a></td>
+  </tr>
+</table>
 
 Manual evidence: [Safari + VoiceOver checklist summary](frontend/e2e/manual-a11y-checklists/00-summary.md).
 
@@ -188,10 +180,7 @@ A token or metadata event can be split across multiple `reader.read()` calls. Di
 
 Evidence: [frontend SSE parser](frontend/apps/user/src/app/services/ai.service.ts) · [AI workflow](docs/workflows/ai_workflows.md) · [video workflow](docs/workflows/video_upload_workflows.md)
 
-> **GHI CHÚ — AI TUTOR MEDIA (ưu tiên 2).**
-> - **Clip `MP4`, ~15–25s** — quay câu trả lời stream token theo thời gian thực, dừng lại đủ lâu ở citation trỏ về lesson nguồn và confidence metadata. Nếu quay được thao tác đóng panel giữa lúc đang stream (request bị abort) thì càng tốt, nó chứng minh phần cancellation.
-> - Upload qua issue/PR lấy URL CDN. **Không dùng GIF** — nội dung động dài quá 5s.
-> - Che email, token, user ID trước khi quay.
+**[Watch the cited AI tutor walkthrough ↗](https://res.cloudinary.com/dvznchhww/video/upload/v1788405527/video_demo_ai_chat_bbajpv.mp4)** — streaming answers grounded in course content with lesson-level citations.
 
 ### Reliable commerce and finance
 
