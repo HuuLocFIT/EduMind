@@ -168,6 +168,7 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.1-flash-lite}
     depends_on:
       postgres-lms-core:
         condition: service_healthy

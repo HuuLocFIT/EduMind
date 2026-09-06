@@ -37,7 +37,7 @@ graph TB
     end
 
     subgraph Gemini["Google Gemini (Spring AI)"]
-        ChatModel["gemini-2.5-flash-lite<br>temp=0.3, max=4096 tokens"]
+        ChatModel["gemini-3.1-flash-lite<br>temp=0.3, max=4096 tokens"]
         EmbModel["gemini-embedding-001<br>768 dimensions"]
     end
 
@@ -523,7 +523,7 @@ sequenceDiagram
     participant JobService as AiJobService
     participant AsyncProc as AsyncSummaryProcessor
     participant PromptBuilder as AiPromptBuilder
-    participant Gemini as Gemini Chat API<br/>(gemini-2.5-flash-lite)
+    participant Gemini as Gemini Chat API<br/>(gemini-3.1-flash-lite)
     participant DB as ai.lesson_summaries
 
     EventBus->>AiEventListener: onLessonContentUpdated() [AFTER_COMMIT]
@@ -785,7 +785,7 @@ sequenceDiagram
     participant LessonQuerySvc as LessonQueryService
     participant GapDB as ai.knowledge_gap_questions
     participant PromptBuilder as AiPromptBuilder
-    participant ChatModel as Gemini Chat API<br/>(gemini-2.5-flash-lite)
+    participant ChatModel as Gemini Chat API<br/>(gemini-3.1-flash-lite)
 
     Client->>Controller: POST /api/ai/chat/courses/{courseId}<br>{ question, history: [{role, content}] }
 
@@ -1052,7 +1052,7 @@ spring:
       genai:
         api-key: ${GEMINI_API_KEY:}       # Optional at startup
         chat:
-          model: gemini-2.5-flash-lite
+          model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
           temperature: 0.3               # Low temperature for factual accuracy
           max-output-tokens: 4096
         embedding:

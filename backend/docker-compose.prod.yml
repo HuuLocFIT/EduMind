@@ -188,6 +188,7 @@ services:
       - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:?PAYMENT_GATEWAY is required}
       - PAYMENT_MOCK_ENABLED=false
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.1-flash-lite}
       - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       postgres-lms-core:
