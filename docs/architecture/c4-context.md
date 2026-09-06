@@ -58,7 +58,7 @@ flowchart TB
 | **Google OAuth2** | OpenID Connect | Provides social login for faster onboarding. | ✅ Active |
 | **Cloudinary** | Cloud Media CDN | Stores profile pictures, course thumbnails, and lesson videos. | ✅ Active |
 | **Payment Gateway** | PayPal / SePay | Processes course purchases and handles payouts to instructors. | ✅ Active |
-| **Google Gemini** | `gemini-2.5-flash-lite` (chat), `gemini-embedding-001` (embeddings) | Powers RAG chat, lesson summaries, and quiz generation via Spring AI. | ✅ Active |
+| **Google Gemini** | `gemini-3.1-flash-lite` (chat), `gemini-embedding-001` (embeddings) | Powers RAG chat, lesson summaries, and quiz generation via Spring AI. | ✅ Active |
 | **Groq Whisper API** | `whisper-large-v3-turbo` | Transcribes lesson audio/video into article content. | ✅ Active |
 
 ---
