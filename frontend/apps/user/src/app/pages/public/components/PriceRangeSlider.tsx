@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface PriceRangeSliderProps {
   min: number;
@@ -15,16 +15,47 @@ export const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({
   onChange,
   disabled = false,
 }) => {
-  const [minValue, maxValue] = value;
+  const [draftValue, setDraftValue] = useState(value);
+  const draftValueRef = useRef(value);
+  const isDraggingRef = useRef(false);
+  const [minValue, maxValue] = draftValue;
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      draftValueRef.current = value;
+      setDraftValue(value);
+    }
+  }, [value]);
+
+  const updateDraftValue = (nextValue: [number, number]) => {
+    draftValueRef.current = nextValue;
+    setDraftValue(nextValue);
+
+    // Keyboard changes do not start a pointer interaction, so apply them
+    // immediately. Pointer changes are committed when the thumb is released.
+    if (!isDraggingRef.current) {
+      onChange(nextValue);
+    }
+  };
 
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMin = Math.min(Number(e.target.value), maxValue);
-    onChange([newMin, maxValue]);
+    updateDraftValue([newMin, maxValue]);
   };
 
   const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMax = Math.max(Number(e.target.value), minValue);
-    onChange([minValue, newMax]);
+    updateDraftValue([minValue, newMax]);
+  };
+
+  const handlePointerDown = () => {
+    isDraggingRef.current = true;
+  };
+
+  const commitPointerChange = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    onChange(draftValueRef.current);
   };
 
   const minPercent = ((minValue - min) / (max - min)) * 100;
@@ -51,6 +82,9 @@ export const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({
         max={max}
         value={minValue}
         onChange={handleMinChange}
+        onPointerDown={handlePointerDown}
+        onPointerUp={commitPointerChange}
+        onPointerCancel={commitPointerChange}
         disabled={disabled}
         aria-label="Minimum price"
         aria-valuemin={min}
@@ -67,6 +101,9 @@ export const PriceRangeSlider: React.FC<PriceRangeSliderProps> = ({
         max={max}
         value={maxValue}
         onChange={handleMaxChange}
+        onPointerDown={handlePointerDown}
+        onPointerUp={commitPointerChange}
+        onPointerCancel={commitPointerChange}
         disabled={disabled}
         aria-label="Maximum price"
         aria-valuemin={min}
