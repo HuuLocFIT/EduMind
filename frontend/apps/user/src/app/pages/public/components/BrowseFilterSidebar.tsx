@@ -23,6 +23,12 @@ interface BrowseFilterSidebarProps {
   onClearFilters: () => void;
   showClearButton: boolean;
   idPrefix?: string;
+  /**
+   * Push every price edit straight to setMinPrice/setMaxPrice. Use it when the
+   * parent already buffers changes behind its own Apply (mobile drawer).
+   * Otherwise price edits stay local until Enter, Apply or slider release.
+   */
+  applyPriceImmediately?: boolean;
 }
 
 interface FilterSectionProps {
@@ -88,29 +94,75 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
   onClearFilters,
   showClearButton,
   idPrefix = "desktop",
+  applyPriceImmediately = false,
 }) => {
   const PRICE_MIN = 0;
   const PRICE_MAX = 200;
 
+  // Draft price shown in the slider and inputs. Applying it triggers a new
+  // course search, so typing "150" or dragging must not search on every step.
+  const [draftMinPrice, setDraftMinPrice] = useState(minPrice);
+  const [draftMaxPrice, setDraftMaxPrice] = useState(maxPrice);
+  const [appliedPrice, setAppliedPrice] = useState({ minPrice, maxPrice });
+
+  // Reset the draft when the applied price changes from outside
+  // (Clear filters, browser Back/Forward, removing a filter chip).
+  if (appliedPrice.minPrice !== minPrice || appliedPrice.maxPrice !== maxPrice) {
+    setAppliedPrice({ minPrice, maxPrice });
+    setDraftMinPrice(minPrice);
+    setDraftMaxPrice(maxPrice);
+  }
+
+  const isPriceDirty = draftMinPrice !== minPrice || draftMaxPrice !== maxPrice;
+
   // Convert string prices to numbers for slider
   const priceRange: [number, number] = useMemo(() => {
-    const min = minPrice ? Number(minPrice) : PRICE_MIN;
-    const max = maxPrice ? Number(maxPrice) : PRICE_MAX;
+    const min = draftMinPrice ? Number(draftMinPrice) : PRICE_MIN;
+    const max = draftMaxPrice ? Number(draftMaxPrice) : PRICE_MAX;
     return [Math.max(PRICE_MIN, min), Math.min(PRICE_MAX, max)];
-  }, [minPrice, maxPrice]);
+  }, [draftMinPrice, draftMaxPrice]);
+
+  const applyPrice = (nextMin: string, nextMax: string) => {
+    // Skip unchanged values: every setter call starts a new search
+    if (nextMin !== minPrice) setMinPrice(nextMin);
+    if (nextMax !== maxPrice) setMaxPrice(nextMax);
+  };
+
+  const updateDraftPrice = (nextMin: string, nextMax: string) => {
+    setDraftMinPrice(nextMin);
+    setDraftMaxPrice(nextMax);
+    if (applyPriceImmediately) applyPrice(nextMin, nextMax);
+  };
+
+  const rangeToPrices = ([newMin, newMax]: [number, number]): [string, string] => [
+    newMin === PRICE_MIN ? "" : String(newMin),
+    newMax === PRICE_MAX ? "" : String(newMax),
+  ];
 
   const handlePriceRangeChange = (value: [number, number]) => {
-    const [newMin, newMax] = value;
-    setMinPrice(newMin === PRICE_MIN ? "" : String(newMin));
-    setMaxPrice(newMax === PRICE_MAX ? "" : String(newMax));
+    updateDraftPrice(...rangeToPrices(value));
+  };
+
+  const handlePriceRangeCommit = (value: [number, number]) => {
+    const [nextMin, nextMax] = rangeToPrices(value);
+    setDraftMinPrice(nextMin);
+    setDraftMaxPrice(nextMax);
+    applyPrice(nextMin, nextMax);
   };
 
   const handleMinPriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMinPrice(e.target.value);
+    updateDraftPrice(e.target.value, draftMaxPrice);
   };
 
   const handleMaxPriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMaxPrice(e.target.value);
+    updateDraftPrice(draftMinPrice, e.target.value);
+  };
+
+  const handlePriceInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyPrice(draftMinPrice, draftMaxPrice);
+    }
   };
 
   const handleFreeToggle = () => {
@@ -210,6 +262,7 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                   max={PRICE_MAX}
                   value={priceRange}
                   onChange={handlePriceRangeChange}
+                  onCommit={handlePriceRangeCommit}
                 />
 
                 {/* Number Inputs for Precise Control */}
@@ -225,8 +278,9 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                       min={PRICE_MIN}
                       max={PRICE_MAX}
                       step="0.01"
-                      value={minPrice}
+                      value={draftMinPrice}
                       onChange={handleMinPriceInputChange}
+                      onKeyDown={handlePriceInputKeyDown}
                       placeholder="0"
                       className="text-sm"
                     />
@@ -241,13 +295,26 @@ export const BrowseFilterSidebar: React.FC<BrowseFilterSidebarProps> = ({
                       min={PRICE_MIN}
                       max={PRICE_MAX}
                       step="0.01"
-                      value={maxPrice}
+                      value={draftMaxPrice}
                       onChange={handleMaxPriceInputChange}
+                      onKeyDown={handlePriceInputKeyDown}
                       placeholder="No limit"
                       className="text-sm"
                     />
                   </div>
                 </fieldset>
+
+                {!applyPriceImmediately && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPrice(draftMinPrice, draftMaxPrice)}
+                    disabled={!isPriceDirty}
+                    className="w-full"
+                  >
+                    Apply price
+                  </Button>
+                )}
               </>
             )}
 
