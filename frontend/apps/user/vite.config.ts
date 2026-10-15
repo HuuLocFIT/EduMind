@@ -5,7 +5,27 @@ import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import { resolve } from 'path';
+import { readFileSync } from 'node:fs';
 import { viteSitemapPlugin } from '../../tools/plugins/vite-sitemap';
+
+// Serve the production CSP from vercel.json on `vite preview` so it can be
+// tested locally against a single source of truth. The local gateway is
+// added to connect-src because preview builds call http://localhost:8080.
+function previewCspHeaders(): Record<string, string> {
+  const vercel = JSON.parse(
+    readFileSync(resolve(__dirname, '../../vercel.json'), 'utf-8')
+  ) as { headers?: { headers: { key: string; value: string }[] }[] };
+  const csp = vercel.headers
+    ?.flatMap((rule) => rule.headers)
+    .find((header) => header.key.startsWith('Content-Security-Policy'));
+  if (!csp) return {};
+  return {
+    [csp.key]: csp.value.replace(
+      'connect-src ',
+      'connect-src http://localhost:8080 '
+    ),
+  };
+}
 
 export default defineConfig(() => ({
   root: __dirname,
@@ -20,6 +40,7 @@ export default defineConfig(() => ({
   preview:{
     port: 3000,
     host: 'localhost',
+    headers: previewCspHeaders(),
   },
   appType: 'spa',
   plugins: [
