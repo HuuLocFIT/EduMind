@@ -48,6 +48,7 @@ public class CourseServiceImpl implements CourseService {
     private final LessonRepository lessonRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final UserClient userClient;
+    private final CourseDetailCacheEvictor courseDetailCacheEvictor;
 
     @Override
     @Transactional
@@ -371,6 +372,7 @@ public class CourseServiceImpl implements CourseService {
         course.setTotalStudents((int) totalStudents);
 
         courseRepository.save(course);
+        courseDetailCacheEvictor.evictAfterCommit(courseId);
         log.debug("Course statistics updated: {}", courseId);
     }
 
@@ -486,6 +488,8 @@ public class CourseServiceImpl implements CourseService {
         Course course = getCourseById(courseId);
         recalculateDurationHours(course);
         courseRepository.save(course);
+        // Also covers lesson video upload/delete, which publish no domain event
+        courseDetailCacheEvictor.evictAfterCommit(courseId);
     }
 
     private void recalculateDurationHours(Course course) {

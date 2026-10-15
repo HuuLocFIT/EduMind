@@ -54,6 +54,12 @@ public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecif
     Optional<Course> findBySlugWithStructure(@Param("slug") String slug);
 
     /**
+     * Resolve a slug to its course id (index lookup, no joins). Lets slug reads share the id-keyed detail cache.
+     */
+    @Query("SELECT c.id FROM Course c WHERE c.slug = :slug")
+    Optional<Long> findIdBySlug(@Param("slug") String slug);
+
+    /**
      * Check if slug exists (for validation)
      */
     boolean existsBySlug(String slug);

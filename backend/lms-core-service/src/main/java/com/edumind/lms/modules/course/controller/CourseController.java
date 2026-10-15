@@ -17,6 +17,7 @@ import com.edumind.lms.modules.course.enums.EnrollmentStatus;
 import com.edumind.lms.modules.course.exception.CourseNotFoundException;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.CategoryService;
+import com.edumind.lms.modules.course.service.CourseDetailCacheService;
 import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.util.CategoryMapper;
 import com.edumind.lms.modules.course.util.CourseMapper;
@@ -35,7 +36,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,6 +56,7 @@ public class CourseController {
         private final CategoryMapper categoryMapper;
         private final InstructorNameResolver instructorNameResolver;
         private final EnrollmentRepository enrollmentRepository;
+        private final CourseDetailCacheService courseDetailCacheService;
 
         @PostMapping
         @PreAuthorize("@teacherSecurity.isActiveTeacher()")
@@ -136,28 +137,27 @@ public class CourseController {
                 return ResponseEntity.ok(ApiResponse.success("Course archived successfully", courseMapper.toResponse(archived)));
         }
 
+        // No @Transactional here: on a cache hit the request never touches the DB
         @GetMapping("/{id}")
-        @Transactional(readOnly = true)
         public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseById(
                         @PathVariable Long id, Authentication authentication) {
                 log.info("Getting course: {}", id);
 
-                Course course = courseService.getCourseById(id);
-                ensureCourseVisible(course, authentication);
-                CourseDetailResponse response = courseMapper.toDetailResponse(course, categoryMapper);
+                CourseDetailResponse response = courseDetailCacheService.getDetail(id);
+                // Visibility is checked on every request; the cached DTO is shared by all viewers
+                ensureCourseVisible(response.getId(), response.getStatus(), response.getInstructorId(), authentication);
 
                 return ResponseEntity.ok(ApiResponse.success(response));
         }
 
         @GetMapping("/slug/{slug}")
-        @Transactional(readOnly = true)
         public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseBySlug(@PathVariable String slug,
                         Authentication authentication) {
                 log.info("Getting course by slug: {}", slug);
 
-                Course course = courseService.getCourseBySlug(slug);
-                ensureCourseVisible(course, authentication);
-                CourseDetailResponse response = courseMapper.toDetailResponse(course, categoryMapper);
+                Long courseId = courseDetailCacheService.resolveIdBySlug(slug);
+                CourseDetailResponse response = courseDetailCacheService.getDetail(courseId);
+                ensureCourseVisible(response.getId(), response.getStatus(), response.getInstructorId(), authentication);
 
                 return ResponseEntity.ok(ApiResponse.success(response));
         }
@@ -400,23 +400,24 @@ public class CourseController {
                                 "Instructor stats retrieved successfully",
                                 stats));
         }
-        private void ensureCourseVisible(Course course, Authentication authentication) {
-                if (course.getStatus() == CourseStatus.PUBLISHED) return;
+        private void ensureCourseVisible(Long courseId, CourseStatus status, Long instructorId,
+                        Authentication authentication) {
+                if (status == CourseStatus.PUBLISHED) return;
                 if (authentication == null || !authentication.isAuthenticated()
                                 || "anonymousUser".equals(authentication.getPrincipal())) {
-                        throw new CourseNotFoundException(course.getId());
+                        throw new CourseNotFoundException(courseId);
                 }
                 Long userId = Long.valueOf(authentication.getPrincipal().toString());
                 boolean isAdmin = authentication.getAuthorities().stream()
                                 .map(GrantedAuthority::getAuthority).anyMatch("ROLE_ADMIN"::equals);
-                if (isAdmin || course.getInstructorId().equals(userId)) return;
-                Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(course.getId(), userId)
-                                .orElseThrow(() -> new CourseNotFoundException(course.getId()));
+                if (isAdmin || userId.equals(instructorId)) return;
+                Enrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, userId)
+                                .orElseThrow(() -> new CourseNotFoundException(courseId));
                 boolean entitled = enrollment.getStatus() == EnrollmentStatus.ACTIVE
                                 || enrollment.getStatus() == EnrollmentStatus.COMPLETED
                                 || (enrollment.getStatus() == EnrollmentStatus.EXPIRED
                                         && enrollment.getExpiresAt() != null
                                         && enrollment.getExpiresAt().isAfter(LocalDateTime.now()));
-                if (!entitled) throw new CourseNotFoundException(course.getId());
+                if (!entitled) throw new CourseNotFoundException(courseId);
         }
 }

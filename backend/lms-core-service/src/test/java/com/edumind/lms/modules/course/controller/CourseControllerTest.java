@@ -3,6 +3,7 @@ package com.edumind.lms.modules.course.controller;
 import com.edumind.lms.config.security.TeacherSecurity;
 import com.edumind.lms.config.security.JwtTokenProvider;
 import com.edumind.lms.modules.course.service.CategoryService;
+import com.edumind.lms.modules.course.service.CourseDetailCacheService;
 import com.edumind.lms.modules.course.service.CourseService;
 import com.edumind.lms.modules.course.repository.EnrollmentRepository;
 import com.edumind.lms.modules.course.service.InstructorNameResolver;
@@ -66,6 +67,9 @@ class CourseControllerTest {
 
     @MockBean
     private EnrollmentRepository enrollmentRepository;
+
+    @MockBean
+    private CourseDetailCacheService courseDetailCacheService;
 
     @MockBean(name = "teacherSecurity")
     private TeacherSecurity teacherSecurity;

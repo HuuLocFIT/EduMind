@@ -31,6 +31,7 @@ public class SectionServiceImpl implements SectionService {
     private final SectionRepository sectionRepository;
     private final CourseRepository courseRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CourseDetailCacheEvictor courseDetailCacheEvictor;
 
     @Override
     @Transactional
@@ -186,6 +187,8 @@ public class SectionServiceImpl implements SectionService {
             sectionsToUpdate.get(i).setOrderIndex(i);
         }
         sectionRepository.saveAll(sectionsToUpdate);
+        // No domain event for reorder, so evict the detail cache directly
+        courseDetailCacheEvictor.evictAfterCommit(courseId);
 
         log.info("Sections reordered successfully");
     }

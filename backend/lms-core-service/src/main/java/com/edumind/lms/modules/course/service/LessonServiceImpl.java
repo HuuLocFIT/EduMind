@@ -45,6 +45,7 @@ public class LessonServiceImpl implements LessonService {
     private final Cloudinary cloudinary;
     private final CloudinaryService cloudinaryService;
     private final CourseService courseService;
+    private final CourseDetailCacheEvictor courseDetailCacheEvictor;
 
     @Value("${video.hls.enabled:false}")
     private boolean hlsEnabled;
@@ -355,6 +356,8 @@ public class LessonServiceImpl implements LessonService {
             lessonsToUpdate.get(i).setOrderIndex(i);
         }
         lessonRepository.saveAll(lessonsToUpdate);
+        // No domain event for reorder, so evict the detail cache directly
+        courseDetailCacheEvictor.evictAfterCommit(section.getCourse().getId());
 
         log.info("Lessons reordered successfully");
     }

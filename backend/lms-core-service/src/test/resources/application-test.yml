@@ -29,6 +29,10 @@ spring:
   flyway:
     enabled: true
 
+  # In-memory cache so tests don't need Redis
+  cache:
+    type: simple
+
   # Disable cloud features
   cloud:
     discovery:
