@@ -123,8 +123,19 @@ jobs:
             --environment=production \
             --token "$VERCEL_TOKEN"
           npx vercel@59.5.0 build --cwd .. --prod \
-            --local-config vercel.json \
+            --local-config "$PWD/vercel.json" \
             --token "$VERCEL_TOKEN"
+      - name: Verify vercel.json headers and rewrites are in the build output
+        # Vercel serves only what ends up in .vercel/output/config.json. If vercel.json is not
+        # picked up, the deploy still succeeds but silently drops the CSP and the SPA rewrite.
+        run: |
+          config=../.vercel/output/config.json
+          if ! grep -q 'Content-Security-Policy' "$config" || ! grep -q 'spa.html' "$config"; then
+            echo "::error::vercel.json headers/rewrites are missing from $config" >&2
+            node -e 'console.log(JSON.stringify(require(process.argv[1]).routes, null, 2))' "$(realpath "$config")" >&2
+            exit 1
+          fi
+          echo "vercel.json headers and rewrites found in the build output."
       - name: Upload user source maps to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -155,7 +166,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_USER_PROJECT_ID }}
         run: |
           url="$(npx vercel@59.5.0 deploy --cwd .. --prebuilt --prod \
-            --local-config vercel.json \
+            --local-config "$PWD/vercel.json" \
             --token "$VERCEL_TOKEN")"
           echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
@@ -170,7 +181,7 @@ jobs:
             --environment=production \
             --token "$VERCEL_TOKEN"
           npx vercel@59.5.0 build --cwd .. --prod \
-            --local-config vercel.admin.json \
+            --local-config "$PWD/vercel.admin.json" \
             --token "$VERCEL_TOKEN"
       - name: Upload admin source maps to Sentry
         env:
@@ -195,7 +206,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
         run: |
           url="$(npx vercel@59.5.0 deploy --cwd .. --prebuilt --prod \
-            --local-config vercel.admin.json \
+            --local-config "$PWD/vercel.admin.json" \
             --token "$VERCEL_TOKEN")"
           echo "url=$(printf '%s' "$url" | tail -n 1)" >> "$GITHUB_OUTPUT"
 
