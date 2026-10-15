@@ -7,6 +7,11 @@ concurrency:
   group: frontend-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  # Puppeteer (pa11y) downloads Chrome in postinstall; that download is flaky and only the
+  # accessibility job needs it, so skip it during npm ci and install it explicitly there.
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+
 jobs:
   changes:
     name: Detect frontend changes
@@ -86,6 +91,17 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+      - name: Install Puppeteer Chrome for Pa11y
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'false'
+        run: |
+          for i in 1 2 3; do
+            npx puppeteer browsers install chrome && exit 0
+            echo "Chrome download failed (attempt $i), retrying..." >&2
+            rm -rf ~/.cache/puppeteer/chrome
+            sleep 5
+          done
+          exit 1
       - name: Accessibility-aware ESLint
         run: npm run lint:a11y
       - name: App-independent accessibility utility regression

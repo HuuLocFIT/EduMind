@@ -12,6 +12,11 @@ concurrency:
   group: frontend-production
   cancel-in-progress: false
 
+env:
+  # Puppeteer (pa11y) downloads Chrome in postinstall; that download is flaky and the
+  # release build never runs a browser, so skip it.
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+
 jobs:
   resolve:
     name: Resolve production release

@@ -128,7 +128,7 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
             {/* Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="p-4">
-                <BrowseFilterSidebar {...sidebarProps} showClearButton={false} idPrefix="mobile" />
+                <BrowseFilterSidebar {...sidebarProps} showClearButton={false} idPrefix="mobile" applyPriceImmediately />
               </div>
             </div>
 
