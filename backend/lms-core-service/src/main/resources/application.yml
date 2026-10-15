@@ -43,6 +43,25 @@ spring:
     schemas: course,assessment,gamification,payment,notification,ai,public
     create-schemas: true
 
+  # Redis (shared with api-gateway). Short timeouts so a Redis outage degrades
+  # to DB reads quickly instead of blocking requests (see CacheConfig error handler).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${CACHE_REDIS_TIMEOUT:500ms}
+      connect-timeout: ${CACHE_REDIS_CONNECT_TIMEOUT:500ms}
+      repositories:
+        enabled: false   # Redis is a cache only; all repositories are JPA
+
+  # Spring Cache. Set CACHE_TYPE=none to disable caching (e.g. for benchmarks).
+  # TTLs and serialization are defined in CacheConfig.
+  cache:
+    type: ${CACHE_TYPE:redis}
+    redis:
+      enable-statistics: true
+
   servlet:
     multipart:
       enabled: true
@@ -117,10 +136,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,caches
   endpoint:
     health:
       show-details: always
+  health:
+    # Redis only backs the cache; the service keeps serving from the DB when it is down,
+    # so a Redis outage must not mark the container unhealthy.
+    redis:
+      enabled: false
 
 # AI Executor Configuration
 ai:

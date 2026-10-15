@@ -51,7 +51,8 @@ public class PlatformConfigServiceImpl implements PlatformConfigService {
     }
 
     @Override
-    @Cacheable(value = "platformConfig", key = "#key")
+    // Redis cache rejects null values; a missing key is simply looked up again next time
+    @Cacheable(value = "platformConfig", key = "#key", unless = "#result == null")
     public String getConfigValue(String key) {
         return configRepository.findByConfigKey(key)
                 .map(PlatformConfig::getConfigValue)
